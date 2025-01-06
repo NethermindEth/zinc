@@ -4,29 +4,29 @@ use ark_ff::BigInt;
 
 pub struct RandomFieldConfig {}
 
-pub struct RandomField<'config> {
+pub struct RandomField<'config, const N: usize> {
     pub config: &'config RandomFieldConfig,
-    pub value: BigInt<8>,
+    pub value: BigInt<N>,
 }
 
-impl<'config> RandomField<'config> {
-    pub fn new(config: &'config RandomFieldConfig, value: BigInt<8>) -> Self {
+impl<'config, const N: usize> RandomField<'config, N> {
+    pub fn new(config: &'config RandomFieldConfig, value: BigInt<N>) -> Self {
         RandomField { config, value }
     }
 }
 
-impl<'a, 'config> Add<&'a RandomField<'config>> for RandomField<'config> {
-    type Output = RandomField<'config>;
+impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
 
-    fn add(self, rhs: &'a RandomField<'config>) -> RandomField<'config> {
+    fn add(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
         &self + rhs
     }
 }
 
-impl<'a, 'config> Add<&'a RandomField<'config>> for &RandomField<'config> {
-    type Output = RandomField<'config>;
+impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
 
-    fn add(self, rhs: &'a RandomField<'config>) -> RandomField<'config> {
+    fn add(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
         // Here we assume that the elements of a random field are
         // created using the same RandomFieldConfig.
 

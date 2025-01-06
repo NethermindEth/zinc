@@ -23,7 +23,7 @@ impl<'a, 'config> Add<&'a RandomField<'config>> for RandomField<'config> {
     }
 }
 
-impl<'a, 'b, 'config> Add<&'a RandomField<'config>> for &'b RandomField<'config> {
+impl<'a, 'config> Add<&'a RandomField<'config>> for &RandomField<'config> {
     type Output = RandomField<'config>;
 
     fn add(self, rhs: &'a RandomField<'config>) -> RandomField<'config> {

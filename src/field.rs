@@ -40,3 +40,11 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         todo!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_add() {
+        // TODO: fill this in
+    }
+}

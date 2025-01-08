@@ -149,15 +149,15 @@ impl<const N: usize> MontConfig<N> {
         });
         let carry = carry2 != 0;
 
-        // if self.modulus_has_spare_bit {
-        //     if *a >= self.modulus {
-        //         a.sub_with_borrow(&self.modulus);
-        //     }
-        // } else {
-        //     if carry || *a >= self.modulus {
-        //         a.sub_with_borrow(&self.modulus);
-        //     }
-        // }
+        if self.modulus_has_spare_bit {
+            if *a >= self.modulus {
+                a.sub_with_borrow(&self.modulus);
+            }
+        } else {
+            if carry || *a >= self.modulus {
+                a.sub_with_borrow(&self.modulus);
+            }
+        }
     }
 
     pub fn inverse(self, a: &BigInt<N>) -> Option<BigInt<N>> {
@@ -259,7 +259,7 @@ fn widening_mul(a: u64, b: u64) -> u128 {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::{inv, BigInteger64};
+    use ark_ff::BigInteger64;
 
     use super::MontConfig;
 

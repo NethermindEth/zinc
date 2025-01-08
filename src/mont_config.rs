@@ -160,10 +160,11 @@ impl<const N: usize> MontConfig<N> {
         }
     }
 
-    pub fn inverse(self, a: &BigInt<N>) -> Option<BigInt<N>> {
+    pub fn inverse(&self, a: &BigInt<N>) -> Option<BigInt<N>> {
         if a.is_zero() {
             return None;
         }
+
         // Guajardo Kumar Paar Pelzl
         // Efficient Software-Implementation of Finite Fields with Applications to
         // Cryptography
@@ -173,7 +174,7 @@ impl<const N: usize> MontConfig<N> {
 
         let mut u = a.clone();
         let mut v = self.modulus;
-        let mut b = self.r2; // Avoids unnecessary reduction step.
+        let mut b = one.clone(); // Avoids unnecessary reduction step.
         let mut c = BigInt::<N>::zero();
 
         while u != one && v != one {
@@ -296,5 +297,13 @@ mod tests {
         let a = BigInteger64::from(2 as u64);
         let b = field.inverse(&a).unwrap();
         assert_eq!(b, BigInteger64::from(42 as u32));
+
+        let a = BigInteger64::from(3 as u64);
+        let b = field.inverse(&a).unwrap();
+        assert_eq!(b, BigInteger64::from(28 as u32));
+
+        let a = BigInteger64::from(4 as u64);
+        let b = field.inverse(&a).unwrap();
+        assert_eq!(b, BigInteger64::from(21 as u32));
     }
 }

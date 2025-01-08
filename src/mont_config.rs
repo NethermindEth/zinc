@@ -147,6 +147,7 @@ impl<const N: usize> MontConfig<N> {
         crate::const_for!((i in 0..N) {
             (a).0[i] = hi[i];
         });
+
         let carry = carry2 != 0;
 
         if self.modulus_has_spare_bit {
@@ -285,15 +286,17 @@ mod tests {
     #[test]
     fn test_multiplication() {
         let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
-        let mut a = BigInteger64::from(5 as u64);
-        let b = BigInteger64::from(1 as u64);
+
+        let mut a = BigInteger64::from(4 as u64);
+        let b = BigInteger64::from(8 as u64);
         field.mul_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(40 as u32));
+        assert_eq!(a, BigInteger64::from(47 as u32));
     }
 
     #[test]
     fn test_division() {
         let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+
         let a = BigInteger64::from(2 as u64);
         let b = field.inverse(&a).unwrap();
         assert_eq!(b, BigInteger64::from(42 as u32));

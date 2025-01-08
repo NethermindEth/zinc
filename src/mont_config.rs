@@ -149,15 +149,15 @@ impl<const N: usize> MontConfig<N> {
         });
         let carry = carry2 != 0;
 
-        if self.modulus_has_spare_bit {
-            if *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        } else {
-            if carry || *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        }
+        // if self.modulus_has_spare_bit {
+        //     if *a >= self.modulus {
+        //         a.sub_with_borrow(&self.modulus);
+        //     }
+        // } else {
+        //     if carry || *a >= self.modulus {
+        //         a.sub_with_borrow(&self.modulus);
+        //     }
+        // }
     }
 
     pub fn inverse(self, a: &BigInt<N>) -> Option<BigInt<N>> {
@@ -255,4 +255,46 @@ macro_rules! const_for {
 
 fn widening_mul(a: u64, b: u64) -> u128 {
     a as u128 * b as u128
+}
+
+#[cfg(test)]
+mod tests {
+    use ark_ff::{inv, BigInteger64};
+
+    use super::MontConfig;
+
+    #[test]
+    fn test_addition() {
+        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let mut a = BigInteger64::from(6 as u64);
+        let b = BigInteger64::from(81 as u64);
+        field.add_assign(&mut a, &b);
+        assert_eq!(a, BigInteger64::from(4 as u32));
+    }
+
+    #[test]
+    fn test_subtraction() {
+        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let mut a = BigInteger64::from(5 as u64);
+        let b = BigInteger64::from(8 as u64);
+        field.sub_assign(&mut a, &b);
+        assert_eq!(a, BigInteger64::from(80 as u32));
+    }
+
+    #[test]
+    fn test_multiplication() {
+        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let mut a = BigInteger64::from(5 as u64);
+        let b = BigInteger64::from(1 as u64);
+        field.mul_assign(&mut a, &b);
+        assert_eq!(a, BigInteger64::from(40 as u32));
+    }
+
+    #[test]
+    fn test_division() {
+        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let a = BigInteger64::from(2 as u64);
+        let b = field.inverse(&a).unwrap();
+        assert_eq!(b, BigInteger64::from(42 as u32));
+    }
 }

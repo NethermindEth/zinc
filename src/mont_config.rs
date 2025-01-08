@@ -48,47 +48,27 @@ pub struct MontConfig<const N: usize> {
     /// This condition applies if
     /// (a) `Self::MODULUS[N-1] >> 63 == 0`
     #[doc(hidden)]
-    MODULUS_HAS_SPARE_BIT: bool,
-
-    /// Can we use the no-carry optimization for multiplication
-    /// outlined [here](https://hackmd.io/@gnark/modular_multiplication)?
-    ///
-    /// This optimization applies if
-    /// (a) `Self::MODULUS[N-1] < u64::MAX >> 1`, and
-    /// (b) the bits of the modulus are not all 1.
-    CAN_USE_NO_CARRY_MUL_OPT: bool,
-
-    /// Can we use the no-carry optimization for squaring
-    /// outlined [here](https://hackmd.io/@gnark/modular_multiplication)?
-    ///
-    /// This optimization applies if
-    /// (a) `Self::MODULUS[N-1] < u64::MAX >> 2`, and
-    /// (b) the bits of the modulus are not all 1.
-    CAN_USE_NO_CARRY_SQUARE_OPT: bool,
-
-    /// 2^s root of unity computed by GENERATOR^t
-    TWO_ADIC_ROOT_OF_UNITY: BigInt<N>,
-
-    /// An integer `b` such that there exists a multiplicative subgroup
-    /// of size `b^k` for some integer `k`.
-    SMALL_SUBGROUP_BASE: Option<u32>,
-
-    /// The integer `k` such that there exists a multiplicative subgroup
-    /// of size `Self::SMALL_SUBGROUP_BASE^k`.
-    SMALL_SUBGROUP_BASE_ADICITY: Option<u32>,
-
-    /// GENERATOR^((MODULUS-1) / (2^s *
-    /// SMALL_SUBGROUP_BASE^SMALL_SUBGROUP_BASE_ADICITY)).
-    /// Used for mixed-radix FFT.
-    LARGE_SUBGROUP_ROOT_OF_UNITY: Option<BigInt<N>>,
+    modulus_has_spare_bit: bool,
 }
 
 impl<const N: usize> MontConfig<N> {
+    fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
+        let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
+        Self {
+            modulus,
+            r: modulus.montgomery_r(),
+            r2: modulus.montgomery_r2(),
+            inv: inv(modulus),
+            generator,
+            modulus_has_spare_bit,
+        }
+    }
+
     fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(&b);
         // However, it may need to be reduced
-        if self.MODULUS_HAS_SPARE_BIT {
+        if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
@@ -111,7 +91,7 @@ impl<const N: usize> MontConfig<N> {
         // This cannot exceed the backing capacity.
         let carry = a.mul2();
         // However, it may need to be reduced.
-        if self.MODULUS_HAS_SPARE_BIT {
+        if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
@@ -169,7 +149,7 @@ impl<const N: usize> MontConfig<N> {
         });
         let carry = carry2 != 0;
 
-        if self.MODULUS_HAS_SPARE_BIT {
+        if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
@@ -180,7 +160,7 @@ impl<const N: usize> MontConfig<N> {
         }
     }
 
-    fn inverse(self, a: &BigInt<N>) -> Option<BigInt<N>> {
+    pub fn inverse(self, a: &BigInt<N>) -> Option<BigInt<N>> {
         if a.is_zero() {
             return None;
         }
@@ -205,7 +185,7 @@ impl<const N: usize> MontConfig<N> {
                 } else {
                     let carry = b.add_with_carry(&self.modulus);
                     b.div2();
-                    if !self.MODULUS_HAS_SPARE_BIT && carry {
+                    if !self.modulus_has_spare_bit && carry {
                         (b).0[N - 1] |= 1 << 63;
                     }
                 }
@@ -219,7 +199,7 @@ impl<const N: usize> MontConfig<N> {
                 } else {
                     let carry = c.add_with_carry(&self.modulus);
                     c.div2();
-                    if !self.MODULUS_HAS_SPARE_BIT && carry {
+                    if !self.modulus_has_spare_bit && carry {
                         (c).0[N - 1] |= 1 << 63;
                     }
                 }
@@ -242,6 +222,26 @@ impl<const N: usize> MontConfig<N> {
     }
 }
 
+/// Compute -M^{-1} mod 2^64.
+pub const fn inv<const N: usize>(modulus: BigInt<N>) -> u64 {
+    // We compute this as follows.
+    // First, MODULUS mod 2^64 is just the lower 64 bits of MODULUS.
+    // Hence MODULUS mod 2^64 = MODULUS.0[0] mod 2^64.
+    //
+    // Next, computing the inverse mod 2^64 involves exponentiating by
+    // the multiplicative group order, which is euler_totient(2^64) - 1.
+    // Now, euler_totient(2^64) = 1 << 63, and so
+    // euler_totient(2^64) - 1 = (1 << 63) - 1 = 1111111... (63 digits).
+    // We compute this powering via standard square and multiply.
+    let mut inv = 1u64;
+    crate::const_for!((_i in 0..63) {
+        // Square
+        inv = inv.wrapping_mul(inv);
+        // Multiply
+        inv = inv.wrapping_mul(modulus.0[0]);
+    });
+    inv.wrapping_neg()
+}
 #[macro_export]
 macro_rules! const_for {
     (($i:ident in $start:tt..$end:tt)  $code:expr ) => {{

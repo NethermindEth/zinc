@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use ark_ff::{BigInt, BigInteger};
 
 macro_rules! mac {

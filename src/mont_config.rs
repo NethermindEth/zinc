@@ -67,16 +67,14 @@ impl<const N: usize> MontConfig<N> {
 
     fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
-        let c = a.add_with_carry(&b);
+        let c = a.add_with_carry(b);
         // However, it may need to be reduced
         if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
-        } else {
-            if c || *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
+        } else if c || *a >= self.modulus {
+            a.sub_with_borrow(&self.modulus);
         }
     }
 
@@ -85,7 +83,7 @@ impl<const N: usize> MontConfig<N> {
         if b > a {
             a.add_with_carry(&self.modulus);
         }
-        a.sub_with_borrow(&b);
+        a.sub_with_borrow(b);
     }
 
     fn double_in_place(&self, a: &mut BigInt<N>) {
@@ -96,10 +94,8 @@ impl<const N: usize> MontConfig<N> {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
-        } else {
-            if carry || *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
+        } else if carry || *a >= self.modulus {
+            a.sub_with_borrow(&self.modulus);
         }
     }
 
@@ -108,7 +104,7 @@ impl<const N: usize> MontConfig<N> {
     fn neg_in_place(&self, a: &mut BigInt<N>) {
         if !a.is_zero() {
             let mut tmp = self.modulus;
-            tmp.sub_with_borrow(&a);
+            tmp.sub_with_borrow(a);
             *a = tmp;
         }
     }
@@ -155,10 +151,8 @@ impl<const N: usize> MontConfig<N> {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
             }
-        } else {
-            if carry || *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
+        } else if carry || *a >= self.modulus {
+            a.sub_with_borrow(&self.modulus);
         }
     }
 
@@ -174,9 +168,9 @@ impl<const N: usize> MontConfig<N> {
 
         let one = BigInt::from(1u64);
 
-        let mut u = a.clone();
+        let mut u = *a;
         let mut v = self.modulus;
-        let mut b = one.clone(); // Avoids unnecessary reduction step.
+        let mut b = one; // Avoids unnecessary reduction step.
         let mut c = BigInt::<N>::zero();
 
         while u != one && v != one {
@@ -268,51 +262,51 @@ mod tests {
 
     #[test]
     fn test_addition() {
-        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
-        let mut a = BigInteger64::from(6 as u64);
-        let b = BigInteger64::from(81 as u64);
+        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
+        let mut a = BigInteger64::from(6_u64);
+        let b = BigInteger64::from(81_u64);
         field.add_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(4 as u32));
+        assert_eq!(a, BigInteger64::from(4_u32));
     }
 
     #[test]
     fn test_subtraction() {
-        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
-        let mut a = BigInteger64::from(5 as u64);
-        let b = BigInteger64::from(8 as u64);
+        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
+        let mut a = BigInteger64::from(5_u64);
+        let b = BigInteger64::from(8_u64);
         field.sub_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(80 as u32));
+        assert_eq!(a, BigInteger64::from(80_u32));
     }
 
     #[test]
     fn test_multiplication() {
-        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
 
-        let mut a = BigInteger64::from(4 as u64);
-        let b = BigInteger64::from(8 as u64);
+        let mut a = BigInteger64::from(4_u64);
+        let b = BigInteger64::from(8_u64);
         field.mul_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(47 as u32));
+        assert_eq!(a, BigInteger64::from(47_u32));
 
-        let mut a = BigInteger64::from(2 as u64);
-        let b = BigInteger64::from(7 as u64);
+        let mut a = BigInteger64::from(2_u64);
+        let b = BigInteger64::from(7_u64);
         field.mul_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(5 as u32));
+        assert_eq!(a, BigInteger64::from(5_u32));
     }
 
     #[test]
     fn test_division() {
-        let field = MontConfig::new(BigInteger64::from(83 as u64), BigInteger64::from(2 as u64));
+        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
 
-        let a = BigInteger64::from(2 as u64);
+        let a = BigInteger64::from(2_u64);
         let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(42 as u32));
+        assert_eq!(b, BigInteger64::from(42_u32));
 
-        let a = BigInteger64::from(3 as u64);
+        let a = BigInteger64::from(3_u64);
         let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(28 as u32));
+        assert_eq!(b, BigInteger64::from(28_u32));
 
-        let a = BigInteger64::from(4 as u64);
+        let a = BigInteger64::from(4_u64);
         let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(21 as u32));
+        assert_eq!(b, BigInteger64::from(21_u32));
     }
 }

@@ -112,7 +112,7 @@ impl<const N: usize> MontConfig<N> {
         }
     }
 
-    fn mul_assign(self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         let (mut lo, mut hi) = ([0u64; N], [0u64; N]);
         crate::const_for!((i in 0..N) {
             let mut carry = 0;
@@ -291,6 +291,11 @@ mod tests {
         let b = BigInteger64::from(8 as u64);
         field.mul_assign(&mut a, &b);
         assert_eq!(a, BigInteger64::from(47 as u32));
+
+        let mut a = BigInteger64::from(2 as u64);
+        let b = BigInteger64::from(7 as u64);
+        field.mul_assign(&mut a, &b);
+        assert_eq!(a, BigInteger64::from(5 as u32));
     }
 
     #[test]

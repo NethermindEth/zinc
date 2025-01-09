@@ -256,57 +256,66 @@ fn widening_mul(a: u64, b: u64) -> u128 {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::BigInteger64;
+    use std::str::FromStr;
+
+    use ark_ff::{BigInteger128, BigInteger256};
 
     use super::MontConfig;
 
+    //BIGINTS ARE LITTLE ENDIAN!!
     #[test]
     fn test_addition() {
-        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
-        let mut a = BigInteger64::from(6_u64);
-        let b = BigInteger64::from(81_u64);
+        let field = MontConfig::new(
+            BigInteger128::new([9307119299070690521, 9320126393725433252]),
+            BigInteger128::new([19, 0]),
+        );
+        let mut a = BigInteger128::new([2, 0]);
+        let b = BigInteger128::new([2, 0]);
         field.add_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(4_u32));
+        assert_eq!(a, BigInteger128::new([4, 0]));
     }
 
     #[test]
     fn test_subtraction() {
-        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
-        let mut a = BigInteger64::from(5_u64);
-        let b = BigInteger64::from(8_u64);
+        let field = MontConfig::new(
+            BigInteger128::new([9307119299070690521, 9320126393725433252]),
+            BigInteger128::new([19, 0]),
+        );
+        let mut a = BigInteger128::new([2, 0]);
+        let b = BigInteger128::new([2, 0]);
         field.sub_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(80_u32));
+        assert_eq!(a, BigInteger128::zero());
     }
 
     #[test]
     fn test_multiplication() {
-        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
-
-        let mut a = BigInteger64::from(4_u64);
-        let b = BigInteger64::from(8_u64);
+        let field = MontConfig::new(
+            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
+            BigInteger256::from_str("2").unwrap(),
+        );
+        let mut a = BigInteger256::from_str("423024736033").unwrap();
+        let b = BigInteger256::from_str("246308734").unwrap();
         field.mul_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(47_u32));
 
-        let mut a = BigInteger64::from(2_u64);
-        let b = BigInteger64::from(7_u64);
-        field.mul_assign(&mut a, &b);
-        assert_eq!(a, BigInteger64::from(5_u32));
+        // 142185583660281492684032374998820021 is the mystery factor here
+        assert_eq!(
+            BigInteger256::from_str("504579159360957705315139767875358506").unwrap(),
+            a
+        );
     }
 
     #[test]
     fn test_division() {
-        let field = MontConfig::new(BigInteger64::from(83_u64), BigInteger64::from(2_u64));
-
-        let a = BigInteger64::from(2_u64);
+        let field = MontConfig::new(
+            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
+            BigInteger256::from_str("2").unwrap(),
+        );
+        let a = BigInteger256::from_str("3").unwrap();
         let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(42_u32));
 
-        let a = BigInteger64::from(3_u64);
-        let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(28_u32));
-
-        let a = BigInteger64::from(4_u64);
-        let b = field.inverse(&a).unwrap();
-        assert_eq!(b, BigInteger64::from(21_u32));
+        assert_eq!(
+            b,
+            BigInteger256::new([17718825271449207740, 12576061786706986, 0, 0])
+        );
     }
 }

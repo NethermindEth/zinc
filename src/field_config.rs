@@ -57,7 +57,7 @@ pub struct FieldConfig<const N: usize> {
 }
 
 impl<const N: usize> FieldConfig<N> {
-    fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
+    pub fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
         let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
         Self {
             modulus,

@@ -22,7 +22,7 @@ impl<'config, const N: usize> RandomField<'config, N> {
         } else {
             let mut r = value;
             config.mul_assign(&mut r, &config.r2);
-            Some(Self::new_unchecked(config, value))
+            Some(Self::new_unchecked(config, r))
         }
     }
 
@@ -75,10 +75,31 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
     }
 }
 
+impl<'config, const N: usize> std::fmt::Debug for RandomField<'config, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use ark_ff::BigInteger256;
+
+    use crate::field_config::FieldConfig;
+
+    use super::RandomField;
+
     #[test]
-    fn test_add() {
-        // TODO: fill this in
+    fn test_bigint_conversion() {
+        let field_config = FieldConfig::new(
+            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
+            BigInteger256::from_str("2").unwrap(),
+        );
+
+        let bigint = BigInteger256::from_str("695962179703").unwrap();
+
+        let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
+        assert_eq!(bigint, field_elem.into_bigint())
     }
 }

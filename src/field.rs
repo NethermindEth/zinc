@@ -1,17 +1,29 @@
 use std::ops::Add;
 
-use ark_ff::BigInt;
+use ark_ff::{BigInt, BigInteger};
 
-pub struct FieldConfig {}
+use crate::field_config::FieldConfig;
 
 pub struct RandomField<'config, const N: usize> {
-    pub config: &'config FieldConfig,
+    pub config: &'config FieldConfig<N>,
     pub value: BigInt<N>,
 }
 
 impl<'config, const N: usize> RandomField<'config, N> {
-    pub fn new(config: &'config FieldConfig, value: BigInt<N>) -> Self {
+    pub fn new_unchecked(config: &'config FieldConfig<N>, value: BigInt<N>) -> Self {
         RandomField { config, value }
+    }
+
+    pub fn from_bigint(config: &'config FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
+        if value.is_zero() {
+            Some(Self::new_unchecked(config, value))
+        } else if value >= config.modulus {
+            None
+        } else {
+            let mut r = value;
+            config.mul_assign(&mut r, &config.r2);
+            Some(Self::new_unchecked(config, value))
+        }
     }
 }
 
@@ -30,8 +42,8 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         // Here we assume that the elements of a random field are
         // created using the same RandomFieldConfig.
 
-        let config_ptr_lhs: *const FieldConfig = self.config;
-        let config_ptr_rhs: *const FieldConfig = rhs.config;
+        let config_ptr_lhs: *const FieldConfig<N> = self.config;
+        let config_ptr_rhs: *const FieldConfig<N> = rhs.config;
 
         if config_ptr_lhs != config_ptr_rhs {
             panic!("cannot add field elements of different fields");

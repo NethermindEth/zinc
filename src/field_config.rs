@@ -25,7 +25,7 @@ macro_rules! adc {
     }};
 }
 
-pub struct RandomFieldConfig<const N: usize> {
+pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
 
@@ -52,7 +52,7 @@ pub struct RandomFieldConfig<const N: usize> {
     modulus_has_spare_bit: bool,
 }
 
-impl<const N: usize> RandomFieldConfig<N> {
+impl<const N: usize> FieldConfig<N> {
     fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
         let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
         Self {
@@ -260,12 +260,12 @@ mod tests {
 
     use ark_ff::{BigInteger128, BigInteger256};
 
-    use super::RandomFieldConfig;
+    use super::FieldConfig;
 
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]
     fn test_addition() {
-        let field = RandomFieldConfig::new(
+        let field = FieldConfig::new(
             BigInteger128::new([9307119299070690521, 9320126393725433252]),
             BigInteger128::new([19, 0]),
         );
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_subtraction() {
-        let field = RandomFieldConfig::new(
+        let field = FieldConfig::new(
             BigInteger128::new([9307119299070690521, 9320126393725433252]),
             BigInteger128::new([19, 0]),
         );
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_multiplication() {
-        let field = RandomFieldConfig::new(
+        let field = FieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
             BigInteger256::from_str("2").unwrap(),
         );
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_division() {
-        let field = RandomFieldConfig::new(
+        let field = FieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
             BigInteger256::from_str("2").unwrap(),
         );

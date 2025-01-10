@@ -2,7 +2,7 @@ use std::ops::Add;
 
 use ark_ff::{BigInt, BigInteger};
 
-use crate::field_config::FieldConfig;
+use crate::field_config::{self, FieldConfig};
 
 pub struct RandomField<'config, const N: usize> {
     pub config: &'config FieldConfig<N>,
@@ -24,6 +24,28 @@ impl<'config, const N: usize> RandomField<'config, N> {
             config.mul_assign(&mut r, &config.r2);
             Some(Self::new_unchecked(config, value))
         }
+    }
+
+    pub fn into_bigint(&self) -> BigInt<N> {
+        let mut r = self.value.0;
+        // Montgomery Reduction
+        for i in 0..N {
+            let k = r[i].wrapping_mul(self.config.inv);
+            let mut carry = 0;
+
+            field_config::mac_with_carry(r[i], k, self.config.modulus.0[0], &mut carry);
+            for j in 1..N {
+                r[(j + i) % N] = field_config::mac_with_carry(
+                    r[(j + i) % N],
+                    k,
+                    self.config.modulus.0[j],
+                    &mut carry,
+                );
+            }
+            r[i % N] = carry;
+        }
+
+        BigInt::new(r)
     }
 }
 

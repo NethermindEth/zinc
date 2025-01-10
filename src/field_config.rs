@@ -8,7 +8,7 @@ macro_rules! mac {
         tmp as u64
     }};
 }
-
+#[macro_export]
 macro_rules! mac_with_carry {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
         let tmp = ($a as u128) + widening_mul($b, $c) + ($carry as u128);
@@ -24,7 +24,11 @@ macro_rules! adc {
         tmp as u64
     }};
 }
-
+pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
+    let tmp = (a as u128) + widening_mul(b, c) + (*carry as u128);
+    *carry = (tmp >> 64) as u64;
+    tmp as u64
+}
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
@@ -37,7 +41,7 @@ pub struct FieldConfig<const N: usize> {
     pub r2: BigInt<N>,
 
     /// INV = -MODULUS^{-1} mod 2^64
-    inv: u64,
+    pub inv: u64,
 
     /// A multiplicative generator of the field.
     /// `Self::GENERATOR` is an element having multiplicative order

@@ -100,6 +100,10 @@ mod tests {
         let bigint = BigInteger256::from_str("695962179703").unwrap();
 
         let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
+        assert_eq!(bigint, field_elem.into_bigint());
+        let bigint = BigInteger256::from_str("695962179703626800597079116051991346").unwrap();
+
+        let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint())
     }
 }

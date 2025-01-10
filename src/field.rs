@@ -75,7 +75,7 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
     }
 }
 
-impl<'config, const N: usize> std::fmt::Debug for RandomField<'config, N> {
+impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
     }

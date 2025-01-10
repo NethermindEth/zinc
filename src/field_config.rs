@@ -25,16 +25,16 @@ macro_rules! adc {
     }};
 }
 
-pub struct MontConfig<const N: usize> {
+pub struct RandomFieldConfig<const N: usize> {
     /// The modulus of the field.
-    modulus: BigInt<N>,
+    pub modulus: BigInt<N>,
 
     /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
     /// `R = M % Self::MODULUS`.
     r: BigInt<N>,
 
     /// R2 = R^2 % Self::MODULUS
-    r2: BigInt<N>,
+    pub r2: BigInt<N>,
 
     /// INV = -MODULUS^{-1} mod 2^64
     inv: u64,
@@ -52,7 +52,7 @@ pub struct MontConfig<const N: usize> {
     modulus_has_spare_bit: bool,
 }
 
-impl<const N: usize> MontConfig<N> {
+impl<const N: usize> RandomFieldConfig<N> {
     fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
         let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
         Self {
@@ -109,7 +109,7 @@ impl<const N: usize> MontConfig<N> {
         }
     }
 
-    fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         let (mut lo, mut hi) = ([0u64; N], [0u64; N]);
         crate::const_for!((i in 0..N) {
             let mut carry = 0;
@@ -260,12 +260,12 @@ mod tests {
 
     use ark_ff::{BigInteger128, BigInteger256};
 
-    use super::MontConfig;
+    use super::RandomFieldConfig;
 
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]
     fn test_addition() {
-        let field = MontConfig::new(
+        let field = RandomFieldConfig::new(
             BigInteger128::new([9307119299070690521, 9320126393725433252]),
             BigInteger128::new([19, 0]),
         );
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn test_subtraction() {
-        let field = MontConfig::new(
+        let field = RandomFieldConfig::new(
             BigInteger128::new([9307119299070690521, 9320126393725433252]),
             BigInteger128::new([19, 0]),
         );
@@ -289,7 +289,7 @@ mod tests {
 
     #[test]
     fn test_multiplication() {
-        let field = MontConfig::new(
+        let field = RandomFieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
             BigInteger256::from_str("2").unwrap(),
         );
@@ -305,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_division() {
-        let field = MontConfig::new(
+        let field = RandomFieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
             BigInteger256::from_str("2").unwrap(),
         );

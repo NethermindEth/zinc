@@ -297,7 +297,6 @@ mod tests {
         let b = BigInteger256::from_str("246308734").unwrap();
         field.mul_assign(&mut a, &b);
 
-        // 142185583660281492684032374998820021 is the mystery factor here
         assert_eq!(
             BigInteger256::from_str("504579159360957705315139767875358506").unwrap(),
             a

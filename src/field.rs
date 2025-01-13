@@ -13,7 +13,9 @@ impl<'config, const N: usize> RandomField<'config, N> {
     pub fn new_unchecked(config: &'config FieldConfig<N>, value: BigInt<N>) -> Self {
         RandomField { config, value }
     }
-
+    /// Convert from `BigInteger`` to `RandomField``
+    ///
+    /// If `BigInteger` is greater then field modulus return None
     pub fn from_bigint(config: &'config FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
         if value.is_zero() {
             Some(Self::new_unchecked(config, value))

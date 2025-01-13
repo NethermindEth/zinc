@@ -96,7 +96,6 @@ mod tests {
     fn test_bigint_conversion() {
         let field_config = FieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-            BigInteger256::from_str("2").unwrap(),
         );
 
         let bigint = BigInteger256::from_str("695962179703").unwrap();

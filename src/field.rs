@@ -4,6 +4,7 @@ use ark_ff::{BigInt, BigInteger, One, Zero};
 
 use crate::field_config::{self, FieldConfig};
 
+#[derive(Clone)]
 pub struct RandomField<'config, const N: usize> {
     pub config: Option<&'config FieldConfig<N>>,
     pub value: BigInt<N>,
@@ -29,6 +30,14 @@ impl<'config, const N: usize> RandomField<'config, N> {
     }
 
     pub fn into_bigint(&self) -> BigInt<N> {
+        if self.is_zero() {
+            return BigInt::zero();
+        }
+
+        if self.value == BigInt::one() && self.config.is_none() {
+            return BigInt::one();
+        }
+
         let config = self
             .config
             .expect("This field element has no associated field");
@@ -74,6 +83,12 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
     type Output = RandomField<'config, N>;
 
     fn add(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        if rhs.is_zero() {
+            return self.clone();
+        }
+        if self.is_zero() {
+            return rhs.clone();
+        }
         // Here we assume that the elements of a random field are
         // created using the same RandomFieldConfig.
         let lconfig = self
@@ -134,7 +149,10 @@ impl<const N: usize> One for RandomField<'_, N> {
     where
         Self: PartialEq,
     {
-        self.value == BigInt::one()
+        match self.config {
+            Some(conf) => self.value == conf.r,
+            None => self.value == BigInt::one(),
+        }
     }
 }
 #[cfg(test)]

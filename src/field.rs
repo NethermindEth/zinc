@@ -155,6 +155,15 @@ impl<const N: usize> One for RandomField<'_, N> {
         }
     }
 }
+
+impl<const N: usize> PartialEq for RandomField<'_, N> {
+    fn eq(&self, other: &Self) -> bool {
+        let config_ptr_lhs: *const FieldConfig<N> = self.config.unwrap();
+        let config_ptr_rhs: *const FieldConfig<N> = other.config.unwrap();
+
+        self.value == other.value && config_ptr_lhs == config_ptr_rhs
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

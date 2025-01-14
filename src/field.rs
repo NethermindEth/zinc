@@ -4,7 +4,7 @@ use ark_ff::{BigInt, BigInteger, One, Zero};
 
 use crate::field_config::{self, FieldConfig};
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct RandomField<'config, const N: usize> {
     pub config: Option<&'config FieldConfig<N>>,
     pub value: BigInt<N>,

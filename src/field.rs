@@ -11,7 +11,7 @@ pub struct RandomField<'config, const N: usize> {
 }
 
 impl<'config, const N: usize> RandomField<'config, N> {
-    pub fn new_unchecked(config: Option<&'config FieldConfig<N>>, value: BigInt<N>) -> Self {
+    fn new_unchecked(config: Option<&'config FieldConfig<N>>, value: BigInt<N>) -> Self {
         RandomField { config, value }
     }
     /// Convert from `BigInteger` to `RandomField`
@@ -142,7 +142,7 @@ impl<const N: usize> One for RandomField<'_, N> {
         Self: PartialEq,
     {
         match self.config {
-            Some(conf) => self.value == conf.r,
+            Some(conf) => self.value == conf.r || self.value == BigInt::one(),
             None => self.value == BigInt::one(),
         }
     }
@@ -150,6 +150,10 @@ impl<const N: usize> One for RandomField<'_, N> {
 
 impl<const N: usize> PartialEq for RandomField<'_, N> {
     fn eq(&self, other: &Self) -> bool {
+        if self.config.is_none() && other.config.is_none() {
+            return self.is_one() && other.is_one() || self.is_zero() && other.is_zero();
+        }
+
         let config_ptr_lhs: *const FieldConfig<N> = self.config.unwrap();
         let config_ptr_rhs: *const FieldConfig<N> = other.config.unwrap();
 

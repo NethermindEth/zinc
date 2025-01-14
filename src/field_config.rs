@@ -29,24 +29,20 @@ pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
     *carry = (tmp >> 64) as u64;
     tmp as u64
 }
+
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
 
     /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
     /// `R = M % Self::MODULUS`.
-    r: BigInt<N>,
+    pub r: BigInt<N>,
 
     /// R2 = R^2 % Self::MODULUS
     pub r2: BigInt<N>,
 
     /// INV = -MODULUS^{-1} mod 2^64
     pub inv: u64,
-
-    /// A multiplicative generator of the field.
-    /// `Self::GENERATOR` is an element having multiplicative order
-    /// `Self::MODULUS - 1`.
-    generator: BigInt<N>,
 
     /// Does the modulus have a spare unused bit
     ///
@@ -57,14 +53,14 @@ pub struct FieldConfig<const N: usize> {
 }
 
 impl<const N: usize> FieldConfig<N> {
-    pub fn new(modulus: BigInt<N>, generator: BigInt<N>) -> Self {
+    pub fn new(modulus: BigInt<N>) -> Self {
         let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
         Self {
             modulus,
             r: modulus.montgomery_r(),
             r2: modulus.montgomery_r2(),
             inv: inv(modulus),
-            generator,
+
             modulus_has_spare_bit,
         }
     }
@@ -269,10 +265,10 @@ mod tests {
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]
     fn test_addition() {
-        let field = FieldConfig::new(
-            BigInteger128::new([9307119299070690521, 9320126393725433252]),
-            BigInteger128::new([19, 0]),
-        );
+        let field = FieldConfig::new(BigInteger128::new([
+            9307119299070690521,
+            9320126393725433252,
+        ]));
         let mut a = BigInteger128::new([2, 0]);
         let b = BigInteger128::new([2, 0]);
         field.add_assign(&mut a, &b);
@@ -281,10 +277,10 @@ mod tests {
 
     #[test]
     fn test_subtraction() {
-        let field = FieldConfig::new(
-            BigInteger128::new([9307119299070690521, 9320126393725433252]),
-            BigInteger128::new([19, 0]),
-        );
+        let field = FieldConfig::new(BigInteger128::new([
+            9307119299070690521,
+            9320126393725433252,
+        ]));
         let mut a = BigInteger128::new([2, 0]);
         let b = BigInteger128::new([2, 0]);
         field.sub_assign(&mut a, &b);
@@ -295,7 +291,6 @@ mod tests {
     fn test_multiplication() {
         let field = FieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-            BigInteger256::from_str("2").unwrap(),
         );
         let mut a = BigInteger256::from_str("423024736033").unwrap();
         let b = BigInteger256::from_str("246308734").unwrap();
@@ -311,7 +306,6 @@ mod tests {
     fn test_division() {
         let field = FieldConfig::new(
             BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-            BigInteger256::from_str("2").unwrap(),
         );
         let a = BigInteger256::from_str("3").unwrap();
         let b = field.inverse(&a).unwrap();

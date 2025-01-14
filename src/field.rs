@@ -162,6 +162,11 @@ impl<const N: usize> PartialEq for RandomField<'_, N> {
 }
 
 impl<const N: usize> Eq for RandomField<'_, N> {}
+
+unsafe impl<const N: usize> Send for RandomField<'_, N> {}
+
+unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

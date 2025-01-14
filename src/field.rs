@@ -1,8 +1,10 @@
 use std::ops::Add;
 
+use crate::field_config::{self, FieldConfig};
+
 use ark_ff::{BigInt, BigInteger};
 
-use crate::field_config::{self, FieldConfig};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 
 pub struct RandomField<'config, const N: usize> {
     pub config: &'config FieldConfig<N>,
@@ -80,6 +82,35 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
 impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+
+impl<const N: usize> CanonicalSerialize for RandomField<'_, N> {
+    fn serialize_with_mode<W: ark_serialize::Write>(
+        &self,
+        writer: W,
+        compress: ark_serialize::Compress,
+    ) -> Result<(), ark_serialize::SerializationError> {
+        todo!()
+    }
+
+    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
+        todo!()
+    }
+}
+
+impl<const N: usize> Valid for RandomField<'_, N> {
+    fn check(&self) -> Result<(), ark_serialize::SerializationError> {
+        todo!()
+    }
+}
+impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
+    fn deserialize_with_mode<R: ark_serialize::Read>(
+        reader: R,
+        compress: ark_serialize::Compress,
+        validate: ark_serialize::Validate,
+    ) -> Result<Self, ark_serialize::SerializationError> {
+        todo!()
     }
 }
 #[cfg(test)]

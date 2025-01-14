@@ -110,7 +110,10 @@ impl<'config, const N: usize> Mul<RandomField<'config, N>> for RandomField<'conf
 
 impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.value)
+        match self.config {
+            Some(config) => write!(f, "{} in the field Z_{}", self.value, config.modulus),
+            None => write!(f, "{}", self.value),
+        }
     }
 }
 

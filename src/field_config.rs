@@ -29,13 +29,14 @@ pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
     *carry = (tmp >> 64) as u64;
     tmp as u64
 }
+
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
 
     /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
     /// `R = M % Self::MODULUS`.
-    r: BigInt<N>,
+    pub r: BigInt<N>,
 
     /// R2 = R^2 % Self::MODULUS
     pub r2: BigInt<N>,

@@ -82,6 +82,11 @@ impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
         write!(f, "{}", self.value)
     }
 }
+
+unsafe impl<const N: usize> Send for RandomField<'_, N> {}
+
+unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

@@ -142,7 +142,7 @@ impl<const N: usize> One for RandomField<'_, N> {
         Self: PartialEq,
     {
         match self.config {
-            Some(conf) => self.value == conf.r || self.value == BigInt::one(),
+            Some(conf) => self.value == conf.r,
             None => self.value == BigInt::one(),
         }
     }

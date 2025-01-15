@@ -239,16 +239,6 @@ pub const fn inv<const N: usize>(modulus: BigInt<N>) -> u64 {
     });
     inv.wrapping_neg()
 }
-#[macro_export]
-macro_rules! const_for {
-    (($i:ident in $start:tt..$end:tt)  $code:expr ) => {{
-        let mut $i = $start;
-        while $i < $end {
-            $code
-            $i += 1;
-        }
-    }};
-}
 
 fn widening_mul(a: u64, b: u64) -> u128 {
     a as u128 * b as u128

@@ -4,7 +4,7 @@ use ark_ff::{BigInt, BigInteger, One, Zero};
 
 use crate::field_config::{self, FieldConfig};
 
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
+use ark_serialize::{buffer_byte_size, CanonicalDeserialize, CanonicalSerialize, Valid};
 
 #[derive(Copy, Clone)]
 pub struct RandomField<'config, const N: usize> {
@@ -173,19 +173,32 @@ impl<const N: usize> CanonicalSerialize for RandomField<'_, N> {
     fn serialize_with_mode<W: ark_serialize::Write>(
         &self,
         writer: W,
-        compress: ark_serialize::Compress,
+        _: ark_serialize::Compress,
     ) -> Result<(), ark_serialize::SerializationError> {
-        todo!()
+        let output_byte_size = buffer_byte_size(N as usize * 64);
+
+        // Write out `self` to a temporary buffer.
+        // The size of the buffer is $byte_size + 1 because `F::BIT_SIZE`
+        // is at most 8 bits.
+        let mut bytes = crate::const_helpers::SerBuffer::zeroed();
+        bytes.copy_from_u64_slice(&self.into_bigint().0);
+
+        bytes.write_up_to(writer, output_byte_size)?;
+
+        if self.config.is_none() {
+            bytes[output_byte_size - 1] |= 1;
+        }
+        Ok(())
     }
 
-    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
-        todo!()
+    fn serialized_size(&self, _: ark_serialize::Compress) -> usize {
+        buffer_byte_size(N as usize * 64)
     }
 }
 
 impl<const N: usize> Valid for RandomField<'_, N> {
     fn check(&self) -> Result<(), ark_serialize::SerializationError> {
-        todo!()
+        Ok(())
     }
 }
 impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {

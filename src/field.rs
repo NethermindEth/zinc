@@ -187,6 +187,9 @@ impl<const N: usize> CanonicalSerialize for RandomField<'_, N> {
 
         if self.config.is_none() {
             bytes[output_byte_size - 1] |= 1;
+        } else {
+            let config_ptr: *const FieldConfig<N> = self.config.unwrap();
+            bytes.buffers[N] = (config_ptr as u64).to_le_bytes()
         }
         Ok(())
     }
@@ -207,14 +210,30 @@ impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
         compress: ark_serialize::Compress,
         validate: ark_serialize::Validate,
     ) -> Result<Self, ark_serialize::SerializationError> {
-        todo!()
+        // Calculate the number of bytes required to represent a field element
+        // serialized with `flags`.
+        let output_byte_size = buffer_byte_size(N as usize * 64 + 64);
+
+        let mut masked_bytes = crate::const_helpers::SerBuffer::zeroed();
+        masked_bytes.read_exact_up_to(reader, output_byte_size)?;
+        if masked_bytes.last == 1 {
+            masked_bytes.last = 0;
+            return Ok(Self::new_unchecked(None, masked_bytes.to_bigint()));
+        }
+
+        let ptr: *const FieldConfig<N> = masked_bytes.buffers[N].as_ptr() as *const FieldConfig<N>;
+
+        masked_bytes.buffers[N] = [0u8; 8];
+        let value = masked_bytes.to_bigint();
+        Ok(Self::new_unchecked(unsafe { ptr.as_ref() }, value))
     }
 }
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::BigInteger256;
+    use ark_ff::{BigInt, BigInteger256, One, Zero};
+    use ark_serialize::CanonicalSerialize;
 
     use crate::field_config::FieldConfig;
 
@@ -234,5 +253,22 @@ mod tests {
 
         let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint())
+    }
+
+    #[test]
+    fn test_serialization() {
+        use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
+        use ark_std::io::Cursor;
+
+        let field_config = FieldConfig::new(
+            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
+        );
+
+        let mut serialized = Vec::new();
+        let bigint = RandomField::<'_, 4>::new_unchecked(Some(&field_config), BigInt::zero());
+
+        let mut cursor = Cursor::new(&serialized);
+        bigint.serialize_with_mode(&mut serialized, Compress::No);
+        println!("{:?}", serialized)
     }
 }

@@ -16,6 +16,7 @@ impl<'config, const N: usize> RandomField<'config, N> {
     fn new_unchecked(config: Option<&'config FieldConfig<N>>, value: BigInt<N>) -> Self {
         RandomField { config, value }
     }
+
     /// Convert from `BigInteger` to `RandomField`
     ///
     /// If `BigInteger` is greater then field modulus return `None`
@@ -175,34 +176,35 @@ impl<const N: usize> CanonicalSerialize for RandomField<'_, N> {
         mut writer: W,
         _: ark_serialize::Compress,
     ) -> Result<(), ark_serialize::SerializationError> {
-        let mut bytes = vec![0u8; N * 8 + 9];
+        let mut bytes = vec![0u8; 2 * N * 8];
 
         if self.config.is_none() {
-            bytes[N * 8 + 8] = 1;
-
             if self.is_one() {
                 bytes[0] = 1;
             }
             writer.write_all(&bytes)?;
-            return Ok(());
+            Ok(())
         } else {
-            let config_ptr: *const FieldConfig<N> = self.config.unwrap();
+            let modulus = self.config.unwrap().modulus;
 
-            // Convert the pointer to a u64 and write the bytes
-            let ptr_bytes = (config_ptr as u64).to_be_bytes();
-            bytes[N * 8..N * 8 + 8].copy_from_slice(&ptr_bytes);
+            // Fill in the bytes for the limbs
+            self.value.0.iter().enumerate().for_each(|(i, limb)| {
+                let limb_bytes = limb.to_be_bytes();
+
+                bytes[i * 8..(i + 1) * 8].copy_from_slice(&limb_bytes);
+            });
+
+            // Fill in the bytes for the limbs
+            modulus.0.iter().enumerate().for_each(|(i, limb)| {
+                let limb_bytes = limb.to_be_bytes();
+                bytes[N * 8 + i * 8..N * 8 + (i + 1) * 8].copy_from_slice(&limb_bytes);
+            });
+
+            // Write the entire byte slice to the writer
+            writer.write_all(&bytes)?;
+
+            Ok(())
         }
-
-        // Fill in the bytes for the limbs
-        self.value.0.iter().enumerate().for_each(|(i, limb)| {
-            let limb_bytes = limb.to_be_bytes();
-            bytes[i * 8..(i + 1) * 8].copy_from_slice(&limb_bytes);
-        });
-
-        // Write the entire byte slice to the writer
-        writer.write_all(&bytes)?;
-
-        Ok(())
     }
 
     fn serialized_size(&self, _: ark_serialize::Compress) -> usize {
@@ -216,7 +218,7 @@ impl<const N: usize> Valid for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
+impl<'config, const N: usize> CanonicalDeserialize for RandomField<'config, N> {
     fn deserialize_with_mode<R: ark_serialize::Read>(
         mut reader: R,
         _compress: ark_serialize::Compress,
@@ -226,15 +228,9 @@ impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
 
         reader.read_to_end(&mut bytes)?;
 
-        if bytes[N * 8 + 8] == 1 {
-            if bytes[0] == 1 {
-                return Ok(Self::one());
-            } else {
-                return Ok(Self::zero());
-            }
-        }
-
         let mut value = BigInt::<N>::from(0u64);
+        let mut modulus = BigInt::<N>::from(0u64);
+
         value
             .0
             .iter_mut()
@@ -243,12 +239,24 @@ impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
                 *other = u64::from_be_bytes(this.try_into().expect("Slice has incorrect length"));
             });
 
-        let ptr_bytes = &bytes[N * 8..N * 8 + 8];
+        modulus
+            .0
+            .iter_mut()
+            .zip(bytes[N * 8..2 * N * 8].chunks(8))
+            .for_each(|(other, this)| {
+                *other = u64::from_be_bytes(this.try_into().expect("Slice has incorrect length"));
+            });
 
-        let address = u64::from_be_bytes(ptr_bytes.try_into().expect("Invalid slice length"))
-            as *const FieldConfig<N>;
+        if modulus.is_zero() {
+            if bytes[0] == 1 {
+                return Ok(Self::one());
+            } else {
+                return Ok(Self::zero());
+            }
+        }
 
-        Ok(Self::new_unchecked(unsafe { address.as_ref() }, value))
+        let _config = FieldConfig::new(modulus);
+        Ok(Self::new_unchecked(None, value))
     }
 }
 #[cfg(test)]
@@ -290,9 +298,10 @@ mod tests {
         let _ = field_elem.serialize_with_mode(&mut serialized, Compress::No);
 
         let cursor = Cursor::new(&serialized);
-        let deser_field_elem =
+        let mut deser_field_elem =
             RandomField::<'_, 1>::deserialize_with_mode(cursor, Compress::No, Validate::No)
                 .unwrap();
+        deser_field_elem.config = Some(&field_config);
 
         assert_eq!(field_elem, deser_field_elem);
     }

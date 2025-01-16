@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use ark_serialize::{Read, Write};
 use ark_std::ops::{Index, IndexMut};
 

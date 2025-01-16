@@ -172,30 +172,41 @@ unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 impl<const N: usize> CanonicalSerialize for RandomField<'_, N> {
     fn serialize_with_mode<W: ark_serialize::Write>(
         &self,
-        writer: W,
+        mut writer: W,
         _: ark_serialize::Compress,
     ) -> Result<(), ark_serialize::SerializationError> {
-        let output_byte_size = buffer_byte_size(N as usize * 64);
-
-        // Write out `self` to a temporary buffer.
-        // The size of the buffer is $byte_size + 1 because `F::BIT_SIZE`
-        // is at most 8 bits.
-        let mut bytes = crate::const_helpers::SerBuffer::zeroed();
-        bytes.copy_from_u64_slice(&self.into_bigint().0);
-
-        bytes.write_up_to(writer, output_byte_size)?;
+        let mut bytes = vec![0u8; N * 8 + 9];
 
         if self.config.is_none() {
-            bytes[output_byte_size - 1] |= 1;
+            bytes[N * 8 + 8] = 1;
+
+            if self.is_one() {
+                bytes[0] = 1;
+            }
+            writer.write_all(&bytes)?;
+            return Ok(());
         } else {
             let config_ptr: *const FieldConfig<N> = self.config.unwrap();
-            bytes.buffers[N] = (config_ptr as u64).to_le_bytes()
+
+            // Convert the pointer to a u64 and write the bytes
+            let ptr_bytes = (config_ptr as u64).to_be_bytes();
+            bytes[N * 8..N * 8 + 8].copy_from_slice(&ptr_bytes);
         }
+
+        // Fill in the bytes for the limbs
+        self.value.0.iter().enumerate().for_each(|(i, limb)| {
+            let limb_bytes = limb.to_be_bytes();
+            bytes[i * 8..(i + 1) * 8].copy_from_slice(&limb_bytes);
+        });
+
+        // Write the entire byte slice to the writer
+        writer.write_all(&bytes)?;
+
         Ok(())
     }
 
     fn serialized_size(&self, _: ark_serialize::Compress) -> usize {
-        buffer_byte_size(N as usize * 64)
+        buffer_byte_size(N * 64)
     }
 }
 
@@ -204,40 +215,53 @@ impl<const N: usize> Valid for RandomField<'_, N> {
         Ok(())
     }
 }
+
 impl<const N: usize> CanonicalDeserialize for RandomField<'_, N> {
     fn deserialize_with_mode<R: ark_serialize::Read>(
-        reader: R,
-        compress: ark_serialize::Compress,
-        validate: ark_serialize::Validate,
+        mut reader: R,
+        _compress: ark_serialize::Compress,
+        _validate: ark_serialize::Validate,
     ) -> Result<Self, ark_serialize::SerializationError> {
-        // Calculate the number of bytes required to represent a field element
-        // serialized with `flags`.
-        let output_byte_size = buffer_byte_size(N as usize * 64 + 64);
+        let mut bytes = Vec::with_capacity(N * 8 + 9);
 
-        let mut masked_bytes = crate::const_helpers::SerBuffer::zeroed();
-        masked_bytes.read_exact_up_to(reader, output_byte_size)?;
-        if masked_bytes.last == 1 {
-            masked_bytes.last = 0;
-            return Ok(Self::new_unchecked(None, masked_bytes.to_bigint()));
+        reader.read_to_end(&mut bytes)?;
+
+        if bytes[N * 8 + 8] == 1 {
+            if bytes[0] == 1 {
+                return Ok(Self::one());
+            } else {
+                return Ok(Self::zero());
+            }
         }
 
-        let ptr: *const FieldConfig<N> = masked_bytes.buffers[N].as_ptr() as *const FieldConfig<N>;
+        let mut value = BigInt::<N>::from(0u64);
+        value
+            .0
+            .iter_mut()
+            .zip(bytes[0..N * 8].chunks(8))
+            .for_each(|(other, this)| {
+                *other = u64::from_be_bytes(this.try_into().expect("Slice has incorrect length"));
+            });
 
-        masked_bytes.buffers[N] = [0u8; 8];
-        let value = masked_bytes.to_bigint();
-        Ok(Self::new_unchecked(unsafe { ptr.as_ref() }, value))
+        let ptr_bytes = &bytes[N * 8..N * 8 + 8];
+
+        let address = u64::from_be_bytes(ptr_bytes.try_into().expect("Invalid slice length"))
+            as *const FieldConfig<N>;
+
+        Ok(Self::new_unchecked(unsafe { address.as_ref() }, value))
     }
 }
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::{BigInt, BigInteger256, One, Zero};
-    use ark_serialize::CanonicalSerialize;
-
-    use crate::field_config::FieldConfig;
+    use ark_ff::{BigInt, BigInteger256, BigInteger64, One, Zero};
+    use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
 
     use super::RandomField;
+    use crate::field_config::FieldConfig;
+
+    use ark_std::io::Cursor;
 
     #[test]
     fn test_bigint_conversion() {
@@ -257,18 +281,49 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
-        use ark_std::io::Cursor;
-
-        let field_config = FieldConfig::new(
-            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-        );
+        let field_config = FieldConfig::new(BigInteger64::from_str("17").unwrap());
 
         let mut serialized = Vec::new();
-        let bigint = RandomField::<'_, 4>::new_unchecked(Some(&field_config), BigInt::zero());
+        let field_elem =
+            RandomField::<'_, 1>::new_unchecked(Some(&field_config), BigInt::from(13u32));
 
-        let mut cursor = Cursor::new(&serialized);
-        bigint.serialize_with_mode(&mut serialized, Compress::No);
-        println!("{:?}", serialized)
+        let _ = field_elem.serialize_with_mode(&mut serialized, Compress::No);
+
+        let cursor = Cursor::new(&serialized);
+        let deser_field_elem =
+            RandomField::<'_, 1>::deserialize_with_mode(cursor, Compress::No, Validate::No)
+                .unwrap();
+
+        assert_eq!(field_elem, deser_field_elem);
+    }
+
+    #[test]
+    fn test_zero_serialization() {
+        let mut serialized = Vec::new();
+        let field_elem = RandomField::<'_, 1>::zero();
+
+        let _ = field_elem.serialize_with_mode(&mut serialized, Compress::No);
+
+        let cursor = Cursor::new(&serialized);
+        let deser_field_elem =
+            RandomField::<'_, 1>::deserialize_with_mode(cursor, Compress::No, Validate::No)
+                .unwrap();
+
+        assert!(deser_field_elem.is_zero());
+    }
+
+    #[test]
+    fn test_one_serialization() {
+        let mut serialized = Vec::new();
+        let field_elem = RandomField::<'_, 1>::one();
+
+        let _ = field_elem.serialize_with_mode(&mut serialized, Compress::No);
+
+        let cursor = Cursor::new(&serialized);
+        let deser_field_elem =
+            RandomField::<'_, 1>::deserialize_with_mode(cursor, Compress::No, Validate::No)
+                .unwrap();
+
+        assert!(deser_field_elem.is_one());
     }
 }

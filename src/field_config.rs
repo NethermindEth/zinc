@@ -78,7 +78,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // If `other` is larger than `self`, add the modulus to self first.
         if b > a {
             a.add_with_carry(&self.modulus);

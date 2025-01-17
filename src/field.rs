@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg};
+use std::ops::{Add, Div, Mul, Neg, Sub};
 
 use ark_ff::{BigInt, BigInteger, One, Zero};
 
@@ -60,6 +60,53 @@ impl<'config, const N: usize> RandomField<'config, N> {
         }
 
         BigInt::new(r)
+    }
+}
+
+impl<'config, const N: usize> Sub<RandomField<'config, N>> for RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn sub(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+        &self - &rhs
+    }
+}
+
+impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn sub(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        &self - rhs
+    }
+}
+
+impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn sub(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        if rhs.is_zero() {
+            return *self;
+        }
+        if self.is_zero() {
+            return -*rhs;
+        }
+
+        // Here we assume that the elements of a random field are
+        // created using the same RandomFieldConfig.
+        let lconfig = self
+            .config
+            .expect("This field element has no associated field");
+        let rconfig = rhs
+            .config
+            .expect("This field element has no associated field");
+
+        if lconfig != rconfig {
+            panic!("cannot add field elements of different fields");
+        }
+
+        let mut res = RandomField::zero();
+        res = res + *self;
+        lconfig.sub_assign(&mut res.value, &rhs.value);
+        res
     }
 }
 

@@ -493,4 +493,28 @@ mod tests {
         let negated = -operand;
         assert_eq!(negated.into_bigint(), BigInteger64::from_str("0").unwrap());
     }
+
+    #[test]
+    fn test_subtraction() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("2").unwrap();
+        let rhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs - rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::from_str("3").unwrap());
+
+        // Test 2
+        let lhs = BigInteger64::from_str("20").unwrap();
+        let rhs = BigInteger64::from_str("20").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs - rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::zero())
+    }
 }

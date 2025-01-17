@@ -81,6 +81,7 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         if self.is_zero() {
             return *rhs;
         }
+
         // Here we assume that the elements of a random field are
         // created using the same RandomFieldConfig.
         let lconfig = self
@@ -89,10 +90,8 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         let rconfig = rhs
             .config
             .expect("This field element has no associated field");
-        let config_ptr_lhs: *const FieldConfig<N> = lconfig;
-        let config_ptr_rhs: *const FieldConfig<N> = rconfig;
 
-        if config_ptr_lhs != config_ptr_rhs {
+        if lconfig != rconfig {
             panic!("cannot add field elements of different fields");
         }
 
@@ -106,8 +105,38 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
 impl<'config, const N: usize> Mul<RandomField<'config, N>> for RandomField<'config, N> {
     type Output = RandomField<'config, N>;
 
-    fn mul(self, _: RandomField<'config, N>) -> RandomField<'config, N> {
-        todo!()
+    fn mul(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+        &self * &rhs
+    }
+}
+
+impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn mul(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        if rhs.is_one() {
+            return *self;
+        }
+        if self.is_one() {
+            return *rhs;
+        }
+        // Here we assume that the elements of a random field are
+        // created using the same RandomFieldConfig.
+        let lconfig = self
+            .config
+            .expect("This field element has no associated field");
+        let rconfig = rhs
+            .config
+            .expect("This field element has no associated field");
+
+        if lconfig != rconfig {
+            panic!("cannot multiply field elements of different fields");
+        }
+
+        let mut res = RandomField::one();
+        res = res * *self;
+        lconfig.mul_assign(&mut res.value, &rhs.value);
+        return res;
     }
 }
 
@@ -172,7 +201,7 @@ unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
 #[cfg(test)]
 mod tests {
-    use std::{slice::RChunksMut, str::FromStr};
+    use std::str::FromStr;
 
     use ark_ff::{BigInteger256, BigInteger64};
 
@@ -218,5 +247,29 @@ mod tests {
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), BigInteger64::from_str("17").unwrap())
+    }
+
+    #[test]
+    fn test_multiplication() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+        let rhs = BigInteger64::from_str("2").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs * rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::from_str("21").unwrap());
+
+        // Test 2
+        let lhs = BigInteger64::from_str("20").unwrap();
+        let rhs = BigInteger64::from_str("20").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs * rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::from_str("9").unwrap())
     }
 }

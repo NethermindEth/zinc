@@ -81,23 +81,11 @@ impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomFi
         if self.is_zero() {
             return -*rhs;
         }
-
-        // Here we assume that the elements of a random field are
-        // created using the same RandomFieldConfig.
-        let lconfig = self
-            .config
-            .expect("This field element has no associated field");
-        let rconfig = rhs
-            .config
-            .expect("This field element has no associated field");
-
-        if lconfig != rconfig {
-            panic!("cannot add field elements of different fields");
-        }
+        let config = check_equal_configs(self, rhs);
 
         let mut res = RandomField::zero();
         res = res + *self;
-        lconfig.sub_assign(&mut res.value, &rhs.value);
+        config.sub_assign(&mut res.value, &rhs.value);
         res
     }
 }
@@ -121,22 +109,11 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
             return *rhs;
         }
 
-        // Here we assume that the elements of a random field are
-        // created using the same RandomFieldConfig.
-        let lconfig = self
-            .config
-            .expect("This field element has no associated field");
-        let rconfig = rhs
-            .config
-            .expect("This field element has no associated field");
-
-        if lconfig != rconfig {
-            panic!("cannot add field elements of different fields");
-        }
+        let config = check_equal_configs(self, rhs);
 
         let mut res = RandomField::zero();
         res = res + *self;
-        lconfig.add_assign(&mut res.value, &rhs.value);
+        config.add_assign(&mut res.value, &rhs.value);
         res
     }
 }
@@ -160,22 +137,11 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
             return *self;
         }
 
-        // Here we assume that the elements of a random field are
-        // created using the same RandomFieldConfig.
-        let lconfig = self
-            .config
-            .expect("This field element has no associated field");
-        let rconfig = rhs
-            .config
-            .expect("This field element has no associated field");
-
-        if lconfig != rconfig {
-            panic!("cannot multiply field elements of different fields");
-        }
+        let config = check_equal_configs(self, rhs);
 
         let mut res = RandomField::one();
         res = res * *self;
-        lconfig.mul_assign(&mut res.value, &rhs.value);
+        config.mul_assign(&mut res.value, &rhs.value);
         res
     }
 }
@@ -199,23 +165,12 @@ impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomFi
             return *self;
         }
 
-        // Here we assume that the elements of a random field are
-        // created using the same RandomFieldConfig.
-        let lconfig = self
-            .config
-            .expect("This field element has no associated field");
-        let rconfig = rhs
-            .config
-            .expect("This field element has no associated field");
-
-        if lconfig != rconfig {
-            panic!("cannot divide field elements of different fields");
-        }
+        let config = check_equal_configs(self, rhs);
 
         let mut res = RandomField::one();
         res = res * *self;
 
-        lconfig.mul_assign(&mut res.value, &lconfig.inverse(&rhs.value).unwrap());
+        config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
         res
     }
 }
@@ -296,6 +251,24 @@ unsafe impl<const N: usize> Send for RandomField<'_, N> {}
 
 unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
+// checks if configs are equal panics otherwise or if either is none
+pub fn check_equal_configs<'a, const N: usize>(
+    l_element: &RandomField<'a, N>,
+    r_element: &RandomField<'a, N>,
+) -> &'a FieldConfig<N> {
+    let lconfig = l_element
+        .config
+        .expect("This field element has no associated field");
+    let rconfig = r_element
+        .config
+        .expect("This field element has no associated field");
+
+    if lconfig != rconfig {
+        panic!("Cannot operate on field elements of different fields");
+    }
+
+    return lconfig;
+}
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

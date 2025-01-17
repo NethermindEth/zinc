@@ -155,7 +155,7 @@ impl<'config, const N: usize> Div<RandomField<'config, N>> for RandomField<'conf
 
 impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomField<'config, N> {
     type Output = RandomField<'config, N>;
-
+    #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
         if rhs.is_zero() {
             panic!("Attempt to divide by zero");
@@ -267,7 +267,7 @@ pub fn check_equal_configs<'a, const N: usize>(
         panic!("Cannot operate on field elements of different fields");
     }
 
-    return lconfig;
+    lconfig
 }
 #[cfg(test)]
 mod tests {

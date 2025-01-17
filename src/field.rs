@@ -97,7 +97,7 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         }
 
         let mut res = RandomField::zero();
-        lconfig.add_assign(&mut res.value, &self.value);
+        res = res + *self;
         lconfig.add_assign(&mut res.value, &rhs.value);
         return res;
     }
@@ -172,9 +172,9 @@ unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use std::{slice::RChunksMut, str::FromStr};
 
-    use ark_ff::BigInteger256;
+    use ark_ff::{BigInteger256, BigInteger64};
 
     use crate::field_config::FieldConfig;
 
@@ -194,5 +194,29 @@ mod tests {
 
         let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint())
+    }
+
+    #[test]
+    fn test_addition() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+        let rhs = BigInteger64::from_str("2").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs + rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::one());
+
+        // Test 2
+        let lhs = BigInteger64::from_str("20").unwrap();
+        let rhs = BigInteger64::from_str("20").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let sum = lhs + rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::from_str("17").unwrap())
     }
 }

@@ -254,6 +254,14 @@ fn widening_mul(a: u64, b: u64) -> u128 {
     a as u128 * b as u128
 }
 
+impl<const N: usize> PartialEq for FieldConfig<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.modulus == other.modulus
+    }
+}
+
+impl<const N: usize> Eq for FieldConfig<N> {}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

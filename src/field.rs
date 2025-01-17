@@ -316,7 +316,7 @@ unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::{BigInteger256, BigInteger64};
+    use ark_ff::{BigInteger256, BigInteger64, One};
 
     use crate::field_config::FieldConfig;
 
@@ -516,5 +516,17 @@ mod tests {
 
         let sum = lhs - rhs;
         assert_eq!(sum.into_bigint(), BigInteger64::zero())
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_failing_subtraction() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("2").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::one();
+        let _ = lhs - rhs;
     }
 }

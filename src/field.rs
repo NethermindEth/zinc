@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul};
+use std::ops::{Add, Div, Mul, Neg};
 
 use ark_ff::{BigInt, BigInteger, One, Zero};
 
@@ -242,6 +242,23 @@ impl<const N: usize> PartialEq for RandomField<'_, N> {
     }
 }
 
+impl<const N: usize> Neg for RandomField<'_, N> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        if self.is_zero() {
+            return self;
+        }
+        let config = self
+            .config
+            .expect("This field element has no associated field");
+
+        let mut val = config.modulus;
+        val.sub_with_borrow(&self.value);
+        Self::new_unchecked(self.config, val)
+    }
+}
+
 impl<const N: usize> Eq for RandomField<'_, N> {}
 
 unsafe impl<const N: usize> Send for RandomField<'_, N> {}
@@ -401,5 +418,32 @@ mod tests {
             BigInteger256::from_str("243043087159742188419721163456177516").unwrap(),
             (b / a).into_bigint()
         );
+    }
+    #[test]
+    fn test_negation() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let op_val = BigInteger64::from_str("22").unwrap();
+
+        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
+
+        let negated = -operand;
+        assert_eq!(negated.into_bigint(), BigInteger64::from_str("1").unwrap());
+
+        // Test 2
+        let op_val = BigInteger64::from_str("17").unwrap();
+
+        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
+
+        let negated = -operand;
+        assert_eq!(negated.into_bigint(), BigInteger64::from_str("6").unwrap());
+
+        // test with zero
+        let op_val = BigInteger64::from_str("0").unwrap();
+
+        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
+
+        let negated = -operand;
+        assert_eq!(negated.into_bigint(), BigInteger64::from_str("0").unwrap());
     }
 }

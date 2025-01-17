@@ -166,12 +166,12 @@ impl<const N: usize> FieldConfig<N> {
         // Cryptography
         // Algorithm 16 (BEA for Inversion in Fp)
 
-        let one = BigInt::from(1u64);
+        let one = BigInt::one();
 
         let mut u = *a;
         let mut v = self.modulus;
-        let mut b = one; // Avoids unnecessary reduction step.
-        let mut c = BigInt::<N>::zero();
+        let mut b = self.r2; // Avoids unnecessary reduction step.
+        let mut c = BigInt::zero();
 
         while u != one && v != one {
             while u.is_even() {
@@ -196,6 +196,7 @@ impl<const N: usize> FieldConfig<N> {
                 } else {
                     let carry = c.add_with_carry(&self.modulus);
                     c.div2();
+
                     if !self.modulus_has_spare_bit && carry {
                         (c).0[N - 1] |= 1 << 63;
                     }
@@ -204,9 +205,18 @@ impl<const N: usize> FieldConfig<N> {
 
             if v < u {
                 u.sub_with_borrow(&v);
+
+                if c > b {
+                    b.add_with_carry(&self.modulus);
+                }
                 b.sub_with_borrow(&c);
             } else {
                 v.sub_with_borrow(&u);
+
+                if b > c {
+                    c.add_with_carry(&self.modulus);
+                }
+
                 c.sub_with_borrow(&b);
             }
         }
@@ -307,20 +317,6 @@ mod tests {
         assert_eq!(
             BigInteger256::from_str("504579159360957705315139767875358506").unwrap(),
             a
-        );
-    }
-
-    #[test]
-    fn test_division() {
-        let field = FieldConfig::new(
-            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-        );
-        let a = BigInteger256::from_str("3").unwrap();
-        let b = field.inverse(&a).unwrap();
-
-        assert_eq!(
-            b,
-            BigInteger256::new([17718825271449207740, 12576061786706986, 0, 0])
         );
     }
 }

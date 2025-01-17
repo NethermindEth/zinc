@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul};
+use std::ops::{Add, Div, Mul};
 
 use ark_ff::{BigInt, BigInteger, One, Zero};
 
@@ -98,7 +98,7 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         let mut res = RandomField::zero();
         res = res + *self;
         lconfig.add_assign(&mut res.value, &rhs.value);
-        return res;
+        res
     }
 }
 
@@ -114,12 +114,13 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
     type Output = RandomField<'config, N>;
 
     fn mul(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
-        if rhs.is_one() {
-            return *self;
-        }
         if self.is_one() {
             return *rhs;
         }
+        if rhs.is_one() {
+            return *self;
+        }
+
         // Here we assume that the elements of a random field are
         // created using the same RandomFieldConfig.
         let lconfig = self
@@ -136,7 +137,47 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
         let mut res = RandomField::one();
         res = res * *self;
         lconfig.mul_assign(&mut res.value, &rhs.value);
-        return res;
+        res
+    }
+}
+impl<'config, const N: usize> Div<RandomField<'config, N>> for RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn div(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+        &self / &rhs
+    }
+}
+
+impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn div(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        if rhs.is_zero() {
+            panic!("Attempt to divide by zero");
+        }
+
+        if rhs.is_one() {
+            return *self;
+        }
+
+        // Here we assume that the elements of a random field are
+        // created using the same RandomFieldConfig.
+        let lconfig = self
+            .config
+            .expect("This field element has no associated field");
+        let rconfig = rhs
+            .config
+            .expect("This field element has no associated field");
+
+        if lconfig != rconfig {
+            panic!("cannot divide field elements of different fields");
+        }
+
+        let mut res = RandomField::one();
+        res = res * *self;
+
+        lconfig.mul_assign(&mut res.value, &lconfig.inverse(&rhs.value).unwrap());
+        res
     }
 }
 
@@ -259,8 +300,8 @@ mod tests {
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
         let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
 
-        let sum = lhs * rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::from_str("21").unwrap());
+        let product = lhs * rhs;
+        assert_eq!(product.into_bigint(), BigInteger64::from_str("21").unwrap());
 
         // Test 2
         let lhs = BigInteger64::from_str("20").unwrap();
@@ -269,7 +310,88 @@ mod tests {
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
         let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
 
-        let sum = lhs * rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::from_str("9").unwrap())
+        let product = lhs * rhs;
+        assert_eq!(product.into_bigint(), BigInteger64::from_str("9").unwrap())
+    }
+
+    #[test]
+    fn test_division() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+        let rhs = BigInteger64::from_str("2").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let quotient = lhs / rhs;
+        assert_eq!(
+            quotient.into_bigint(),
+            BigInteger64::from_str("11").unwrap()
+        );
+
+        // Test 2
+        let lhs = BigInteger64::from_str("20").unwrap();
+        let rhs = BigInteger64::from_str("20").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let quotient = lhs / rhs;
+        assert_eq!(quotient.into_bigint(), BigInteger64::from_str("1").unwrap());
+
+        // Test 3
+        let lhs = BigInteger64::from_str("17").unwrap();
+        let rhs = BigInteger64::from_str("4").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let quotient = lhs / rhs;
+        assert_eq!(
+            quotient.into_bigint(),
+            BigInteger64::from_str("10").unwrap()
+        )
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_division_by_zero() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("17").unwrap();
+        let rhs = BigInteger64::zero();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let _sum = lhs / rhs;
+    }
+
+    #[test]
+    fn test_big_division() {
+        let config = FieldConfig::new(
+            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
+        );
+
+        let a = RandomField::from_bigint(&config, BigInteger256::from_str("3").unwrap()).unwrap();
+        let mut b = RandomField::from_bigint(&config, BigInteger256::one()).unwrap();
+        b = b / a;
+        assert_eq!(
+            b.into_bigint(),
+            BigInteger256::from_str("231987393234542266865693038683997116").unwrap()
+        );
+
+        let a =
+            RandomField::from_bigint(&config, BigInteger256::from_str("19382769832175").unwrap())
+                .unwrap();
+
+        let b =
+            RandomField::from_bigint(&config, BigInteger256::from_str("97133987132135").unwrap())
+                .unwrap();
+        assert_eq!(
+            BigInteger256::from_str("243043087159742188419721163456177516").unwrap(),
+            (b / a).into_bigint()
+        );
     }
 }

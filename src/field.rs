@@ -71,6 +71,14 @@ impl<'config, const N: usize> Add<RandomField<'config, N>> for RandomField<'conf
     }
 }
 
+impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for RandomField<'config, N> {
+    type Output = RandomField<'config, N>;
+
+    fn add(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+        &self + rhs
+    }
+}
+
 impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomField<'config, N> {
     type Output = RandomField<'config, N>;
 

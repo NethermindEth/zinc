@@ -96,7 +96,10 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
             panic!("cannot add field elements of different fields");
         }
 
-        todo!()
+        let mut res = RandomField::zero();
+        lconfig.add_assign(&mut res.value, &self.value);
+        lconfig.add_assign(&mut res.value, &rhs.value);
+        return res;
     }
 }
 

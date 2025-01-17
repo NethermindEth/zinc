@@ -65,7 +65,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
         // However, it may need to be reduced

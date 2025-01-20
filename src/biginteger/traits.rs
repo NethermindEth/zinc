@@ -1,11 +1,14 @@
 use std::ops::{Div, Rem, Shl, Shr};
 
 use crypto_bigint::{
-    subtle::{ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess},
+    subtle::{
+        Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater, ConstantTimeLess,
+        CtOption,
+    },
     CheckedAdd, CheckedMul, CheckedSub, Integer, Limb, NonZero, Zero,
 };
 
-use super::BigInt;
+use super::{BigInt, BigInteger};
 
 impl<const N: usize> Integer for BigInt<N> {
     const ONE: Self = BigInt::<N>::ONE;
@@ -18,12 +21,12 @@ impl<const N: usize> Integer for BigInt<N> {
 
     const LIMBS: usize = N;
 
-    fn is_odd(&self) -> crypto_bigint::subtle::Choice {
-        todo!()
+    fn is_odd(&self) -> Choice {
+        Choice::from(self.const_is_odd() as u8)
     }
 
-    fn is_even(&self) -> crypto_bigint::subtle::Choice {
-        !self.is_odd()
+    fn is_even(&self) -> Choice {
+        !Integer::is_odd(self)
     }
 }
 
@@ -38,33 +41,36 @@ impl<const N: usize> Zero for BigInt<N> {
 impl<const N: usize> Shr<usize> for BigInt<N> {
     type Output = Self;
 
-    fn shr(self, rhs: usize) -> Self::Output {
-        todo!()
+    fn shr(mut self, rhs: usize) -> Self::Output {
+        self >>= rhs;
+        self
     }
 }
 
 impl<const N: usize> Shl<usize> for BigInt<N> {
     type Output = Self;
 
-    fn shl(self, rhs: usize) -> Self::Output {
-        todo!()
+    fn shl(mut self, rhs: usize) -> Self::Output {
+        self <<= rhs;
+        self
     }
 }
+
 impl<const N: usize> ConstantTimeLess for BigInt<N> {
     fn ct_lt(&self, other: &Self) -> crypto_bigint::subtle::Choice {
-        todo!()
+        ((self < other) as u8).into()
     }
 }
 
 impl<const N: usize> ConstantTimeEq for BigInt<N> {
     fn ct_eq(&self, other: &Self) -> crypto_bigint::subtle::Choice {
-        todo!()
+        ((self == other) as u8).into()
     }
 }
 
 impl<const N: usize> ConstantTimeGreater for BigInt<N> {
     fn ct_gt(&self, other: &Self) -> crypto_bigint::subtle::Choice {
-        todo!()
+        ((self > other) as u8).into()
     }
 }
 
@@ -72,7 +78,9 @@ impl<'a, const N: usize> CheckedAdd<&'a BigInt<N>> for BigInt<N> {
     type Output = Self;
 
     fn checked_add(&self, rhs: &'a BigInt<N>) -> crypto_bigint::subtle::CtOption<Self> {
-        todo!()
+        let mut res = *self;
+        let carry = res.add_with_carry(rhs);
+        CtOption::new(res, (carry as u8).into())
     }
 }
 
@@ -80,7 +88,8 @@ impl<'a, const N: usize> CheckedMul<&'a BigInt<N>> for BigInt<N> {
     type Output = Self;
 
     fn checked_mul(&self, rhs: &'a BigInt<N>) -> crypto_bigint::subtle::CtOption<Self> {
-        todo!()
+        let (lo, hi) = self.mul(rhs);
+        CtOption::new(lo, crypto_bigint::Zero::is_zero(&hi))
     }
 }
 
@@ -88,7 +97,9 @@ impl<'a, const N: usize> CheckedSub<&'a BigInt<N>> for BigInt<N> {
     type Output = Self;
 
     fn checked_sub(&self, rhs: &'a BigInt<N>) -> crypto_bigint::subtle::CtOption<Self> {
-        todo!()
+        let mut res = *self;
+        let carry = res.sub_with_borrow(rhs);
+        CtOption::new(res, (carry as u8).into())
     }
 }
 

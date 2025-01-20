@@ -769,6 +769,39 @@ impl<const N: usize> ShrAssign<u32> for BigInt<N> {
     }
 }
 
+impl<const N: usize> ShrAssign<usize> for BigInt<N> {
+    /// Computes the bitwise shift right operation in place.
+    ///
+    /// Differently from the built-in numeric types (u8, u32, u64, etc.) this
+    /// operation does *not* return an underflow error if the number of bits
+    /// shifted is larger than N * 64. Instead the result will be saturated to
+    /// zero.
+    fn shr_assign(&mut self, mut rhs: usize) {
+        if rhs >= (64 * N) as usize {
+            *self = Self::from(0u64);
+            return;
+        }
+
+        while rhs >= 64 {
+            let mut t = 0;
+            for limb in self.0.iter_mut().rev() {
+                core::mem::swap(&mut t, limb);
+            }
+            rhs -= 64;
+        }
+
+        if rhs > 0 {
+            let mut t = 0;
+            for a in self.0.iter_mut().rev() {
+                let t2 = *a << (64 - rhs);
+                *a >>= rhs;
+                *a |= t;
+                t = t2;
+            }
+        }
+    }
+}
+
 impl<const N: usize> Shr<u32> for BigInt<N> {
     type Output = Self;
 
@@ -793,6 +826,41 @@ impl<const N: usize> ShlAssign<u32> for BigInt<N> {
     /// off.
     fn shl_assign(&mut self, mut rhs: u32) {
         if rhs >= (64 * N) as u32 {
+            *self = Self::from(0u64);
+            return;
+        }
+
+        while rhs >= 64 {
+            let mut t = 0;
+            for i in 0..N {
+                core::mem::swap(&mut t, &mut self.0[i]);
+            }
+            rhs -= 64;
+        }
+
+        if rhs > 0 {
+            let mut t = 0;
+            #[allow(unused)]
+            for i in 0..N {
+                let a = &mut self.0[i];
+                let t2 = *a >> (64 - rhs);
+                *a <<= rhs;
+                *a |= t;
+                t = t2;
+            }
+        }
+    }
+}
+
+impl<const N: usize> ShlAssign<usize> for BigInt<N> {
+    /// Computes the bitwise shift left operation in place.
+    ///
+    /// Differently from the built-in numeric types (u8, u32, u64, etc.) this
+    /// operation does *not* return an overflow error if the number of bits
+    /// shifted is larger than N * 64. Instead, the overflow will be chopped
+    /// off.
+    fn shl_assign(&mut self, mut rhs: usize) {
+        if rhs >= (64 * N) as usize {
             *self = Self::from(0u64);
             return;
         }

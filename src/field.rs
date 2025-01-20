@@ -1,4 +1,4 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+use std::ops::{Add, Mul};
 
 use ark_ff::{BigInt, BigInteger, One, Zero};
 
@@ -63,33 +63,6 @@ impl<'config, const N: usize> RandomField<'config, N> {
     }
 }
 
-impl<'config, const N: usize> Sub<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
-
-    fn sub(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
-        &self - &rhs
-    }
-}
-
-impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
-
-    fn sub(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
-        if rhs.is_zero() {
-            return *self;
-        }
-        if self.is_zero() {
-            return -*rhs;
-        }
-        let config = check_equal_configs(self, rhs);
-
-        let mut res = RandomField::zero();
-        res = res + *self;
-        config.sub_assign(&mut res.value, &rhs.value);
-        res
-    }
-}
-
 impl<'config, const N: usize> Add<RandomField<'config, N>> for RandomField<'config, N> {
     type Output = RandomField<'config, N>;
 
@@ -108,70 +81,30 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         if self.is_zero() {
             return *rhs;
         }
+        // Here we assume that the elements of a random field are
+        // created using the same RandomFieldConfig.
+        let lconfig = self
+            .config
+            .expect("This field element has no associated field");
+        let rconfig = rhs
+            .config
+            .expect("This field element has no associated field");
+        let config_ptr_lhs: *const FieldConfig<N> = lconfig;
+        let config_ptr_rhs: *const FieldConfig<N> = rconfig;
 
-        let config = check_equal_configs(self, rhs);
+        if config_ptr_lhs != config_ptr_rhs {
+            panic!("cannot add field elements of different fields");
+        }
 
-        let mut res = RandomField::zero();
-        res = res + *self;
-        config.add_assign(&mut res.value, &rhs.value);
-        res
+        todo!()
     }
 }
 
 impl<'config, const N: usize> Mul<RandomField<'config, N>> for RandomField<'config, N> {
     type Output = RandomField<'config, N>;
 
-    fn mul(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
-        &self * &rhs
-    }
-}
-
-impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
-
-    fn mul(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
-        if self.is_one() {
-            return *rhs;
-        }
-        if rhs.is_one() {
-            return *self;
-        }
-
-        let config = check_equal_configs(self, rhs);
-
-        let mut res = RandomField::one();
-        res = res * *self;
-        config.mul_assign(&mut res.value, &rhs.value);
-        res
-    }
-}
-impl<'config, const N: usize> Div<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
-
-    fn div(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
-        &self / &rhs
-    }
-}
-
-impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
-    #[allow(clippy::suspicious_arithmetic_impl)]
-    fn div(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
-        if rhs.is_zero() {
-            panic!("Attempt to divide by zero");
-        }
-
-        if rhs.is_one() {
-            return *self;
-        }
-
-        let config = check_equal_configs(self, rhs);
-
-        let mut res = RandomField::one();
-        res = res * *self;
-
-        config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
-        res
+    fn mul(self, _: RandomField<'config, N>) -> RandomField<'config, N> {
+        todo!()
     }
 }
 
@@ -228,53 +161,17 @@ impl<const N: usize> PartialEq for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> Neg for RandomField<'_, N> {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        if self.is_zero() {
-            return self;
-        }
-        let config = self
-            .config
-            .expect("This field element has no associated field");
-
-        let mut val = config.modulus;
-        val.sub_with_borrow(&self.value);
-        Self::new_unchecked(self.config, val)
-    }
-}
-
 impl<const N: usize> Eq for RandomField<'_, N> {}
 
 unsafe impl<const N: usize> Send for RandomField<'_, N> {}
 
 unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
-/// Checks if field configs are equal
-/// Panics otherwise
-pub fn check_equal_configs<'a, const N: usize>(
-    l_element: &RandomField<'a, N>,
-    r_element: &RandomField<'a, N>,
-) -> &'a FieldConfig<N> {
-    let lconfig = l_element
-        .config
-        .expect("This field element has no associated field");
-    let rconfig = r_element
-        .config
-        .expect("This field element has no associated field");
-
-    if lconfig != rconfig {
-        panic!("Cannot operate on field elements of different fields");
-    }
-
-    lconfig
-}
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::{BigInteger256, BigInteger64, One};
+    use ark_ff::BigInteger256;
 
     use crate::field_config::FieldConfig;
 
@@ -294,197 +191,5 @@ mod tests {
 
         let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint())
-    }
-
-    #[test]
-    fn test_addition() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("22").unwrap();
-        let rhs = BigInteger64::from_str("2").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let sum = lhs + rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::one());
-
-        // Test 2
-        let lhs = BigInteger64::from_str("20").unwrap();
-        let rhs = BigInteger64::from_str("20").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let sum = lhs + rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::from_str("17").unwrap())
-    }
-
-    #[test]
-    fn test_multiplication() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("22").unwrap();
-        let rhs = BigInteger64::from_str("2").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let product = lhs * rhs;
-        assert_eq!(product.into_bigint(), BigInteger64::from_str("21").unwrap());
-
-        // Test 2
-        let lhs = BigInteger64::from_str("20").unwrap();
-        let rhs = BigInteger64::from_str("20").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let product = lhs * rhs;
-        assert_eq!(product.into_bigint(), BigInteger64::from_str("9").unwrap())
-    }
-
-    #[test]
-    fn test_division() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("22").unwrap();
-        let rhs = BigInteger64::from_str("2").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let quotient = lhs / rhs;
-        assert_eq!(
-            quotient.into_bigint(),
-            BigInteger64::from_str("11").unwrap()
-        );
-
-        // Test 2
-        let lhs = BigInteger64::from_str("20").unwrap();
-        let rhs = BigInteger64::from_str("20").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let quotient = lhs / rhs;
-        assert_eq!(quotient.into_bigint(), BigInteger64::from_str("1").unwrap());
-
-        // Test 3
-        let lhs = BigInteger64::from_str("17").unwrap();
-        let rhs = BigInteger64::from_str("4").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let quotient = lhs / rhs;
-        assert_eq!(
-            quotient.into_bigint(),
-            BigInteger64::from_str("10").unwrap()
-        )
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_division_by_zero() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("17").unwrap();
-        let rhs = BigInteger64::zero();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let _sum = lhs / rhs;
-    }
-
-    #[test]
-    fn test_big_division() {
-        let config = FieldConfig::new(
-            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-        );
-
-        let a = RandomField::from_bigint(&config, BigInteger256::from_str("3").unwrap()).unwrap();
-        let mut b = RandomField::from_bigint(&config, BigInteger256::one()).unwrap();
-        b = b / a;
-        assert_eq!(
-            b.into_bigint(),
-            BigInteger256::from_str("231987393234542266865693038683997116").unwrap()
-        );
-
-        let a =
-            RandomField::from_bigint(&config, BigInteger256::from_str("19382769832175").unwrap())
-                .unwrap();
-
-        let b =
-            RandomField::from_bigint(&config, BigInteger256::from_str("97133987132135").unwrap())
-                .unwrap();
-        assert_eq!(
-            BigInteger256::from_str("243043087159742188419721163456177516").unwrap(),
-            (b / a).into_bigint()
-        );
-    }
-    #[test]
-    fn test_negation() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let op_val = BigInteger64::from_str("22").unwrap();
-
-        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
-
-        let negated = -operand;
-        assert_eq!(negated.into_bigint(), BigInteger64::from_str("1").unwrap());
-
-        // Test 2
-        let op_val = BigInteger64::from_str("17").unwrap();
-
-        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
-
-        let negated = -operand;
-        assert_eq!(negated.into_bigint(), BigInteger64::from_str("6").unwrap());
-
-        // test with zero
-        let op_val = BigInteger64::from_str("0").unwrap();
-
-        let operand = RandomField::from_bigint(&field_config, op_val).unwrap();
-
-        let negated = -operand;
-        assert_eq!(negated.into_bigint(), BigInteger64::from_str("0").unwrap());
-    }
-
-    #[test]
-    fn test_subtraction() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("2").unwrap();
-        let rhs = BigInteger64::from_str("22").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let sum = lhs - rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::from_str("3").unwrap());
-
-        // Test 2
-        let lhs = BigInteger64::from_str("20").unwrap();
-        let rhs = BigInteger64::from_str("20").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
-
-        let sum = lhs - rhs;
-        assert_eq!(sum.into_bigint(), BigInteger64::zero())
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_failing_subtraction() {
-        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
-
-        let lhs = BigInteger64::from_str("2").unwrap();
-
-        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::one();
-        let _ = lhs - rhs;
     }
 }

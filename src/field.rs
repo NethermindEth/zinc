@@ -83,8 +83,7 @@ impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomFi
         }
         let config = check_equal_configs(self, rhs);
 
-        let mut res = RandomField::zero();
-        res = res + *self;
+        let mut res = *self;
         config.sub_assign(&mut res.value, &rhs.value);
         res
     }
@@ -111,8 +110,7 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
 
         let config = check_equal_configs(self, rhs);
 
-        let mut res = RandomField::zero();
-        res = res + *self;
+        let mut res = *self;
         config.add_assign(&mut res.value, &rhs.value);
         res
     }
@@ -139,8 +137,7 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
 
         let config = check_equal_configs(self, rhs);
 
-        let mut res = RandomField::one();
-        res = res * *self;
+        let mut res = *self;
         config.mul_assign(&mut res.value, &rhs.value);
         res
     }
@@ -166,10 +163,7 @@ impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomFi
         }
 
         let config = check_equal_configs(self, rhs);
-
-        let mut res = RandomField::one();
-        res = res * *self;
-
+        let mut res = *self;
         config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
         res
     }

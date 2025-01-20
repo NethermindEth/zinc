@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::biginteger::{BigInt, BigInteger};
+use crate::biginteger::BigInt;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{

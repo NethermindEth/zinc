@@ -3,7 +3,7 @@ use std::ops::{Add, Div, Mul, Neg, Sub};
 use ark_ff::{One, Zero};
 
 use crate::{
-    biginteger::{BigInt, BigInteger},
+    biginteger::BigInt,
     field_config::{self, FieldConfig},
 };
 

@@ -291,12 +291,12 @@ impl<const N: usize> BigInt<N> {
     }
 }
 
-impl<const N: usize> BigInteger for BigInt<N> {
+impl<const N: usize> BigInt<N> {
     const NUM_LIMBS: usize = N;
 
     #[unroll_for_loops(6)]
     #[inline]
-    fn add_with_carry(&mut self, other: &Self) -> bool {
+    pub fn add_with_carry(&mut self, other: &Self) -> bool {
         let mut carry = 0;
 
         for i in 0..N {
@@ -308,7 +308,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
 
     #[unroll_for_loops(6)]
     #[inline]
-    fn sub_with_borrow(&mut self, other: &Self) -> bool {
+    pub fn sub_with_borrow(&mut self, other: &Self) -> bool {
         let mut borrow = 0;
 
         for i in 0..N {
@@ -320,7 +320,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
 
     #[inline]
     #[allow(unused)]
-    fn mul2(&mut self) -> bool {
+    pub fn mul2(&mut self) -> bool {
         #[cfg(all(target_arch = "x86_64", feature = "asm"))]
         #[allow(unsafe_code)]
         {
@@ -351,7 +351,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn muln(&mut self, mut n: u32) {
+    pub fn muln(&mut self, mut n: u32) {
         if n >= (64 * N) as u32 {
             *self = Self::from(0u64);
             return;
@@ -379,7 +379,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn mul(&self, other: &Self) -> (Self, Self) {
+    pub fn mul(&self, other: &Self) -> (Self, Self) {
         if self.is_zero() || other.is_zero() {
             let zero = Self::zero();
             return (zero, zero);
@@ -401,7 +401,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn mul_low(&self, other: &Self) -> Self {
+    pub fn mul_low(&self, other: &Self) -> Self {
         if self.is_zero() || other.is_zero() {
             return Self::zero();
         }
@@ -420,12 +420,12 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn mul_high(&self, other: &Self) -> Self {
+    pub fn mul_high(&self, other: &Self) -> Self {
         self.mul(other).1
     }
 
     #[inline]
-    fn div2(&mut self) {
+    pub fn div2(&mut self) {
         let mut t = 0;
         for a in self.0.iter_mut().rev() {
             let t2 = *a << 63;
@@ -436,7 +436,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn divn(&mut self, mut n: u32) {
+    pub fn divn(&mut self, mut n: u32) {
         if n >= (64 * N) as u32 {
             *self = Self::from(0u64);
             return;
@@ -464,22 +464,22 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn is_odd(&self) -> bool {
+    pub fn is_odd(&self) -> bool {
         self.0[0] & 1 == 1
     }
 
     #[inline]
-    fn is_even(&self) -> bool {
+    pub fn is_even(&self) -> bool {
         !self.is_odd()
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.0.iter().all(Zero::is_zero)
     }
 
     #[inline]
-    fn num_bits(&self) -> u32 {
+    pub fn num_bits(&self) -> u32 {
         let mut ret = N as u32 * 64;
         for i in self.0.iter().rev() {
             let leading = i.leading_zeros();
@@ -493,7 +493,7 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn get_bit(&self, i: usize) -> bool {
+    pub fn get_bit(&self, i: usize) -> bool {
         if i >= 64 * N {
             false
         } else {
@@ -504,13 +504,13 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn from_bits_be(bits: &[bool]) -> Self {
+    pub fn from_bits_be(bits: &[bool]) -> Self {
         let mut bits = bits.to_vec();
         bits.reverse();
         Self::from_bits_le(&bits)
     }
 
-    fn from_bits_le(bits: &[bool]) -> Self {
+    pub fn from_bits_le(bits: &[bool]) -> Self {
         let mut res = Self::zero();
         for (bits64, res_i) in bits.chunks(64).zip(&mut res.0) {
             for (i, bit) in bits64.iter().enumerate() {
@@ -521,14 +521,14 @@ impl<const N: usize> BigInteger for BigInt<N> {
     }
 
     #[inline]
-    fn to_bytes_be(&self) -> Vec<u8> {
+    pub fn to_bytes_be(&self) -> Vec<u8> {
         let mut le_bytes = self.to_bytes_le();
         le_bytes.reverse();
         le_bytes
     }
 
     #[inline]
-    fn to_bytes_le(&self) -> Vec<u8> {
+    pub fn to_bytes_le(&self) -> Vec<u8> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
 }
@@ -939,438 +939,3 @@ pub type BigInteger384 = BigInt<6>;
 pub type BigInteger448 = BigInt<7>;
 pub type BigInteger768 = BigInt<12>;
 pub type BigInteger832 = BigInt<13>;
-
-#[cfg(test)]
-mod tests;
-
-/// This defines a `BigInteger`, a smart wrapper around a
-/// sequence of `u64` limbs, least-significant limb first.
-// TODO: get rid of this trait once we can use associated constants in const generics.
-pub trait BigInteger:
-    CanonicalSerialize
-    + CanonicalDeserialize
-    + Copy
-    + Clone
-    + Debug
-    + Default
-    + Display
-    + Eq
-    + Ord
-    + Send
-    + Sized
-    + Sync
-    + 'static
-    + UniformRand
-    + Zeroize
-    + AsMut<[u64]>
-    + AsRef<[u64]>
-    + From<u64>
-    + From<u32>
-    + From<u16>
-    + From<u8>
-    + TryFrom<BigUint, Error = ()>
-    + FromStr
-    + Into<BigUint>
-    + BitXorAssign<Self>
-    + for<'a> BitXorAssign<&'a Self>
-    + BitXor<Self, Output = Self>
-    + for<'a> BitXor<&'a Self, Output = Self>
-    + BitAndAssign<Self>
-    + for<'a> BitAndAssign<&'a Self>
-    + BitAnd<Self, Output = Self>
-    + for<'a> BitAnd<&'a Self, Output = Self>
-    + BitOrAssign<Self>
-    + for<'a> BitOrAssign<&'a Self>
-    + BitOr<Self, Output = Self>
-    + for<'a> BitOr<&'a Self, Output = Self>
-    + Shr<u32, Output = Self>
-    + ShrAssign<u32>
-    + Shl<u32, Output = Self>
-    + ShlAssign<u32>
-{
-    /// Number of 64-bit limbs representing `Self`.
-    const NUM_LIMBS: usize;
-
-    /// Add another [`BigInteger`] to `self`. This method stores the result in `self`,
-    /// and returns a carry bit.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let (mut one, mut x) = (B::from(1u64), B::from(2u64));
-    /// let carry = x.add_with_carry(&one);
-    /// assert_eq!(x, B::from(3u64));
-    /// assert_eq!(carry, false);
-    ///
-    /// // Edge-Case
-    /// let mut x = B::from(u64::MAX);
-    /// let carry = x.add_with_carry(&one);
-    /// assert_eq!(x, B::from(0u64));
-    /// assert_eq!(carry, true)
-    /// ```
-    fn add_with_carry(&mut self, other: &Self) -> bool;
-
-    /// Subtract another [`BigInteger`] from this one. This method stores the result in
-    /// `self`, and returns a borrow.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let (mut one_sub, two, mut three_sub) = (B::from(1u64), B::from(2u64), B::from(3u64));
-    /// let borrow = three_sub.sub_with_borrow(&two);
-    /// assert_eq!(three_sub, one_sub);
-    /// assert_eq!(borrow, false);
-    ///
-    /// // Edge-Case
-    /// let borrow = one_sub.sub_with_borrow(&two);
-    /// assert_eq!(one_sub, B::from(u64::MAX));
-    /// assert_eq!(borrow, true);
-    /// ```
-    fn sub_with_borrow(&mut self, other: &Self) -> bool;
-
-    /// Performs a leftwise bitshift of this number, effectively multiplying
-    /// it by 2. Overflow is ignored.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let mut two_mul = B::from(2u64);
-    /// two_mul.mul2();
-    /// assert_eq!(two_mul, B::from(4u64));
-    ///
-    /// // Edge-Cases
-    /// let mut zero = B::from(0u64);
-    /// zero.mul2();
-    /// assert_eq!(zero, B::from(0u64));
-    ///
-    /// let mut arr: [bool; 64] = [false; 64];
-    /// arr[0] = true;
-    /// let mut mul = B::from_bits_be(&arr);
-    /// mul.mul2();
-    /// assert_eq!(mul, B::from(0u64));
-    /// ```
-    fn mul2(&mut self) -> bool;
-
-    /// Performs a leftwise bitshift of this number by n bits, effectively multiplying
-    /// it by 2^n. Overflow is ignored.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let mut one_mul = B::from(1u64);
-    /// one_mul.muln(5);
-    /// assert_eq!(one_mul, B::from(32u64));
-    ///
-    /// // Edge-Case
-    /// let mut zero = B::from(0u64);
-    /// zero.muln(5);
-    /// assert_eq!(zero, B::from(0u64));
-    ///
-    /// let mut arr: [bool; 64] = [false; 64];
-    /// arr[4] = true;
-    /// let mut mul = B::from_bits_be(&arr);
-    /// mul.muln(5);
-    /// assert_eq!(mul, B::from(0u64));
-    /// ```
-    #[deprecated(since = "0.4.2", note = "please use the operator `<<` instead")]
-    fn muln(&mut self, amt: u32);
-
-    /// Multiplies this [`BigInteger`] by another `BigInteger`, storing the result in `self`.
-    /// Overflow is ignored.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let mut a = B::from(42u64);
-    /// let b = B::from(3u64);
-    /// assert_eq!(a.mul_low(&b), B::from(126u64));
-    ///
-    /// // Edge-Case
-    /// let mut zero = B::from(0u64);
-    /// assert_eq!(zero.mul_low(&B::from(5u64)), B::from(0u64));
-    /// ```
-    fn mul_low(&self, other: &Self) -> Self;
-
-    /// Multiplies this [`BigInteger`] by another `BigInteger`, returning the high bits of the result.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let (one, x) = (B::from(1u64), B::from(2u64));
-    /// let r = x.mul_high(&one);
-    /// assert_eq!(r, B::from(0u64));
-    ///
-    /// // Edge-Case
-    /// let mut x = B::from(u64::MAX);
-    /// let r = x.mul_high(&B::from(2u64));
-    /// assert_eq!(r, B::from(1u64))
-    /// ```
-    fn mul_high(&self, other: &Self) -> Self;
-
-    /// Multiplies this [`BigInteger`] by another `BigInteger`, returning both low and high bits of the result.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let mut a = B::from(42u64);
-    /// let b = B::from(3u64);
-    /// let (low_bits, high_bits) = a.mul(&b);
-    /// assert_eq!(low_bits, B::from(126u64));
-    /// assert_eq!(high_bits, B::from(0u64));
-    ///
-    /// // Edge-Case
-    /// let mut x = B::from(u64::MAX);
-    /// let mut max_plus_max = x;
-    /// max_plus_max.add_with_carry(&x);
-    /// let (low_bits, high_bits) = x.mul(&B::from(2u64));
-    /// assert_eq!(low_bits, max_plus_max);
-    /// assert_eq!(high_bits, B::from(1u64));
-    /// ```
-    fn mul(&self, other: &Self) -> (Self, Self);
-
-    /// Performs a rightwise bitshift of this number, effectively dividing
-    /// it by 2.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let (mut two, mut four_div) = (B::from(2u64), B::from(4u64));
-    /// four_div.div2();
-    /// assert_eq!(two, four_div);
-    ///
-    /// // Edge-Case
-    /// let mut zero = B::from(0u64);
-    /// zero.div2();
-    /// assert_eq!(zero, B::from(0u64));
-    ///
-    /// let mut one = B::from(1u64);
-    /// one.div2();
-    /// assert_eq!(one, B::from(0u64));
-    /// ```
-    fn div2(&mut self);
-
-    /// Performs a rightwise bitshift of this number by some amount.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// // Basic
-    /// let (mut one, mut thirty_two_div) = (B::from(1u64), B::from(32u64));
-    /// thirty_two_div.divn(5);
-    /// assert_eq!(one, thirty_two_div);
-    ///
-    /// // Edge-Case
-    /// let mut arr: [bool; 64] = [false; 64];
-    /// arr[4] = true;
-    /// let mut div = B::from_bits_le(&arr);
-    /// div.divn(5);
-    /// assert_eq!(div, B::from(0u64));
-    /// ```
-    #[deprecated(since = "0.4.2", note = "please use the operator `>>` instead")]
-    fn divn(&mut self, amt: u32);
-
-    /// Returns true iff this number is odd.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut one = B::from(1u64);
-    /// assert!(one.is_odd());
-    /// ```
-    fn is_odd(&self) -> bool;
-
-    /// Returns true iff this number is even.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut two = B::from(2u64);
-    /// assert!(two.is_even());
-    /// ```
-    fn is_even(&self) -> bool;
-
-    /// Returns true iff this number is zero.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut zero = B::from(0u64);
-    /// assert!(zero.is_zero());
-    /// ```
-    fn is_zero(&self) -> bool;
-
-    /// Compute the minimum number of bits needed to encode this number.
-    /// # Example
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let zero = B::from(0u64);
-    /// assert_eq!(zero.num_bits(), 0);
-    /// let one = B::from(1u64);
-    /// assert_eq!(one.num_bits(), 1);
-    /// let max = B::from(u64::MAX);
-    /// assert_eq!(max.num_bits(), 64);
-    /// let u32_max = B::from(u32::MAX as u64);
-    /// assert_eq!(u32_max.num_bits(), 32);
-    /// ```
-    fn num_bits(&self) -> u32;
-
-    /// Compute the `i`-th bit of `self`.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut one = B::from(1u64);
-    /// assert!(one.get_bit(0));
-    /// assert!(!one.get_bit(1));
-    /// ```
-    fn get_bit(&self, i: usize) -> bool;
-
-    /// Returns the big integer representation of a given big endian boolean
-    /// array.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut arr: [bool; 64] = [false; 64];
-    /// arr[63] = true;
-    /// let mut one = B::from(1u64);
-    /// assert_eq!(B::from_bits_be(&arr), one);
-    /// ```
-    fn from_bits_be(bits: &[bool]) -> Self;
-
-    /// Returns the big integer representation of a given little endian boolean
-    /// array.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let mut arr: [bool; 64] = [false; 64];
-    /// arr[0] = true;
-    /// let mut one = B::from(1u64);
-    /// assert_eq!(B::from_bits_le(&arr), one);
-    /// ```
-    fn from_bits_le(bits: &[bool]) -> Self;
-
-    /// Returns the bit representation in a big endian boolean array,
-    /// with leading zeroes.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let one = B::from(1u64);
-    /// let arr = one.to_bits_be();
-    /// let mut vec = vec![false; 64];
-    /// vec[63] = true;
-    /// assert_eq!(arr, vec);
-    /// ```
-    fn to_bits_be(&self) -> Vec<bool> {
-        BitIteratorBE::new(self).collect()
-    }
-
-    /// Returns the bit representation in a little endian boolean array,
-    /// with trailing zeroes.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let one = B::from(1u64);
-    /// let arr = one.to_bits_le();
-    /// let mut vec = vec![false; 64];
-    /// vec[0] = true;
-    /// assert_eq!(arr, vec);
-    /// ```
-    fn to_bits_le(&self) -> Vec<bool> {
-        BitIteratorLE::new(self).collect()
-    }
-
-    /// Returns the byte representation in a big endian byte array,
-    /// with leading zeros.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let one = B::from(1u64);
-    /// let arr = one.to_bytes_be();
-    /// let mut vec = vec![0; 8];
-    /// vec[7] = 1;
-    /// assert_eq!(arr, vec);
-    /// ```
-    fn to_bytes_be(&self) -> Vec<u8>;
-
-    /// Returns the byte representation in a little endian byte array,
-    /// with trailing zeros.
-    /// # Example
-    ///
-    /// ```
-    /// use ark_ff::{biginteger::BigInteger64 as B, BigInteger as _};
-    ///
-    /// let one = B::from(1u64);
-    /// let arr = one.to_bytes_le();
-    /// let mut vec = vec![0; 8];
-    /// vec[0] = 1;
-    /// assert_eq!(arr, vec);
-    /// ```
-    fn to_bytes_le(&self) -> Vec<u8>;
-
-    /// Returns the windowed non-adjacent form of `self`, for a window of size `w`.
-    fn find_wnaf(&self, w: usize) -> Option<Vec<i64>> {
-        // w > 2 due to definition of wNAF, and w < 64 to make sure that `i64`
-        // can fit each signed digit
-        if (2..64).contains(&w) {
-            let mut res = vec![];
-            let mut e = *self;
-
-            while !e.is_zero() {
-                let z: i64;
-                if e.is_odd() {
-                    z = signed_mod_reduction(e.as_ref()[0], 1 << w);
-                    if z >= 0 {
-                        e.sub_with_borrow(&Self::from(z as u64));
-                    } else {
-                        e.add_with_carry(&Self::from((-z) as u64));
-                    }
-                } else {
-                    z = 0;
-                }
-                res.push(z);
-                e.div2();
-            }
-
-            Some(res)
-        } else {
-            None
-        }
-    }
-}

@@ -8,7 +8,7 @@ use crypto_bigint::{
     CheckedAdd, CheckedMul, CheckedSub, Integer, Limb, NonZero, Zero,
 };
 
-use super::{BigInt, BigInteger};
+use super::BigInt;
 
 impl<const N: usize> Integer for BigInt<N> {
     const ONE: Self = BigInt::<N>::ONE;

@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use ark_ff::{BigInt, BigInteger};
+use crate::biginteger::BigInt;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -249,16 +249,6 @@ pub const fn inv<const N: usize>(modulus: BigInt<N>) -> u64 {
     });
     inv.wrapping_neg()
 }
-#[macro_export]
-macro_rules! const_for {
-    (($i:ident in $start:tt..$end:tt)  $code:expr ) => {{
-        let mut $i = $start;
-        while $i < $end {
-            $code
-            $i += 1;
-        }
-    }};
-}
 
 fn widening_mul(a: u64, b: u64) -> u128 {
     a as u128 * b as u128
@@ -276,7 +266,7 @@ impl<const N: usize> Eq for FieldConfig<N> {}
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::{BigInteger128, BigInteger256};
+    use crate::biginteger::{BigInteger128, BigInteger256};
 
     use super::FieldConfig;
 

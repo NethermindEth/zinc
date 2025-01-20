@@ -1,6 +1,6 @@
 #[allow(unused)]
 use ark_ff::ark_ff_macros::unroll_for_loops;
-use ark_ff::{const_for, UniformRand};
+use ark_ff::const_for;
 use ark_serialize::{
     CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
 };
@@ -22,7 +22,6 @@ use ark_std::{
     Zero,
 };
 
-use bits::{BitIteratorBE, BitIteratorLE};
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 

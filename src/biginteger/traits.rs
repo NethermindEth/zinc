@@ -105,7 +105,13 @@ impl<'a, const N: usize> CheckedSub<&'a BigInt<N>> for BigInt<N> {
 
 impl<const N: usize> ConditionallySelectable for BigInt<N> {
     fn conditional_select(a: &Self, b: &Self, choice: crypto_bigint::subtle::Choice) -> Self {
-        todo!()
+        let mut limbs = [0u64; N];
+
+        for i in 0..N {
+            limbs[i] = Limb::conditional_select(&Limb(a.0[i]), &Limb(b.0[i]), choice).0;
+        }
+
+        BigInt::new(limbs)
     }
 }
 

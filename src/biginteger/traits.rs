@@ -118,7 +118,7 @@ impl<const N: usize> ConditionallySelectable for BigInt<N> {
 impl<const N: usize> Rem<NonZero<BigInt<N>>> for BigInt<N> {
     type Output = Self;
 
-    fn rem(self, rhs: NonZero<BigInt<N>>) -> Self::Output {
+    fn rem(self, _rhs: NonZero<BigInt<N>>) -> Self::Output {
         todo!()
     }
 }
@@ -126,7 +126,7 @@ impl<const N: usize> Rem<NonZero<BigInt<N>>> for BigInt<N> {
 impl<const N: usize> Div<NonZero<BigInt<N>>> for BigInt<N> {
     type Output = Self;
 
-    fn div(self, rhs: NonZero<BigInt<N>>) -> Self::Output {
+    fn div(self, _rhs: NonZero<BigInt<N>>) -> Self::Output {
         todo!()
     }
 }

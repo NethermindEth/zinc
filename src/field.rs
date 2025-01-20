@@ -1,8 +1,11 @@
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
-use ark_ff::{BigInt, BigInteger, One, Zero};
+use ark_ff::{One, Zero};
 
-use crate::field_config::{self, FieldConfig};
+use crate::{
+    biginteger::{BigInt, BigInteger},
+    field_config::{self, FieldConfig},
+};
 
 #[derive(Copy, Clone)]
 pub struct RandomField<'config, const N: usize> {
@@ -268,9 +271,12 @@ pub fn check_equal_configs<'a, const N: usize>(
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::{BigInteger256, BigInteger64, One};
+    use ark_ff::One;
 
-    use crate::field_config::FieldConfig;
+    use crate::{
+        biginteger::{BigInteger256, BigInteger64},
+        field_config::FieldConfig,
+    };
 
     use super::RandomField;
 

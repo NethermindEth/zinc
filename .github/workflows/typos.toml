@@ -1,2 +1,6 @@
 [default]
 extend-ignore-re = []
+
+[default.extend-words]
+# ba means the result of an operation on b and a
+ba= "ba"

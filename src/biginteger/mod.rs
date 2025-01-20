@@ -520,14 +520,14 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn to_bytes_be(&self) -> Vec<u8> {
+    pub fn to_bytes_be(self) -> Vec<u8> {
         let mut le_bytes = self.to_bytes_le();
         le_bytes.reverse();
         le_bytes
     }
 
     #[inline]
-    pub fn to_bytes_le(&self) -> Vec<u8> {
+    pub fn to_bytes_le(self) -> Vec<u8> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
 }
@@ -776,7 +776,7 @@ impl<const N: usize> ShrAssign<usize> for BigInt<N> {
     /// shifted is larger than N * 64. Instead the result will be saturated to
     /// zero.
     fn shr_assign(&mut self, mut rhs: usize) {
-        if rhs >= (64 * N) as usize {
+        if rhs >= (64 * N) {
             *self = Self::from(0u64);
             return;
         }
@@ -859,7 +859,7 @@ impl<const N: usize> ShlAssign<usize> for BigInt<N> {
     /// shifted is larger than N * 64. Instead, the overflow will be chopped
     /// off.
     fn shl_assign(&mut self, mut rhs: usize) {
-        if rhs >= (64 * N) as usize {
+        if rhs >= (64 * N) {
             *self = Self::from(0u64);
             return;
         }

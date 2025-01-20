@@ -107,8 +107,8 @@ impl<const N: usize> ConditionallySelectable for BigInt<N> {
     fn conditional_select(a: &Self, b: &Self, choice: crypto_bigint::subtle::Choice) -> Self {
         let mut limbs = [0u64; N];
 
-        for i in 0..N {
-            limbs[i] = Limb::conditional_select(&Limb(a.0[i]), &Limb(b.0[i]), choice).0;
+        for (i, limb) in limbs.iter_mut().enumerate().take(N) {
+            *limb = Limb::conditional_select(&Limb(a.0[i]), &Limb(b.0[i]), choice).0;
         }
 
         BigInt::new(limbs)

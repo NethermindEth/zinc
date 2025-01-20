@@ -251,7 +251,8 @@ unsafe impl<const N: usize> Send for RandomField<'_, N> {}
 
 unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
-// checks if configs are equal panics otherwise or if either is none
+/// Checks if field configs are equal
+/// Panics otherwise
 pub fn check_equal_configs<'a, const N: usize>(
     l_element: &RandomField<'a, N>,
     r_element: &RandomField<'a, N>,

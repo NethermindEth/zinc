@@ -119,10 +119,6 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
             return *rhs;
         }
 
-        if self.is_one() && self.has_no_config() && rhs.is_one() && rhs.has_no_config() {
-            panic!()
-        }
-
         if self.is_one() && self.has_no_config() {
             let mut res = *rhs;
             res.increment_by_one();

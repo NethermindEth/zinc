@@ -64,6 +64,9 @@ impl<'config, const N: usize> RandomField<'config, N> {
 
         BigInt::new(r)
     }
+    fn has_no_config(&self) -> bool {
+        self.config.is_none()
+    }
 }
 
 impl<'config, const N: usize> Sub<RandomField<'config, N>> for RandomField<'config, N> {
@@ -109,6 +112,23 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
         }
         if self.is_zero() {
             return *rhs;
+        }
+
+        if self.is_one() && self.has_no_config() && rhs.is_one() && rhs.has_no_config() {
+            panic!()
+        }
+
+        if self.is_one() && self.has_no_config() {
+            let mut res = *rhs;
+            let config = rhs.config.unwrap();
+            config.add_assign(&mut res.value, &config.r);
+            return res;
+        }
+        if rhs.is_one() && rhs.has_no_config() {
+            let mut res = *self;
+            let config = self.config.unwrap();
+            config.add_assign(&mut res.value, &config.r);
+            return res;
         }
 
         let config = check_equal_configs(self, rhs);
@@ -165,7 +185,7 @@ impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomFi
             panic!("Attempt to divide by zero");
         }
 
-        if rhs.is_one() {
+        if rhs.is_one() && rhs.has_no_config() {
             return *self;
         }
 
@@ -271,6 +291,7 @@ pub fn check_equal_configs<'a, const N: usize>(
 
     lconfig
 }
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -322,6 +343,32 @@ mod tests {
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), BigInteger64::from_str("17").unwrap())
+    }
+
+    #[test]
+    fn test_add_one() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::one();
+
+        let sum = lhs + rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::zero());
+
+        let sum = rhs + lhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::zero());
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_add_two_ones() {
+        let lhs: RandomField<'_, 1> = RandomField::one();
+
+        let rhs = RandomField::one();
+
+        let _ = lhs + rhs;
     }
 
     #[test]

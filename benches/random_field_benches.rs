@@ -1,5 +1,5 @@
 #![allow(non_local_definitions)]
-
+#![allow(clippy::eq_op)]
 use std::str::FromStr;
 
 use criterion::{

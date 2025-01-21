@@ -274,7 +274,7 @@ mod tests {
     use ark_ff::One;
 
     use crate::{
-        biginteger::{BigInteger256, BigInteger64},
+        biginteger::{BigInt, BigInteger256, BigInteger64},
         field_config::FieldConfig,
     };
 
@@ -342,6 +342,32 @@ mod tests {
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), BigInteger64::from_str("9").unwrap())
+    }
+
+    #[test]
+    fn test_left_mul_by_zero() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::new_unchecked(None, BigInt::zero());
+
+        let product = lhs * rhs;
+        assert_eq!(product, rhs);
+    }
+
+    #[test]
+    fn test_right_mul_by_zero() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let rhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::new_unchecked(None, BigInt::zero());
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let product = lhs * rhs;
+        assert_eq!(product, lhs);
     }
 
     #[test]

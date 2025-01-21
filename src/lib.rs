@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-mod biginteger;
+pub mod biginteger;
 mod const_helpers;
 pub mod field;
-mod field_config;
+pub mod field_config;

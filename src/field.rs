@@ -64,6 +64,11 @@ impl<'config, const N: usize> RandomField<'config, N> {
 
         BigInt::new(r)
     }
+
+    fn increment_by_one(&mut self) {
+        let config = self.config.expect("Cannot add one, field is None");
+        config.add_assign(&mut self.value, &config.r);
+    }
     fn has_no_config(&self) -> bool {
         self.config.is_none()
     }
@@ -120,14 +125,12 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
 
         if self.is_one() && self.has_no_config() {
             let mut res = *rhs;
-            let config = rhs.config.unwrap();
-            config.add_assign(&mut res.value, &config.r);
+            res.increment_by_one();
             return res;
         }
         if rhs.is_one() && rhs.has_no_config() {
             let mut res = *self;
-            let config = self.config.unwrap();
-            config.add_assign(&mut res.value, &config.r);
+            res.increment_by_one();
             return res;
         }
 

@@ -22,7 +22,7 @@ impl<'config, const N: usize> RandomField<'config, N> {
     /// If `BigInteger` is greater then field modulus return `None`
     pub fn from_bigint(config: &'config FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
         if value.is_zero() {
-            Some(Self::new_unchecked(Some(config), value))
+            Some(Self::zero())
         } else if value >= config.modulus {
             None
         } else {
@@ -136,6 +136,10 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
         }
         if rhs.is_one() {
             return *self;
+        }
+
+        if self.is_zero() || rhs.is_zero() {
+            return RandomField::zero();
         }
 
         let config = check_equal_configs(self, rhs);
@@ -271,10 +275,10 @@ pub fn check_equal_configs<'a, const N: usize>(
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::One;
+    use ark_ff::{One, Zero};
 
     use crate::{
-        biginteger::{BigInt, BigInteger256, BigInteger64},
+        biginteger::{BigInteger256, BigInteger64},
         field_config::FieldConfig,
     };
 
@@ -351,7 +355,7 @@ mod tests {
         let lhs = BigInteger64::from_str("22").unwrap();
 
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::new_unchecked(None, BigInt::zero());
+        let rhs = RandomField::zero();
 
         let product = lhs * rhs;
         assert_eq!(product, rhs);
@@ -363,7 +367,7 @@ mod tests {
 
         let rhs = BigInteger64::from_str("22").unwrap();
 
-        let lhs = RandomField::new_unchecked(None, BigInt::zero());
+        let lhs = RandomField::zero();
         let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
 
         let product = lhs * rhs;

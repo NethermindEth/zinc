@@ -1,4 +1,5 @@
-use std::ops::{Add, Div, Mul, Neg, Sub};
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
+use std::ops::{Add, Div, Mul, MulAssign, Neg, Sub};
 
 use ark_ff::{One, Zero};
 
@@ -7,28 +8,48 @@ use crate::{
     field_config::{self, FieldConfig},
 };
 
-#[derive(Copy, Clone)]
-pub struct RandomField<'config, const N: usize> {
-    pub config: Option<&'config FieldConfig<N>>,
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct RandomField<const N: usize> {
+    pub config: *const FieldConfig<N>,
     pub value: BigInt<N>,
 }
 
-impl<'config, const N: usize> RandomField<'config, N> {
-    fn new_unchecked(config: Option<&'config FieldConfig<N>>, value: BigInt<N>) -> Self {
+// TODO: Finalise this
+//impl<const N: usize> AdditiveGroup for RandomField<N> {
+//    type Scalar = ;
+//
+//    const ZERO: Self = Self { config: std::ptr::null(), BigInt::zero() };
+//}
+
+impl<const N: usize> RandomField<N> {
+    #[inline(always)]
+    pub fn config_ref(&self) -> Option<&FieldConfig<N>> {
+        if self.config.is_null() {
+            return None;
+        }
+
+        unsafe { self.config.as_ref() }
+    }
+}
+
+impl<const N: usize> RandomField<N> {
+    fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
         RandomField { config, value }
     }
     /// Convert from `BigInteger` to `RandomField`
     ///
     /// If `BigInteger` is greater then field modulus return `None`
-    pub fn from_bigint(config: &'config FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
-        if value.is_zero() {
-            Some(Self::zero())
-        } else if value >= config.modulus {
-            None
-        } else {
-            let mut r = value;
-            config.mul_assign(&mut r, &config.r2);
-            Some(Self::new_unchecked(Some(config), r))
+    pub fn from_bigint(config: *const FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
+        unsafe {
+            if value.is_zero() {
+                Some(Self::zero())
+            } else if value >= (*config).modulus {
+                None
+            } else {
+                let mut r = value;
+                (*config).mul_assign(&mut r, &(*config).r2);
+                Some(Self::new_unchecked(config, r))
+            }
         }
     }
 
@@ -37,12 +58,12 @@ impl<'config, const N: usize> RandomField<'config, N> {
             return BigInt::zero();
         }
 
-        if self.value == BigInt::one() && self.config.is_none() {
+        if self.value == BigInt::one() && self.config.is_null() {
             return BigInt::one();
         }
 
         let config = self
-            .config
+            .config_ref()
             .expect("This field element has no associated field");
         let mut r = self.value.0;
         // Montgomery Reduction
@@ -66,26 +87,30 @@ impl<'config, const N: usize> RandomField<'config, N> {
     }
 
     fn increment_by_one(&mut self) {
-        let config = self.config.expect("Cannot add one, field is None");
-        config.add_assign(&mut self.value, &config.r);
+        let mut value = std::mem::take(&mut self.value);
+        let config = self.config_ref().expect("Cannot add one, field is None");
+        config.add_assign(&mut value, &config.r);
+
+        self.value = value;
     }
+
     fn has_no_config(&self) -> bool {
-        self.config.is_none()
+        self.config.is_null()
     }
 }
 
-impl<'config, const N: usize> Sub<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<const N: usize> Sub<RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn sub(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+    fn sub(self, rhs: RandomField<N>) -> RandomField<N> {
         &self - &rhs
     }
 }
 
-impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<'a, const N: usize> Sub<&'a RandomField<N>> for &RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn sub(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+    fn sub(self, rhs: &'a RandomField<N>) -> RandomField<N> {
         if rhs.is_zero() {
             return *self;
         }
@@ -100,18 +125,18 @@ impl<'a, 'config, const N: usize> Sub<&'a RandomField<'config, N>> for &RandomFi
     }
 }
 
-impl<'config, const N: usize> Add<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<const N: usize> Add<RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn add(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+    fn add(self, rhs: RandomField<N>) -> RandomField<N> {
         &self + &rhs
     }
 }
 
-impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<'a, const N: usize> Add<&'a RandomField<N>> for &RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn add(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+    fn add(self, rhs: &'a RandomField<N>) -> RandomField<N> {
         if rhs.is_zero() {
             return *self;
         }
@@ -138,18 +163,18 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
     }
 }
 
-impl<'config, const N: usize> Mul<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<const N: usize> Mul<RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn mul(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+    fn mul(self, rhs: RandomField<N>) -> RandomField<N> {
         &self * &rhs
     }
 }
 
-impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<'a, const N: usize> Mul<&'a RandomField<N>> for &RandomField<N> {
+    type Output = RandomField<N>;
 
-    fn mul(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+    fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
         if self.is_one() {
             return *rhs;
         }
@@ -168,18 +193,19 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
         res
     }
 }
-impl<'config, const N: usize> Div<RandomField<'config, N>> for RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
 
-    fn div(self, rhs: RandomField<'config, N>) -> RandomField<'config, N> {
+impl<const N: usize> Div<RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
+
+    fn div(self, rhs: RandomField<N>) -> RandomField<N> {
         &self / &rhs
     }
 }
 
-impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomField<'config, N> {
-    type Output = RandomField<'config, N>;
+impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
+    type Output = RandomField<N>;
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn div(self, rhs: &'a RandomField<'config, N>) -> RandomField<'config, N> {
+    fn div(self, rhs: &'a RandomField<N>) -> RandomField<N> {
         if rhs.is_zero() {
             panic!("Attempt to divide by zero");
         }
@@ -195,18 +221,46 @@ impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomFi
     }
 }
 
-impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
+impl<const N: usize> MulAssign<Self> for RandomField<N> {
+    fn mul_assign(&mut self, rhs: Self) {
+        if self.is_one() {
+            *self = rhs;
+            return;
+        }
+        if rhs.is_one() {
+            return;
+        }
+
+        check_equal_configs(self, &rhs);
+
+        rhs.config_ref()
+            .unwrap()
+            .mul_assign(&mut self.value, &rhs.value);
+    }
+}
+
+impl<const N: usize> std::fmt::Debug for RandomField<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.config {
+        match self.config_ref() {
             Some(config) => write!(f, "{} in the field Z_{}", self.value, config.modulus),
             None => write!(f, "{}", self.value),
         }
     }
 }
 
-impl<const N: usize> Zero for RandomField<'_, N> {
+impl<const N: usize> std::fmt::Display for RandomField<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: we should go back from Montgomery here.
+        write!(f, "{}", self.value)
+    }
+}
+
+impl<const N: usize> Zero for RandomField<N> {
     fn zero() -> Self {
-        Self::new_unchecked(None, BigInt::zero())
+        Self::new_unchecked(
+            std::ptr::null::<FieldConfig<N>>().cast_mut(),
+            BigInt::zero(),
+        )
     }
 
     fn is_zero(&self) -> bool {
@@ -218,9 +272,9 @@ impl<const N: usize> Zero for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> One for RandomField<'_, N> {
+impl<const N: usize> One for RandomField<N> {
     fn one() -> Self {
-        Self::new_unchecked(None, BigInt::one())
+        Self::new_unchecked(std::ptr::null::<FieldConfig<N>>().cast_mut(), BigInt::one())
     }
 
     fn set_one(&mut self) {
@@ -228,27 +282,14 @@ impl<const N: usize> One for RandomField<'_, N> {
     }
 
     fn is_one(&self) -> bool {
-        match self.config {
+        match self.config_ref() {
             Some(conf) => self.value == conf.r,
             None => self.value == BigInt::one(),
         }
     }
 }
 
-impl<const N: usize> PartialEq for RandomField<'_, N> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.config.is_none() && other.config.is_none() {
-            return self.is_one() && other.is_one() || self.is_zero() && other.is_zero();
-        }
-
-        let config_ptr_lhs: *const FieldConfig<N> = self.config.unwrap();
-        let config_ptr_rhs: *const FieldConfig<N> = other.config.unwrap();
-
-        self.value == other.value && config_ptr_lhs == config_ptr_rhs
-    }
-}
-
-impl<const N: usize> Neg for RandomField<'_, N> {
+impl<const N: usize> Neg for RandomField<N> {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -256,7 +297,7 @@ impl<const N: usize> Neg for RandomField<'_, N> {
             return self;
         }
         let config = self
-            .config
+            .config_ref()
             .expect("This field element has no associated field");
 
         let mut val = config.modulus;
@@ -265,23 +306,20 @@ impl<const N: usize> Neg for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> Eq for RandomField<'_, N> {}
-
-unsafe impl<const N: usize> Send for RandomField<'_, N> {}
-
-unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
+unsafe impl<const N: usize> Send for RandomField<N> {}
+unsafe impl<const N: usize> Sync for RandomField<N> {}
 
 /// Checks if field configs are equal
 /// Panics otherwise
 pub fn check_equal_configs<'a, const N: usize>(
-    l_element: &RandomField<'a, N>,
-    r_element: &RandomField<'a, N>,
+    l_element: &'a RandomField<N>,
+    r_element: &'a RandomField<N>,
 ) -> &'a FieldConfig<N> {
     let lconfig = l_element
-        .config
+        .config_ref()
         .expect("This field element has no associated field");
     let rconfig = r_element
-        .config
+        .config_ref()
         .expect("This field element has no associated field");
 
     if lconfig != rconfig {
@@ -363,7 +401,7 @@ mod tests {
     #[should_panic]
     #[test]
     fn test_add_two_ones() {
-        let lhs: RandomField<'_, 1> = RandomField::one();
+        let lhs: RandomField<1> = RandomField::one();
 
         let rhs = RandomField::one();
 

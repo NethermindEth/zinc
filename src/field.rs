@@ -22,7 +22,7 @@ impl<'config, const N: usize> RandomField<'config, N> {
     /// If `BigInteger` is greater then field modulus return `None`
     pub fn from_bigint(config: &'config FieldConfig<N>, value: BigInt<N>) -> Option<Self> {
         if value.is_zero() {
-            Some(Self::new_unchecked(Some(config), value))
+            Some(Self::zero())
         } else if value >= config.modulus {
             None
         } else {
@@ -63,6 +63,14 @@ impl<'config, const N: usize> RandomField<'config, N> {
         }
 
         BigInt::new(r)
+    }
+
+    fn increment_by_one(&mut self) {
+        let config = self.config.expect("Cannot add one, field is None");
+        config.add_assign(&mut self.value, &config.r);
+    }
+    fn has_no_config(&self) -> bool {
+        self.config.is_none()
     }
 }
 
@@ -111,6 +119,17 @@ impl<'a, 'config, const N: usize> Add<&'a RandomField<'config, N>> for &RandomFi
             return *rhs;
         }
 
+        if self.is_one() && self.has_no_config() {
+            let mut res = *rhs;
+            res.increment_by_one();
+            return res;
+        }
+        if rhs.is_one() && rhs.has_no_config() {
+            let mut res = *self;
+            res.increment_by_one();
+            return res;
+        }
+
         let config = check_equal_configs(self, rhs);
 
         let mut res = *self;
@@ -138,6 +157,10 @@ impl<'a, 'config, const N: usize> Mul<&'a RandomField<'config, N>> for &RandomFi
             return *self;
         }
 
+        if self.is_zero() || rhs.is_zero() {
+            return RandomField::zero();
+        }
+
         let config = check_equal_configs(self, rhs);
 
         let mut res = *self;
@@ -161,7 +184,7 @@ impl<'a, 'config, const N: usize> Div<&'a RandomField<'config, N>> for &RandomFi
             panic!("Attempt to divide by zero");
         }
 
-        if rhs.is_one() {
+        if rhs.is_one() && rhs.has_no_config() {
             return *self;
         }
 
@@ -267,11 +290,12 @@ pub fn check_equal_configs<'a, const N: usize>(
 
     lconfig
 }
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::One;
+    use ark_ff::{One, Zero};
 
     use crate::{
         biginteger::{BigInteger256, BigInteger64},
@@ -321,6 +345,32 @@ mod tests {
     }
 
     #[test]
+    fn test_add_one() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::one();
+
+        let sum = lhs + rhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::zero());
+
+        let sum = rhs + lhs;
+        assert_eq!(sum.into_bigint(), BigInteger64::zero());
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_add_two_ones() {
+        let lhs: RandomField<'_, 1> = RandomField::one();
+
+        let rhs = RandomField::one();
+
+        let _ = lhs + rhs;
+    }
+
+    #[test]
     fn test_multiplication() {
         let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
 
@@ -342,6 +392,32 @@ mod tests {
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), BigInteger64::from_str("9").unwrap())
+    }
+
+    #[test]
+    fn test_left_mul_by_zero() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let lhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
+        let rhs = RandomField::zero();
+
+        let product = lhs * rhs;
+        assert_eq!(product, rhs);
+    }
+
+    #[test]
+    fn test_right_mul_by_zero() {
+        let field_config = FieldConfig::new(BigInteger64::from_str("23").unwrap());
+
+        let rhs = BigInteger64::from_str("22").unwrap();
+
+        let lhs = RandomField::zero();
+        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+
+        let product = lhs * rhs;
+        assert_eq!(product, lhs);
     }
 
     #[test]

@@ -20,3 +20,9 @@ asm = []
 [[bench]]
 name = "random_field_benches"
 harness = false
+
+
+[[bench]]
+name = "integer_benches"
+harness = false
+

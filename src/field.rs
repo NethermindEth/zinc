@@ -175,21 +175,9 @@ impl<'a, const N: usize> Mul<&'a RandomField<N>> for &RandomField<N> {
     type Output = RandomField<N>;
 
     fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
-        if self.is_one() {
-            return *rhs;
-        }
-        if rhs.is_one() {
-            return *self;
-        }
-
-        if self.is_zero() || rhs.is_zero() {
-            return RandomField::zero();
-        }
-
-        let config = check_equal_configs(self, rhs);
-
         let mut res = *self;
-        config.mul_assign(&mut res.value, &rhs.value);
+        res.mul_assign(rhs);
+
         res
     }
 }
@@ -221,21 +209,32 @@ impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
-impl<const N: usize> MulAssign<Self> for RandomField<N> {
-    fn mul_assign(&mut self, rhs: Self) {
+impl<'a, const N: usize> MulAssign<&'a Self> for RandomField<N> {
+    fn mul_assign(&mut self, rhs: &'a Self) {
+        if self.is_zero() || rhs.is_zero() {
+            *self = RandomField::zero();
+            return;
+        }
+
         if self.is_one() {
-            *self = rhs;
+            *self = *rhs;
             return;
         }
         if rhs.is_one() {
             return;
         }
 
-        check_equal_configs(self, &rhs);
+        check_equal_configs(self, rhs);
 
         rhs.config_ref()
             .unwrap()
             .mul_assign(&mut self.value, &rhs.value);
+    }
+}
+
+impl<const N: usize> MulAssign<Self> for RandomField<N> {
+    fn mul_assign(&mut self, rhs: Self) {
+        self.mul_assign(&rhs);
     }
 }
 

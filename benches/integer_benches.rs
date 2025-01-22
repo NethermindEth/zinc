@@ -3,27 +3,30 @@
 
 use ark_ff::UniformRand;
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
+    PlotConfiguration,
 };
 
+use rand::thread_rng;
 use zinc::biginteger::BigInteger256;
 
 fn bench_big_integer(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let mut rng = ark_std::test_rng();
-    let biginteger = BigInteger256::rand(&mut rng);
-    let small_integer = u32::rand(&mut rng);
-
-    group.bench_with_input(
-        BenchmarkId::new("Multiply", "BigInteger256"),
-        &(biginteger, small_integer),
-        |b, (biginteger, small_integer)| {
-            b.iter(move || {
-                for _ in 0..10000 {
-                    biginteger.clone().muln(*small_integer);
+    group.bench_function(BenchmarkId::new("Multiply", "BigInteger256"), |b| {
+        b.iter_batched(
+            || {
+                let mut rng = thread_rng();
+                let biginteger = BigInteger256::rand(&mut rng);
+                let small_integer = u32::rand(&mut rng);
+                (biginteger, small_integer)
+            },
+            |(biginteger, small_integer)| {
+                for _ in 0..100000 {
+                    black_box(biginteger).muln(black_box(small_integer));
                 }
-            });
-        },
-    );
+            },
+            criterion::BatchSize::SmallInput,
+        );
+    });
 }
 
 pub fn field_benchmarks(c: &mut Criterion) {

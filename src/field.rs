@@ -1,5 +1,5 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-use std::ops::{Add, Div, Mul, MulAssign, Neg, Sub};
+use std::ops::{Add, Div, DivAssign, Mul, MulAssign, Neg, Sub};
 
 use ark_ff::{One, Zero};
 
@@ -314,6 +314,44 @@ impl<const N: usize> Neg for RandomField<N> {
         let mut val = config.modulus;
         val.sub_with_borrow(&self.value);
         Self::new_unchecked(self.config, val)
+    }
+}
+
+impl<const N: usize> DivAssign<Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: Self) {
+        todo!()
+    }
+}
+
+impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &'a Self) {
+        todo!()
+    }
+}
+
+impl<'a, const N: usize> DivAssign<&'a mut Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &'a mut Self) {
+        todo!()
+    }
+}
+impl<'a, const N: usize> Div<&'a Self> for RandomField<N> {
+    type Output = &'a Self;
+
+    fn div(self, rhs: &'a Self) -> Self::Output {
+        todo!()
+    }
+}
+impl<'a, const N: usize> Div<&'a mut Self> for RandomField<N> {
+    type Output = &'a Self;
+
+    fn div(self, rhs: &'a mut Self) -> Self::Output {
+        todo!()
+    }
+}
+
+impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
+    fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        todo!()
     }
 }
 

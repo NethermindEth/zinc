@@ -217,10 +217,22 @@ impl<'a, const N: usize> MulAssign<&'a Self> for RandomField<N> {
         }
 
         if self.is_one() {
-            *self = *rhs;
+            self.value = rhs.value;
+
+            // If we do have a config we don't care.
+            if self.has_no_config() && !rhs.has_no_config() {
+                self.config = rhs.config;
+            }
+
             return;
         }
+
         if rhs.is_one() {
+            // If we do have a config we don't care.
+            if self.has_no_config() && !rhs.has_no_config() {
+                self.config = rhs.config;
+            }
+
             return;
         }
 

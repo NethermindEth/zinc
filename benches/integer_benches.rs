@@ -3,8 +3,7 @@
 
 use ark_ff::UniformRand;
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 
 use zinc::biginteger::BigInteger256;

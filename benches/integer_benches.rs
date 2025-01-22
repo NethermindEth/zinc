@@ -20,7 +20,7 @@ fn bench_big_integer(group: &mut criterion::BenchmarkGroup<criterion::measuremen
                 (biginteger, small_integer)
             },
             |(biginteger, small_integer)| {
-                for _ in 0..100000 {
+                for _ in 0..10000 {
                     black_box(biginteger).muln(black_box(small_integer));
                 }
             },

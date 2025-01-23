@@ -1,7 +1,13 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-use std::ops::{Add, Div, DivAssign, Mul, MulAssign, Neg, Sub};
 
-use ark_ff::{One, Zero};
+use std::{
+    iter::Sum,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
+
+use ark_ff::{One, UniformRand, Zero};
+use crypto_bigint::NonZero;
+use zeroize::Zeroize;
 
 use crate::{
     biginteger::BigInt,
@@ -14,12 +20,41 @@ pub struct RandomField<const N: usize> {
     pub value: BigInt<N>,
 }
 
+impl<const N: usize> UniformRand for RandomField<N> {
+    fn rand<R: ark_std::rand::Rng + ?Sized>(rng: &mut R) -> Self {
+        let value = BigInt::rand(rng);
+
+        // Super unsafe. Once a number has been generated,
+        // the config should be provided.
+        Self {
+            config: std::ptr::null(),
+            value,
+        }
+    }
+}
+
+impl<const N: usize> RandomField<N> {
+    /// Config setter that can be used after a `RandomField::rand(...)` call.
+    pub fn set_config(mut self, config: *const FieldConfig<N>) -> Self {
+        let modulus: BigInt<N> = unsafe { (*config).modulus };
+        self.value = self.value % NonZero::new(modulus).unwrap();
+
+        Self::from_bigint(config, self.value).expect("Should not end up with a None here.")
+    }
+}
+
 // TODO: Finalise this
 //impl<const N: usize> AdditiveGroup for RandomField<N> {
 //    type Scalar = ;
 //
 //    const ZERO: Self = Self { config: std::ptr::null(), BigInt::zero() };
 //}
+
+impl<const N: usize> Zeroize for RandomField<N> {
+    fn zeroize(&mut self) {
+        unsafe { *self = std::mem::zeroed() }
+    }
+}
 
 impl<const N: usize> RandomField<N> {
     #[inline(always)]
@@ -99,6 +134,30 @@ impl<const N: usize> RandomField<N> {
     }
 }
 
+impl<const N: usize> SubAssign<RandomField<N>> for RandomField<N> {
+    fn sub_assign(&mut self, rhs: RandomField<N>) {
+        self.sub_assign(&rhs);
+    }
+}
+
+impl<'a, const N: usize> SubAssign<&'a RandomField<N>> for RandomField<N> {
+    fn sub_assign(&mut self, rhs: &'a RandomField<N>) {
+        if rhs.is_zero() {
+            return;
+        }
+
+        if self.is_zero() {
+            *self = -*rhs;
+        }
+
+        let mut value = std::mem::take(&mut self.value);
+        let config = check_equal_configs(self, rhs);
+
+        config.sub_assign(&mut value, &rhs.value);
+        self.value = value;
+    }
+}
+
 impl<const N: usize> Sub<RandomField<N>> for RandomField<N> {
     type Output = RandomField<N>;
 
@@ -111,17 +170,40 @@ impl<'a, const N: usize> Sub<&'a RandomField<N>> for &RandomField<N> {
     type Output = RandomField<N>;
 
     fn sub(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+        let mut res = *self;
+        res.sub_assign(rhs);
+
+        res
+    }
+}
+
+impl<'a, const N: usize> AddAssign<&'a RandomField<N>> for RandomField<N> {
+    fn add_assign(&mut self, rhs: &'a RandomField<N>) {
         if rhs.is_zero() {
-            return *self;
+            return;
         }
+
         if self.is_zero() {
-            return -*rhs;
+            *self = *rhs;
+            return;
         }
+
+        if self.is_one() && self.has_no_config() {
+            *self = *rhs;
+            self.increment_by_one();
+            return;
+        }
+
+        if rhs.is_one() && rhs.has_no_config() {
+            self.increment_by_one();
+            return;
+        }
+
+        let mut value = std::mem::take(&mut self.value);
         let config = check_equal_configs(self, rhs);
 
-        let mut res = *self;
-        config.sub_assign(&mut res.value, &rhs.value);
-        res
+        config.add_assign(&mut value, &rhs.value);
+        self.value = value;
     }
 }
 
@@ -137,29 +219,20 @@ impl<'a, const N: usize> Add<&'a RandomField<N>> for &RandomField<N> {
     type Output = RandomField<N>;
 
     fn add(self, rhs: &'a RandomField<N>) -> RandomField<N> {
-        if rhs.is_zero() {
-            return *self;
-        }
-        if self.is_zero() {
-            return *rhs;
-        }
-
-        if self.is_one() && self.has_no_config() {
-            let mut res = *rhs;
-            res.increment_by_one();
-            return res;
-        }
-        if rhs.is_one() && rhs.has_no_config() {
-            let mut res = *self;
-            res.increment_by_one();
-            return res;
-        }
-
-        let config = check_equal_configs(self, rhs);
-
         let mut res = *self;
-        config.add_assign(&mut res.value, &rhs.value);
+
+        res.add_assign(rhs);
+
         res
+    }
+}
+
+impl<'a, const N: usize> Sum<&'a RandomField<N>> for RandomField<N> {
+    fn sum<I: Iterator<Item = &'a RandomField<N>>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |mut acc, x| {
+            acc.add_assign(x);
+            acc
+        })
     }
 }
 

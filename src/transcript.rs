@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_keccak_transcript() {
         let mut transcript = KeccakTranscript::new();
-        let field_cofig = FieldConfig::new(
+        let field_config = FieldConfig::new(
             BigInt::<32>::from_str(
                 "3618502788666131213697322783095070105623107215331596699973092056135872020481",
             )
@@ -72,7 +72,7 @@ mod tests {
         );
 
         transcript.absorb(b"This is a test string!");
-        let challenge = transcript.get_challenge(&field_cofig);
+        let challenge = transcript.get_challenge(&field_config);
 
         // TODO: fill in the appropriate value once From<u128> is implemented
         // for RandomField

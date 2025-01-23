@@ -603,7 +603,7 @@ mod tests {
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
         let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
 
-        let quotient = &lhs / &rhs;
+        let quotient = lhs / rhs;
         assert_eq!(
             quotient.into_bigint(),
             BigInteger64::from_str("11").unwrap()
@@ -655,7 +655,7 @@ mod tests {
 
         let a = RandomField::from_bigint(&config, BigInteger256::from_str("3").unwrap()).unwrap();
         let mut b = RandomField::from_bigint(&config, BigInteger256::one()).unwrap();
-        b = b / a;
+        b /= a;
         assert_eq!(
             b.into_bigint(),
             BigInteger256::from_str("231987393234542266865693038683997116").unwrap()

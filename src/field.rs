@@ -612,11 +612,74 @@ impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
 unsafe impl<const N: usize> Send for RandomField<N> {}
 unsafe impl<const N: usize> Sync for RandomField<N> {}
 
+impl<const N: usize> From<u128> for RandomField<N> {
+    fn from(other: u128) -> Self {
+        let mut value = BigInt::default();
+        if N == 1 {
+            panic!("Integer is 128bits but field is 64 bits")
+        } else {
+            value.0[0] = ((other << 64) >> 64) as u64;
+            value.0[1] = (other >> 64) as u64;
+        }
+        Raw { value }
+    }
+}
+
 impl<const N: usize> From<u64> for RandomField<N> {
     fn from(value: u64) -> Self {
-        Raw {
-            value: BigInt::from(value),
-        }
+        let value = BigInt::from(value);
+        Raw { value }
+    }
+}
+
+impl<const N: usize> From<u32> for RandomField<N> {
+    fn from(value: u32) -> Self {
+        let value = BigInt::from(value);
+        Raw { value }
+    }
+}
+
+impl<const N: usize> From<u16> for RandomField<N> {
+    fn from(value: u16) -> Self {
+        let value = BigInt::from(value);
+        Raw { value }
+    }
+}
+impl<const N: usize> From<u8> for RandomField<N> {
+    fn from(value: u8) -> Self {
+        let value = BigInt::from(value);
+        Raw { value }
+    }
+}
+impl<const N: usize> From<i128> for RandomField<N> {
+    fn from(value: i128) -> Self {
+        todo!()
+    }
+}
+impl<const N: usize> From<i64> for RandomField<N> {
+    fn from(value: i64) -> Self {
+        todo!()
+    }
+}
+impl<const N: usize> From<i32> for RandomField<N> {
+    fn from(value: i32) -> Self {
+        todo!()
+    }
+}
+impl<const N: usize> From<i16> for RandomField<N> {
+    fn from(value: i16) -> Self {
+        todo!()
+    }
+}
+impl<const N: usize> From<i8> for RandomField<N> {
+    fn from(value: i8) -> Self {
+        todo!()
+    }
+}
+impl<const N: usize> From<bool> for RandomField<N> {
+    fn from(value: bool) -> Self {
+        let value = BigInt::from(value as u8);
+        Raw { value }
     }
 }
 
@@ -721,7 +784,7 @@ mod tests {
         let rhs = BigInteger64::from_str("20").unwrap();
 
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
-        let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
+        let rhs: RandomField<1> = RandomField::from_bigint(&field_config, rhs).unwrap();
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), BigInteger64::from_str("9").unwrap())

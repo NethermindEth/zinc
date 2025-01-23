@@ -182,6 +182,17 @@ impl<'a, const N: usize> Mul<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
+impl<'a, const N: usize> Mul<&'a RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
+
+    fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+        let mut res = self;
+        res.mul_assign(rhs);
+
+        res
+    }
+}
+
 impl<const N: usize> Div<RandomField<N>> for RandomField<N> {
     type Output = RandomField<N>;
 
@@ -194,17 +205,8 @@ impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
     type Output = RandomField<N>;
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: &'a RandomField<N>) -> RandomField<N> {
-        if rhs.is_zero() {
-            panic!("Attempt to divide by zero");
-        }
-
-        if rhs.is_one() && rhs.has_no_config() {
-            return *self;
-        }
-
-        let config = check_equal_configs(self, rhs);
         let mut res = *self;
-        config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
+        res /= rhs;
         res
     }
 }
@@ -319,39 +321,49 @@ impl<const N: usize> Neg for RandomField<N> {
 
 impl<const N: usize> DivAssign<Self> for RandomField<N> {
     fn div_assign(&mut self, rhs: Self) {
-        todo!()
+        self.div_assign(&rhs);
     }
 }
 
 impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
     fn div_assign(&mut self, rhs: &'a Self) {
-        todo!()
+        if rhs.is_zero() {
+            panic!("Attempt to divide by zero");
+        }
+
+        if rhs.is_one() && rhs.has_no_config() {
+            return;
+        }
+
+        let config = check_equal_configs(self, rhs);
+        let mut res = *self;
+        config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
     }
 }
 
 impl<'a, const N: usize> DivAssign<&'a mut Self> for RandomField<N> {
     fn div_assign(&mut self, rhs: &'a mut Self) {
-        todo!()
+        *self /= *rhs;
     }
 }
 impl<'a, const N: usize> Div<&'a Self> for RandomField<N> {
-    type Output = &'a Self;
+    type Output = Self;
 
     fn div(self, rhs: &'a Self) -> Self::Output {
-        todo!()
+        self / *rhs
     }
 }
 impl<'a, const N: usize> Div<&'a mut Self> for RandomField<N> {
-    type Output = &'a Self;
+    type Output = Self;
 
     fn div(self, rhs: &'a mut Self) -> Self::Output {
-        todo!()
+        self / *rhs
     }
 }
 
 impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
     fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
-        todo!()
+        iter.fold(Self::one(), core::ops::Mul::mul)
     }
 }
 

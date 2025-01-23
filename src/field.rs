@@ -651,31 +651,7 @@ impl<const N: usize> From<u8> for RandomField<N> {
         Raw { value }
     }
 }
-impl<const N: usize> From<i128> for RandomField<N> {
-    fn from(value: i128) -> Self {
-        todo!()
-    }
-}
-impl<const N: usize> From<i64> for RandomField<N> {
-    fn from(value: i64) -> Self {
-        todo!()
-    }
-}
-impl<const N: usize> From<i32> for RandomField<N> {
-    fn from(value: i32) -> Self {
-        todo!()
-    }
-}
-impl<const N: usize> From<i16> for RandomField<N> {
-    fn from(value: i16) -> Self {
-        todo!()
-    }
-}
-impl<const N: usize> From<i8> for RandomField<N> {
-    fn from(value: i8) -> Self {
-        todo!()
-    }
-}
+
 impl<const N: usize> From<bool> for RandomField<N> {
     fn from(value: bool) -> Self {
         let value = BigInt::from(value as u8);

@@ -210,7 +210,7 @@ impl<const N: usize> RandomField<N> {
         }
     }
 
-    fn from_i128(&mut self, other: i128) {
+    pub fn from_i128(&mut self, other: i128) {
         self.with_either_mut(
             |_| panic!("Can't convert from signed integer to unknown field"),
             |config, value| {
@@ -237,7 +237,7 @@ impl<const N: usize> RandomField<N> {
         )
     }
 
-    fn from_i64(&mut self, other: i64) {
+    pub fn from_i64(&mut self, other: i64) {
         self.with_either_mut(
             |_| panic!("Can't convert from signed integer to unknown field"),
             |config, value| {
@@ -256,27 +256,7 @@ impl<const N: usize> RandomField<N> {
             },
         )
     }
-    fn from_i32(&mut self, other: i32) {
-        self.with_either_mut(
-            |_| panic!("Can't convert from signed integer to unknown field"),
-            |config, value| {
-                let mut abs = BigInt::from(other.unsigned_abs());
-                if abs > config.modulus {
-                    return;
-                }
-                if other > 0 {
-                    config.mul_assign(&mut abs, &config.r2);
-                    *value = abs;
-                } else {
-                    config.mul_assign(&mut abs, &config.r2);
-                    *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
-                }
-            },
-        )
-    }
-
-    fn from_i16(&mut self, other: i16) {
+    pub fn from_i32(&mut self, other: i32) {
         self.with_either_mut(
             |_| panic!("Can't convert from signed integer to unknown field"),
             |config, value| {
@@ -296,7 +276,27 @@ impl<const N: usize> RandomField<N> {
         )
     }
 
-    fn from_i8(&mut self, other: i8) {
+    pub fn from_i16(&mut self, other: i16) {
+        self.with_either_mut(
+            |_| panic!("Can't convert from signed integer to unknown field"),
+            |config, value| {
+                let mut abs = BigInt::from(other.unsigned_abs());
+                if abs > config.modulus {
+                    return;
+                }
+                if other > 0 {
+                    config.mul_assign(&mut abs, &config.r2);
+                    *value = abs;
+                } else {
+                    config.mul_assign(&mut abs, &config.r2);
+                    *value = config.modulus;
+                    value.sub_with_borrow(&mut abs);
+                }
+            },
+        )
+    }
+
+    pub fn from_i8(&mut self, other: i8) {
         self.with_either_mut(
             |_| panic!("Can't convert from signed integer to unknown field"),
             |config, value| {

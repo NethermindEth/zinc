@@ -27,17 +27,11 @@ use RandomField::*;
 
 impl<const N: usize> RandomField<N> {
     pub fn is_raw(&self) -> bool {
-        match self {
-            Raw { .. } => true,
-            _ => false,
-        }
+        matches!(self, Raw { .. })
     }
 
     pub fn is_initialized(&self) -> bool {
-        match self {
-            Initialized { .. } => true,
-            _ => false,
-        }
+        matches!(self, Initialized { .. })
     }
 
     pub fn with_raw_value_or<F, A>(&self, f: F, a: A) -> A
@@ -314,17 +308,6 @@ impl<const N: usize> RandomField<N> {
                 BigInt::new(r)
             },
         )
-    }
-
-    fn increment_by_one(&mut self) {
-        self.with_either_mut(
-            |value| {
-                value.add_with_carry(&BigInt::one());
-            },
-            |config, value| {
-                config.add_assign(value, &config.r);
-            },
-        );
     }
 }
 

@@ -408,9 +408,10 @@ impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
             return;
         }
 
+        let mut value = std::mem::take(&mut self.value);
         let config = check_equal_configs(self, rhs);
-        let mut res = *self;
-        config.mul_assign(&mut res.value, &config.inverse(&rhs.value).unwrap());
+        config.mul_assign(&mut value, &config.inverse(&rhs.value).unwrap());
+        self.value = value;
     }
 }
 
@@ -602,7 +603,7 @@ mod tests {
         let lhs = RandomField::from_bigint(&field_config, lhs).unwrap();
         let rhs = RandomField::from_bigint(&field_config, rhs).unwrap();
 
-        let quotient = lhs / rhs;
+        let quotient = &lhs / &rhs;
         assert_eq!(
             quotient.into_bigint(),
             BigInteger64::from_str("11").unwrap()

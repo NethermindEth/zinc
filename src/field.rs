@@ -231,7 +231,7 @@ impl<const N: usize> RandomField<N> {
                 } else {
                     config.mul_assign(&mut abs, &config.r2);
                     *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
+                    value.sub_with_borrow(&abs);
                 }
             },
         )
@@ -251,7 +251,7 @@ impl<const N: usize> RandomField<N> {
                 } else {
                     config.mul_assign(&mut abs, &config.r2);
                     *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
+                    value.sub_with_borrow(&abs);
                 }
             },
         )
@@ -270,7 +270,7 @@ impl<const N: usize> RandomField<N> {
                 } else {
                     config.mul_assign(&mut abs, &config.r2);
                     *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
+                    value.sub_with_borrow(&abs);
                 }
             },
         )
@@ -290,7 +290,7 @@ impl<const N: usize> RandomField<N> {
                 } else {
                     config.mul_assign(&mut abs, &config.r2);
                     *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
+                    value.sub_with_borrow(&abs);
                 }
             },
         )
@@ -310,7 +310,7 @@ impl<const N: usize> RandomField<N> {
                 } else {
                     config.mul_assign(&mut abs, &config.r2);
                     *value = config.modulus;
-                    value.sub_with_borrow(&mut abs);
+                    value.sub_with_borrow(&abs);
                 }
             },
         )

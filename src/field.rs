@@ -34,23 +34,23 @@ impl<const N: usize> RandomField<N> {
         matches!(self, Initialized { .. })
     }
 
-    pub fn with_raw_value_or<F, A>(&self, f: F, a: A) -> A
+    pub fn with_raw_value_or<F, A>(&self, f: F, default: A) -> A
     where
         F: Fn(&BigInt<N>) -> A,
     {
         match self {
             Raw { value } => f(value),
-            _ => a,
+            _ => default,
         }
     }
 
-    pub fn with_raw_value_mut_or<F, A>(&mut self, f: F, a: A) -> A
+    pub fn with_raw_value_mut_or<F, A>(&mut self, f: F, default: A) -> A
     where
         F: Fn(&mut BigInt<N>) -> A,
     {
         match self {
             Raw { value } => f(value),
-            _ => a,
+            _ => default,
         }
     }
 
@@ -69,53 +69,68 @@ impl<const N: usize> RandomField<N> {
         }
     }
 
-    pub fn with_either<'a, R, I, A>(&'a self, raw: R, init: I) -> A
+    pub fn with_init_value_or<'a, F, A>(&'a self, f: F, default: A) -> A
+    where
+        F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
+    {
+        match self {
+            Initialized { config, value } => unsafe {
+                let config = config
+                    .as_ref()
+                    .expect("Cannot have a null config for Initialized");
+                f(config, value)
+            },
+            _ => default,
+        }
+    }
+
+    pub fn with_either<'a, R, I, A>(&'a self, raw_fn: R, init_fn: I) -> A
     where
         I: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
         R: Fn(&'a BigInt<N>) -> A,
     {
         match self {
-            Raw { value } => raw(value),
+            Raw { value } => raw_fn(value),
             Initialized { config, value } => unsafe {
                 let config = config
                     .as_ref()
                     .expect("Cannot have a null config for Initialized");
 
-                init(config, value)
+                init_fn(config, value)
             },
         }
     }
 
-    pub fn with_either_mut<'a, R, I, A>(&'a mut self, raw: R, init: I) -> A
+    pub fn with_either_mut<'a, R, I, A>(&'a mut self, raw_fn: R, init_fn: I) -> A
     where
         I: Fn(&'a FieldConfig<N>, &'a mut BigInt<N>) -> A,
         R: Fn(&'a mut BigInt<N>) -> A,
     {
         match self {
-            Raw { value } => raw(value),
+            Raw { value } => raw_fn(value),
             Initialized { config, value } => unsafe {
                 let config = config
                     .as_ref()
                     .expect("Cannot have a null config for Initialized");
 
-                init(config, value)
+                init_fn(config, value)
             },
         }
     }
 
-    pub fn with_either_owned<R, I, A>(self, raw: R, init: I) -> A
+    pub fn with_either_owned<R, I, A>(self, raw_fn: R, init_fn: I) -> A
     where
         I: Fn(&FieldConfig<N>, BigInt<N>) -> A,
         R: Fn(BigInt<N>) -> A,
     {
         match self {
-            Raw { value } => raw(value),
+            Raw { value } => raw_fn(value),
             Initialized { config, value } => unsafe {
                 let config = config
                     .as_ref()
                     .expect("Cannot have a null config for Initialized");
 
-                init(config, value)
+                init_fn(config, value)
             },
         }
     }
@@ -284,30 +299,29 @@ impl<const N: usize> RandomField<N> {
     }
 
     pub fn into_bigint(self) -> BigInt<N> {
-        self.with_either_owned(
-            |value| value,
-            |config, value| {
-                let mut r = value.0;
-                // Montgomery Reduction
-                for i in 0..N {
-                    let k = r[i].wrapping_mul(config.inv);
-                    let mut carry = 0;
+        self.with_either_owned(|value| value, Self::demontgomery)
+    }
 
-                    field_config::mac_with_carry(r[i], k, config.modulus.0[0], &mut carry);
-                    for j in 1..N {
-                        r[(j + i) % N] = field_config::mac_with_carry(
-                            r[(j + i) % N],
-                            k,
-                            config.modulus.0[j],
-                            &mut carry,
-                        );
-                    }
-                    r[i % N] = carry;
-                }
+    fn demontgomery(config: &FieldConfig<N>, value: BigInt<N>) -> BigInt<N> {
+        let mut r = value.0;
+        // Montgomery Reduction
+        for i in 0..N {
+            let k = r[i].wrapping_mul(config.inv);
+            let mut carry = 0;
 
-                BigInt::new(r)
-            },
-        )
+            field_config::mac_with_carry(r[i], k, config.modulus.0[0], &mut carry);
+            for j in 1..N {
+                r[(j + i) % N] = field_config::mac_with_carry(
+                    r[(j + i) % N],
+                    k,
+                    config.modulus.0[j],
+                    &mut carry,
+                );
+            }
+            r[i % N] = carry;
+        }
+
+        BigInt::new(r)
     }
 }
 

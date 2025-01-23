@@ -659,6 +659,12 @@ impl<const N: usize> From<bool> for RandomField<N> {
     }
 }
 
+impl<const N: usize> From<u128> for RandomField<N> {
+    fn from(_value: u128) -> Self {
+        todo!()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

@@ -1,7 +1,8 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
+
 use std::{
     iter::Sum,
-    ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
 use ark_ff::{One, UniformRand, Zero};
@@ -426,6 +427,17 @@ impl<'a, const N: usize> Mul<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
+impl<'a, const N: usize> Mul<&'a RandomField<N>> for RandomField<N> {
+    type Output = RandomField<N>;
+
+    fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+        let mut res = self;
+        res.mul_assign(rhs);
+
+        res
+    }
+}
+
 impl<const N: usize> Div<RandomField<N>> for RandomField<N> {
     type Output = RandomField<N>;
 
@@ -438,19 +450,8 @@ impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
     type Output = RandomField<N>;
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn div(self, rhs: &'a RandomField<N>) -> RandomField<N> {
-        if rhs.is_zero() {
-            panic!("Attempt to divide by zero");
-        }
-
         let mut res = *self;
-
-        res.with_aligned_config_mut(
-            rhs,
-            |lhs, rhs, config| {
-                config.mul_assign(lhs, &config.inverse(rhs).unwrap());
-            },
-            |_, _| panic!("Cannot divide without a field config"),
-        );
+        res /= rhs;
 
         res
     }
@@ -557,6 +558,54 @@ impl<const N: usize> Neg for RandomField<N> {
         );
 
         self
+    }
+}
+
+impl<const N: usize> DivAssign<Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: Self) {
+        self.div_assign(&rhs);
+    }
+}
+
+impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &'a Self) {
+        if rhs.is_zero() {
+            panic!("Attempt to divide by zero");
+        }
+
+        self.with_aligned_config_mut(
+            rhs,
+            |lhs, rhs, config| {
+                config.mul_assign(lhs, &config.inverse(rhs).unwrap());
+            },
+            |_, _| panic!("Cannot divide without a field config"),
+        );
+    }
+}
+
+impl<'a, const N: usize> DivAssign<&'a mut Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &'a mut Self) {
+        *self /= *rhs;
+    }
+}
+impl<'a, const N: usize> Div<&'a Self> for RandomField<N> {
+    type Output = Self;
+
+    fn div(self, rhs: &'a Self) -> Self::Output {
+        self / *rhs
+    }
+}
+impl<'a, const N: usize> Div<&'a mut Self> for RandomField<N> {
+    type Output = Self;
+
+    fn div(self, rhs: &'a mut Self) -> Self::Output {
+        self / *rhs
+    }
+}
+
+impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
+    fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
+        iter.fold(Self::one(), core::ops::Mul::mul)
     }
 }
 
@@ -766,7 +815,7 @@ mod tests {
 
         let a = RandomField::from_bigint(&config, BigInteger256::from_str("3").unwrap()).unwrap();
         let mut b = RandomField::from_bigint(&config, BigInteger256::one()).unwrap();
-        b = b / a;
+        b /= a;
         assert_eq!(
             b.into_bigint(),
             BigInteger256::from_str("231987393234542266865693038683997116").unwrap()

@@ -494,7 +494,14 @@ impl<const N: usize> std::fmt::Debug for RandomField<N> {
 impl<const N: usize> std::fmt::Display for RandomField<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: we should go back from Montgomery here.
-        write!(f, "{}", self.value())
+        match self {
+            Raw { value } => {
+                write!(f, "{}", value)
+            }
+            self_ @ Initialized { .. } => {
+                write!(f, "{}", self_.into_bigint())
+            }
+        }
     }
 }
 
@@ -656,12 +663,6 @@ impl<const N: usize> From<bool> for RandomField<N> {
     fn from(value: bool) -> Self {
         let value = BigInt::from(value as u8);
         Raw { value }
-    }
-}
-
-impl<const N: usize> From<u128> for RandomField<N> {
-    fn from(_value: u128) -> Self {
-        todo!()
     }
 }
 

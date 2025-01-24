@@ -55,8 +55,6 @@ impl KeccakTranscript {
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::Zero;
-
     use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
 
     use super::KeccakTranscript;
@@ -74,8 +72,16 @@ mod tests {
         transcript.absorb(b"This is a test string!");
         let challenge = transcript.get_challenge(&field_config);
 
-        // TODO: fill in the appropriate value once From<u128> is implemented
-        // for RandomField
-        assert_eq!(challenge, RandomField::zero());
+        assert_eq!(
+            challenge,
+            RandomField::from_bigint(
+                &field_config,
+                BigInt::from_str(
+                    "693058076479701858982240739746847263762918495940343148542562484005318422443"
+                )
+                .unwrap()
+            )
+            .unwrap()
+        );
     }
 }

@@ -616,7 +616,7 @@ impl<const N: usize> From<u128> for RandomField<N> {
     fn from(other: u128) -> Self {
         let mut value = BigInt::default();
         if N == 1 {
-            panic!("Integer is 128bits but field is 64 bits")
+            panic!("Integer is 128 bits but field is 64 bits")
         } else {
             value.0[0] = ((other << 64) >> 64) as u64;
             value.0[1] = (other >> 64) as u64;
@@ -666,7 +666,7 @@ mod tests {
     use ark_ff::{One, Zero};
 
     use crate::{
-        biginteger::{BigInt, BigInteger256, BigInteger64},
+        biginteger::{BigInt, BigInteger128, BigInteger256, BigInteger64},
         field_config::FieldConfig,
     };
 
@@ -936,5 +936,36 @@ mod tests {
         let mut expected = lhs;
         expected.set_one();
         assert_eq!(res, expected)
+    }
+
+    #[test]
+    fn test_from_u128() {
+        let int = 243043087159742188419721163456177516u128;
+        let raw_elem = RandomField::<2>::from(int);
+        assert_eq!(
+            raw_elem,
+            RandomField::Raw {
+                value: BigInteger128::from_str("243043087159742188419721163456177516").unwrap()
+            }
+        )
+    }
+
+    #[test]
+    fn test_from_u32() {
+        let int = 23u32;
+        let raw_elem = RandomField::<1>::from(int);
+        assert_eq!(
+            raw_elem,
+            RandomField::Raw {
+                value: BigInteger64::from(23u32)
+            }
+        )
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_failing_from_u128() {
+        let int = 243043087159742188419721163456177516u128;
+        let _ = RandomField::<1>::from(int);
     }
 }

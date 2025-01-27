@@ -51,9 +51,12 @@ impl<const N: usize> From<bool> for RandomField<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::biginteger::{BigInteger128, BigInteger256, BigInteger64};
-    use crate::field::RandomField;
-    use crate::field_config::FieldConfig;
+    use crate::{
+        biginteger::{BigInt, BigInteger64},
+        create_bigint, create_field_config,
+        field::RandomField,
+        field_config::FieldConfig,
+    };
     use std::str::FromStr;
 
     #[test]
@@ -63,7 +66,7 @@ mod tests {
         assert_eq!(
             raw_elem,
             RandomField::Raw {
-                value: BigInteger128::from_str("243043087159742188419721163456177516").unwrap()
+                value: create_bigint!(2, 243043087159742188419721163456177516),
             }
         )
     }
@@ -89,17 +92,15 @@ mod tests {
 
     #[test]
     fn test_bigint_conversion() {
-        let field_config = FieldConfig::new(
-            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-        );
+        let config = create_field_config!(4, 695962179703626800597079116051991347);
 
-        let bigint = BigInteger256::from_str("695962179703").unwrap();
+        let bigint = create_bigint!(695962179703);
 
-        let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
+        let field_elem = RandomField::from_bigint(&config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint());
-        let bigint = BigInteger256::from_str("695962179703626800597079116051991346").unwrap();
+        let bigint = create_bigint!(695962179703626800597079116051991346);
 
-        let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
+        let field_elem = RandomField::from_bigint(&config, bigint).unwrap();
         assert_eq!(bigint, field_elem.into_bigint())
     }
 }

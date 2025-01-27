@@ -356,3 +356,38 @@ impl<const N: usize> Default for RandomField<N> {
 
 unsafe impl<const N: usize> Send for RandomField<N> {}
 unsafe impl<const N: usize> Sync for RandomField<N> {}
+
+#[cfg(test)]
+mod tests {
+    /// Helper macro to create a field config with a given modulus
+    #[macro_export]
+    macro_rules! create_field_config {
+        ($N:expr, $modulus:expr) => {{
+            FieldConfig::<$N>::new(BigInt::<$N>::from_str(stringify!($modulus)).unwrap())
+        }};
+
+        ($modulus:expr) => {{
+            FieldConfig::<1>::new(BigInt::<1>::from_str(stringify!($modulus)).unwrap())
+        }};
+    }
+
+    /// Helper macro to create a BigInt with a given modulus
+    #[macro_export]
+    macro_rules! create_bigint {
+        ($N:expr, $value:expr) => {{
+            BigInt::<$N>::from_str(stringify!($value)).unwrap()
+        }};
+
+        ($value:expr) => {{
+            BigInt::from_str(stringify!($value)).unwrap()
+        }};
+    }
+
+    /// Helper macro to create a RandomField with config and value.
+    #[macro_export]
+    macro_rules! create_random_field {
+        ($config:expr, $value:expr) => {{
+            RandomField::from_bigint($config, create_bigint!($value)).unwrap()
+        }};
+    }
+}

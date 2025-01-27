@@ -24,6 +24,33 @@ impl KeccakTranscript {
         self.hasher.update(v);
     }
 
+    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
+        match v {
+            RandomField::Raw { value } => {
+                self.absorb(&[0x1]);
+                self.absorb(&value.to_bytes_be());
+                self.absorb(&[0x3])
+            }
+            RandomField::Initialized { config, value } => {
+                unsafe {
+                    let config = config.as_ref().unwrap();
+                    self.absorb(&[0x3]);
+                    self.absorb(&config.modulus.to_bytes_be());
+                    self.absorb(&[0x5])
+                }
+                self.absorb(&[0x1]);
+                self.absorb(&value.to_bytes_be());
+                self.absorb(&[0x3])
+            }
+        }
+    }
+
+    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
+        for field_element in slice.iter() {
+            self.absorb_random_field(field_element);
+        }
+    }
+
     pub fn get_challenge_limbs(&mut self) -> (u128, u128) {
         let challenge = self.hasher.clone().finalize();
 

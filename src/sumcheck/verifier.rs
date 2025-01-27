@@ -1,9 +1,8 @@
 //! Verifier
 use std::ops::MulAssign;
 
-use ark_ff::{Field, One, Zero};
+use ark_ff::{One, Zero};
 use ark_std::vec::Vec;
-use stark_rings::OverField;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{field::RandomField, transcript::KeccakTranscript as Transcript};

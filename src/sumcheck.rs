@@ -53,8 +53,8 @@ impl<const N: usize> MLSumcheck<N> {
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
     ) -> (Proof<N>, ProverState<N>) {
-        transcript.absorb(&RandomField::from(nvars as u128));
-        transcript.absorb(&RandomField::from(degree as u128));
+        transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
+        transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
         let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
         let mut prover_msgs = Vec::with_capacity(nvars);
@@ -64,7 +64,7 @@ impl<const N: usize> MLSumcheck<N> {
             transcript.absorb_slice(&prover_msg.evaluations);
             prover_msgs.push(prover_msg);
             let next_verifier_msg = IPForMLSumcheck::sample_round(transcript);
-            transcript.absorb(&next_verifier_msg.randomness.into());
+            transcript.absorb_random_field(&next_verifier_msg.randomness);
 
             verifier_msg = Some(next_verifier_msg);
         }
@@ -84,8 +84,8 @@ impl<const N: usize> MLSumcheck<N> {
         claimed_sum: RandomField<N>,
         proof: &Proof<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
-        transcript.absorb(&RandomField::<N>::from(nvars as u128));
-        transcript.absorb(&RandomField::<N>::from(degree as u128));
+        transcript.absorb_random_field(&RandomField::<N>::from(nvars as u128));
+        transcript.absorb_random_field(&RandomField::<N>::from(degree as u128));
 
         let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree);
         for i in 0..nvars {
@@ -93,7 +93,7 @@ impl<const N: usize> MLSumcheck<N> {
             transcript.absorb_slice(&prover_msg.evaluations);
             let verifier_msg =
                 IPForMLSumcheck::verify_round(prover_msg.clone(), &mut verifier_state, transcript);
-            transcript.absorb(&verifier_msg.randomness.into());
+            transcript.absorb_random_field(&verifier_msg.randomness);
         }
 
         IPForMLSumcheck::check_and_generate_subclaim(verifier_state, claimed_sum)

@@ -1,4 +1,4 @@
-use ark_ff::{UniformRand, Zero};
+use ark_ff::{One, UniformRand, Zero};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::rand::Rng;
 use ark_std::{
@@ -410,7 +410,7 @@ fn precompute_eq<const N: usize>(g: &[RandomField<N>]) -> Vec<RandomField<N>> {
 mod tests {
     use super::*;
 
-    use ark_ff::Zero;
+    use ark_ff::{One, Zero};
 
     // Function to convert usize to a binary vector of Ring elements.
     fn usize_to_binary_vector<const N: usize>(n: usize, dimensions: usize) -> Vec<RandomField<N>> {

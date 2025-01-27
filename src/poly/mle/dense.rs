@@ -1,7 +1,7 @@
 use core::ops::IndexMut;
 
-use ark_ff::Zero;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use ark_ff::{UniformRand, Zero};
+
 use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
@@ -88,7 +88,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         } else {
             v.to_owned()
         };
-        DenseMultilinearExtension::<RandomField<N>>::from_evaluations_vec(n_vars, v_padded)
+        DenseMultilinearExtension::<N>::from_evaluations_vec(n_vars, v_padded)
     }
 
     pub fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
@@ -209,7 +209,7 @@ impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultili
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| *a + b)
+            .map(|(a, b)| *a + *b)
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result)
@@ -310,7 +310,7 @@ impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultili
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| *a - b)
+            .map(|(a, b)| *a - *b)
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result)

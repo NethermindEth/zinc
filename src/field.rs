@@ -504,7 +504,13 @@ impl<const N: usize> std::fmt::Display for RandomField<N> {
         }
     }
 }
-
+impl<const N: usize> Default for RandomField<N> {
+    fn default() -> Self {
+        Raw {
+            value: BigInt::zero(),
+        }
+    }
+}
 impl<const N: usize> Zero for RandomField<N> {
     fn zero() -> Self {
         Raw {

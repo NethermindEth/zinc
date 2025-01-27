@@ -3,6 +3,7 @@
 
 // Adapted for rings by Nethermind
 
+use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 #[cfg(feature = "parallel")]
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
@@ -38,7 +39,7 @@ pub fn random_mle_list<const N: usize, Rn: RngCore>(
             e.push(val);
             product *= val;
         }
-        sum += product;
+        sum += &product;
     }
 
     let list = multiplicands
@@ -110,7 +111,7 @@ pub fn random_permutation<const N: usize, Rn: RngCore>(
     rng: &mut Rn,
 ) -> Vec<RandomField<N>> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
-    let mut s_id_vec: Vec<RandomField> = (0..len).map(RandomField::from).collect();
+    let mut s_id_vec: Vec<RandomField<N>> = (0..len).map(RandomField::from).collect();
     let mut s_perm_vec = vec![];
     for _ in 0..len {
         let index = (rng.next_u64() as usize) % s_id_vec.len();

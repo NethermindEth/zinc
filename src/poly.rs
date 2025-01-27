@@ -1,2 +1,2 @@
-mod mle;
-mod polynomials;
+pub mod mle;
+pub mod polynomials;

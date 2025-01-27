@@ -4,7 +4,8 @@
 // Adapted for rings by Nethermind
 
 use ark_std::{log2, vec::*};
-use lattirust_ring::Ring;
+
+use crate::field::RandomField;
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -19,10 +20,14 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<R: Ring>(index: usize, index_len: usize, point: &[R]) -> Vec<R> {
-    let index_vec: Vec<R> = bit_decompose(index as u64, index_len)
+pub fn gen_eval_point<const N: usize>(
+    index: usize,
+    index_len: usize,
+    point: &[RandomField<N>],
+) -> Vec<RandomField<N>> {
+    let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
         .into_iter()
-        .map(|x| R::from(x))
+        .map(|x| RandomField::from(x))
         .collect();
     [point, &index_vec].concat()
 }

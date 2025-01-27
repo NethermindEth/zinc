@@ -1,18 +1,14 @@
 //! Prover
 
 use ark_ff::Zero;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
-use lattirust_poly::{
-    mle::MultilinearExtension,
-    polynomials::{DenseMultilinearExtension, VirtualPolynomial},
-};
-
-use crate::field::RandomField;
-
-use super::{verifier::VerifierMsg, IPForMLSumcheck};
-
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+use crate::{field::RandomField, poly::mle::DenseMultilinearExtension};
+
+use super::{verifier::VerifierMsg, IPForMLSumcheck};
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]
@@ -25,59 +21,43 @@ pub struct ProverMsg<const N: usize> {
 pub struct ProverState<const N: usize> {
     /// sampled randomness given by the verifier
     pub randomness: Vec<RandomField<N>>,
-    /// Stores the list of products that is meant to be added together. Each multiplicand is represented by
-    /// the index in flattened_ml_extensions
-    pub list_of_products: Vec<(RandomField<N>, Vec<usize>)>,
-    /// Stores a list of multilinear extensions in which `self.list_of_products` points to
-    pub flattened_ml_extensions: Vec<DenseMultilinearExtension<RandomField<N>>>,
+    /// Stores a list of multilinear extensions
+    pub mles: Vec<DenseMultilinearExtension<N>>,
     /// Number of variables
     pub num_vars: usize,
-    /// Max number of multiplicands in a product
-    pub max_multiplicands: usize,
+    /// Max degree
+    pub max_degree: usize,
     /// The current round number
     pub round: usize,
 }
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
-    ///
-    /// The polynomial is represented by a list of products of polynomials along with its coefficient that is meant to be added together.
-    ///
-    /// This data structure of the polynomial is a list of list of `(coefficient, DenseMultilinearExtension)`.
-    /// * Number of products n = `polynomial.products.len()`,
-    /// * Number of multiplicands of ith product m_i = `polynomial.products[i].1.len()`,
-    /// * Coefficient of ith product c_i = `polynomial.products[i].0`
-    ///
-    /// The resulting polynomial is
-    ///
-    /// $$\sum_{i=0}^{n}C_i\cdot\prod_{j=0}^{m_i}P_{ij}$$
-    ///
-    pub fn prover_init(polynomial: &VirtualPolynomial<R>) -> ProverState<N> {
-        if polynomial.aux_info.num_variables == 0 {
+    pub fn prover_init(
+        mles: Vec<DenseMultilinearExtension<N>>,
+        nvars: usize,
+        degree: usize,
+    ) -> ProverState<N> {
+        if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
 
-        // create a deep copy of all unique MLExtensions
-        let flattened_ml_extensions = ark_std::cfg_iter!(polynomial.flattened_ml_extensions)
-            .map(|x| x.as_ref().clone())
-            .collect();
-
         ProverState {
-            randomness: Vec::with_capacity(polynomial.aux_info.num_variables),
-            list_of_products: polynomial.products.clone(),
-            flattened_ml_extensions,
-            num_vars: polynomial.aux_info.num_variables,
-            max_multiplicands: polynomial.aux_info.max_degree,
+            randomness: Vec::with_capacity(nvars),
+            mles,
+            num_vars: nvars,
+            max_degree: degree,
             round: 0,
         }
     }
 
     /// receive message from verifier, generate prover message, and proceed to next round
     ///
-    /// Main algorithm used is from section 3.2 of [XZZPS19](https://eprint.iacr.org/2019/317.pdf#subsection.3.2).
+    /// Adapted Jolt's sumcheck implementation
     pub fn prove_round(
         prover_state: &mut ProverState<N>,
         v_msg: &Option<VerifierMsg<N>>,
+        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
     ) -> ProverMsg<N> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
@@ -88,8 +68,8 @@ impl<const N: usize> IPForMLSumcheck<N> {
             // fix argument
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1];
-            cfg_iter_mut!(prover_state.flattened_ml_extensions).for_each(|multiplicand| {
-                *multiplicand = multiplicand.fix_variables(&[r.into()]);
+            cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
+                multiplicand.fix_variables(&[r.into()]);
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");
@@ -103,58 +83,82 @@ impl<const N: usize> IPForMLSumcheck<N> {
 
         let i = prover_state.round;
         let nv = prover_state.num_vars;
-        let degree = prover_state.max_multiplicands; // the degree of univariate polynomial sent by prover at this round
+        let degree = prover_state.max_degree;
+
+        let polys = &prover_state.mles;
+
+        struct Scratch<R> {
+            evals: Vec<R>,
+            steps: Vec<R>,
+            vals0: Vec<R>,
+            vals1: Vec<R>,
+            vals: Vec<R>,
+            levals: Vec<R>,
+        }
+        let scratch = || Scratch {
+            evals: vec![RandomField::zero(); degree + 1],
+            steps: vec![RandomField::zero(); polys.len()],
+            vals0: vec![RandomField::zero(); polys.len()],
+            vals1: vec![RandomField::zero(); polys.len()],
+            vals: vec![RandomField::zero(); polys.len()],
+            levals: vec![RandomField::zero(); degree + 1],
+        };
 
         #[cfg(not(feature = "parallel"))]
-        let zeros = (
-            vec![RandomField::<N>::zero(); degree + 1],
-            vec![RandomField::<N>::zero(); degree + 1],
-        );
+        let zeros = scratch();
         #[cfg(feature = "parallel")]
-        let zeros = || (vec![R::zero(); degree + 1], vec![R::zero(); degree + 1]);
+        let zeros = scratch;
 
-        // generate sum
-        let fold_result =
-            cfg_into_iter!(0..1 << (nv - i)).fold(zeros, |(mut products_sum, mut product), b| {
-                // In effect, this fold is essentially doing simply:
-                // for b in 0..1 << (nv - i) {
-                let index = b << 1;
-                for (coefficient, products) in &prover_state.list_of_products {
-                    product.fill(*coefficient);
-                    for &jth_product in products {
-                        let table = &prover_state.flattened_ml_extensions[jth_product];
-                        let mut start = table[index];
-                        let step = table[index + 1] - start;
-                        for p in product.iter_mut() {
-                            *p *= start;
-                            start += step;
-                        }
-                    }
-                    for (sum, prod) in products_sum.iter_mut().zip(product.iter()) {
-                        *sum += prod;
-                    }
+        let summer = cfg_into_iter!(0..1 << (nv - i)).fold(zeros, |mut s, b| {
+            let index = b << 1;
+
+            s.vals0
+                .iter_mut()
+                .zip(polys.iter())
+                .for_each(|(v0, poly)| *v0 = poly[index]);
+            s.levals[0] = comb_fn(&s.vals0);
+
+            s.vals1
+                .iter_mut()
+                .zip(polys.iter())
+                .for_each(|(v1, poly)| *v1 = poly[index + 1]);
+            s.levals[1] = comb_fn(&s.vals1);
+
+            for (i, (v1, v0)) in s.vals1.iter().zip(s.vals0.iter()).enumerate() {
+                s.steps[i] = *v1 - *v0;
+                s.vals[i] = *v1;
+            }
+
+            for eval_point in s.levals.iter_mut().take(degree + 1).skip(2) {
+                for poly_i in 0..polys.len() {
+                    s.vals[poly_i] += &s.steps[poly_i];
                 }
-                (products_sum, product)
-            });
+                *eval_point = comb_fn(&s.vals);
+            }
 
-        #[cfg(not(feature = "parallel"))]
-        let products_sum = fold_result.0;
+            s.evals
+                .iter_mut()
+                .zip(s.levals.iter())
+                .for_each(|(e, l)| *e += l);
+            s
+        });
 
-        // When rayon is used, the `fold` operation results in a iterator of `Vec<F>` rather than a single `Vec<F>`. In this case, we simply need to sum them.
+        // Rayon's fold outputs an iter which still needs to be summed over
         #[cfg(feature = "parallel")]
-        let products_sum = fold_result.map(|scratch| scratch.0).reduce(
+        let evaluations = summer.map(|s| s.evals).reduce(
             || vec![R::zero(); degree + 1],
-            |mut overall_products_sum, sublist_sum| {
-                overall_products_sum
+            |mut evaluations, levals| {
+                evaluations
                     .iter_mut()
-                    .zip(sublist_sum.iter())
-                    .for_each(|(f, s)| *f += s);
-                overall_products_sum
+                    .zip(levals)
+                    .for_each(|(e, l)| *e += l);
+                evaluations
             },
         );
 
-        ProverMsg {
-            evaluations: products_sum,
-        }
+        #[cfg(not(feature = "parallel"))]
+        let evaluations = summer.evals;
+
+        ProverMsg { evaluations }
     }
 }

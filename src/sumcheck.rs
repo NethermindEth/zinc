@@ -1,28 +1,33 @@
-use ark_std::marker::PhantomData;
-
+use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
-use crate::{field::RandomField, transcript::KeccakTranscript as Transcript};
-use prover::{ProverMsg, ProverState};
-use verifier::SubClaim;
+use self::verifier::SubClaim;
+use crate::{
+    field::RandomField,
+    poly::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
+    transcript::KeccakTranscript as Transcript,
+};
 
 pub mod prover;
+pub mod utils;
 pub mod verifier;
 
 /// Interactive Proof for Multilinear Sumcheck
-pub struct IPForMLSumcheck<const N: usize> {
-    #[doc(hidden)]
-    _marker: PhantomData<(RandomField<N>, Transcript)>,
-}
-
+pub struct IPForMLSumcheck<const N: usize>(Transcript);
 #[derive(Error, Debug)]
 pub enum SumCheckError<const N: usize> {
     #[error("univariate polynomial evaluation error")]
-    EvaluationError,
+    EvaluationError(ArithErrors),
     #[error("incorrect sumcheck sum. Expected `{0}`. Received `{1}`")]
     SumCheckFailed(RandomField<N>, RandomField<N>),
     #[error("max degree exceeded")]
     MaxDegreeExceeded,
+}
+
+impl<const N: usize> From<ArithErrors> for SumCheckError<N> {
+    fn from(arith_error: ArithErrors) -> Self {
+        Self::EvaluationError(arith_error)
+    }
 }
 
 /// Sumcheck for products of multilinear polynomial
@@ -43,16 +48,19 @@ impl<const N: usize> MLSumcheck<N> {
     /// Both of these allow this sumcheck to be better used as a part of a larger protocol.
     pub fn prove_as_subprotocol(
         transcript: &mut Transcript,
-        polynomial: &VirtualPolynomial<R>,
+        mles: Vec<DenseMultilinearExtension<N>>,
+        nvars: usize,
+        degree: usize,
+        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
     ) -> (Proof<N>, ProverState<N>) {
-        // TODO: return this back
-        // transcript.absorb(&polynomial.info());
-
-        let mut prover_state = IPForMLSumcheck::prover_init(polynomial);
+        transcript.absorb(&RandomField::from(nvars as u128));
+        transcript.absorb(&RandomField::from(degree as u128));
+        let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
-        let mut prover_msgs = Vec::with_capacity(polynomial.aux_info.num_variables);
-        for _ in 0..polynomial.aux_info.num_variables {
-            let prover_msg = IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg);
+        let mut prover_msgs = Vec::with_capacity(nvars);
+        for _ in 0..nvars {
+            let prover_msg =
+                IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg, &comb_fn);
             transcript.absorb_slice(&prover_msg.evaluations);
             prover_msgs.push(prover_msg);
             let next_verifier_msg = IPForMLSumcheck::sample_round(transcript);
@@ -71,22 +79,20 @@ impl<const N: usize> MLSumcheck<N> {
     /// verifier challenges. This allows this sumcheck to be used as a part of a larger protocol.
     pub fn verify_as_subprotocol(
         transcript: &mut Transcript,
-        polynomial_info: &VPAuxInfo<R>,
+        nvars: usize,
+        degree: usize,
         claimed_sum: RandomField<N>,
         proof: &Proof<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
-        // TODO: bring this back
-        //transcript.absorb(polynomial_info);
+        transcript.absorb(&RandomField::<N>::from(nvars as u128));
+        transcript.absorb(&RandomField::<N>::from(degree as u128));
 
-        let mut verifier_state = IPForMLSumcheck::verifier_init(polynomial_info);
-        for i in 0..polynomial_info.num_variables {
+        let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree);
+        for i in 0..nvars {
             let prover_msg = proof.0.get(i).expect("proof is incomplete");
             transcript.absorb_slice(&prover_msg.evaluations);
-            let verifier_msg = IPForMLSumcheck::verify_round(
-                (*prover_msg).clone(),
-                &mut verifier_state,
-                transcript,
-            );
+            let verifier_msg =
+                IPForMLSumcheck::verify_round(prover_msg.clone(), &mut verifier_state, transcript);
             transcript.absorb(&verifier_msg.randomness.into());
         }
 

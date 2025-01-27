@@ -4,6 +4,7 @@ use thiserror::Error;
 use self::verifier::SubClaim;
 use crate::{
     field::RandomField,
+    field_config::FieldConfig,
     poly::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
     transcript::KeccakTranscript as Transcript,
 };
@@ -52,6 +53,7 @@ impl<const N: usize> MLSumcheck<N> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
+        config: FieldConfig<N>,
     ) -> (Proof<N>, ProverState<N>) {
         transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
         transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
@@ -63,7 +65,7 @@ impl<const N: usize> MLSumcheck<N> {
                 IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg, &comb_fn);
             transcript.absorb_slice(&prover_msg.evaluations);
             prover_msgs.push(prover_msg);
-            let next_verifier_msg = IPForMLSumcheck::sample_round(transcript);
+            let next_verifier_msg = IPForMLSumcheck::sample_round(transcript, &config);
             transcript.absorb_random_field(&next_verifier_msg.randomness);
 
             verifier_msg = Some(next_verifier_msg);
@@ -83,11 +85,12 @@ impl<const N: usize> MLSumcheck<N> {
         degree: usize,
         claimed_sum: RandomField<N>,
         proof: &Proof<N>,
+        config: FieldConfig<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
         transcript.absorb_random_field(&RandomField::<N>::from(nvars as u128));
         transcript.absorb_random_field(&RandomField::<N>::from(degree as u128));
 
-        let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree);
+        let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree, config);
         for i in 0..nvars {
             let prover_msg = proof.0.get(i).expect("proof is incomplete");
             transcript.absorb_slice(&prover_msg.evaluations);

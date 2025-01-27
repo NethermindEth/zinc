@@ -6,7 +6,10 @@ use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::{field::RandomField, poly::mle::DenseMultilinearExtension};
+use crate::{
+    field::RandomField,
+    poly::mle::{DenseMultilinearExtension, MultilinearExtension},
+};
 
 use super::{verifier::VerifierMsg, IPForMLSumcheck};
 

@@ -1,4 +1,5 @@
 //! Verifier
+#![allow(dead_code)]
 use std::ops::MulAssign;
 
 use ark_ff::{One, Zero};

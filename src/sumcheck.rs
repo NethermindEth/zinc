@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
@@ -14,7 +15,7 @@ pub mod utils;
 pub mod verifier;
 
 /// Interactive Proof for Multilinear Sumcheck
-pub struct IPForMLSumcheck<const N: usize>(Transcript);
+pub struct IPForMLSumcheck<const N: usize>;
 #[derive(Error, Debug)]
 pub enum SumCheckError<const N: usize> {
     #[error("univariate polynomial evaluation error")]

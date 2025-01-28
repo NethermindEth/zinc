@@ -10,9 +10,6 @@ use ark_std::{
     vec::*,
 };
 
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
-
 use super::{swap_bits, MultilinearExtension};
 use crate::field::RandomField;
 use crate::sparse_matrix::SparseMatrix;

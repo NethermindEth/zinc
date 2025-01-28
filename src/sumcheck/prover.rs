@@ -1,10 +1,8 @@
 //! Prover
-
+#![allow(dead_code)]
 use ark_ff::Zero;
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 use crate::{
     field::RandomField,
@@ -107,10 +105,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
             levals: vec![RandomField::zero(); degree + 1],
         };
 
-        #[cfg(not(feature = "parallel"))]
         let zeros = scratch();
-        #[cfg(feature = "parallel")]
-        let zeros = scratch;
 
         let summer = cfg_into_iter!(0..1 << (nv - i)).fold(zeros, |mut s, b| {
             let index = b << 1;
@@ -146,20 +141,6 @@ impl<const N: usize> IPForMLSumcheck<N> {
             s
         });
 
-        // Rayon's fold outputs an iter which still needs to be summed over
-        #[cfg(feature = "parallel")]
-        let evaluations = summer.map(|s| s.evals).reduce(
-            || vec![R::zero(); degree + 1],
-            |mut evaluations, levals| {
-                evaluations
-                    .iter_mut()
-                    .zip(levals)
-                    .for_each(|(e, l)| *e += l);
-                evaluations
-            },
-        );
-
-        #[cfg(not(feature = "parallel"))]
         let evaluations = summer.evals;
 
         ProverMsg { evaluations }

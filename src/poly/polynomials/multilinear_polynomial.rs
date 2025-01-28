@@ -5,8 +5,6 @@
 
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
-#[cfg(feature = "parallel")]
-use rayon::prelude::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use super::{util::get_batched_nv, ArithErrors, RefCounter};
 pub use crate::poly::mle::DenseMultilinearExtension;
@@ -175,15 +173,10 @@ fn fix_one_variable_helper<const N: usize>(
     let mut res = vec![RandomField::zero(); 1 << (nv - 1)];
 
     // evaluate single variable of partial point from left to right
-    #[cfg(not(feature = "parallel"))]
+
     for i in 0..1 << (nv - 1) {
         res[i] = data[i] + (data[(i << 1) + 1] - data[i << 1]) * point;
     }
-
-    #[cfg(feature = "parallel")]
-    res.par_iter_mut().enumerate().for_each(|(i, x)| {
-        *x = data[i << 1] + (data[(i << 1) + 1] - data[i << 1]) * point;
-    });
 
     res
 }
@@ -294,15 +287,10 @@ fn fix_last_variable_helper<const N: usize>(
     let mut res = vec![RandomField::zero(); half_len];
 
     // evaluate single variable of partial point from left to right
-    #[cfg(not(feature = "parallel"))]
+
     for b in 0..half_len {
         res[b] = data[b] + (data[b + half_len] - data[b]) * point;
     }
-
-    #[cfg(feature = "parallel")]
-    res.par_iter_mut().enumerate().for_each(|(i, x)| {
-        *x = data[i] + (data[i + half_len] - data[i]) * point;
-    });
 
     res
 }

@@ -5,7 +5,7 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
-
+#![allow(dead_code)]
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
@@ -14,8 +14,6 @@ use ark_std::{
     string::ToString,
     vec::*,
 };
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 use crate::{
     field::RandomField,
@@ -184,16 +182,4 @@ fn build_eq_x_r_helper<const N: usize>(
     }
 
     Ok(())
-}
-
-/// Decompose an integer into a binary vector in little endian.
-#[cfg(feature = "std")]
-pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
-    let mut res = Vec::with_capacity(num_var);
-    let mut i = input;
-    for _ in 0..num_var {
-        res.push((i & 1) == 1);
-        i >>= 1;
-    }
-    res
 }

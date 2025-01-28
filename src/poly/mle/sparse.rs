@@ -10,17 +10,11 @@ use ark_std::{
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
     vec::*,
 };
-use crypto_bigint::Random;
-#[cfg(feature = "parallel")]
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::field::RandomField;
 
 use super::{swap_bits, MultilinearExtension};
 
-#[cfg(feature = "std")]
-use ark_std::collections::HashMap;
-#[cfg(not(feature = "std"))]
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -505,7 +499,7 @@ mod tests {
         let z = get_test_z::<N>(3);
         let n_vars = 3;
         let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z);
-
+        println!("{:?}", z_mle);
         // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
         let bhc = boolean_hypercube(z_mle.num_vars);
 

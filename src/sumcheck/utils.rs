@@ -17,6 +17,7 @@ use ark_std::{
 
 use crate::{
     field::RandomField,
+    field_config::FieldConfig,
     poly::{
         mle::DenseMultilinearExtension,
         polynomials::{random_mle_list, ArithErrors, RefCounter},
@@ -27,6 +28,7 @@ pub fn rand_poly<const N: usize>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
+    config: FieldConfig<N>,
     rng: &mut impl RngCore,
 ) -> Result<
     (
@@ -44,7 +46,7 @@ pub fn rand_poly<const N: usize>(
     for _ in 0..num_products {
         let num_multiplicands = rng.gen_range(num_multiplicands_range.0..num_multiplicands_range.1);
         degree = num_multiplicands.max(degree);
-        let (product, product_sum) = random_mle_list(nv, num_multiplicands, rng);
+        let (product, product_sum) = random_mle_list(nv, num_multiplicands, rng, config);
         let product = product
             .into_iter()
             .map(|p| RefCounter::into_inner(p).unwrap())
@@ -107,9 +109,10 @@ pub fn eq_eval<const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
 pub fn build_eq_x_r<const N: usize>(
     r: &[RandomField<N>],
+    config: FieldConfig<N>,
 ) -> Result<DenseMultilinearExtension<N>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
-    let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals);
+    let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 
     Ok(mle)
 }

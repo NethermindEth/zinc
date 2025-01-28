@@ -30,6 +30,7 @@ pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
     tmp as u64
 }
 
+#[derive(Clone, Copy, Hash, Default)]
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
@@ -226,6 +227,12 @@ impl<const N: usize> FieldConfig<N> {
         } else {
             Some(c)
         }
+    }
+}
+
+impl<const N: usize> std::fmt::Debug for FieldConfig<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, " Z_{}", self.modulus,)
     }
 }
 

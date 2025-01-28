@@ -11,8 +11,8 @@ use ark_std::{
 };
 
 use super::{swap_bits, MultilinearExtension};
-use crate::field::RandomField;
 use crate::sparse_matrix::SparseMatrix;
+use crate::{field::RandomField, field_config::FieldConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct DenseMultilinearExtension<const N: usize> {
@@ -20,11 +20,17 @@ pub struct DenseMultilinearExtension<const N: usize> {
     pub evaluations: Vec<RandomField<N>>,
     /// Number of variables
     pub num_vars: usize,
+    /// Field in which the MLE is operating
+    pub config: FieldConfig<N>,
 }
 
 impl<const N: usize> DenseMultilinearExtension<N> {
-    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[RandomField<N>]) -> Self {
-        Self::from_evaluations_vec(num_vars, evaluations.to_vec())
+    pub fn from_evaluations_slice(
+        num_vars: usize,
+        evaluations: &[RandomField<N>],
+        config: FieldConfig<N>,
+    ) -> Self {
+        Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
     }
 
     pub fn evaluate(&self, point: &[RandomField<N>]) -> Option<RandomField<N>> {
@@ -35,7 +41,11 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<RandomField<N>>) -> Self {
+    pub fn from_evaluations_vec(
+        num_vars: usize,
+        evaluations: Vec<RandomField<N>>,
+        config: FieldConfig<N>,
+    ) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert_eq!(
             evaluations.len(),
@@ -46,11 +56,12 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         Self {
             num_vars,
             evaluations,
+            config,
         }
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(matrix: &SparseMatrix<RandomField<N>>) -> Self {
+    pub fn from_matrix(matrix: &SparseMatrix<RandomField<N>>, config: FieldConfig<N>) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -67,11 +78,11 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
 
         // convert the dense vector into a mle
-        Self::from_slice(n_vars, &v)
+        Self::from_slice(n_vars, &v, config)
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>]) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: FieldConfig<N>) -> Self {
         let v_padded: Vec<RandomField<N>> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
@@ -84,7 +95,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         } else {
             v.to_owned()
         };
-        DenseMultilinearExtension::<N>::from_evaluations_vec(n_vars, v_padded)
+        DenseMultilinearExtension::<N>::from_evaluations_vec(n_vars, v_padded, config)
     }
 
     pub fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
@@ -111,12 +122,13 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         self.num_vars
     }
 
-    fn rand<Rn: rand::Rng>(num_vars: usize, rng: &mut Rn) -> Self {
+    fn rand<Rn: rand::Rng>(num_vars: usize, config: FieldConfig<N>, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
             (0..1 << num_vars)
                 .map(|_| RandomField::<N>::rand(rng))
                 .collect(),
+            config,
         )
     }
 
@@ -170,6 +182,7 @@ impl<const N: usize> Zero for DenseMultilinearExtension<N> {
         Self {
             num_vars: 0,
             evaluations: vec![RandomField::<N>::zero()],
+            config: FieldConfig::default(),
         }
     }
 
@@ -202,13 +215,17 @@ impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultili
             self.num_vars, rhs.num_vars,
             "trying to add two dense MLEs with different numbers of variables"
         );
+        assert_eq!(
+            self.config, rhs.config,
+            "trying to add two dense MLEs in different fields"
+        );
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
             .map(|(a, b)| *a + *b)
             .collect();
 
-        Self::Output::from_evaluations_vec(self.num_vars, result)
+        Self::Output::from_evaluations_vec(self.num_vars, result, self.config)
     }
 }
 
@@ -303,13 +320,16 @@ impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultili
             self.num_vars, rhs.num_vars,
             "trying to subtract two dense MLEs with different numbers of variables"
         );
-
+        assert_eq!(
+            self.config, rhs.config,
+            "trying to add two dense MLEs in different fields"
+        );
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
             .map(|(a, b)| *a - *b)
             .collect();
 
-        Self::Output::from_evaluations_vec(self.num_vars, result)
+        Self::Output::from_evaluations_vec(self.num_vars, result, self.config)
     }
 }
 

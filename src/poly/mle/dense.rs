@@ -10,13 +10,12 @@ use ark_std::{
     vec::*,
 };
 
-use lattirust_linear_algebra::SparseMatrix;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
-use crate::field::RandomField;
-
 use super::{swap_bits, MultilinearExtension};
+use crate::field::RandomField;
+use crate::sparse_matrix::SparseMatrix;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct DenseMultilinearExtension<const N: usize> {

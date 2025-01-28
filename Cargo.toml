@@ -15,6 +15,7 @@ num-bigint = "0.4.6"
 sha3 = "0.10.8"
 thiserror = "2.0.11"
 zeroize = "1.8.1"
+stark-rings-linalg = { git = "https://github.com/NethermindEth/stark-rings.git", branch = "main", default-features = false }
 
 
 [features]

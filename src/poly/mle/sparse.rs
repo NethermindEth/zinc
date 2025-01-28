@@ -1,5 +1,6 @@
 use ark_ff::{One, UniformRand, Zero};
-use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+
+use crate::sparse_matrix::SparseMatrix;
 use ark_std::rand::Rng;
 use ark_std::{
     cfg_iter,
@@ -10,7 +11,6 @@ use ark_std::{
     vec::*,
 };
 use crypto_bigint::Random;
-use lattirust_linear_algebra::SparseMatrix;
 #[cfg(feature = "parallel")]
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -442,7 +442,7 @@ mod tests {
             .collect()
     }
 
-    fn matrix_cast<const N: usize>(m: &[Vec<usize>]) -> SparseMatrix<N> {
+    fn matrix_cast<const N: usize>(m: &[Vec<usize>]) -> SparseMatrix<RandomField<N>> {
         let n_rows = m.len();
         let n_cols = m[0].len();
         let mut coeffs = Vec::with_capacity(n_rows);

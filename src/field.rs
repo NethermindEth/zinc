@@ -6,6 +6,7 @@ use std::{
 };
 
 use ark_ff::{One, UniformRand, Zero};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Valid};
 use zeroize::Zeroize;
 
 use crate::{
@@ -259,6 +260,35 @@ impl<const N: usize> RandomField<N> {
 //
 //    const ZERO: Self = Self { config: std::ptr::null(), BigInt::zero() };
 //}
+
+impl<const N: usize> CanonicalSerialize for RandomField<N> {
+    fn serialize_with_mode<W: std::io::Write>(
+        &self,
+        writer: W,
+        compress: ark_serialize::Compress,
+    ) -> Result<(), ark_serialize::SerializationError> {
+        todo!()
+    }
+
+    fn serialized_size(&self, compress: ark_serialize::Compress) -> usize {
+        todo!()
+    }
+}
+
+impl<const N: usize> Valid for RandomField<N> {
+    fn check(&self) -> Result<(), ark_serialize::SerializationError> {
+        todo!()
+    }
+}
+impl<const N: usize> CanonicalDeserialize for RandomField<N> {
+    fn deserialize_with_mode<R: std::io::Read>(
+        reader: R,
+        compress: ark_serialize::Compress,
+        validate: ark_serialize::Validate,
+    ) -> Result<Self, ark_serialize::SerializationError> {
+        todo!()
+    }
+}
 
 impl<const N: usize> Zeroize for RandomField<N> {
     fn zeroize(&mut self) {

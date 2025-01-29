@@ -6,6 +6,7 @@ use std::{
 };
 
 use ark_ff::{One, UniformRand, Zero};
+
 use zeroize::Zeroize;
 
 use crate::{
@@ -13,7 +14,7 @@ use crate::{
     field_config::{self, FieldConfig},
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone)]
 pub enum RandomField<const N: usize> {
     Raw {
         value: BigInt<N>,
@@ -504,7 +505,13 @@ impl<const N: usize> std::fmt::Display for RandomField<N> {
         }
     }
 }
-
+impl<const N: usize> Default for RandomField<N> {
+    fn default() -> Self {
+        Raw {
+            value: BigInt::zero(),
+        }
+    }
+}
 impl<const N: usize> Zero for RandomField<N> {
     fn zero() -> Self {
         Raw {
@@ -665,6 +672,29 @@ impl<const N: usize> From<bool> for RandomField<N> {
         Raw { value }
     }
 }
+
+impl<const N: usize> PartialEq for RandomField<N> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_one() & other.is_one() {
+            return true;
+        }
+        if self.is_zero() && other.is_zero() {
+            return true;
+        }
+
+        if self.is_raw() && other.is_initialized() || self.is_initialized() && other.is_raw() {
+            return false;
+        }
+        if self.is_raw() {
+            self.value() == other.value()
+        } else {
+            self.value() == other.value()
+                && self.config_ref().unwrap().modulus == other.config_ref().unwrap().modulus
+        }
+    }
+}
+
+impl<const N: usize> Eq for RandomField<N> {} // Eq requires PartialEq and ensures reflexivity.
 
 #[cfg(test)]
 mod tests {

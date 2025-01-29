@@ -14,7 +14,7 @@ use crate::{
     field_config::{self, FieldConfig},
 };
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone)]
 pub enum RandomField<const N: usize> {
     Raw {
         value: BigInt<N>,

@@ -4,7 +4,6 @@ mod sparse;
 use ark_std::rand::Rng;
 use ark_std::{
     fmt::Debug,
-    hash::Hash,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
     vec::*,
     Zero,
@@ -21,7 +20,6 @@ pub trait MultilinearExtension<const N: usize>:
     Sized
     + Clone
     + Debug
-    + Hash
     + PartialEq
     + Eq
     + Add

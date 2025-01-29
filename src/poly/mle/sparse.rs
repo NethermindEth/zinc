@@ -7,7 +7,6 @@ use ark_std::rand::Rng;
 use ark_std::{
     cfg_iter,
     collections::BTreeMap,
-    hash::Hash,
     log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
     vec::*,
@@ -19,7 +18,7 @@ use super::{swap_bits, MultilinearExtension};
 
 use hashbrown::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SparseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
     pub evaluations: BTreeMap<usize, RandomField<N>>,

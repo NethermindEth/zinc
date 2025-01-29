@@ -14,7 +14,7 @@ use super::{swap_bits, MultilinearExtension};
 use crate::sparse_matrix::SparseMatrix;
 use crate::{field::RandomField, field_config::FieldConfig};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DenseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
     pub evaluations: Vec<RandomField<N>>,

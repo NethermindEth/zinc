@@ -11,7 +11,7 @@ use ark_std::{
 };
 
 use super::{swap_bits, MultilinearExtension};
-use crate::sparse_matrix::SparseMatrix;
+use crate::{biginteger::BigInt, sparse_matrix::SparseMatrix};
 use crate::{field::RandomField, field_config::FieldConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,7 +76,10 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         let padded_cols = matrix.n_cols.next_power_of_two();
 
         // build dense vector representing the sparse padded matrix
-        let mut v = vec![RandomField::<N>::zero(); padded_rows * padded_cols];
+        let mut v = vec![
+            RandomField::from_bigint(config, BigInt::zero()).unwrap();
+            padded_rows * padded_cols
+        ];
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -94,7 +97,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
             // pad to 2^n_vars
             [
                 v.to_owned(),
-                ark_std::iter::repeat(RandomField::<N>::zero())
+                ark_std::iter::repeat(RandomField::from_bigint(config, BigInt::zero()).unwrap())
                     .take((1 << n_vars) - v.len())
                     .collect(),
             ]

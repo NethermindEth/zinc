@@ -432,3 +432,7 @@ impl<const N: usize> IndexMut<usize> for DenseMultilinearExtension<N> {
         &mut self.evaluations[index]
     }
 }
+
+unsafe impl<const N: usize> Send for DenseMultilinearExtension<N> {}
+
+unsafe impl<const N: usize> Sync for DenseMultilinearExtension<N> {}

@@ -183,7 +183,7 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         res
     }
 
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
+    fn to_evaluations(&self, _config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
         self.evaluations.to_vec()
     }
 }

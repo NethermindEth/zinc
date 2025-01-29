@@ -249,7 +249,7 @@ pub fn merge_polynomials<const N: usize>(
     let merged_nv = get_batched_nv(nv, polynomials.len());
     let mut scalars = vec![];
     for poly in polynomials.iter() {
-        scalars.extend_from_slice(poly.to_evaluations().as_slice());
+        scalars.extend_from_slice(poly.to_evaluations(config).as_slice());
     }
     scalars.extend_from_slice(vec![RandomField::zero(); (1 << merged_nv) - scalars.len()].as_ref());
     Ok(RefCounter::new(

@@ -59,7 +59,7 @@ pub trait MultilinearExtension<const N: usize>:
 
     /// Returns a list of evaluations over the domain, which is the boolean
     /// hypercube. The evaluations are in little-endian order.
-    fn to_evaluations(&self) -> Vec<RandomField<N>>;
+    fn to_evaluations(&self, config: *const FieldConfig<N>) -> Vec<RandomField<N>>;
 }
 /// swap the bits of `x` from position `a..a+n` to `b..b+n` and from `b..b+n` to `a..a+n` in little endian order
 pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {

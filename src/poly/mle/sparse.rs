@@ -46,7 +46,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
         Self {
             evaluations: tuples_to_treemap(&evaluations),
             num_vars,
-            zero: RandomField::zero(),
+            zero: RandomField::from_bigint(config, BigInt::zero()).unwrap(),
             config,
         }
     }
@@ -84,7 +84,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
         }
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {
-            if *v != RandomField::zero() {
+            if !v.is_zero() {
                 buf.push((*arg, *v));
             }
         }
@@ -92,7 +92,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
         Self {
             num_vars,
             evaluations,
-            zero: RandomField::zero(),
+            zero: RandomField::from_bigint(config, BigInt::zero()).unwrap(),
             config,
         }
     }
@@ -206,7 +206,9 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
                 let old_idx = *src_entry.0;
                 let gz = pre[old_idx & ((1 << dim) - 1)];
                 let new_idx = old_idx >> dim;
-                let dst_entry = result.entry(new_idx).or_insert(RandomField::zero());
+                let dst_entry = result
+                    .entry(new_idx)
+                    .or_insert(RandomField::from_bigint(config, BigInt::zero()).unwrap());
                 *dst_entry += &(gz * src_entry.1);
             }
             last = result;
@@ -215,7 +217,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
 
         self.evaluations = evaluations;
         self.num_vars -= dim;
-        self.zero = RandomField::<N>::zero();
+        self.zero = RandomField::from_bigint(config, BigInt::zero()).unwrap();
     }
 
     fn fixed_variables(
@@ -228,9 +230,9 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         res
     }
 
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
+    fn to_evaluations(&self, config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
         let mut evaluations: Vec<_> = (0..1 << self.num_vars)
-            .map(|_| RandomField::<N>::zero())
+            .map(|_| RandomField::from_bigint(config, BigInt::zero()).unwrap())
             .collect();
         self.evaluations
             .iter()
@@ -296,7 +298,7 @@ impl<'a, const N: usize> Add<&'a SparseMultilinearExtension<N>> for &SparseMulti
         Self::Output {
             evaluations: tuples_to_treemap(&evaluations),
             num_vars: self.num_vars,
-            zero: RandomField::<N>::zero(),
+            zero: RandomField::from_bigint(self.config, BigInt::zero()).unwrap(),
             config: self.config,
         }
     }
@@ -334,7 +336,7 @@ impl<const N: usize> AddAssign<(RandomField<N>, &SparseMultilinearExtension<N>)>
         let other = Self {
             num_vars: other.num_vars,
             evaluations: tuples_to_treemap(&ev),
-            zero: RandomField::<N>::zero(),
+            zero: RandomField::from_bigint(self.config, BigInt::zero()).unwrap(),
             config: self.config,
         };
         *self += &other;
@@ -350,7 +352,7 @@ impl<const N: usize> Neg for SparseMultilinearExtension<N> {
         Self::Output {
             num_vars: self.num_vars,
             evaluations: tuples_to_treemap(&ev),
-            zero: RandomField::<N>::zero(),
+            zero: RandomField::from_bigint(self.config, BigInt::zero()).unwrap(),
             config: self.config,
         }
     }

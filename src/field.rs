@@ -14,7 +14,7 @@ use crate::{
     field_config::{self, FieldConfig},
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Hash)]
 pub enum RandomField<const N: usize> {
     Raw {
         value: BigInt<N>,
@@ -672,6 +672,29 @@ impl<const N: usize> From<bool> for RandomField<N> {
         Raw { value }
     }
 }
+
+impl<const N: usize> PartialEq for RandomField<N> {
+    fn eq(&self, other: &Self) -> bool {
+        if self.is_one() & other.is_one() {
+            return true;
+        }
+        if self.is_zero() && other.is_zero() {
+            return true;
+        }
+
+        if self.is_raw() && other.is_initialized() || self.is_initialized() && other.is_raw() {
+            return false;
+        }
+        if self.is_raw() {
+            return self.value() == other.value();
+        } else {
+            return self.value() == other.value()
+                && self.config_ref().unwrap().modulus == other.config_ref().unwrap().modulus;
+        }
+    }
+}
+
+impl<const N: usize> Eq for RandomField<N> {} // Eq requires PartialEq and ensures reflexivity.
 
 #[cfg(test)]
 mod tests {

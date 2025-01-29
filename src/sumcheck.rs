@@ -61,9 +61,14 @@ impl<const N: usize> MLSumcheck<N> {
         let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
         let mut prover_msgs = Vec::with_capacity(nvars);
+        let config_ptr: *const FieldConfig<N> = &config;
         for _ in 0..nvars {
-            let prover_msg =
-                IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg, &comb_fn);
+            let prover_msg = IPForMLSumcheck::prove_round(
+                &mut prover_state,
+                &verifier_msg,
+                &comb_fn,
+                config_ptr,
+            );
             transcript.absorb_slice(&prover_msg.evaluations);
             prover_msgs.push(prover_msg);
             let next_verifier_msg = IPForMLSumcheck::sample_round(transcript, &config);

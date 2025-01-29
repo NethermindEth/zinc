@@ -33,9 +33,13 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
     }
 
-    pub fn evaluate(&self, point: &[RandomField<N>]) -> Option<RandomField<N>> {
+    pub fn evaluate(
+        &self,
+        point: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Option<RandomField<N>> {
         if point.len() == self.num_vars {
-            Some(self.fixed_variables(point)[0])
+            Some(self.fixed_variables(point, config)[0])
         } else {
             None
         }
@@ -138,7 +142,7 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         copy
     }
 
-    fn fix_variables(&mut self, partial_point: &[RandomField<N>]) {
+    fn fix_variables(&mut self, partial_point: &[RandomField<N>], _config: *const FieldConfig<N>) {
         assert!(
             partial_point.len() <= self.num_vars,
             "too many partial points"
@@ -166,9 +170,13 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         self.num_vars = nv - dim;
     }
 
-    fn fixed_variables(&self, partial_point: &[RandomField<N>]) -> Self {
+    fn fixed_variables(
+        &self,
+        partial_point: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Self {
         let mut res = self.clone();
-        res.fix_variables(partial_point);
+        res.fix_variables(partial_point, config);
         res
     }
 
@@ -238,23 +246,27 @@ impl<const N: usize> AddAssign for DenseMultilinearExtension<N> {
 impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
     for DenseMultilinearExtension<N>
 {
-    fn add_assign(&mut self, rhs: &'a DenseMultilinearExtension<N>) {
+    fn add_assign(&mut self, other: &'a DenseMultilinearExtension<N>) {
         if self.is_zero() {
-            *self = rhs.clone();
+            *self = other.clone();
             return;
         }
 
-        if rhs.is_zero() {
+        if other.is_zero() {
             return;
         }
 
         assert_eq!(
-            self.num_vars, rhs.num_vars,
+            self.num_vars, other.num_vars,
             "trying to add two dense MLEs with different numbers of variables"
+        );
+        assert_eq!(
+            self.config, other.config,
+            "trying to add two dense MLEs in different fields"
         );
 
         cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+            .zip(cfg_iter!(other.evaluations))
             .for_each(|(a, b)| a.add_assign(b));
     }
 }
@@ -278,6 +290,11 @@ impl<const N: usize> AddAssign<(RandomField<N>, &DenseMultilinearExtension<N>)>
         assert_eq!(
             self.num_vars, other.num_vars,
             "trying to add two dense MLEs with different numbers of variables"
+        );
+
+        assert_eq!(
+            self.config, other.config,
+            "trying to add two dense MLEs in different fields"
         );
 
         cfg_iter_mut!(self.evaluations)

@@ -1,5 +1,6 @@
-use ark_ff::{One, UniformRand, Zero};
+use ark_ff::{UniformRand, Zero};
 
+use crate::biginteger::BigInt;
 use crate::field_config::FieldConfig;
 use crate::sparse_matrix::SparseMatrix;
 use ark_std::rand::Rng;
@@ -50,9 +51,13 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             config,
         }
     }
-    pub fn evaluate(&self, point: &[RandomField<N>]) -> RandomField<N> {
+    pub fn evaluate(
+        &self,
+        point: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> RandomField<N> {
         assert!(point.len() == self.num_vars);
-        self.fixed_variables(point)[0]
+        self.fixed_variables(point, config)[0]
     }
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random. The number of nonzero entries is
@@ -171,7 +176,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[RandomField<N>]) {
+    fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: *const FieldConfig<N>) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -191,7 +196,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
             };
             let focus = &point[..focus_length];
             point = &point[focus_length..];
-            let pre = precompute_eq(focus);
+            let pre = precompute_eq(focus, config);
             let dim = focus.len();
             let mut result = HashMap::new();
             for src_entry in last.iter() {
@@ -210,9 +215,13 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         self.zero = RandomField::<N>::zero();
     }
 
-    fn fixed_variables(&self, partial_point: &[RandomField<N>]) -> Self {
+    fn fixed_variables(
+        &self,
+        partial_point: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Self {
         let mut res = self.clone();
-        res.fix_variables(partial_point);
+        res.fix_variables(partial_point, config);
         res
     }
 
@@ -409,10 +418,13 @@ fn hashmap_to_treemap<const N: usize>(
 }
 
 // precompute  f(x) = eq(g,x)
-fn precompute_eq<const N: usize>(g: &[RandomField<N>]) -> Vec<RandomField<N>> {
+fn precompute_eq<const N: usize>(
+    g: &[RandomField<N>],
+    config: *const FieldConfig<N>,
+) -> Vec<RandomField<N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
-    dp[0] = RandomField::one() - g[0];
+    dp[0] = RandomField::from_bigint(config, BigInt::<N>::one()).unwrap() - g[0];
     dp[1] = g[0];
     for i in 1..dim {
         for b in 0..1 << i {
@@ -427,20 +439,26 @@ fn precompute_eq<const N: usize>(g: &[RandomField<N>]) -> Vec<RandomField<N>> {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
+    use crate::biginteger::BigInt;
+
     use super::*;
 
-    use ark_ff::{One, Zero};
+    use ark_ff::Zero;
 
     // Function to convert usize to a binary vector of Ring elements.
-    fn usize_to_binary_vector<const N: usize>(n: usize, dimensions: usize) -> Vec<RandomField<N>> {
+    fn usize_to_binary_vector<const N: usize>(
+        n: usize,
+        dimensions: usize,
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>> {
         let mut bits = Vec::with_capacity(dimensions);
         let mut current = n;
 
         for _ in 0..dimensions {
             if (current & 1) == 1 {
-                bits.push(RandomField::one());
+                bits.push(RandomField::from_bigint(config, BigInt::<N>::one()).unwrap());
             } else {
-                bits.push(RandomField::zero());
+                bits.push(RandomField::from_bigint(config, BigInt::<N>::zero()).unwrap());
             }
             current >>= 1;
         }
@@ -448,16 +466,19 @@ mod tests {
     }
 
     // Wrapper function to generate a boolean hypercube.
-    fn boolean_hypercube<const N: usize>(dimensions: usize) -> Vec<Vec<RandomField<N>>> {
+    fn boolean_hypercube<const N: usize>(
+        dimensions: usize,
+        config: *const FieldConfig<N>,
+    ) -> Vec<Vec<RandomField<N>>> {
         let max_val = 1 << dimensions; // 2^dimensions
         (0..max_val)
-            .map(|i| usize_to_binary_vector::<N>(i, dimensions))
+            .map(|i| usize_to_binary_vector::<N>(i, dimensions, config))
             .collect()
     }
 
-    fn vec_cast<const N: usize>(v: &[usize]) -> Vec<RandomField<N>> {
+    fn vec_cast<const N: usize>(v: &[usize], config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
         v.iter()
-            .map(|c| RandomField::<N>::from(*c as u64))
+            .map(|c| RandomField::<N>::from_bigint(config, BigInt::<N>::from(*c as u64)).unwrap())
             .collect()
     }
 
@@ -481,15 +502,21 @@ mod tests {
         }
     }
 
-    fn get_test_z<const N: usize>(input: usize) -> Vec<RandomField<N>> {
-        vec_cast(&[
-            input, // io
-            1,
-            input * input * input + input + 5, // x^3 + x + 5
-            input * input,                     // x^2
-            input * input * input,             // x^2 * x
-            input * input * input + input,     // x^3 + x
-        ])
+    fn get_test_z<const N: usize>(
+        input: usize,
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>> {
+        vec_cast(
+            &[
+                input, // io
+                1,
+                input * input * input + input + 5, // x^3 + x + 5
+                input * input,                     // x^2
+                input * input * input,             // x^2 * x
+                input * input * input + input,     // x^3 + x
+            ],
+            config,
+        )
     }
 
     #[test]
@@ -523,21 +550,24 @@ mod tests {
     fn test_vec_to_mle() {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
+        let config_ptr: *const FieldConfig<1> = &config;
+        let z = get_test_z::<N>(3, config_ptr);
 
-        let z = get_test_z::<N>(3);
         let n_vars = 3;
         let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config);
-        println!("{:?}", z_mle);
-        // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
-        let bhc = boolean_hypercube(z_mle.num_vars);
 
+        // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
+        let bhc = boolean_hypercube(z_mle.num_vars, config_ptr);
         for (i, z_i) in z.iter().enumerate() {
             let s_i = &bhc[i];
-            assert_eq!(z_mle.evaluate(s_i), z_i.clone());
+            assert_eq!(z_mle.evaluate(s_i, config_ptr), z_i.clone());
         }
         // for the rest of elements of the boolean hypercube, expect it to evaluate to zero
         for s_i in bhc.iter().take(1 << z_mle.num_vars).skip(z.len()) {
-            assert_eq!(z_mle.fixed_variables(s_i)[0], RandomField::<N>::zero());
+            assert_eq!(
+                z_mle.fixed_variables(s_i, config_ptr)[0],
+                RandomField::<N>::zero()
+            );
         }
     }
 }

@@ -686,10 +686,10 @@ impl<const N: usize> PartialEq for RandomField<N> {
             return false;
         }
         if self.is_raw() {
-            return self.value() == other.value();
+            self.value() == other.value()
         } else {
-            return self.value() == other.value()
-                && self.config_ref().unwrap().modulus == other.config_ref().unwrap().modulus;
+            self.value() == other.value()
+                && self.config_ref().unwrap().modulus == other.config_ref().unwrap().modulus
         }
     }
 }

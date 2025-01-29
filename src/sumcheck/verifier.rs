@@ -210,9 +210,8 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
                 RandomField::from(ratio_numerator as u64)
             };
 
-            let x: RandomField<N> = (prod * RandomField::from(ratio_enumerator)
-                / (last_denom * ratio_numerator_f * evals[i]))
-                .into();
+            let x = prod * RandomField::from(ratio_enumerator)
+                / (last_denom * ratio_numerator_f * evals[i]);
 
             res += &(p_i[i] * x);
 
@@ -234,9 +233,8 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
                 RandomField::from(ratio_numerator as u128)
             };
 
-            let x: RandomField<N> = (prod * RandomField::from(ratio_enumerator)
-                / (last_denom * ratio_numerator_f * evals[i]))
-                .into();
+            let x: RandomField<N> = prod * RandomField::from(ratio_enumerator)
+                / (last_denom * ratio_numerator_f * evals[i]);
             res += &(p_i[i] * x);
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
@@ -252,7 +250,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
         let mut denom_down = RandomField::one();
 
         for i in (0..len).rev() {
-            let x: RandomField<N> = (prod * denom_down / (denom_up * evals[i])).into();
+            let x: RandomField<N> = prod * denom_down / (denom_up * evals[i]);
             res += &(p_i[i] * x);
 
             // compute denom for the next step is -current_denom * (len-i)/i

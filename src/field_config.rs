@@ -30,7 +30,7 @@ pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
     tmp as u64
 }
 
-#[derive(Clone, Copy, Hash, Default)]
+#[derive(Clone, Copy, Default)]
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,

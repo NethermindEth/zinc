@@ -23,7 +23,7 @@ use crate::{
         polynomials::{random_mle_list, ArithErrors, RefCounter},
     },
 };
-
+#[allow(clippy::type_complexity)]
 pub fn rand_poly<const N: usize>(
     nv: usize,
     num_multiplicands_range: (usize, usize),

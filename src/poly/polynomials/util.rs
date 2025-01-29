@@ -27,7 +27,7 @@ pub fn gen_eval_point<const N: usize>(
 ) -> Vec<RandomField<N>> {
     let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
         .into_iter()
-        .map(|x| RandomField::from(x))
+        .map(RandomField::from)
         .collect();
     [point, &index_vec].concat()
 }

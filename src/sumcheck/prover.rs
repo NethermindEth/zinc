@@ -72,7 +72,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1];
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r.into()], config);
+                multiplicand.fix_variables(&[r], config);
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");

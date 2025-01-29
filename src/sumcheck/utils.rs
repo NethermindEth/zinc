@@ -28,7 +28,7 @@ pub fn rand_poly<const N: usize>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
     rng: &mut impl RngCore,
 ) -> Result<
     (
@@ -109,7 +109,7 @@ pub fn eq_eval<const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
 pub fn build_eq_x_r<const N: usize>(
     r: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> Result<DenseMultilinearExtension<N>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);

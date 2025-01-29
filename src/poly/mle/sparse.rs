@@ -18,7 +18,7 @@ use super::{swap_bits, MultilinearExtension};
 
 use hashbrown::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
     pub evaluations: BTreeMap<usize, RandomField<N>>,
@@ -26,13 +26,13 @@ pub struct SparseMultilinearExtension<const N: usize> {
     pub num_vars: usize,
     zero: RandomField<N>,
     /// Field in which the MLE is operating
-    pub config: FieldConfig<N>,
+    pub config: *const FieldConfig<N>,
 }
 impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> Self {
         let bit_mask = 1 << num_vars;
 
@@ -69,7 +69,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn rand_with_config<Rn: Rng>(
         num_vars: usize,
         num_nonzero_entries: usize,
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
         rng: &mut Rn,
     ) -> Self {
         assert!(num_nonzero_entries <= 1 << num_vars);
@@ -98,7 +98,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: FieldConfig<N>) -> Self {
+    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: *const FieldConfig<N>) -> Self {
         let n_rows = m.n_rows.next_power_of_two();
         let n_cols = m.n_cols.next_power_of_two();
         let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
@@ -122,13 +122,13 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn from_sparse_slice(
         n_vars: usize,
         v: &[(usize, RandomField<N>)],
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> Self {
         SparseMultilinearExtension::<N>::from_evaluations(n_vars, v, config)
     }
 
     /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: FieldConfig<N>) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: *const FieldConfig<N>) -> Self {
         let v_sparse = v
             .iter()
             .enumerate()
@@ -146,7 +146,11 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
     /// are sampled uniformly at random. The number of nonzero entries is
     /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
     /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: FieldConfig<N>, rng: &mut Rn) -> Self {
+    fn rand<Rn: ark_std::rand::Rng>(
+        num_vars: usize,
+        config: *const FieldConfig<N>,
+        rng: &mut Rn,
+    ) -> Self {
         Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
     }
 
@@ -243,7 +247,7 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
             num_vars: 0,
             evaluations: tuples_to_treemap(&Vec::new()),
             zero: RandomField::<N>::zero(),
-            config: FieldConfig::default(),
+            config: std::ptr::null(),
         }
     }
 
@@ -522,6 +526,7 @@ mod tests {
     fn test_matrix_to_mle() {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
+        let config_ptr: *const FieldConfig<1> = &config;
         let A = matrix_cast::<N>(&[
             vec![2, 3, 4, 4],
             vec![4, 11, 14, 14],
@@ -529,7 +534,7 @@ mod tests {
             vec![420, 4, 2, 0],
         ]);
 
-        let A_mle = SparseMultilinearExtension::from_matrix(&A, config);
+        let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
         assert_eq!(A_mle.evaluations.len(), 15); // 15 non-zero elements
         assert_eq!(A_mle.num_vars, 4); // 4x4 matrix, thus 2bit x 2bit, thus 2^4=16 evals
 
@@ -540,7 +545,7 @@ mod tests {
             vec![420, 4, 2, 0, 4],
             vec![420, 4, 2, 0, 5],
         ]);
-        let A_mle = SparseMultilinearExtension::from_matrix(&A, config);
+        let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
         assert_eq!(A_mle.evaluations.len(), 23); // 23 non-zero elements
         assert_eq!(A_mle.num_vars, 6); // 5x5 matrix, thus 3bit x 3bit, thus 2^6=64 evals
     }
@@ -553,7 +558,7 @@ mod tests {
         let z = get_test_z::<N>(3, config_ptr);
 
         let n_vars = 3;
-        let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config);
+        let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config_ptr);
 
         // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
         let bhc = boolean_hypercube(z_mle.num_vars, config_ptr);

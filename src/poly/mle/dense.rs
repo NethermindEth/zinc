@@ -14,21 +14,21 @@ use super::{swap_bits, MultilinearExtension};
 use crate::sparse_matrix::SparseMatrix;
 use crate::{field::RandomField, field_config::FieldConfig};
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
     pub evaluations: Vec<RandomField<N>>,
     /// Number of variables
     pub num_vars: usize,
     /// Field in which the MLE is operating
-    pub config: FieldConfig<N>,
+    pub config: *const FieldConfig<N>,
 }
 
 impl<const N: usize> DenseMultilinearExtension<N> {
     pub fn from_evaluations_slice(
         num_vars: usize,
         evaluations: &[RandomField<N>],
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
     }
@@ -48,7 +48,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     pub fn from_evaluations_vec(
         num_vars: usize,
         evaluations: Vec<RandomField<N>>,
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert_eq!(
@@ -65,7 +65,10 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(matrix: &SparseMatrix<RandomField<N>>, config: FieldConfig<N>) -> Self {
+    pub fn from_matrix(
+        matrix: &SparseMatrix<RandomField<N>>,
+        config: *const FieldConfig<N>,
+    ) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -86,7 +89,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: FieldConfig<N>) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: *const FieldConfig<N>) -> Self {
         let v_padded: Vec<RandomField<N>> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
@@ -126,7 +129,7 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         self.num_vars
     }
 
-    fn rand<Rn: rand::Rng>(num_vars: usize, config: FieldConfig<N>, rng: &mut Rn) -> Self {
+    fn rand<Rn: rand::Rng>(num_vars: usize, config: *const FieldConfig<N>, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
             (0..1 << num_vars)
@@ -190,7 +193,7 @@ impl<const N: usize> Zero for DenseMultilinearExtension<N> {
         Self {
             num_vars: 0,
             evaluations: vec![RandomField::<N>::zero()],
-            config: FieldConfig::default(),
+            config: std::ptr::null(),
         }
     }
 

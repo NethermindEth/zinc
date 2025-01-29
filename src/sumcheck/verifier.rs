@@ -30,7 +30,7 @@ pub struct VerifierState<const N: usize> {
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<RandomField<N>>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 }
 
 /// Subclaim when verifier is convinced
@@ -43,7 +43,11 @@ pub struct SubClaim<const N: usize> {
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: FieldConfig<N>) -> VerifierState<N> {
+    pub fn verifier_init(
+        nvars: usize,
+        degree: usize,
+        config: *const FieldConfig<N>,
+    ) -> VerifierState<N> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -72,7 +76,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         // Now, verifier should check if the received P(0) + P(1) = expected. The check is moved to
         // `check_and_generate_subclaim`, and will be done after the last round.
 
-        let msg = Self::sample_round(transcript, &verifier_state.config);
+        let msg = Self::sample_round(transcript, verifier_state.config);
         verifier_state.randomness.push(msg.randomness);
         verifier_state
             .polynomials_received
@@ -132,7 +136,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(transcript: &mut Transcript, config: &FieldConfig<N>) -> VerifierMsg<N> {
+    pub fn sample_round(
+        transcript: &mut Transcript,
+        config: *const FieldConfig<N>,
+    ) -> VerifierMsg<N> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }

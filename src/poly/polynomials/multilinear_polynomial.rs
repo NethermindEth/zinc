@@ -18,7 +18,7 @@ pub fn random_mle_list<const N: usize, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> (
     Vec<RefCounter<DenseMultilinearExtension<N>>>,
     RandomField<N>,
@@ -59,7 +59,7 @@ pub fn random_zero_mle_list<const N: usize, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let start = start_timer!(|| "sample random zero mle list");
 
@@ -99,7 +99,7 @@ pub fn identity_permutation<const N: usize>(
 pub fn identity_permutation_mles<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let mut res = vec![];
     for i in 0..num_chunks {
@@ -134,7 +134,7 @@ pub fn random_permutation_mles<const N: usize, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let s_perm_vec = random_permutation(num_vars, num_chunks, rng);
     let mut res = vec![];
@@ -154,7 +154,7 @@ pub fn random_permutation_mles<const N: usize, Rn: RngCore>(
 pub fn evaluate_opt<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> RandomField<N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables(poly, point, config).evaluations[0]
@@ -163,7 +163,7 @@ pub fn evaluate_opt<const N: usize>(
 pub fn fix_variables<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     partial_point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -203,7 +203,7 @@ fn fix_one_variable_helper<const N: usize>(
 pub fn evaluate_no_par<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> RandomField<N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables_no_par(poly, point, config).evaluations[0]
@@ -212,7 +212,7 @@ pub fn evaluate_no_par<const N: usize>(
 fn fix_variables_no_par<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     partial_point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -235,7 +235,7 @@ fn fix_variables_no_par<const N: usize>(
 /// polynomials do not share a same number of nvs.
 pub fn merge_polynomials<const N: usize>(
     polynomials: &[RefCounter<DenseMultilinearExtension<N>>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> Result<RefCounter<DenseMultilinearExtension<N>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
     for poly in polynomials.iter() {
@@ -260,7 +260,7 @@ pub fn merge_polynomials<const N: usize>(
 pub fn fix_last_variables_no_par<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     partial_point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> DenseMultilinearExtension<N> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap(), config);
     for p in partial_point.iter().rev().skip(1) {
@@ -272,7 +272,7 @@ pub fn fix_last_variables_no_par<const N: usize>(
 fn fix_last_variable_no_par<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     partial_point: &RandomField<N>,
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> DenseMultilinearExtension<N> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
@@ -286,7 +286,7 @@ fn fix_last_variable_no_par<const N: usize>(
 pub fn fix_last_variables<const N: usize>(
     poly: &DenseMultilinearExtension<N>,
     partial_point: &[RandomField<N>],
-    config: FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,

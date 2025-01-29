@@ -91,7 +91,7 @@ impl<const N: usize> MLSumcheck<N> {
         degree: usize,
         claimed_sum: RandomField<N>,
         proof: &Proof<N>,
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
         transcript.absorb_random_field(&RandomField::<N>::from(nvars as u128));
         transcript.absorb_random_field(&RandomField::<N>::from(degree as u128));

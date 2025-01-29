@@ -64,7 +64,10 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
-    pub fn get_challenge<const N: usize>(&mut self, config: &FieldConfig<N>) -> RandomField<N> {
+    pub fn get_challenge<const N: usize>(
+        &mut self,
+        config: *const FieldConfig<N>,
+    ) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
         let (lo, hi) = (RandomField::from(lo), RandomField::from(hi));
 

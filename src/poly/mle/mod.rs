@@ -35,7 +35,7 @@ pub trait MultilinearExtension<const N: usize>:
 
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random.
-    fn rand<Rn: Rng>(num_vars: usize, config: FieldConfig<N>, rng: &mut Rn) -> Self;
+    fn rand<Rn: Rng>(num_vars: usize, config: *const FieldConfig<N>, rng: &mut Rn) -> Self;
 
     /// Relabel the point by swapping `k` scalars from positions `a..a+k` to
     /// positions `b..b+k`, and from position `b..b+k` to position `a..a+k`

@@ -141,8 +141,8 @@ mod tests {
         let mut transcript = KeccakTranscript::default();
 
         let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (2, 2), 2, config, &mut rng).unwrap();
-        println!("poly mles{:?}", poly_mles);
+            rand_poly(nvars, (1, 3), 2, config, &mut rng).unwrap();
+
         let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
             rand_poly_comb_fn(vals, &products, config)
         };
@@ -159,10 +159,11 @@ mod tests {
     }
     #[test]
     fn test_sumcheck() {
-        const N: usize = 1;
+        const N: usize = 2;
         let mut rng = ark_std::test_rng();
-        let nvars = 2;
-        let config: *const FieldConfig<N> = &FieldConfig::new(BigInt::from_str("293").unwrap());
+        let nvars = 3;
+        let config: *const FieldConfig<N> =
+            &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
         let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
 

@@ -316,7 +316,7 @@ impl<const N: usize> RandomField<N> {
 
         unsafe {
             if value.is_zero() {
-                Some(Self::zero())
+                Some(Self::new_unchecked(config, value))
             } else if value >= (*config).modulus {
                 None
             } else {

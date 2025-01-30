@@ -77,7 +77,8 @@ impl<const N: usize> IPForMLSumcheck<N> {
 
         // Now, verifier should check if the received P(0) + P(1) = expected. The check is moved to
         // `check_and_generate_subclaim`, and will be done after the last round.
-
+        // println!("\n\n Verifying round {}", verifier_state.round);
+        // println!("prover message: {:?}", prover_msg);
         let msg = Self::sample_round(transcript, verifier_state.config);
         verifier_state.randomness.push(msg.randomness);
         verifier_state
@@ -120,6 +121,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
             if evaluations.len() != verifier_state.max_multiplicands + 1 {
                 panic!("incorrect number of evaluations");
             }
+            println!(" \n\nVerifying round {}", i + 1);
+
+            println!("evaluations: {:?}", evaluations);
+            println!("expected: {:?}", evaluations);
             let p0 = evaluations[0];
             let p1 = evaluations[1];
             if p0 + p1 != expected {

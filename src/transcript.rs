@@ -76,18 +76,18 @@ impl KeccakTranscript {
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut ret = RandomField::from(truncated_lo);
-            ret.set_config(config);
-            return ret;
+            let mut challenge = RandomField::from(truncated_lo);
+            challenge.set_config(config);
+            return challenge;
         }
         if challenge_num_bits < 128 {
             let lo_mask = (1u128 << challenge_num_bits) - 1;
 
             let truncated_lo = lo & lo_mask;
 
-            let mut ret = RandomField::from(truncated_lo);
-            ret.set_config(config);
-            ret
+            let mut challenge = RandomField::from(truncated_lo);
+            challenge.set_config(config);
+            challenge
         } else if challenge_num_bits >= 256 {
             let two_to_128 = RandomField::from_bigint(
                 config,
@@ -95,9 +95,9 @@ impl KeccakTranscript {
             )
             .unwrap();
 
-            let mut ret = RandomField::from(lo) + two_to_128 * RandomField::from(hi);
-            ret.set_config(config);
-            ret
+            let mut challenge = RandomField::from(lo) + two_to_128 * RandomField::from(hi);
+            challenge.set_config(config);
+            challenge
         } else {
             let hi_bits_to_keep = challenge_num_bits - 128;
             let hi_mask = (1u128 << hi_bits_to_keep) - 1;

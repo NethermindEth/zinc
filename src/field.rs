@@ -1034,11 +1034,4 @@ mod tests {
         let int = 243043087159742188419721163456177516u128;
         let _ = RandomField::<1>::from(int);
     }
-
-    #[test]
-    fn test_things_i_am_checking() {
-        let config: *const FieldConfig<2> =
-            &FieldConfig::new(BigInt::from_str("77165145434944406787187098251").unwrap());
-        let element = RandomField::from_bigint(config, 24u32.into());
-    }
 }

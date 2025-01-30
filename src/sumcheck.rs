@@ -54,24 +54,20 @@ impl<const N: usize> MLSumcheck<N> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
-        config: FieldConfig<N>,
+        config: *const FieldConfig<N>,
     ) -> (Proof<N>, ProverState<N>) {
         transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
         transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
         let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
         let mut prover_msgs = Vec::with_capacity(nvars);
-        let config_ptr: *const FieldConfig<N> = &config;
+
         for _ in 0..nvars {
-            let prover_msg = IPForMLSumcheck::prove_round(
-                &mut prover_state,
-                &verifier_msg,
-                &comb_fn,
-                config_ptr,
-            );
+            let prover_msg =
+                IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg, &comb_fn, config);
             transcript.absorb_slice(&prover_msg.evaluations);
             prover_msgs.push(prover_msg);
-            let next_verifier_msg = IPForMLSumcheck::sample_round(transcript, &config);
+            let next_verifier_msg = IPForMLSumcheck::sample_round(transcript, config);
             transcript.absorb_random_field(&next_verifier_msg.randomness);
 
             verifier_msg = Some(next_verifier_msg);
@@ -105,6 +101,73 @@ impl<const N: usize> MLSumcheck<N> {
             transcript.absorb_random_field(&verifier_msg.randomness);
         }
 
-        IPForMLSumcheck::check_and_generate_subclaim(verifier_state, claimed_sum)
+        IPForMLSumcheck::check_and_generate_subclaim(verifier_state, claimed_sum, config)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use std::str::FromStr;
+
+    use ark_std::rand;
+
+    use rand::Rng;
+
+    use crate::{
+        biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+        transcript::KeccakTranscript,
+    };
+
+    use super::{
+        utils::{rand_poly, rand_poly_comb_fn},
+        MLSumcheck, Proof,
+    };
+
+    fn generate_sumcheck_proof<const N: usize>(
+        nvars: usize,
+        mut rng: &mut (impl Rng + Sized),
+        config: *const FieldConfig<N>,
+    ) -> (usize, RandomField<N>, Proof<N>) {
+        let mut transcript = KeccakTranscript::default();
+
+        let ((poly_mles, poly_degree), products, sum) =
+            rand_poly(nvars, (2, 5), 3, config, &mut rng).unwrap();
+
+        let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
+            rand_poly_comb_fn(vals, &products, config)
+        };
+
+        let (proof, _) = MLSumcheck::prove_as_subprotocol(
+            &mut transcript,
+            poly_mles,
+            nvars,
+            poly_degree,
+            comb_fn,
+            config,
+        );
+        (poly_degree, sum, proof)
+    }
+    #[test]
+    fn test_sumcheck() {
+        const N: usize = 2;
+        let mut rng = ark_std::test_rng();
+        let nvars = 5;
+        let config: *const FieldConfig<N> =
+            &FieldConfig::new(BigInt::from_str("77165145434944406787187098251").unwrap());
+
+        let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
+
+        let mut transcript = KeccakTranscript::default();
+        let res = MLSumcheck::verify_as_subprotocol(
+            &mut transcript,
+            nvars,
+            poly_degree,
+            sum,
+            &proof,
+            config,
+        );
+        println!("{:?}", res);
+        // assert!(res.is_ok())
     }
 }

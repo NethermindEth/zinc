@@ -6,7 +6,7 @@
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
 #![allow(dead_code)]
-use ark_ff::{One, UniformRand, Zero};
+use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
     rand::{Rng, RngCore},
@@ -16,7 +16,8 @@ use ark_std::{
 };
 
 use crate::{
-    field::RandomField,
+    biginteger::BigInt,
+    field::{rand_with_config, RandomField},
     field_config::FieldConfig,
     poly::{
         mle::DenseMultilinearExtension,
@@ -38,7 +39,7 @@ pub fn rand_poly<const N: usize>(
     ),
     ArithErrors,
 > {
-    let mut sum = RandomField::zero();
+    let mut sum = RandomField::from_bigint(config, BigInt::zero()).unwrap();
     let mut mles = vec![];
     let mut products = Vec::with_capacity(num_products);
     let mut degree = 0;
@@ -52,7 +53,7 @@ pub fn rand_poly<const N: usize>(
             .map(|p| RefCounter::into_inner(p).unwrap())
             .collect::<Vec<_>>();
 
-        let coefficient = RandomField::rand(rng);
+        let coefficient = rand_with_config(rng, config);
         mles.extend(product);
         sum += &(product_sum * coefficient);
 
@@ -68,8 +69,9 @@ pub fn rand_poly<const N: usize>(
 pub fn rand_poly_comb_fn<const N: usize>(
     vals: &[RandomField<N>],
     products: &[(RandomField<N>, Vec<usize>)],
+    config: *const FieldConfig<N>,
 ) -> RandomField<N> {
-    let mut result = RandomField::zero();
+    let mut result = RandomField::from_bigint(config, BigInt::zero()).unwrap();
     for (coef, indices) in products {
         let mut term = *coef;
         for &i in indices {

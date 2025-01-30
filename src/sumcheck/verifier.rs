@@ -2,12 +2,13 @@
 #![allow(dead_code)]
 use std::ops::MulAssign;
 
-use ark_ff::{One, Zero};
+use ark_ff::One;
 use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    field::RandomField, field_config::FieldConfig, transcript::KeccakTranscript as Transcript,
+    biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+    transcript::KeccakTranscript as Transcript,
 };
 
 pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
@@ -34,6 +35,7 @@ pub struct VerifierState<const N: usize> {
 }
 
 /// Subclaim when verifier is convinced
+#[derive(Debug)]
 pub struct SubClaim<const N: usize> {
     /// the multi-dimensional point that this multilinear extension is evaluated to
     pub point: Vec<RandomField<N>>,
@@ -103,6 +105,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn check_and_generate_subclaim(
         verifier_state: VerifierState<N>,
         asserted_sum: RandomField<N>,
+        config: *const FieldConfig<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
@@ -122,7 +125,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
             if p0 + p1 != expected {
                 return Err(SumCheckError::SumCheckFailed(p0 + p1, expected));
             }
-            expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i]);
+            expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i], config);
         }
 
         Ok(SubClaim {
@@ -141,7 +144,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         config: *const FieldConfig<N>,
     ) -> VerifierMsg<N> {
         VerifierMsg {
-            randomness: transcript.get_challenge(config),
+            randomness: unsafe { transcript.get_challenge(config) },
         }
     }
 }
@@ -152,34 +155,39 @@ impl<const N: usize> IPForMLSumcheck<N> {
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
 pub(crate) fn interpolate_uni_poly<const N: usize>(
     p_i: &[RandomField<N>],
-    eval_at: RandomField<N>,
+    x: RandomField<N>,
+    config: *const FieldConfig<N>,
 ) -> RandomField<N> {
+    // We will need these a few times
+    let zero = RandomField::from_bigint(config, BigInt::zero()).unwrap();
+    let one = RandomField::from_bigint(config, BigInt::one()).unwrap();
+
     let len = p_i.len();
 
     let mut evals = vec![];
 
-    let mut prod = eval_at;
-    evals.push(eval_at);
+    let mut prod = x;
+    evals.push(x);
 
-    //`prod = \prod_{j} (eval_at - j)`
-    // we return early if 0 <= eval_at <  len, i.e. if the desired value has been passed
-    let mut check = RandomField::zero();
+    //`prod = \prod_{j} (x - j)`
+    // we return early if 0 <= x < len, i.e. if the desired value has been passed
+    let mut j = zero;
     for i in 1..len {
-        if eval_at == check {
+        if x == j {
             return p_i[i - 1];
         }
-        check += &RandomField::one();
+        j += &one;
 
-        let tmp = eval_at - check;
+        let tmp = x - j;
         evals.push(tmp);
         prod *= tmp;
     }
 
-    if eval_at == check {
+    if x == j {
         return p_i[len - 1];
     }
 
-    let mut res = RandomField::zero();
+    let mut res = zero;
     // we want to compute \prod (j!=i) (i-j) for a given i
     //
     // we start from the last step, which is
@@ -206,19 +214,28 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
     //  - for len <= 33 with i128
     //  - for len >  33 with BigInt
     if p_i.len() <= 20 {
-        let last_denom = RandomField::from(u64_factorial(len - 1));
+        let mut last_denom = RandomField::from(u64_factorial(len - 1));
+
+        last_denom.set_config(config);
+
         let mut ratio_numerator = 1i64;
         let mut ratio_enumerator = 1u64;
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                -RandomField::from((-ratio_numerator) as u64)
+                let mut res = RandomField::from((-ratio_numerator) as u64);
+                res.set_config(config);
+                -res
             } else {
-                RandomField::from(ratio_numerator as u64)
+                let mut res = RandomField::from((-ratio_numerator) as u64);
+                res.set_config(config);
+                res
             };
 
-            let x = prod * RandomField::from(ratio_enumerator)
-                / (last_denom * ratio_numerator_f * evals[i]);
+            let mut ratio_enumerator_f = RandomField::from(ratio_enumerator);
+            ratio_enumerator_f.set_config(config);
+
+            let x = prod * ratio_numerator_f / (last_denom * ratio_numerator_f * evals[i]);
 
             res += &(p_i[i] * x);
 
@@ -235,13 +252,20 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                -RandomField::from((-ratio_numerator) as u128)
+                let mut res = RandomField::from((-ratio_numerator) as u128);
+                res.set_config(config);
+                -res
             } else {
-                RandomField::from(ratio_numerator as u128)
+                let mut res = RandomField::from((-ratio_numerator) as u128);
+                res.set_config(config);
+                res
             };
 
-            let x: RandomField<N> = prod * RandomField::from(ratio_enumerator)
-                / (last_denom * ratio_numerator_f * evals[i]);
+            let mut ratio_enumerator_f = RandomField::from(ratio_enumerator);
+            ratio_enumerator_f.set_config(config);
+
+            let x: RandomField<N> =
+                prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
             res += &(p_i[i] * x);
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
@@ -254,7 +278,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
         let mut denom_up = field_factorial::<RandomField<N>>(len - 1);
-        let mut denom_down = RandomField::one();
+        let mut denom_down = one;
 
         for i in (0..len).rev() {
             let x: RandomField<N> = prod * denom_down / (denom_up * evals[i]);

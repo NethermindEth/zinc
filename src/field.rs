@@ -220,6 +220,32 @@ impl<const N: usize> UniformRand for RandomField<N> {
     }
 }
 
+pub fn rand_with_config<const N: usize, R: ark_std::rand::Rng + ?Sized>(
+    rng: &mut R,
+    config: *const FieldConfig<N>,
+) -> RandomField<N> {
+    loop {
+        let mut value = BigInt::rand(rng);
+        let modulus = unsafe { (*config).modulus };
+        let shave_bits = 64 * N - modulus.num_bits() as usize;
+        // Mask away the unused bits at the beginning.
+        assert!(shave_bits <= 64);
+        let mask = if shave_bits == 64 {
+            0
+        } else {
+            u64::MAX >> shave_bits
+        };
+
+        if let Some(val) = value.0.last_mut() {
+            *val &= mask
+        }
+
+        if value < modulus {
+            return RandomField::from_bigint(config, value).unwrap();
+        }
+    }
+}
+
 impl<const N: usize> RandomField<N> {
     pub fn set_config(&mut self, config: *const FieldConfig<N>) {
         self.with_raw_value_mut_or(
@@ -235,6 +261,7 @@ impl<const N: usize> RandomField<N> {
                 // So let's hope we don't exceed the modulus.
 
                 // TODO: prettify this
+
                 *value = *Self::from_bigint(config, *value)
                     .expect("Should not end up with a None here.")
                     .value();
@@ -294,7 +321,9 @@ impl<const N: usize> RandomField<N> {
                 None
             } else {
                 let mut r = value;
+
                 (*config).mul_assign(&mut r, &(*config).r2);
+
                 Some(Self::new_unchecked(config, r))
             }
         }
@@ -1004,5 +1033,12 @@ mod tests {
     fn test_failing_from_u128() {
         let int = 243043087159742188419721163456177516u128;
         let _ = RandomField::<1>::from(int);
+    }
+
+    #[test]
+    fn test_things_i_am_checking() {
+        let config: *const FieldConfig<2> =
+            &FieldConfig::new(BigInt::from_str("77165145434944406787187098251").unwrap());
+        let element = RandomField::from_bigint(config, 24u32.into());
     }
 }

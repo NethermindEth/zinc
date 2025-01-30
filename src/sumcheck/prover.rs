@@ -1,10 +1,10 @@
 //! Prover
 #![allow(dead_code)]
-use ark_ff::Zero;
 
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
 
 use crate::{
+    biginteger::BigInt,
     field::RandomField,
     field_config::FieldConfig,
     poly::mle::{DenseMultilinearExtension, MultilinearExtension},
@@ -98,13 +98,14 @@ impl<const N: usize> IPForMLSumcheck<N> {
             vals: Vec<R>,
             levals: Vec<R>,
         }
+        let zero = RandomField::from_bigint(config, BigInt::zero()).unwrap();
         let scratch = || Scratch {
-            evals: vec![RandomField::zero(); degree + 1],
-            steps: vec![RandomField::zero(); polys.len()],
-            vals0: vec![RandomField::zero(); polys.len()],
-            vals1: vec![RandomField::zero(); polys.len()],
-            vals: vec![RandomField::zero(); polys.len()],
-            levals: vec![RandomField::zero(); degree + 1],
+            evals: vec![zero; degree + 1],
+            steps: vec![zero; polys.len()],
+            vals0: vec![zero; polys.len()],
+            vals1: vec![zero; polys.len()],
+            vals: vec![zero; polys.len()],
+            levals: vec![zero; degree + 1],
         };
 
         let zeros = scratch();

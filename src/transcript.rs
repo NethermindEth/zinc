@@ -64,20 +64,46 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
-    pub fn get_challenge<const N: usize>(
+    pub unsafe fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let (lo, hi) = (RandomField::from(lo), RandomField::from(hi));
+        let modulus = unsafe { (*config).modulus };
+        let challenge_num_bits = modulus.num_bits() - 1;
+        if challenge_num_bits < 128 {
+            let lo_mask = (1u128 << challenge_num_bits) - 1;
 
-        let two_to_128 = RandomField::from_bigint(
-            config,
-            BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
-        )
-        .unwrap();
+            let truncated_lo = lo & lo_mask;
 
-        lo + two_to_128 * hi
+            let mut ret = RandomField::from(truncated_lo);
+            ret.set_config(config);
+            ret
+        } else if challenge_num_bits >= 256 {
+            let two_to_128 = RandomField::from_bigint(
+                config,
+                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
+            )
+            .unwrap();
+
+            let mut ret = RandomField::from(lo) + two_to_128 * RandomField::from(hi);
+            ret.set_config(config);
+            ret
+        } else {
+            let hi_bits_to_keep = challenge_num_bits - 128;
+            let hi_mask = (1u128 << hi_bits_to_keep) - 1;
+
+            let truncated_hi = hi & hi_mask;
+
+            let two_to_128 = RandomField::from_bigint(
+                config,
+                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
+            )
+            .unwrap();
+            let mut ret = RandomField::from(lo) + two_to_128 * RandomField::from(truncated_hi);
+            ret.set_config(config);
+            ret
+        }
     }
 }
 
@@ -100,7 +126,7 @@ mod tests {
         );
 
         transcript.absorb(b"This is a test string!");
-        let challenge = transcript.get_challenge(&field_config);
+        let challenge = unsafe { transcript.get_challenge(&field_config) };
 
         assert_eq!(
             challenge,

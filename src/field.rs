@@ -359,6 +359,9 @@ unsafe impl<const N: usize> Sync for RandomField<N> {}
 
 #[cfg(test)]
 mod tests {
+    use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
+    use ark_std::str::FromStr;
+
     /// Helper macro to create a field config with a given modulus
     #[macro_export]
     macro_rules! create_field_config {
@@ -389,5 +392,56 @@ mod tests {
         ($config:expr, $value:expr) => {{
             RandomField::from_bigint($config, create_bigint!($value)).unwrap()
         }};
+    }
+
+    #[test]
+    fn test_with_raw_value_or_for_raw_variant() {
+        let raw_field = RandomField::<1>::Raw {
+            value: create_bigint!(42),
+        };
+
+        assert_eq!(
+            raw_field.with_raw_value_or(|v| *v, create_bigint!(99)),
+            create_bigint!(42)
+        );
+    }
+
+    #[test]
+    fn test_with_raw_value_or_for_initialized_variant() {
+        let config = create_field_config!(23);
+        let init_field = RandomField::<1>::Initialized {
+            config: &config,
+            value: create_bigint!(10),
+        };
+
+        assert_eq!(
+            init_field.with_raw_value_or(|v| *v, create_bigint!(99)),
+            create_bigint!(99)
+        );
+    }
+    #[test]
+    fn test_with_init_value_or_initialized() {
+        let config = create_field_config!(23);
+        let init_field = RandomField::<1>::Initialized {
+            config: &config,
+            value: create_bigint!(10),
+        };
+
+        assert_eq!(
+            init_field.with_init_value_or(|_, v| *v, create_bigint!(99)),
+            create_bigint!(10)
+        );
+    }
+
+    #[test]
+    fn test_with_init_value_or_raw() {
+        let raw_field = RandomField::<1>::Raw {
+            value: create_bigint!(42),
+        };
+
+        assert_eq!(
+            raw_field.with_init_value_or(|_, v| *v, create_bigint!(99)),
+            create_bigint!(99)
+        );
     }
 }

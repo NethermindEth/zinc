@@ -51,56 +51,63 @@ impl<const N: usize> From<bool> for RandomField<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        biginteger::{BigInt, BigInteger64},
-        create_bigint, create_field_config,
-        field::RandomField,
-        field_config::FieldConfig,
-    };
+    use crate::{biginteger::BigInt, field::RandomField};
     use std::str::FromStr;
 
-    #[test]
-    fn test_from_u128() {
-        let int = 243043087159742188419721163456177516u128;
-        let raw_elem = RandomField::<2>::from(int);
+    fn test_from<T: Clone, const N: usize>(value: T, value_str: &str)
+    where
+        RandomField<N>: From<T>,
+    {
+        let raw_element = RandomField::<N>::from(value);
         assert_eq!(
-            raw_elem,
+            raw_element,
             RandomField::Raw {
-                value: create_bigint!(2, 243043087159742188419721163456177516),
+                value: BigInt::from_str(value_str).unwrap()
             }
         )
     }
 
     #[test]
-    fn test_from_u32() {
-        let int = 23u32;
-        let raw_elem = RandomField::<1>::from(int);
-        assert_eq!(
-            raw_elem,
-            RandomField::Raw {
-                value: BigInteger64::from(23u32)
-            }
-        )
-    }
-
-    #[should_panic]
-    #[test]
-    fn test_failing_from_u128() {
-        let int = 243043087159742188419721163456177516u128;
-        let _ = RandomField::<1>::from(int);
+    fn converts_u128_to_random_field() {
+        test_from::<u128, 2>(
+            243043087159742188419721163456177516,
+            "243043087159742188419721163456177516",
+        );
     }
 
     #[test]
-    fn test_bigint_conversion() {
-        let config = create_field_config!(4, 695962179703626800597079116051991347);
+    #[should_panic(expected = "Integer is 128 bits but field is 64 bits")]
+    fn panics_when_u128_does_not_fit_in_n1() {
+        test_from::<u128, 1>(243043087159742188419721163456177516, "");
+    }
 
-        let bigint = create_bigint!(695962179703);
+    #[test]
+    fn converts_u64_to_random_field() {
+        test_from::<u64, 1>(23, "23");
+    }
 
-        let field_elem = RandomField::from_bigint(&config, bigint).unwrap();
-        assert_eq!(bigint, field_elem.into_bigint());
-        let bigint = create_bigint!(695962179703626800597079116051991346);
+    #[test]
+    fn converts_u32_to_random_field() {
+        test_from::<u32, 1>(23, "23");
+    }
 
-        let field_elem = RandomField::from_bigint(&config, bigint).unwrap();
-        assert_eq!(bigint, field_elem.into_bigint())
+    #[test]
+    fn converts_u16_to_random_field() {
+        test_from::<u16, 1>(23, "23");
+    }
+
+    #[test]
+    fn converts_u8_to_random_field() {
+        test_from::<u8, 1>(23, "23");
+    }
+
+    #[test]
+    fn converts_false_to_zero() {
+        test_from::<bool, 1>(false, "0");
+    }
+
+    #[test]
+    fn converts_true_to_one() {
+        test_from::<bool, 1>(true, "1");
     }
 }

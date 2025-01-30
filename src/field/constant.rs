@@ -51,3 +51,91 @@ impl<const N: usize> Zeroize for RandomField<N> {
         unsafe { *self = std::mem::zeroed() }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        biginteger::BigInt, create_bigint, create_field_config, create_random_field,
+        field::RandomField, field_config::FieldConfig,
+    };
+    use ark_ff::{One, Zero};
+    use ark_std::str::FromStr;
+    use zeroize::Zeroize;
+
+    #[test]
+    fn test_zero_creation() {
+        let zero_elem = RandomField::<1>::zero();
+        assert!(zero_elem.is_zero());
+    }
+
+    #[test]
+    fn test_set_zero() {
+        let config = create_field_config!(23);
+        let mut elem = create_random_field!(&config, 7);
+        elem.set_zero();
+        assert!(elem.is_zero());
+    }
+
+    #[test]
+    fn test_one_creation() {
+        let one_elem = RandomField::<1>::one();
+        assert!(one_elem.is_one());
+    }
+
+    #[test]
+    fn test_set_one() {
+        let config = create_field_config!(23);
+        let mut elem = create_random_field!(&config, 5);
+        elem.set_one();
+        assert!(elem.is_one());
+    }
+
+    #[test]
+    fn test_set_one_for_raw() {
+        let mut raw_field = RandomField::<1>::zero();
+        assert!(raw_field.is_zero());
+
+        raw_field.set_one();
+
+        assert!(raw_field.is_one());
+    }
+
+    #[test]
+    fn test_is_zero_true() {
+        let zero_elem = RandomField::<1>::zero();
+        assert!(zero_elem.is_zero());
+    }
+
+    #[test]
+    fn test_is_zero_false() {
+        let non_zero_elem = RandomField::<1>::one();
+        assert!(!non_zero_elem.is_zero());
+    }
+
+    #[test]
+    fn test_is_one_true() {
+        let one_elem = RandomField::<1>::one();
+        assert!(one_elem.is_one());
+    }
+
+    #[test]
+    fn test_is_one_false() {
+        let non_one_elem = RandomField::<1>::from(3u32);
+        assert!(!non_one_elem.is_one());
+    }
+
+    #[test]
+    fn test_zeroize() {
+        let config = create_field_config!(23);
+        let mut elem = create_random_field!(&config, 12);
+        elem.zeroize();
+        assert!(elem.is_zero());
+    }
+
+    #[test]
+    fn test_zero_not_equal_one() {
+        let zero_elem = RandomField::<1>::zero();
+        let one_elem = RandomField::<1>::one();
+        assert_ne!(zero_elem, one_elem);
+    }
+}

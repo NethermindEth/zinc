@@ -141,7 +141,7 @@ mod tests {
         let mut transcript = KeccakTranscript::default();
 
         let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (1, 3), 2, config, &mut rng).unwrap();
+            rand_poly(nvars, (2, 5), 7, config, &mut rng).unwrap();
 
         let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
             rand_poly_comb_fn(vals, &products, config)
@@ -176,7 +176,7 @@ mod tests {
             &proof,
             config,
         );
-        println!("{:?}", res);
-        // assert!(res.is_ok())
+
+        assert!(res.is_ok())
     }
 }

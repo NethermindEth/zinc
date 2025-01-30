@@ -77,8 +77,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
 
         // Now, verifier should check if the received P(0) + P(1) = expected. The check is moved to
         // `check_and_generate_subclaim`, and will be done after the last round.
-        // println!("\n\n Verifying round {}", verifier_state.round);
-        // println!("prover message: {:?}", prover_msg);
+
         let msg = Self::sample_round(transcript, verifier_state.config);
         verifier_state.randomness.push(msg.randomness);
         verifier_state
@@ -121,10 +120,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
             if evaluations.len() != verifier_state.max_multiplicands + 1 {
                 panic!("incorrect number of evaluations");
             }
-            println!(" \n\nVerifying round {}", i + 1);
 
-            println!("evaluations: {:?}", evaluations);
-            println!("expected: {:?}", evaluations);
             let p0 = evaluations[0];
             let p1 = evaluations[1];
             if p0 + p1 != expected {
@@ -232,7 +228,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
                 res.set_config(config);
                 -res
             } else {
-                let mut res = RandomField::from((-ratio_numerator) as u64);
+                let mut res = RandomField::from((ratio_numerator) as u64);
                 res.set_config(config);
                 res
             };
@@ -240,7 +236,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
             let mut ratio_enumerator_f = RandomField::from(ratio_enumerator);
             ratio_enumerator_f.set_config(config);
 
-            let x = prod * ratio_numerator_f / (last_denom * ratio_numerator_f * evals[i]);
+            let x = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
 
             res += &(p_i[i] * x);
 
@@ -261,7 +257,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
                 res.set_config(config);
                 -res
             } else {
-                let mut res = RandomField::from((-ratio_numerator) as u128);
+                let mut res = RandomField::from((ratio_numerator) as u128);
                 res.set_config(config);
                 res
             };

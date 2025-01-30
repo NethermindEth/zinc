@@ -145,7 +145,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         config: *const FieldConfig<N>,
     ) -> VerifierMsg<N> {
         VerifierMsg {
-            randomness: unsafe { transcript.get_challenge(config) },
+            randomness: transcript.get_challenge(config),
         }
     }
 }

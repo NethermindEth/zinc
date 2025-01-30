@@ -64,7 +64,7 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
-    pub unsafe fn get_challenge<const N: usize>(
+    pub(crate) fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {

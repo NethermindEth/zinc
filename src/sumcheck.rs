@@ -159,11 +159,10 @@ mod tests {
     }
     #[test]
     fn test_sumcheck() {
-        const N: usize = 2;
+        const N: usize = 1;
         let mut rng = ark_std::test_rng();
         let nvars = 3;
-        let config: *const FieldConfig<N> =
-            &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+        let config: *const FieldConfig<N> = &FieldConfig::new(BigInt::from_str("293").unwrap());
 
         let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
 

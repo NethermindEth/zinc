@@ -276,6 +276,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
             }
         }
     } else {
+        // TODO adapt this to use actual field elements
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
         let mut denom_up = field_factorial::<RandomField<N>>(len - 1);

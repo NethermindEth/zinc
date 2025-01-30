@@ -71,6 +71,15 @@ impl KeccakTranscript {
         let (lo, hi) = self.get_challenge_limbs();
         let modulus = unsafe { (*config).modulus };
         let challenge_num_bits = modulus.num_bits() - 1;
+        if N == 1 {
+            let lo_mask = (1u64 << challenge_num_bits) - 1;
+
+            let truncated_lo = lo as u64 & lo_mask;
+
+            let mut ret = RandomField::from(truncated_lo);
+            ret.set_config(config);
+            return ret;
+        }
         if challenge_num_bits < 128 {
             let lo_mask = (1u128 << challenge_num_bits) - 1;
 

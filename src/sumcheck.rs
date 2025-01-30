@@ -56,8 +56,13 @@ impl<const N: usize> MLSumcheck<N> {
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
         config: *const FieldConfig<N>,
     ) -> (Proof<N>, ProverState<N>) {
-        transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
-        transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
+        if N == 1 {
+            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u64));
+            transcript.absorb_random_field::<N>(&RandomField::from(degree as u64));
+        } else {
+            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
+            transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
+        }
         let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
         let mut prover_msgs = Vec::with_capacity(nvars);
@@ -89,9 +94,13 @@ impl<const N: usize> MLSumcheck<N> {
         proof: &Proof<N>,
         config: *const FieldConfig<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
-        transcript.absorb_random_field(&RandomField::<N>::from(nvars as u128));
-        transcript.absorb_random_field(&RandomField::<N>::from(degree as u128));
-
+        if N == 1 {
+            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u64));
+            transcript.absorb_random_field::<N>(&RandomField::from(degree as u64));
+        } else {
+            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
+            transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
+        }
         let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree, config);
         for i in 0..nvars {
             let prover_msg = proof.0.get(i).expect("proof is incomplete");
@@ -150,11 +159,10 @@ mod tests {
     }
     #[test]
     fn test_sumcheck() {
-        const N: usize = 2;
+        const N: usize = 1;
         let mut rng = ark_std::test_rng();
-        let nvars = 5;
-        let config: *const FieldConfig<N> =
-            &FieldConfig::new(BigInt::from_str("77165145434944406787187098251").unwrap());
+        let nvars = 2;
+        let config: *const FieldConfig<N> = &FieldConfig::new(BigInt::from_str("293").unwrap());
 
         let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
 

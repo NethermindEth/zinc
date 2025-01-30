@@ -514,7 +514,7 @@ impl<const N: usize> std::fmt::Debug for RandomField<N> {
             self_ => write!(
                 f,
                 "{} in Z_{}",
-                self_.value(),
+                self_.into_bigint(),
                 self.config_ref().unwrap().modulus
             ),
         }

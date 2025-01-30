@@ -135,7 +135,7 @@ mod tests {
         );
 
         transcript.absorb(b"This is a test string!");
-        let challenge = unsafe { transcript.get_challenge(&field_config) };
+        let challenge = transcript.get_challenge(&field_config);
 
         assert_eq!(
             challenge,

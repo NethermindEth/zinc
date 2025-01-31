@@ -276,20 +276,25 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
             }
         }
     } else {
-        // TODO adapt this to use actual field elements
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
         let mut denom_up = field_factorial::<RandomField<N>>(len - 1);
+        denom_up.set_config(config);
         let mut denom_down = one;
 
         for i in (0..len).rev() {
-            let x: RandomField<N> = prod * denom_down / (denom_up * evals[i]);
+            let x = prod * denom_down / (denom_up * evals[i]);
             res += &(p_i[i] * x);
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {
-                denom_up *= -RandomField::from((len - i) as u64);
-                denom_down *= RandomField::from(i as u64);
+                let mut denom_up_factor = RandomField::from((len - i) as u64);
+                denom_up_factor.set_config(config);
+                denom_up *= -denom_up_factor;
+
+                let mut denom_down_factor = RandomField::from(i as u64);
+                denom_down_factor.set_config(config);
+                denom_down *= denom_down_factor;
             }
         }
     }

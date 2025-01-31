@@ -164,19 +164,19 @@ mod tests {
         let nvars = 3;
         let config: *const FieldConfig<N> =
             &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+        for _ in 0..20 {
+            let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
 
-        let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
-
-        let mut transcript = KeccakTranscript::default();
-        let res = MLSumcheck::verify_as_subprotocol(
-            &mut transcript,
-            nvars,
-            poly_degree,
-            sum,
-            &proof,
-            config,
-        );
-
-        assert!(res.is_ok())
+            let mut transcript = KeccakTranscript::default();
+            let res = MLSumcheck::verify_as_subprotocol(
+                &mut transcript,
+                nvars,
+                poly_degree,
+                sum,
+                &proof,
+                config,
+            );
+            assert!(res.is_ok())
+        }
     }
 }

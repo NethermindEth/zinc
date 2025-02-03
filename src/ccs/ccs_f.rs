@@ -17,7 +17,11 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
 pub trait Arith<const N: usize> {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
-    fn check_relation(&self, z: &[RandomField<N>]) -> Result<(), Error>;
+    fn check_relation(
+        &self,
+        M: &[SparseMatrix<RandomField<N>>],
+        z: &[RandomField<N>],
+    ) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
     /// public inputs, etc, without the matrices/polynomials values.
@@ -44,8 +48,6 @@ pub struct CCS_RF<const N: usize> {
     pub s: usize,
     /// s_prime = log(n), dimension of y
     pub s_prime: usize,
-    /// vector of matrices
-    pub M: Vec<SparseMatrix<RandomField<N>>>,
     /// vector of multisets
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
@@ -54,13 +56,28 @@ pub struct CCS_RF<const N: usize> {
 
 impl<const N: usize> Arith<N> for CCS_RF<N> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
-    fn check_relation(&self, z: &[RandomField<N>]) -> Result<(), Error> {
+    fn check_relation(
+        &self,
+        M: &[SparseMatrix<RandomField<N>>],
+        z: &[RandomField<N>],
+    ) -> Result<(), Error> {
         let mut result = vec![RandomField::zero(); self.m];
-
+        for m in M.iter() {
+            assert_eq!(
+                m.n_rows, self.m,
+                "Incorrect number of rows, expected {} and got {}.",
+                self.m, m.n_rows
+            );
+            assert_eq!(
+                m.n_cols, self.n,
+                "Incorrect number of rows, expected {} and got {}.",
+                self.n, m.n_cols
+            );
+        }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
             let vec_M_j: Vec<&SparseMatrix<RandomField<N>>> =
-                self.S[i].iter().map(|j| &self.M[*j]).collect();
+                self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
             let mut hadamard_result = vec![RandomField::one(); self.m];
@@ -99,14 +116,14 @@ impl<const N: usize> Arith<N> for CCS_RF<N> {
 }
 
 impl<const N: usize> CCS_RF<N> {
-    fn pad_rows_to(&mut self, size: usize) {
+    fn pad_rows_to(&mut self, M: &mut [SparseMatrix<RandomField<N>>], size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
             self.m = size;
             self.s = log2(size) as usize;
 
             // Update matrices
-            self.M.iter_mut().for_each(|mat| mat.pad_rows(size));
+            M.iter_mut().for_each(|mat| mat.pad_rows(size));
         }
     }
 }

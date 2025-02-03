@@ -175,7 +175,17 @@ pub trait Instance_F<const N: usize> {
     ) -> Vec<RandomField<N>>;
 }
 
-pub fn from_ccs_z<const N: usize>(ccs_z: &CCS_Z, config: *const FieldConfig<N>) -> CCS_RF<N> {
+pub fn from_ccs_z<const N: usize>(
+    ccs_z: &CCS_Z,
+    config: *const FieldConfig<N>,
+) -> Result<CCS_RF<N>, ()> {
+    for c in ccs_z.c.iter() {
+        let bigint: Result<BigInt<N>, _> = c.magnitude().clone().try_into();
+        if bigint.is_err() || bigint.unwrap() >= unsafe { *config }.modulus {
+            return Err(());
+        }
+    }
+    // now we can safely convert all the integers into field elements
     let c: Vec<RandomField<N>> = ccs_z
         .c
         .iter()
@@ -194,7 +204,7 @@ pub fn from_ccs_z<const N: usize>(ccs_z: &CCS_Z, config: *const FieldConfig<N>) 
             }
         })
         .collect();
-    CCS_RF {
+    Ok(CCS_RF {
         m: ccs_z.m,
         n: ccs_z.n,
         l: ccs_z.l,
@@ -206,5 +216,5 @@ pub fn from_ccs_z<const N: usize>(ccs_z: &CCS_Z, config: *const FieldConfig<N>) 
         S: ccs_z.S.clone(),
         c,
         config,
-    }
+    })
 }

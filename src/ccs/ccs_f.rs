@@ -7,8 +7,9 @@ use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
-use crate::{field::RandomField, sparse_matrix::SparseMatrix};
+use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
 
+use super::ccs_z::CCS_Z;
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -172,4 +173,38 @@ pub trait Instance_F<const N: usize> {
         x: &[SparseMatrix<RandomField<N>>],
         w: &[RandomField<N>],
     ) -> Vec<RandomField<N>>;
+}
+
+pub fn from_ccs_z<const N: usize>(ccs_z: &CCS_Z, config: *const FieldConfig<N>) -> CCS_RF<N> {
+    let c: Vec<RandomField<N>> = ccs_z
+        .c
+        .iter()
+        .map(|c| match c.sign() {
+            num_bigint::Sign::Minus => {
+                -RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
+                    .unwrap()
+            }
+            num_bigint::Sign::NoSign => {
+                RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
+                    .unwrap()
+            }
+            num_bigint::Sign::Plus => {
+                RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
+                    .unwrap()
+            }
+        })
+        .collect();
+    CCS_RF {
+        m: ccs_z.m,
+        n: ccs_z.n,
+        l: ccs_z.l,
+        t: ccs_z.t,
+        q: ccs_z.q,
+        d: ccs_z.d,
+        s: ccs_z.s,
+        s_prime: ccs_z.s_prime,
+        S: ccs_z.S.clone(),
+        c,
+        config,
+    }
 }

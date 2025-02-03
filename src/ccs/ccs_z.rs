@@ -14,7 +14,7 @@ use num_bigint::BigInt;
 /// ## Type Parameters
 ///
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
-pub trait Arith_Z<const N: usize> {
+pub trait Arith_Z {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
     fn check_relation(&self, M: &[SparseMatrix<BigInt>], z: &[BigInt]) -> Result<(), Error>;
 
@@ -26,7 +26,7 @@ pub trait Arith_Z<const N: usize> {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug, Clone, PartialEq)]
-pub struct CCS_Z<const N: usize> {
+pub struct CCS_Z {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -49,7 +49,7 @@ pub struct CCS_Z<const N: usize> {
     pub c: Vec<BigInt>,
 }
 
-impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
+impl Arith_Z for CCS_Z {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(&self, M: &[SparseMatrix<BigInt>], z: &[BigInt]) -> Result<(), Error> {
         let mut result = vec![BigInt::zero(); self.m];
@@ -107,12 +107,12 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
 
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness<const N: usize> {
+pub struct Witness {
     /// `w_ccs` is the original CCS witness.
     pub w_ccs: Vec<BigInt>,
 }
 
-impl<const N: usize> Witness<N> {
+impl Witness {
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<BigInt>) -> Self {
         Self { w_ccs }
@@ -124,7 +124,7 @@ impl<const N: usize> Witness<N> {
 /// # Types
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
-pub trait Instance_F<const N: usize> {
+pub trait Instance_F {
     /// Given a witness vector, produce a concatonation of the statement and the witness
     fn get_z_vector(&self, x: &[SparseMatrix<BigInt>], w: &[BigInt]) -> Vec<BigInt>;
 }

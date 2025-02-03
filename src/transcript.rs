@@ -64,20 +64,55 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
-    pub fn get_challenge<const N: usize>(
+    pub(crate) fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let (lo, hi) = (RandomField::from(lo), RandomField::from(hi));
+        let modulus = unsafe { (*config).modulus };
+        let challenge_num_bits = modulus.num_bits() - 1;
+        if N == 1 {
+            let lo_mask = (1u64 << challenge_num_bits) - 1;
 
-        let two_to_128 = RandomField::from_bigint(
-            config,
-            BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
-        )
-        .unwrap();
+            let truncated_lo = lo as u64 & lo_mask;
 
-        lo + two_to_128 * hi
+            let mut challenge = RandomField::from(truncated_lo);
+            challenge.set_config(config);
+            return challenge;
+        }
+        if challenge_num_bits < 128 {
+            let lo_mask = (1u128 << challenge_num_bits) - 1;
+
+            let truncated_lo = lo & lo_mask;
+
+            let mut challenge = RandomField::from(truncated_lo);
+            challenge.set_config(config);
+            challenge
+        } else if challenge_num_bits >= 256 {
+            let two_to_128 = RandomField::from_bigint(
+                config,
+                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
+            )
+            .unwrap();
+
+            let mut challenge = RandomField::from(lo) + two_to_128 * RandomField::from(hi);
+            challenge.set_config(config);
+            challenge
+        } else {
+            let hi_bits_to_keep = challenge_num_bits - 128;
+            let hi_mask = (1u128 << hi_bits_to_keep) - 1;
+
+            let truncated_hi = hi & hi_mask;
+
+            let two_to_128 = RandomField::from_bigint(
+                config,
+                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
+            )
+            .unwrap();
+            let mut ret = RandomField::from(lo) + two_to_128 * RandomField::from(truncated_hi);
+            ret.set_config(config);
+            ret
+        }
     }
 }
 
@@ -107,7 +142,7 @@ mod tests {
             RandomField::from_bigint(
                 &field_config,
                 BigInt::from_str(
-                    "693058076479701858982240739746847263762918495940343148542562484005318422443"
+                    "693058076479703886486101269644733982722902192016595549603371045888466087870"
                 )
                 .unwrap()
             )

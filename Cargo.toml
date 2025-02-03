@@ -24,3 +24,7 @@ asm = ["sha3/asm"]
 [[bench]]
 name = "random_field_benches"
 harness = false
+
+[[bench]]
+name = "sumcheck_benches"
+harness = false

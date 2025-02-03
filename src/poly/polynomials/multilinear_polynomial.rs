@@ -8,7 +8,11 @@ use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 
 use super::{util::get_batched_nv, ArithErrors, RefCounter};
 pub use crate::poly::mle::DenseMultilinearExtension;
-use crate::{field::RandomField, field_config::FieldConfig, poly::mle::MultilinearExtension};
+use crate::{
+    field::{rand_with_config, RandomField},
+    field_config::FieldConfig,
+    poly::mle::MultilinearExtension,
+};
 
 /// Sample a random list of multilinear polynomials.
 /// Returns
@@ -34,7 +38,7 @@ pub fn random_mle_list<const N: usize, Rn: RngCore>(
         let mut product = RandomField::one();
 
         for e in multiplicands.iter_mut() {
-            let val = RandomField::rand(rng);
+            let val = rand_with_config(rng, config);
             e.push(val);
             product *= val;
         }

@@ -13,21 +13,23 @@ use super::error::CSError as Error;
 
 //  Computes the hadamard product of two ring
 #[allow(dead_code)]
-pub(crate) fn hadamard_vec<R: Clone + Copy + Mul<R, Output = R>>(lhs: &[R], rhs: &[R]) -> Vec<R> {
-    lhs.iter().zip(rhs).map(|(lhs, rhs)| *lhs * *rhs).collect()
+pub(crate) fn hadamard_vec<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &[R]) -> Vec<R> {
+    lhs.iter()
+        .zip(rhs)
+        .map(|(lhs, rhs)| lhs.clone() * rhs.clone())
+        .collect()
 }
 
 // Multiplies Vector of rings by another ring
 #[allow(dead_code)]
-pub(crate) fn vec_value_mul<R: Clone + Copy + Mul<R, Output = R>>(lhs: &[R], rhs: &R) -> Vec<R> {
-    lhs.iter().map(|lhs_i| *lhs_i * *rhs).collect()
+pub(crate) fn vec_value_mul<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &R) -> Vec<R> {
+    lhs.iter()
+        .map(|lhs_i| lhs_i.clone() * rhs.clone())
+        .collect()
 }
 
 // Adds two ring vectors
-pub(crate) fn vec_add<R: Clone + Copy + Add<R, Output = R>>(
-    a: &[R],
-    b: &[R],
-) -> Result<Vec<R>, Error> {
+pub(crate) fn vec_add<R: Clone + Add<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
     if a.len() != b.len() {
         return Err(Error::LengthsNotEqual(
             "a".to_string(),
@@ -36,17 +38,17 @@ pub(crate) fn vec_add<R: Clone + Copy + Add<R, Output = R>>(
             b.len(),
         ));
     }
-    Ok(a.iter().zip(b.iter()).map(|(x, y)| *x + *y).collect())
+    Ok(a.iter()
+        .zip(b.iter())
+        .map(|(x, y)| x.clone() + y.clone())
+        .collect())
 }
 
-pub(crate) fn vec_scalar_mul<R: Clone + Copy + Mul<R, Output = R>>(vec: &[R], c: &R) -> Vec<R> {
-    vec.iter().map(|a| *a * *c).collect()
+pub(crate) fn vec_scalar_mul<R: Clone + Mul<R, Output = R>>(vec: &[R], c: &R) -> Vec<R> {
+    vec.iter().map(|a| a.clone() * c.clone()).collect()
 }
 
-pub(crate) fn hadamard<R: Clone + Copy + Mul<R, Output = R>>(
-    a: &[R],
-    b: &[R],
-) -> Result<Vec<R>, Error> {
+pub(crate) fn hadamard<R: Clone + Mul<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
     if a.len() != b.len() {
         return Err(Error::LengthsNotEqual(
             "a".to_string(),
@@ -55,12 +57,15 @@ pub(crate) fn hadamard<R: Clone + Copy + Mul<R, Output = R>>(
             b.len(),
         ));
     }
-    Ok(a.iter().zip(b).map(|(a, b)| *a * *b).collect())
+    Ok(a.iter()
+        .zip(b)
+        .map(|(a, b)| a.clone() * b.clone())
+        .collect())
 }
 
 pub(crate) fn mat_vec_mul<R>(M: &SparseMatrix<R>, z: &[R]) -> Result<Vec<R>, Error>
 where
-    R: Clone + Copy + Send + Sync + Mul<R, Output = R> + for<'a> Sum<R>,
+    R: Clone + Send + Sync + Mul<R, Output = R> + for<'a> Sum<R>,
     for<'a> &'a R: Mul<&'a R, Output = R>,
 {
     if M.n_cols != z.len() {

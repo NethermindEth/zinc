@@ -6,6 +6,7 @@ use ark_ff::{One, UniformRand, Zero};
 use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
+use crate::field_config::FieldConfig;
 use crate::{field::RandomField, sparse_matrix::SparseMatrix};
 
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
@@ -52,6 +53,8 @@ pub struct CCS_RF<const N: usize> {
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
     pub c: Vec<RandomField<N>>,
+    /// The field the constraint system operates in
+    pub config: *const FieldConfig<N>,
 }
 
 impl<const N: usize> Arith<N> for CCS_RF<N> {

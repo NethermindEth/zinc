@@ -219,6 +219,15 @@ impl<'a, const N: usize> Sum<&'a RandomField<N>> for RandomField<N> {
     }
 }
 
+impl<const N: usize> Sum<RandomField<N>> for RandomField<N> {
+    fn sum<I: Iterator<Item = RandomField<N>>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |mut acc, x| {
+            acc.add_assign(&x);
+            acc
+        })
+    }
+}
+
 impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
     fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
         iter.fold(Self::one(), core::ops::Mul::mul)

@@ -162,7 +162,7 @@ impl<const N: usize> Witness<N> {
 /// # Types
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
-pub trait Instance<const N: usize> {
+pub trait Instance_F<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
     fn get_z_vector(
         &self,

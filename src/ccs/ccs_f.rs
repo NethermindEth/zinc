@@ -164,5 +164,9 @@ impl<const N: usize> Witness<N> {
 ///
 pub trait Instance<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>>;
+    fn get_z_vector(
+        &self,
+        x: &[SparseMatrix<RandomField<N>>],
+        w: &[RandomField<N>],
+    ) -> Vec<RandomField<N>>;
 }

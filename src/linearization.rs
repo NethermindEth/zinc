@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use errors::LinearizationError;
-use structs::LinearisationProof;
+use structs::LinearizationProof;
 
 use crate::{
     ccs::ccs_f::{LStatement, LWitness, Statement, Witness, CCS_F},
@@ -11,7 +11,7 @@ mod errors;
 mod structs;
 mod utils;
 /// Prover for the Linearization subprotocol
-pub trait LinearisationProver<const N: usize> {
+pub trait LinearizationProver<const N: usize> {
     /// Generates a proof for the linearization subprotocol
     ///
     /// # Arguments
@@ -36,11 +36,11 @@ pub trait LinearisationProver<const N: usize> {
         wit: &Witness<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-    ) -> Result<(LStatement<N>, LWitness<N>, LinearisationProof<N>), LinearizationError<N>>;
+    ) -> Result<(LStatement<N>, LWitness<N>, LinearizationProof<N>), LinearizationError<N>>;
 }
 
 /// Verifier for the Linearization subprotocol.
-pub trait LinearisationVerifier<const N: usize> {
+pub trait LinearizationVerifier<const N: usize> {
     /// Verifies a proof for the linearization subprotocol.
     ///
     /// # Arguments
@@ -57,7 +57,7 @@ pub trait LinearisationVerifier<const N: usize> {
     ///
     fn verify(
         cm_i: &Statement<N>,
-        proof: &LinearisationProof<N>,
+        proof: &LinearizationProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<LStatement<N>, LinearizationError<N>>;

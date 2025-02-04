@@ -8,9 +8,15 @@ use crate::sumcheck;
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
 #[derive(Clone, Debug, PartialEq)]
-pub struct LinearisationProof<const N: usize> {
+pub struct LinearizationProof<const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
     /// Sent in step 2 of linearization subprotocol.  
     pub linearization_sumcheck: sumcheck::Proof<N>,
 }
+
+/// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
+pub struct ZincLinearizationProver<const N: usize> {}
+
+/// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
+pub struct ZincLinearizationVerifier<const N: usize> {}

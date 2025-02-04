@@ -7,6 +7,7 @@ use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
+use crate::poly::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
 
 use super::ccs_z::CCS_Z;
@@ -132,11 +133,29 @@ impl<const N: usize> CCS_RF<N> {
     }
 }
 
+/// A representation of a CCS statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct Statement<const N: usize> {
+    constraints: SparseMatrix<RandomField<N>>,
+}
+
+/// A representation of a linearised CCS statement
+#[derive(Debug, Clone, PartialEq)]
+pub struct LStatement<const N: usize> {
+    constraints: Vec<SparseMultilinearExtension<N>>,
+}
+
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Witness<const N: usize> {
     /// `w_ccs` is the original CCS witness.
     pub w_ccs: Vec<RandomField<N>>,
+}
+/// A representation of a linearised CCS witness.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LWitness<const N: usize> {
+    /// `w_ccs` is the original CCS witness.
+    pub lw_ccs: DenseMultilinearExtension<N>,
 }
 
 impl<const N: usize> Witness<N> {

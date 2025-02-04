@@ -1,11 +1,13 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
-use std::str::FromStr;
 
+use ark_std::iterable::Iterable;
 use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
+use std::iter::{Product, Sum};
+use std::str::FromStr;
 
 use zinc::{biginteger::BigInteger256, field::RandomField, field_config::FieldConfig};
 
@@ -47,6 +49,44 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
             b.iter(|| {
                 for _ in 0..10000 {
                     let _ = black_box(*unop_elem / *unop_elem);
+                }
+            });
+        },
+    );
+
+    group.bench_with_input(
+        BenchmarkId::new("Negation", "Random128BitFieldElement"),
+        &field_elem,
+        |b, unop_elem| {
+            b.iter(|| {
+                for _ in 0..10000 {
+                    let _ = black_box(-*unop_elem);
+                }
+            });
+        },
+    );
+
+    let v = vec![field_elem; 10];
+
+    group.bench_with_input(
+        BenchmarkId::new("Sum", "Random128BitFieldElement"),
+        &v,
+        |b, v| {
+            b.iter(|| {
+                for _ in 0..10000 {
+                    let _ = black_box(RandomField::sum(v.iter()));
+                }
+            });
+        },
+    );
+
+    group.bench_with_input(
+        BenchmarkId::new("Product", "Random128BitFieldElement"),
+        &v,
+        |b, v| {
+            b.iter(|| {
+                for _ in 0..10000 {
+                    let _ = black_box(RandomField::product(v.iter()));
                 }
             });
         },

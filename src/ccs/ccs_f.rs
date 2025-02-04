@@ -136,13 +136,15 @@ impl<const N: usize> CCS_F<N> {
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct Statement<const N: usize> {
-    constraints: SparseMatrix<RandomField<N>>,
+    pub constraints: Vec<SparseMatrix<RandomField<N>>>,
+    pub public_input: Vec<RandomField<N>>,
 }
 
 /// A representation of a linearised CCS statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct LStatement<const N: usize> {
     constraints: Vec<SparseMultilinearExtension<N>>,
+    r: Vec<RandomField<N>>,
 }
 
 /// A representation of a CCS witness.
@@ -187,11 +189,19 @@ impl<const N: usize> Witness<N> {
 ///
 pub trait Instance_F<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(
-        &self,
-        x: &[SparseMatrix<RandomField<N>>],
-        w: &[RandomField<N>],
-    ) -> Vec<RandomField<N>>;
+    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>>;
+}
+
+impl<const N: usize> Instance_F<N> for Statement<N> {
+    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>> {
+        let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
+
+        z.extend_from_slice(&self.public_input);
+        z.push(RandomField::<N>::one());
+        z.extend_from_slice(w);
+
+        z
+    }
 }
 
 pub fn from_ccs_z<const N: usize>(

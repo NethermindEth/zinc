@@ -1,5 +1,5 @@
 #![allow(dead_code, non_snake_case)]
-use ark_ff::Zero;
+use ark_ff::{One, Zero};
 
 use crate::{
     ccs::ccs_f::CCS_F, field::RandomField, field_config::FieldConfig,
@@ -69,7 +69,7 @@ pub fn prepare_lin_sumcheck_polynomial<const N: usize>(
     Ok((mles, d + 1))
 }
 
-pub(crate) fn sumcheck_polynomial_comb_fn<const N: usize>(
+pub(crate) fn sumcheck_polynomial_comb_fn_1<const N: usize>(
     vals: &[RandomField<N>],
     ccs: &CCS_F<N>,
 ) -> RandomField<N> {
@@ -91,6 +91,21 @@ pub(crate) fn sumcheck_polynomial_comb_fn<const N: usize>(
     result * vals[vals.len() - 1]
 }
 
+pub(crate) fn sumcheck_polynomial_comb_fn_2<const N: usize>(
+    vals: &[RandomField<N>],
+    ccs: &CCS_F<N>,
+    gamma: &RandomField<N>,
+) -> RandomField<N> {
+    let mut result = RandomField::zero();
+    let mut g = RandomField::one();
+    for i in 0..ccs.t {
+        let summand = vals[i] * vals[ccs.t] * g;
+        result += &summand;
+        g *= gamma;
+    }
+    result
+}
+
 pub(crate) trait SqueezeBeta<const N: usize> {
     fn squeeze_beta_challenges(
         &mut self,
@@ -108,5 +123,17 @@ impl<const N: usize> SqueezeBeta<N> for KeccakTranscript {
         self.absorb(b"beta_s");
 
         self.get_challenges(n, config)
+    }
+}
+
+pub(crate) trait SqueezeGamma<const N: usize> {
+    fn squeeze_gamma_challenge(&mut self, config: *const FieldConfig<N>) -> RandomField<N>;
+}
+
+impl<const N: usize> SqueezeGamma<N> for KeccakTranscript {
+    fn squeeze_gamma_challenge(&mut self, config: *const FieldConfig<N>) -> RandomField<N> {
+        self.absorb(b"gamma");
+
+        self.get_challenge(config)
     }
 }

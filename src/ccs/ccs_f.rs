@@ -34,7 +34,7 @@ pub trait Arith<const N: usize> {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug, Clone, PartialEq)]
-pub struct CCS_RF<const N: usize> {
+pub struct CCS_F<const N: usize> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -59,7 +59,7 @@ pub struct CCS_RF<const N: usize> {
     pub config: *const FieldConfig<N>,
 }
 
-impl<const N: usize> Arith<N> for CCS_RF<N> {
+impl<const N: usize> Arith<N> for CCS_F<N> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(
         &self,
@@ -120,7 +120,7 @@ impl<const N: usize> Arith<N> for CCS_RF<N> {
     }
 }
 
-impl<const N: usize> CCS_RF<N> {
+impl<const N: usize> CCS_F<N> {
     fn pad_rows_to(&mut self, M: &mut [SparseMatrix<RandomField<N>>], size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
@@ -197,7 +197,7 @@ pub trait Instance_F<const N: usize> {
 pub fn from_ccs_z<const N: usize>(
     ccs_z: &CCS_Z,
     config: *const FieldConfig<N>,
-) -> Result<CCS_RF<N>, ()> {
+) -> Result<CCS_F<N>, ()> {
     for c in ccs_z.c.iter() {
         let bigint: Result<BigInt<N>, _> = c.magnitude().clone().try_into();
         if bigint.is_err() || bigint.unwrap() >= unsafe { *config }.modulus {
@@ -223,7 +223,7 @@ pub fn from_ccs_z<const N: usize>(
             }
         })
         .collect();
-    Ok(CCS_RF {
+    Ok(CCS_F {
         m: ccs_z.m,
         n: ccs_z.n,
         l: ccs_z.l,

@@ -1,0 +1,24 @@
+#![allow(clippy::enum_variant_names, dead_code)]
+use thiserror::Error;
+
+use crate::{ccs::error::CSError, poly::polynomials::ArithErrors, sumcheck::SumCheckError};
+
+#[derive(Debug, Error)]
+pub enum LinearizationError<const N: usize> {
+    #[error("sum check failed at linearization step: {0}")]
+    SumCheckError(#[from] SumCheckError<N>),
+    #[error("parameters error: {0}")]
+    ParametersError(String),
+    #[error("constraint system related error: {0}")]
+    ConstraintSystemError(#[from] CSError),
+    #[error("Arithmetic error: {0}")]
+    ArithmeticError(#[from] ArithErrors),
+    #[error("mle evaluation failed: {0}")]
+    EvaluationError(#[from] MleEvaluationError),
+}
+
+#[derive(Debug, Error)]
+pub enum MleEvaluationError {
+    #[error("lengths of evaluation point and evaluations are not consistent: 1 << {0} != {1}")]
+    IncorrectLength(usize, usize),
+}

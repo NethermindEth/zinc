@@ -1,4 +1,5 @@
 #![allow(dead_code, non_snake_case)]
+use ark_ff::Zero;
 use ark_std::cfg_iter;
 
 use errors::{MleEvaluationError, SpartanError};
@@ -89,13 +90,13 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
-        // Step 1: Generate beta challenges (done in construct_polynomial_g because they are not needed
+        // Step 1: Generate tau challenges (done in construct_polynomial_g because they are not needed
         // elsewhere.
 
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        let (g_mles, g_degree, _) = Self::construct_polynomial_g(
+        let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
             transcript,
             &statement.constraints,
@@ -117,7 +118,7 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
             self.config,
         )?;
 
-        let mles = calculate_poly_2_mles(
+        let (all_mles, z_mle) = calculate_poly_2_mles(
             &statement.constraints,
             &r_a,
             &z_ccs,
@@ -130,12 +131,34 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
             sumcheck_polynomial_comb_fn_2(vals, ccs, &gamma)
         };
 
-        let (sumcheck_proof_2, _) =
-            Self::generate_sumcheck_proof(transcript, mles, ccs.s, 2, comb_fn_2, self.config)?;
+        let (sumcheck_proof_2, r_y) =
+            Self::generate_sumcheck_proof(transcript, all_mles, ccs.s, 2, comb_fn_2, self.config)?;
+
+        let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
+            .iter()
+            .map(
+                |mle: &DenseMultilinearExtension<N>| -> Result<RandomField<N>, MleEvaluationError> {
+                    mle.evaluate(&r_a, self.config)
+                        .ok_or(MleEvaluationError::IncorrectLength(r_a.len(), mle.num_vars))
+                },
+            )
+            .collect();
+
+        let V_s = V_s?;
+
+        let v = z_mle
+            .evaluate(&r_y, self.config)
+            .ok_or(MleEvaluationError::IncorrectLength(
+                r_y.len(),
+                z_mle.num_vars,
+            ));
+        let v = v?;
 
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
             second_sumcheck: sumcheck_proof_2,
+            V_s,
+            v,
         })
     }
 }
@@ -148,7 +171,41 @@ impl<const N: usize> SpartanVerifier<N> for ZincProver<N> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
-        todo!()
+        // Step 1: Generate the beta challenges.
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
+
+        //Step 2: The sumcheck.
+        let (point_r, s) =
+            self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
+        let gamma = transcript.squeeze_gamma_challenge(self.config);
+        Ok(())
+    }
+}
+
+impl<const N: usize> ZincProver<N> {
+    fn verify_linearization_proof(
+        &self,
+        proof: &Proof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_F<N>,
+    ) -> Result<(Vec<RandomField<N>>, RandomField<N>), SpartanError<N>> {
+        // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
+        let nvars = ccs.s;
+        let degree = ccs.d + 1;
+
+        let subclaim = MLSumcheck::verify_as_subprotocol(
+            transcript,
+            nvars,
+            degree,
+            RandomField::zero(),
+            &proof,
+            self.config,
+        )?;
+
+        Ok((
+            subclaim.point.into_iter().map(|x| x.into()).collect(),
+            subclaim.expected_evaluation,
+        ))
     }
 }
 
@@ -187,9 +244,15 @@ impl<const N: usize> ZincProver<N> {
         z: &[RandomField<N>],
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
-    ) -> Result<Vec<DenseMultilinearExtension<N>>, SpartanError<N>> {
-        let mles = calculate_poly_2_mles(constraints, r_a, z, ccs.s, ccs.s_prime, config)?;
-        Ok(mles)
+    ) -> Result<
+        (
+            Vec<DenseMultilinearExtension<N>>,
+            DenseMultilinearExtension<N>,
+        ),
+        SpartanError<N>,
+    > {
+        let (mles, z) = calculate_poly_2_mles(constraints, r_a, z, ccs.s, ccs.s_prime, config)?;
+        Ok((mles, z))
     }
 
     /// Step 2: Run linearization sum-check protocol.
@@ -232,7 +295,13 @@ pub fn calculate_poly_2_mles<const N: usize>(
     ccs_s: usize,
     log_n: usize,
     config: *const FieldConfig<N>,
-) -> Result<Vec<DenseMultilinearExtension<N>>, MleEvaluationError> {
+) -> Result<
+    (
+        Vec<DenseMultilinearExtension<N>>,
+        DenseMultilinearExtension<N>,
+    ),
+    MleEvaluationError,
+> {
     let mut mles: Vec<DenseMultilinearExtension<N>> = constraints
         .iter()
         .map(|constraint| {
@@ -253,11 +322,9 @@ pub fn calculate_poly_2_mles<const N: usize>(
             DenseMultilinearExtension::from_evaluations_vec(log_n, evaluated_vec, config)
         })
         .collect();
-
-    mles.push(DenseMultilinearExtension::from_evaluations_slice(
-        log_n, z, config,
-    ));
-    Ok(mles)
+    let z = DenseMultilinearExtension::from_evaluations_slice(log_n, z, config);
+    mles.push(z.clone());
+    Ok((mles, z))
 }
 
 pub fn to_mles_err<const N: usize, I, E, E1>(

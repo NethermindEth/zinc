@@ -1,7 +1,7 @@
 #![allow(dead_code, non_snake_case)]
 use ark_std::cfg_iter;
 
-use errors::{LinearizationError, MleEvaluationError};
+use errors::{MleEvaluationError, SpartanError};
 use structs::{LinearizationProof, ZincLinearizationProver};
 use utils::{
     sumcheck_polynomial_comb_fn_1, sumcheck_polynomial_comb_fn_2, SqueezeBeta, SqueezeGamma,
@@ -9,7 +9,7 @@ use utils::{
 
 use crate::{
     ccs::{
-        ccs_f::{Instance_F, LStatement, Statement, Witness, CCS_F},
+        ccs_f::{Instance_F, Statement, Witness, CCS_F},
         error::CSError,
         utils::mat_vec_mul,
     },
@@ -25,8 +25,9 @@ use crate::{
 mod errors;
 mod structs;
 mod utils;
+
 /// Prover for the Linearization subprotocol
-pub trait LinearizationProver<const N: usize> {
+pub trait SpartanProver<const N: usize> {
     /// Generates a proof for the linearization subprotocol
     ///
     /// # Arguments
@@ -52,11 +53,11 @@ pub trait LinearizationProver<const N: usize> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
-    ) -> Result<(Proof<N>, Proof<N>), LinearizationError<N>>;
+    ) -> Result<(Proof<N>, Proof<N>), SpartanError<N>>;
 }
 
 /// Verifier for the Linearization subprotocol.
-pub trait LinearizationVerifier<const N: usize> {
+pub trait SpartanVerifier<const N: usize> {
     /// Verifies a proof for the linearization subprotocol.
     ///
     /// # Arguments
@@ -76,17 +77,17 @@ pub trait LinearizationVerifier<const N: usize> {
         proof: &LinearizationProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-    ) -> Result<LStatement<N>, LinearizationError<N>>;
+    ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize> LinearizationProver<N> for ZincLinearizationProver<N> {
+impl<const N: usize> SpartanProver<N> for ZincLinearizationProver<N> {
     fn prove(
         statement: &Statement<N>,
         wit: &Witness<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
-    ) -> Result<(Proof<N>, Proof<N>), LinearizationError<N>> {
+    ) -> Result<(Proof<N>, Proof<N>), SpartanError<N>> {
         // Step 1: Generate beta challenges (done in construct_polynomial_g because they are not needed
         // elsewhere.
 
@@ -138,14 +139,13 @@ impl<const N: usize> ZincLinearizationProver<N> {
             usize,
             Vec<DenseMultilinearExtension<N>>,
         ),
-        LinearizationError<N>,
+        SpartanError<N>,
     > {
         // Generate beta challenges from Step 1
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
         // Prepare MLEs
-        let Mz_mles =
-            calculate_Mz_mles::<LinearizationError<N>, N>(constraints, ccs.s, z_ccs, config)?;
+        let Mz_mles = calculate_Mz_mles::<SpartanError<N>, N>(constraints, ccs.s, z_ccs, config)?;
 
         // Construct the sumcheck polynomial g
         let (g_mles, g_degree) =
@@ -160,7 +160,7 @@ impl<const N: usize> ZincLinearizationProver<N> {
         z: &[RandomField<N>],
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
-    ) -> Result<Vec<DenseMultilinearExtension<N>>, LinearizationError<N>> {
+    ) -> Result<Vec<DenseMultilinearExtension<N>>, SpartanError<N>> {
         let mles = calculate_poly_2_mles(constraints, r_a, z, ccs.s, ccs.s_prime, config)?;
         Ok(mles)
     }
@@ -173,7 +173,7 @@ impl<const N: usize> ZincLinearizationProver<N> {
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
         config: *const FieldConfig<N>,
-    ) -> Result<(Proof<N>, Vec<RandomField<N>>), LinearizationError<N>> {
+    ) -> Result<(Proof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         let (sum_check_proof, prover_state) =
             MLSumcheck::prove_as_subprotocol(transcript, mles, nvars, degree, comb_fn, config);
 

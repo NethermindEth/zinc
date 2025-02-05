@@ -4,7 +4,7 @@ use thiserror::Error;
 use crate::{ccs::error::CSError, poly::polynomials::ArithErrors, sumcheck::SumCheckError};
 
 #[derive(Debug, Error)]
-pub enum LinearizationError<const N: usize> {
+pub enum SpartanError<const N: usize> {
     #[error("sum check failed at linearization step: {0}")]
     SumCheckError(#[from] SumCheckError<N>),
     #[error("parameters error: {0}")]

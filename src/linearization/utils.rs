@@ -7,7 +7,7 @@ use crate::{
     transcript::KeccakTranscript,
 };
 
-use super::errors::LinearizationError;
+use super::errors::SpartanError;
 
 /// Prepare the main linearization polynomial.
 ///
@@ -48,7 +48,7 @@ pub fn prepare_lin_sumcheck_polynomial<const N: usize>(
     S: &[Vec<usize>],
     beta_s: &[RandomField<N>],
     config: *const FieldConfig<N>,
-) -> Result<(Vec<DenseMultilinearExtension<N>>, usize), LinearizationError<N>> {
+) -> Result<(Vec<DenseMultilinearExtension<N>>, usize), SpartanError<N>> {
     let len = 1 + c
         .iter()
         .enumerate()

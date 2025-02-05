@@ -15,9 +15,9 @@ use crate::{
     },
     field::RandomField,
     field_config::FieldConfig,
-    linearization::utils::prepare_lin_sumcheck_polynomial,
     poly::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
+    spartan::utils::prepare_lin_sumcheck_polynomial,
     sumcheck::{MLSumcheck, Proof},
     transcript::KeccakTranscript,
 };

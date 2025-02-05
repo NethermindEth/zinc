@@ -2,7 +2,7 @@
 use ark_std::cfg_iter;
 
 use errors::{MleEvaluationError, SpartanError};
-use structs::{LinearizationProof, ZincLinearizationProver};
+use structs::{SpartanProof, ZincProver};
 use utils::{
     sumcheck_polynomial_comb_fn_1, sumcheck_polynomial_comb_fn_2, SqueezeBeta, SqueezeGamma,
 };
@@ -48,12 +48,12 @@ pub trait SpartanProver<const N: usize> {
     /// Returns an error if asked to evaluate MLEs with incorrect number of variables
     ///
     fn prove(
+        &self,
         statement: &Statement<N>,
         wit: &Witness<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<(Proof<N>, Proof<N>), SpartanError<N>>;
+    ) -> Result<SpartanProof<N>, SpartanError<N>>;
 }
 
 /// Verifier for the Linearization subprotocol.
@@ -73,37 +73,49 @@ pub trait SpartanVerifier<const N: usize> {
     /// * `Err(LinearizationError<NTT>)` - If verification fails, returns a `LinearizationError<NTT>`.
     ///
     fn verify(
+        &self,
         cm_i: &Statement<N>,
-        proof: &LinearizationProof<N>,
+        proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize> SpartanProver<N> for ZincLinearizationProver<N> {
+impl<const N: usize> SpartanProver<N> for ZincProver<N> {
     fn prove(
+        &self,
         statement: &Statement<N>,
         wit: &Witness<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<(Proof<N>, Proof<N>), SpartanError<N>> {
+    ) -> Result<SpartanProof<N>, SpartanError<N>> {
         // Step 1: Generate beta challenges (done in construct_polynomial_g because they are not needed
         // elsewhere.
 
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        let (g_mles, g_degree, _) =
-            Self::construct_polynomial_g(&z_ccs, transcript, &statement.constraints, ccs, config)?;
+        let (g_mles, g_degree, _) = Self::construct_polynomial_g(
+            &z_ccs,
+            transcript,
+            &statement.constraints,
+            ccs,
+            self.config,
+        )?;
 
         let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
             sumcheck_polynomial_comb_fn_1(vals, ccs)
         };
 
         // Run sumcheck protocol.
-        let (sumcheck_proof_1, r_a) =
-            Self::generate_sumcheck_proof(transcript, g_mles, ccs.s, g_degree, comb_fn, config)?;
+        let (sumcheck_proof_1, r_a) = Self::generate_sumcheck_proof(
+            transcript,
+            g_mles,
+            ccs.s,
+            g_degree,
+            comb_fn,
+            self.config,
+        )?;
 
         let mles = calculate_poly_2_mles(
             &statement.constraints,
@@ -111,21 +123,36 @@ impl<const N: usize> SpartanProver<N> for ZincLinearizationProver<N> {
             &z_ccs,
             ccs.s,
             ccs.s_prime,
-            config,
+            self.config,
         )?;
-        let gamma = transcript.squeeze_gamma_challenge(config);
+        let gamma = transcript.squeeze_gamma_challenge(self.config);
         let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> {
             sumcheck_polynomial_comb_fn_2(vals, ccs, &gamma)
         };
 
         let (sumcheck_proof_2, _) =
-            Self::generate_sumcheck_proof(transcript, mles, ccs.s, 2, comb_fn_2, config)?;
+            Self::generate_sumcheck_proof(transcript, mles, ccs.s, 2, comb_fn_2, self.config)?;
 
-        Ok((sumcheck_proof_1, sumcheck_proof_2))
+        Ok(SpartanProof {
+            linearization_sumcheck: sumcheck_proof_1,
+            second_sumcheck: sumcheck_proof_2,
+        })
     }
 }
 
-impl<const N: usize> ZincLinearizationProver<N> {
+impl<const N: usize> SpartanVerifier<N> for ZincProver<N> {
+    fn verify(
+        &self,
+        cm_i: &Statement<N>,
+        proof: &SpartanProof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_F<N>,
+    ) -> Result<(), SpartanError<N>> {
+        todo!()
+    }
+}
+
+impl<const N: usize> ZincProver<N> {
     /// Step 2 of Fig 5: Construct polynomial $g$ and generate $\beta$ challenges.
     fn construct_polynomial_g(
         z_ccs: &[RandomField<N>],

@@ -291,6 +291,14 @@ impl<const N: usize> RandomField<N> {
     pub fn config_ref(&self) -> Option<&FieldConfig<N>> {
         self.with_init_value(|config, _| config)
     }
+
+    #[inline(always)]
+    pub fn config_ptr(&self) -> *const FieldConfig<N> {
+        match self {
+            Raw { .. } => std::ptr::null(),
+            Initialized { config, .. } => *config,
+        }
+    }
 }
 
 impl<const N: usize> RandomField<N> {

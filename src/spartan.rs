@@ -10,7 +10,7 @@ use utils::{
 
 use crate::{
     ccs::{
-        ccs_f::{Instance_F, Statement, Witness, CCS_F},
+        ccs_f::{Commitment, Instance_F, Statement, Witness, CCS_F},
         error::CSError,
         utils::mat_vec_mul,
     },
@@ -76,6 +76,7 @@ pub trait SpartanVerifier<const N: usize> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
+        w_commitment: &Commitment<N>,
         proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
@@ -167,6 +168,7 @@ impl<const N: usize> SpartanVerifier<N> for ZincVerifier<N> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
+        w_commitment: &Commitment<N>,
         proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,

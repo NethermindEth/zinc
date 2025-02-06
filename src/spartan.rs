@@ -3,7 +3,7 @@ use ark_ff::Zero;
 use ark_std::cfg_iter;
 
 use errors::{MleEvaluationError, SpartanError};
-use structs::{SpartanProof, ZincProver};
+use structs::{SpartanProof, ZincProver, ZincVerifier};
 use utils::{
     sumcheck_polynomial_comb_fn_1, sumcheck_polynomial_comb_fn_2, SqueezeBeta, SqueezeGamma,
 };
@@ -19,7 +19,7 @@ use crate::{
     poly::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     spartan::utils::prepare_lin_sumcheck_polynomial,
-    sumcheck::{MLSumcheck, Proof},
+    sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
     transcript::KeccakTranscript,
 };
 
@@ -131,9 +131,6 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
             sumcheck_polynomial_comb_fn_2(vals, ccs, &gamma)
         };
 
-        let (sumcheck_proof_2, r_y) =
-            Self::generate_sumcheck_proof(transcript, all_mles, ccs.s, 2, comb_fn_2, self.config)?;
-
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
@@ -145,6 +142,9 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
             .collect();
 
         let V_s = V_s?;
+
+        let (sumcheck_proof_2, r_y) =
+            Self::generate_sumcheck_proof(transcript, all_mles, ccs.s, 2, comb_fn_2, self.config)?;
 
         let v = z_mle
             .evaluate(&r_y, self.config)
@@ -163,7 +163,7 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
     }
 }
 
-impl<const N: usize> SpartanVerifier<N> for ZincProver<N> {
+impl<const N: usize> SpartanVerifier<N> for ZincVerifier<N> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
@@ -177,12 +177,25 @@ impl<const N: usize> SpartanVerifier<N> for ZincProver<N> {
         //Step 2: The sumcheck.
         let (point_r, s) =
             self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
+
+        // Step 3. Check V_s is congruent to s
+        Self::verify_linearization_claim(&beta_s, &point_r, s, proof, ccs)?;
+
         let gamma = transcript.squeeze_gamma_challenge(self.config);
+
+        let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
+
+        let (r_y, e_y) = self.verify_second_sumcheck_proof(
+            &proof.second_sumcheck,
+            transcript,
+            ccs,
+            second_sumcheck_claimed_sum,
+        )?;
         Ok(())
     }
 }
 
-impl<const N: usize> ZincProver<N> {
+impl<const N: usize> ZincVerifier<N> {
     fn verify_linearization_proof(
         &self,
         proof: &Proof<N>,
@@ -198,14 +211,73 @@ impl<const N: usize> ZincProver<N> {
             nvars,
             degree,
             RandomField::zero(),
-            &proof,
+            proof,
             self.config,
         )?;
 
-        Ok((
-            subclaim.point.into_iter().map(|x| x.into()).collect(),
-            subclaim.expected_evaluation,
-        ))
+        Ok((subclaim.point, subclaim.expected_evaluation))
+    }
+
+    fn verify_linearization_claim(
+        beta_s: &[RandomField<N>],
+        point_r: &[RandomField<N>],
+        s: RandomField<N>,
+        proof: &SpartanProof<N>,
+        ccs: &CCS_F<N>,
+    ) -> Result<(), SpartanError<N>> {
+        let e = eq_eval(point_r, beta_s)?;
+        let should_equal_s = e * ccs // e * (\sum c_i * \Pi_{j \in S_i} u_j)
+            .c
+            .iter()
+            .enumerate()
+            .map(|(i, &c)| {
+                c * ccs.S[i]
+                    .iter()
+                    .map(|&j| &proof.V_s[j])
+                    .product::<RandomField<N>>()
+            }) // c_i * \Pi_{j \in S_i} u_j
+            .sum::<RandomField<N>>(); // \sum c_i * \Pi_{j \in S_i} u_j
+
+        if should_equal_s != s {
+            return Err(SpartanError::SumCheckError(SumCheckFailed(
+                should_equal_s,
+                s,
+            )));
+        }
+
+        Ok(())
+    }
+
+    fn verify_second_sumcheck_proof(
+        &self,
+        proof: &Proof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_F<N>,
+        claimed_sum: RandomField<N>,
+    ) -> Result<(Vec<RandomField<N>>, RandomField<N>), SpartanError<N>> {
+        // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
+        let nvars = ccs.s_prime;
+        let degree = 2;
+
+        let subclaim = MLSumcheck::verify_as_subprotocol(
+            transcript,
+            nvars,
+            degree,
+            claimed_sum,
+            proof,
+            self.config,
+        )?;
+
+        Ok((subclaim.point, subclaim.expected_evaluation))
+    }
+
+    fn lin_comb_V_s(gamma: &RandomField<N>, V_s: &[RandomField<N>]) -> RandomField<N> {
+        let mut res = RandomField::zero();
+        for V_i in V_s.iter().rev() {
+            res *= gamma;
+            res += V_i;
+        }
+        res
     }
 }
 

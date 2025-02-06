@@ -15,6 +15,8 @@ pub enum SpartanError<const N: usize> {
     ArithmeticError(#[from] ArithErrors),
     #[error("mle evaluation failed: {0}")]
     EvaluationError(#[from] MleEvaluationError),
+    #[error("Verification Failed {0}")]
+    VerificationError(String),
 }
 
 #[derive(Debug, Error)]

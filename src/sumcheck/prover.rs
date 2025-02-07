@@ -1,7 +1,11 @@
 //! Prover
 #![allow(dead_code)]
 
+use std::sync::atomic::AtomicPtr;
+
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
+#[cfg(feature = "parallel")]
+use rayon::iter::*;
 
 use crate::{
     biginteger::BigInt,
@@ -71,8 +75,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
             // fix argument
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1];
+
+            let atomic_config = AtomicPtr::new(config as *mut FieldConfig<N>);
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r], config);
+                multiplicand.fix_variables(&[r], atomic_config.into_inner());
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");
@@ -110,7 +116,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
 
         let zeros = scratch();
 
-        let summer = cfg_into_iter!(0..1 << (nv - i)).fold(zeros, |mut s, b| {
+        let summer = cfg_into_iter!(0..1 << (nv - i)).fold(scratch, |mut s, b| {
             let index = b << 1;
 
             s.vals0
@@ -144,7 +150,21 @@ impl<const N: usize> IPForMLSumcheck<N> {
             s
         });
 
-        let evaluations = summer.evals;
+        // Rayon's fold outputs an iter which still needs to be summed over
+        #[cfg(feature = "parallel")]
+        let evaluations = summer.map(|s| s.evals).reduce(
+            || vec![zero; degree + 1],
+            |mut evaluations, levals| {
+                evaluations
+                    .iter_mut()
+                    .zip(levals)
+                    .for_each(|(e, l)| *e += &l);
+                evaluations
+            },
+        );
+
+        #[cfg(not(feature = "parallel"))]
+        let evaluations = summer().evals;
 
         ProverMsg { evaluations }
     }

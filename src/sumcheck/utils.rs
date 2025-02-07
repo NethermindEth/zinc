@@ -15,6 +15,9 @@ use ark_std::{
     vec::*,
 };
 
+#[cfg(feature = "parallel")]
+use rayon::iter::*;
+
 use crate::{
     biginteger::BigInt,
     field::{rand_with_config, RandomField},

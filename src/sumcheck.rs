@@ -53,7 +53,7 @@ impl<const N: usize> MLSumcheck<N> {
         mles: Vec<DenseMultilinearExtension<N>>,
         nvars: usize,
         degree: usize,
-        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
+        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
         config: *const FieldConfig<N>,
     ) -> (Proof<N>, ProverState<N>) {
         if N == 1 {

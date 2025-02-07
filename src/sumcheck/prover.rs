@@ -1,7 +1,7 @@
 //! Prover
 #![allow(dead_code)]
 
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{self, AtomicPtr};
 
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
 #[cfg(feature = "parallel")]
@@ -63,7 +63,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn prove_round(
         prover_state: &mut ProverState<N>,
         v_msg: &Option<VerifierMsg<N>>,
-        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
+        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
         config: *const FieldConfig<N>,
     ) -> ProverMsg<N> {
         if let Some(msg) = v_msg {
@@ -78,7 +78,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
 
             let atomic_config = AtomicPtr::new(config as *mut FieldConfig<N>);
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r], atomic_config.into_inner());
+                multiplicand.fix_variables(&[r], atomic_config.load(atomic::Ordering::Relaxed));
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");
@@ -114,9 +114,12 @@ impl<const N: usize> IPForMLSumcheck<N> {
             levals: vec![zero; degree + 1],
         };
 
+        #[cfg(not(feature = "parallel"))]
         let zeros = scratch();
+        #[cfg(feature = "parallel")]
+        let zeros = scratch;
 
-        let summer = cfg_into_iter!(0..1 << (nv - i)).fold(scratch, |mut s, b| {
+        let summer = cfg_into_iter!(0..1 << (nv - i)).fold(zeros, |mut s, b| {
             let index = b << 1;
 
             s.vals0
@@ -164,7 +167,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         );
 
         #[cfg(not(feature = "parallel"))]
-        let evaluations = summer().evals;
+        let evaluations = summer.evals;
 
         ProverMsg { evaluations }
     }

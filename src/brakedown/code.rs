@@ -8,7 +8,7 @@ use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
 
-use crate::brakedown::utils::horner;
+use crate::brakedown::utils::evaluate_poly;
 use crate::field::RandomField as F;
 
 pub trait LinearCodes<const N: usize>: Sync + Send {
@@ -345,7 +345,7 @@ fn reed_solomon_into<const N: usize>(input: &[F<N>], mut target: impl AsMut<[F<N
         .as_mut()
         .iter_mut()
         .zip(steps(F::one()))
-        .for_each(|(target, x)| *target = horner(input, &x));
+        .for_each(|(target, x)| *target = evaluate_poly(input, &x));
 }
 
 // H(p) = -p \log_2(p) - (1 - p) \log_2(1 - p)

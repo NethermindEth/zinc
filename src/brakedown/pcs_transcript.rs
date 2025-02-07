@@ -68,9 +68,7 @@ impl<const N: usize> PcsTranscript<N> {
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
-}
 
-impl<const N: usize> PcsTranscript<N> {
     pub fn read_field_element(&mut self, _config: *const FieldConfig<N>) -> Result<F<N>, Error> {
         let mut bytes: [u8; N] = [0; N];
 

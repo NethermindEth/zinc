@@ -3,26 +3,13 @@ use ark_ff::Zero;
 use itertools::Itertools;
 use num_integer::Integer;
 
-pub fn horner_new<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
+pub fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
     let coeff_vec: Vec<&F<N>> = coeffs.iter().rev().collect();
     let mut acc = F::zero();
     for c in coeff_vec {
         acc = acc * x + *c;
     }
     acc
-    //2
-    //.fold(F::ZERO, |acc, coeff| acc * x + coeff)
-}
-
-pub fn horner<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
-    let coeff_vec: Vec<&F<N>> = coeffs.iter().rev().collect();
-    let mut acc = F::zero();
-    for c in coeff_vec {
-        acc = acc * x + *c;
-    }
-    acc
-    //2
-    //.fold(F::ZERO, |acc, coeff| acc * x + coeff)
 }
 
 pub fn horner_orig<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
@@ -53,10 +40,7 @@ pub fn div_ceil(dividend: usize, divisor: usize) -> usize {
 
 pub fn num_threads() -> usize {
     #[cfg(feature = "parallel")]
-    {
-        let nt = rayon::current_num_threads();
-        return nt;
-    }
+    return rayon::current_num_threads();
 
     #[cfg(not(feature = "parallel"))]
     return 1;
@@ -99,40 +83,4 @@ where
 
     #[cfg(not(feature = "parallel"))]
     f((v, 0));
-}
-
-pub fn par_sort_unstable<T>(v: &mut [T])
-where
-    T: Ord + Send,
-{
-    #[cfg(feature = "parallel")]
-    {
-        use rayon::slice::ParallelSliceMut;
-        v.par_sort_unstable();
-    }
-
-    #[cfg(not(feature = "parallel"))]
-    v.sort_unstable();
-}
-
-#[cfg(feature = "parallel")]
-pub fn par_map_collect<T, R, C>(
-    v: impl rayon::prelude::IntoParallelIterator<Item = T>,
-    f: impl Fn(T) -> R + Send + Sync,
-) -> C
-where
-    T: Send + Sync,
-    R: Send,
-    C: rayon::prelude::FromParallelIterator<R>,
-{
-    use rayon::prelude::ParallelIterator;
-    v.into_par_iter().map(f).collect()
-}
-
-#[cfg(not(feature = "parallel"))]
-pub fn par_map_collect<T, R, C>(v: impl IntoIterator<Item = T>, f: impl Fn(T) -> R) -> C
-where
-    C: FromIterator<R>,
-{
-    v.into_iter().map(f).collect()
 }

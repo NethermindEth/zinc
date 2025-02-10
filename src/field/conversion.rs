@@ -68,11 +68,13 @@ impl<const N: usize> FromBytes for RandomField<N> {
 impl<const N: usize> RandomField<N> {
     pub fn from_bytes_le_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_le(bytes);
+
         Self::from_bigint(config, value?)
     }
 
     pub fn from_bytes_be_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_be(bytes);
+
         Self::from_bigint(config, value?)
     }
 }
@@ -216,12 +218,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_out_of_range() {
-        let config = FieldConfig::new(
-            BigInt::<32>::from_str(
-                "3618502788666131213697322783095070105623107215331596699973092056135872020481",
-            )
-            .unwrap(),
-        );
+        let config = FieldConfig::new(BigInt::<32>::from_str("37129241769965749").unwrap());
         let config_ptr = &config as *const FieldConfig<32>;
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101
@@ -255,13 +252,11 @@ mod tests {
         let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0b0000_0001]; // Value: 1 with leading zeros
-        let expected = RandomField::Initialized {
-            config: config_ptr,
-            value: BigInt::<1>::from_bytes_le(&bytes).unwrap(),
-        };
+        let expected =
+            RandomField::from_bigint(config_ptr, BigInt::<1>::from_bytes_le(&bytes).unwrap());
 
         let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes);
-        assert_eq!(result, Some(expected));
+        assert_eq!(result, expected);
     }
 
     #[test]

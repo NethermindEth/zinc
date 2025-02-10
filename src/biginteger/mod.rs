@@ -925,10 +925,10 @@ impl<const N: usize> FromBytes for BigInt<N> {
         // Process byte chunks, handling cases where chunk < 8 bytes
         for (i, chunk) in bytes.chunks(LIMB_SIZE).enumerate() {
             let mut padded_chunk = [0u8; LIMB_SIZE];
-            let start_idx = LIMB_SIZE.saturating_sub(chunk.len());
 
             // Copy bytes aligning to the least significant bytes
-            padded_chunk[start_idx..].copy_from_slice(chunk);
+            padded_chunk[..chunk.len()].copy_from_slice(chunk);
+
             limbs[i] = u64::from_le_bytes(padded_chunk);
         }
 
@@ -946,11 +946,13 @@ impl<const N: usize> FromBytes for BigInt<N> {
         // Process byte chunks, handling cases where chunk < 8 bytes
         for (i, chunk) in bytes.chunks(LIMB_SIZE).rev().enumerate() {
             let mut padded_chunk = [0u8; LIMB_SIZE];
-            let start_idx = LIMB_SIZE.saturating_sub(chunk.len());
 
             // Copy bytes aligning to the most significant bytes
+            let start_idx = LIMB_SIZE.saturating_sub(chunk.len());
+
             padded_chunk[start_idx..].copy_from_slice(chunk);
-            limbs[N - 1 - i] = u64::from_be_bytes(padded_chunk);
+
+            limbs[i] = u64::from_be_bytes(padded_chunk);
         }
 
         Some(Self(limbs))
@@ -1010,7 +1012,7 @@ mod tests {
     fn converts_from_bytes_le_single_byte() {
         let bytes = [0xAB]; // Only 1 byte
         let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
-        let expected = BigInteger64::from(0xAB00000000000000u64);
+        let expected = BigInteger64::from(0xABu64);
         assert_eq!(bigint, expected);
     }
 
@@ -1026,7 +1028,7 @@ mod tests {
     fn converts_from_bytes_le_partial_limb() {
         let bytes = [0x12, 0x34, 0x56]; // Only 3 bytes
         let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
-        let expected = BigInteger64::from(0x5634120000000000u64);
+        let expected = BigInteger64::from(0x563412u64);
         assert_eq!(bigint, expected);
     }
 
@@ -1119,17 +1121,18 @@ mod tests {
     fn converts_bigint256_from_bytes_be_valid() {
         let bytes = [
             0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // MSB
-            0x11, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x21, 0x23, 0x45, 0x67, 0x89, 0xAB,
-            0xCD, 0xEF, 0x31, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // LSB
+            0x11, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, //
+            0x21, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, //
+            0x31, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // LSB
         ];
 
         let bigint = BigInteger256::from_bytes_be(&bytes).unwrap();
 
         let expected = BigInt([
-            0x0123456789ABCDEF,
-            0x1123456789ABCDEF,
-            0x2123456789ABCDEF,
             0x3123456789ABCDEF,
+            0x2123456789ABCDEF,
+            0x1123456789ABCDEF,
+            0x0123456789ABCDEF,
         ]);
 
         assert_eq!(bigint, expected);

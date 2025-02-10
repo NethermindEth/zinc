@@ -22,6 +22,7 @@ use ark_std::{
     Zero,
 };
 
+use crate::traits::FromBytes;
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 
@@ -912,6 +913,50 @@ impl<const N: usize> Not for BigInt<N> {
     }
 }
 
+impl<const N: usize> FromBytes for BigInt<N> {
+    fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
+        const LIMB_SIZE: usize = size_of::<u64>();
+        if bytes.len() > N * LIMB_SIZE {
+            return None;
+        }
+
+        let mut limbs = [0u64; N];
+
+        // Process byte chunks, handling cases where chunk < 8 bytes
+        for (i, chunk) in bytes.chunks(LIMB_SIZE).enumerate() {
+            let mut padded_chunk = [0u8; LIMB_SIZE];
+            let start_idx = LIMB_SIZE.saturating_sub(chunk.len());
+
+            // Copy bytes aligning to the least significant bytes
+            padded_chunk[start_idx..].copy_from_slice(chunk);
+            limbs[i] = u64::from_le_bytes(padded_chunk);
+        }
+
+        Some(Self(limbs))
+    }
+
+    fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
+        const LIMB_SIZE: usize = size_of::<u64>();
+        if bytes.len() > N * LIMB_SIZE {
+            return None;
+        }
+
+        let mut limbs = [0u64; N];
+
+        // Process byte chunks, handling cases where chunk < 8 bytes
+        for (i, chunk) in bytes.chunks(LIMB_SIZE).rev().enumerate() {
+            let mut padded_chunk = [0u8; LIMB_SIZE];
+            let start_idx = LIMB_SIZE.saturating_sub(chunk.len());
+
+            // Copy bytes aligning to the most significant bytes
+            padded_chunk[start_idx..].copy_from_slice(chunk);
+            limbs[N - 1 - i] = u64::from_be_bytes(padded_chunk);
+        }
+
+        Some(Self(limbs))
+    }
+}
+
 /// Compute the signed modulo operation on a u64 representation, returning the result.
 /// If n % modulus > modulus / 2, return modulus - n
 /// # Example
@@ -937,3 +982,156 @@ pub type BigInteger384 = BigInt<6>;
 pub type BigInteger448 = BigInt<7>;
 pub type BigInteger768 = BigInt<12>;
 pub type BigInteger832 = BigInt<13>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_from_bytes_le_valid() {
+        let bytes = [0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01];
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+
+        // Same as BE but reversed
+        let expected = BigInteger64::from(0x0123456789ABCDEFu64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_be_valid() {
+        let bytes = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+
+        let expected = BigInteger64::from(0x0123456789ABCDEFu64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_le_single_byte() {
+        let bytes = [0xAB]; // Only 1 byte
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+        let expected = BigInteger64::from(0xAB00000000000000u64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_be_single_byte() {
+        let bytes = [0xAB]; // Only 1 byte
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+        let expected = BigInteger64::from(0xABu64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_le_partial_limb() {
+        let bytes = [0x12, 0x34, 0x56]; // Only 3 bytes
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+        let expected = BigInteger64::from(0x5634120000000000u64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_be_partial_limb() {
+        let bytes = [0x12, 0x34, 0x56]; // Only 3 bytes
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+        let expected = BigInteger64::from(0x123456u64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_le_zero() {
+        let bytes = [0x00; 8];
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+        assert_eq!(bigint, BigInteger64::zero());
+    }
+
+    #[test]
+    fn converts_from_bytes_be_zero() {
+        let bytes = [0x00; 8];
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+        assert_eq!(bigint, BigInteger64::zero());
+    }
+
+    #[test]
+    fn converts_from_bytes_le_max_value() {
+        let bytes = [0xFF; 8];
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+        let expected = BigInteger64::from(u64::MAX);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_be_max_value() {
+        let bytes = [0xFF; 8];
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+        let expected = BigInteger64::from(u64::MAX);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_le_vs_be() {
+        let bytes = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0];
+        let bigint_be = BigInteger64::from_bytes_be(&bytes);
+        let mut bytes_reversed = bytes;
+        bytes_reversed.reverse();
+        let bigint_le = BigInteger64::from_bytes_le(&bytes_reversed);
+
+        assert_eq!(bigint_be, bigint_le);
+    }
+
+    #[test]
+    fn converts_from_bytes_le_with_leading_zeros() {
+        let bytes = [0x00, 0x00, 0x00, 0x00, 0x01, 0x23, 0x45, 0x67];
+        let bigint = BigInteger64::from_bytes_le(&bytes).unwrap();
+        let expected = BigInteger64::from(0x6745230100000000u64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_from_bytes_be_with_leading_zeros() {
+        let bytes = [0x00, 0x00, 0x00, 0x00, 0x01, 0x23, 0x45, 0x67];
+        let bigint = BigInteger64::from_bytes_be(&bytes).unwrap();
+        let expected = BigInteger64::from(0x1234567u64);
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_bigint256_from_bytes_le_valid() {
+        let bytes = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // LSB
+            0x11, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x21, 0x23, 0x45, 0x67, 0x89, 0xAB,
+            0xCD, 0xEF, 0x31, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // MSB
+        ];
+
+        let bigint = BigInteger256::from_bytes_le(&bytes).unwrap();
+
+        let expected = BigInt([
+            0xEFCDAB8967452301,
+            0xEFCDAB8967452311,
+            0xEFCDAB8967452321,
+            0xEFCDAB8967452331,
+        ]);
+
+        assert_eq!(bigint, expected);
+    }
+
+    #[test]
+    fn converts_bigint256_from_bytes_be_valid() {
+        let bytes = [
+            0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // MSB
+            0x11, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, 0x21, 0x23, 0x45, 0x67, 0x89, 0xAB,
+            0xCD, 0xEF, 0x31, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF, // LSB
+        ];
+
+        let bigint = BigInteger256::from_bytes_be(&bytes).unwrap();
+
+        let expected = BigInt([
+            0x0123456789ABCDEF,
+            0x1123456789ABCDEF,
+            0x2123456789ABCDEF,
+            0x3123456789ABCDEF,
+        ]);
+
+        assert_eq!(bigint, expected);
+    }
+}

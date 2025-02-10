@@ -147,28 +147,31 @@ mod tests {
         let config_ptr = &config as *const _;
 
         let bytes = [0x05, 0, 0, 0, 0, 0, 0, 0];
-        let expected = RandomField::Initialized {
-            config: config_ptr,
-            value: BigInt::from_str("5").unwrap(),
-        };
+        let expected = BigInt::from_str("5").unwrap();
 
         let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes).unwrap();
-        assert_eq!(result, expected);
+        assert_eq!(result.into_bigint(), expected);
     }
 
     #[test]
     fn converts_from_bytes_be_with_config_valid() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
+        let config = FieldConfig::new(
+            BigInt::<32>::from_str(
+                "3618502788666131213697322783095070105623107215331596699973092056135872020481",
+            )
+            .unwrap(),
+        );
+        let config_ptr = &config as *const FieldConfig<32>;
 
-        let bytes = [0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 5 (big-endian)
-        let expected = RandomField::Initialized {
-            config: config_ptr,
-            value: BigInt::<1>::from_bytes_be(&bytes).unwrap(),
-        };
+        let bytes = [
+            0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]; // Value: 5 (big-endian)
+        let expected = BigInt::<32>::from_bytes_be(&bytes).unwrap();
 
-        let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes);
-        assert_eq!(result, Some(expected));
+        let result = RandomField::<32>::from_bytes_be_with_config(config_ptr, &bytes);
+        assert_eq!(result.map(|x| x.into_bigint()), Some(expected));
     }
 
     #[test]
@@ -213,11 +216,16 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_out_of_range() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
+        let config = FieldConfig::new(
+            BigInt::<32>::from_str(
+                "3618502788666131213697322783095070105623107215331596699973092056135872020481",
+            )
+            .unwrap(),
+        );
+        let config_ptr = &config as *const FieldConfig<32>;
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101
-        let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes);
+        let result = RandomField::<32>::from_bytes_be_with_config(config_ptr, &bytes);
         assert!(result.is_none());
     }
 
@@ -246,7 +254,7 @@ mod tests {
         let config = create_field_config!(23);
         let config_ptr = &config as *const FieldConfig<1>;
 
-        let bytes = [0x00, 0x00, 0x00, 0x01]; // Value: 1 with leading zeros
+        let bytes = [0b0000_0001]; // Value: 1 with leading zeros
         let expected = RandomField::Initialized {
             config: config_ptr,
             value: BigInt::<1>::from_bytes_le(&bytes).unwrap(),

@@ -113,6 +113,7 @@ impl<const N: usize> LinearCodes<N> for Brakedown<N> {
         let mut output_offset = input_offset + a_last.dimension.n + b_last.dimension.n;
         input_offset += a_last.dimension.n + a_last.dimension.m;
 
+        // TODO: parallelise this at some point.
         self.a
             .iter()
             .rev()

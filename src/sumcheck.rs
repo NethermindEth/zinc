@@ -136,7 +136,7 @@ mod tests {
     fn generate_sumcheck_proof<const N: usize>(
         nvars: usize,
         mut rng: &mut (impl Rng + Sized),
-        config: *const FieldConfig<N>,
+        config: &FieldConfig<N>,
     ) -> (usize, RandomField<N>, Proof<N>) {
         let mut transcript = KeccakTranscript::default();
 
@@ -165,7 +165,8 @@ mod tests {
         let config: *const FieldConfig<N> =
             &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
         for _ in 0..20 {
-            let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(nvars, &mut rng, config);
+            let (poly_degree, sum, proof) =
+                generate_sumcheck_proof::<N>(nvars, &mut rng, unsafe { config.as_ref() }.unwrap());
 
             let mut transcript = KeccakTranscript::default();
             let res = MLSumcheck::verify_as_subprotocol(

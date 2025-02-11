@@ -255,12 +255,11 @@ pub fn from_ccs_z<const N: usize>(
     })
 }
 
-/// Returns a matrix of ring elements given a matrix of unsigned ints
+/// Returns a sparse matrix of field elements given a matrix of unsigned ints
 pub fn to_F_matrix<const N: usize>(
     config: *const FieldConfig<N>,
     M: Vec<Vec<usize>>,
 ) -> SparseMatrix<RandomField<N>> {
-    // dense_matrix_to_sparse(to_F_dense_matrix::<R>(M))
     dense_matrix_to_sparse(
         M.iter()
             .map(|m| {
@@ -272,7 +271,7 @@ pub fn to_F_matrix<const N: usize>(
     )
 }
 
-/// Returns a dense matrix of ring elements given a matrix of unsigned ints
+/// Returns a dense matrix of field elements given a matrix of unsigned ints
 pub fn to_F_dense_matrix<const N: usize>(
     config: *const FieldConfig<N>,
     M: Vec<Vec<usize>>,
@@ -285,6 +284,8 @@ pub fn to_F_dense_matrix<const N: usize>(
         })
         .collect()
 }
+
+/// Returns a vector of field elements given a vector of unsigned ints
 pub fn to_F_vec<const N: usize>(
     z: Vec<usize>,
     config: *const FieldConfig<N>,

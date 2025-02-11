@@ -64,6 +64,7 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,

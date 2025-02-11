@@ -4,8 +4,10 @@ use ark_ff::Zero;
 use sha3::digest::Output;
 use sha3::Keccak256;
 
+use crate::biginteger::BigInt;
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
+use crate::traits::FromBytes;
 use crate::transcript::KeccakTranscript;
 
 use super::Error;
@@ -69,21 +71,20 @@ impl<const N: usize> PcsTranscript<N> {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, _config: *const FieldConfig<N>) -> Result<F<N>, Error> {
+    pub fn read_field_element(&mut self, config: *const FieldConfig<N>) -> Result<F<N>, Error> {
         let mut bytes: [u8; N] = [0; N];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        // TODO: FIX THIS!!!
-        //let fe = F::from_bigint(config, BigInt::from_bytes_be(bytes)).ok_or_else(|| {
-        //Error::Transcript(
-        //std::io::ErrorKind::Other,
-        //"Invalid field element encoding in proof".to_string(),
-        //)
-        //})?;
-        let fe = F::zero();
+        let fe =
+            F::from_bigint(config, BigInt::from_bytes_be(&bytes).unwrap()).ok_or_else(|| {
+                Error::Transcript(
+                    std::io::ErrorKind::Other,
+                    "Invalid field element encoding in proof".to_string(),
+                )
+            })?;
         self.common_field_element(&fe);
         Ok(fe)
     }

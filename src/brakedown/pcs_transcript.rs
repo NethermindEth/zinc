@@ -1,6 +1,5 @@
 use std::io::{Cursor, Read, Write};
 
-use ark_ff::Zero;
 use sha3::digest::Output;
 use sha3::Keccak256;
 

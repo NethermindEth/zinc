@@ -3,7 +3,7 @@ use ark_ff::Zero;
 use itertools::Itertools;
 use num_integer::Integer;
 
-pub fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
+pub(crate) fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
     let coeff_vec: Vec<&F<N>> = coeffs.iter().rev().collect();
     let mut acc = F::zero();
     for c in coeff_vec {
@@ -12,14 +12,7 @@ pub fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
     acc
 }
 
-pub fn horner_orig<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
-    coeffs
-        .iter()
-        .rev()
-        .fold(F::zero(), |acc, coeff| acc * x + *coeff)
-}
-
-pub fn inner_product<'a, 'b, const N: usize>(
+pub(crate) fn inner_product<'a, 'b, const N: usize>(
     lhs: impl IntoIterator<Item = &'a F<N>>,
     rhs: impl IntoIterator<Item = &'b F<N>>,
 ) -> F<N> {
@@ -30,15 +23,11 @@ pub fn inner_product<'a, 'b, const N: usize>(
         .unwrap_or_default()
 }
 
-pub fn div_rem(dividend: usize, divisor: usize) -> (usize, usize) {
-    Integer::div_rem(&dividend, &divisor)
-}
-
-pub fn div_ceil(dividend: usize, divisor: usize) -> usize {
+pub(crate) fn div_ceil(dividend: usize, divisor: usize) -> usize {
     Integer::div_ceil(&dividend, &divisor)
 }
 
-pub fn num_threads() -> usize {
+pub(crate) fn num_threads() -> usize {
     #[cfg(feature = "parallel")]
     return rayon::current_num_threads();
 
@@ -46,7 +35,7 @@ pub fn num_threads() -> usize {
     return 1;
 }
 
-pub fn parallelize_iter<I, T, F>(iter: I, f: F)
+pub(crate) fn parallelize_iter<I, T, F>(iter: I, f: F)
 where
     I: Send + Iterator<Item = T>,
     T: Send,
@@ -64,7 +53,7 @@ where
     iter.for_each(f);
 }
 
-pub fn parallelize<T, F>(v: &mut [T], f: F)
+pub(crate) fn parallelize<T, F>(v: &mut [T], f: F)
 where
     T: Send,
     F: Fn((&mut [T], usize)) + Send + Sync + Clone,

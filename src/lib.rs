@@ -1,5 +1,8 @@
+#![allow(incomplete_features)]
+#![feature(inherent_associated_types)]
 #[allow(dead_code)]
 pub mod biginteger;
+pub mod brakedown;
 pub mod ccs;
 mod const_helpers;
 pub mod field;

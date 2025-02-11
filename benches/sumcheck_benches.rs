@@ -12,7 +12,7 @@ use zinc::sumcheck::MLSumcheck;
 use zinc::transcript::KeccakTranscript;
 use zinc::{field::RandomField, field_config::FieldConfig};
 
-fn run_sumcheck<const N: usize>(config: *const FieldConfig<N>) {
+fn run_sumcheck<const N: usize>(config: &FieldConfig<N>) {
     let nvars = 20;
     let mut rng = ark_std::test_rng();
     let ((poly_mles, poly_degree), products, sum) =

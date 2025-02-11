@@ -15,6 +15,9 @@ use ark_std::{
     vec::*,
 };
 
+#[cfg(feature = "parallel")]
+use rayon::iter::*;
+
 use crate::{
     biginteger::BigInt,
     field::{rand_with_config, RandomField},
@@ -69,7 +72,7 @@ pub fn rand_poly<const N: usize>(
 pub fn rand_poly_comb_fn<const N: usize>(
     vals: &[RandomField<N>],
     products: &[(RandomField<N>, Vec<usize>)],
-    config: *const FieldConfig<N>,
+    config: &FieldConfig<N>,
 ) -> RandomField<N> {
     let mut result = RandomField::from_bigint(config, BigInt::zero()).unwrap();
     for (coef, indices) in products {

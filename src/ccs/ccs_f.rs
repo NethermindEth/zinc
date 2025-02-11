@@ -8,6 +8,7 @@ use ark_std::{log2, rand};
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
 use crate::poly::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
+use crate::sparse_matrix::dense_matrix_to_sparse;
 use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
 
 use super::ccs_z::CCS_Z;
@@ -252,4 +253,43 @@ pub fn from_ccs_z<const N: usize>(
         c,
         config,
     })
+}
+
+/// Returns a matrix of ring elements given a matrix of unsigned ints
+pub fn to_F_matrix<const N: usize>(
+    config: *const FieldConfig<N>,
+    M: Vec<Vec<usize>>,
+) -> SparseMatrix<RandomField<N>> {
+    // dense_matrix_to_sparse(to_F_dense_matrix::<R>(M))
+    dense_matrix_to_sparse(
+        M.iter()
+            .map(|m| {
+                m.iter()
+                    .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
+                    .collect()
+            })
+            .collect(),
+    )
+}
+
+/// Returns a dense matrix of ring elements given a matrix of unsigned ints
+pub fn to_F_dense_matrix<const N: usize>(
+    config: *const FieldConfig<N>,
+    M: Vec<Vec<usize>>,
+) -> Vec<Vec<RandomField<N>>> {
+    M.iter()
+        .map(|m| {
+            m.iter()
+                .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
+                .collect()
+        })
+        .collect()
+}
+pub fn to_F_vec<const N: usize>(
+    z: Vec<usize>,
+    config: *const FieldConfig<N>,
+) -> Vec<RandomField<N>> {
+    z.iter()
+        .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
+        .collect()
 }

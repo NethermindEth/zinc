@@ -3,6 +3,8 @@ pub mod pcs;
 pub mod pcs_transcript;
 pub mod utils;
 
+#[cfg(test)]
+mod tests;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     InvalidSumcheck(String),

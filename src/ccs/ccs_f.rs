@@ -129,7 +129,8 @@ impl<const N: usize> CCS_F<N> {
             self.s = log2(size) as usize;
 
             // Update matrices
-            M.iter_mut().for_each(|mat| mat.pad_rows(size));
+            M.iter_mut()
+                .for_each(|mat: &mut SparseMatrix<RandomField<N>>| mat.pad_rows(size));
         }
     }
 }
@@ -286,11 +287,119 @@ pub fn to_F_dense_matrix<const N: usize>(
 }
 
 /// Returns a vector of field elements given a vector of unsigned ints
-pub fn to_F_vec<const N: usize>(
-    z: Vec<usize>,
+pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
+    z.iter()
+        .map(|c| RandomField::from_bigint(config, (*c).into()).unwrap())
+        .collect()
+}
+
+#[cfg(test)]
+pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
+    use std::ops::Neg;
+
+    // R1CS for: x^3 + x + 5 = y (example from article
+    // https://www.vitalik.ca/general/2016/12/10/qap.html )
+
+    let m = 4;
+    let n = 6;
+    CCS_F {
+        m,
+        n,
+        l: 1,
+        t: 3,
+        q: 2,
+        d: 2,
+        s: log2(m) as usize,
+        s_prime: log2(n) as usize,
+        S: vec![vec![0, 1], vec![2]],
+        c: vec![
+            RandomField::from_bigint(config, BigInt::one()).unwrap(),
+            RandomField::from_bigint(config, BigInt::one())
+                .unwrap()
+                .neg(),
+        ],
+        config,
+    }
+}
+
+#[cfg(test)]
+fn get_test_ccs_F_statement<const N: usize>(
+    input: u64,
+    config: *const FieldConfig<N>,
+) -> Statement<N> {
+    let A = to_F_matrix::<N>(
+        config,
+        vec![
+            vec![1, 0, 0, 0, 0, 0],
+            vec![0, 0, 0, 1, 0, 0],
+            vec![1, 0, 0, 0, 1, 0],
+            vec![0, 5, 0, 0, 0, 1],
+        ],
+    );
+    let B = to_F_matrix::<N>(
+        config,
+        vec![
+            vec![1, 0, 0, 0, 0, 0],
+            vec![1, 0, 0, 0, 0, 0],
+            vec![0, 1, 0, 0, 0, 0],
+            vec![0, 1, 0, 0, 0, 0],
+        ],
+    );
+    let C = to_F_matrix::<N>(
+        config,
+        vec![
+            vec![0, 0, 0, 1, 0, 0],
+            vec![0, 0, 0, 0, 1, 0],
+            vec![0, 0, 0, 0, 0, 1],
+            vec![0, 0, 1, 0, 0, 0],
+        ],
+    );
+    let constraints = vec![A, B, C];
+    let public_input = vec![RandomField::from_bigint(config, input.into()).unwrap()];
+    Statement {
+        constraints,
+        public_input,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn get_test_z_F<const N: usize>(
+    input: u64,
     config: *const FieldConfig<N>,
 ) -> Vec<RandomField<N>> {
-    z.iter()
-        .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
-        .collect()
+    // z = (io, 1, w)
+    to_F_vec(
+        vec![
+            input, // io
+            1,
+            input * input * input + input + 5, // x^3 + x + 5
+            input * input,                     // x^2
+            input * input * input,             // x^2 * x
+            input * input * input + input,     // x^3 + x
+        ],
+        config,
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{biginteger::BigInt, field_config::FieldConfig};
+
+    use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
+
+    #[test]
+    fn test_ccs_f() {
+        use std::str::FromStr;
+
+        const N: usize = 2;
+        let config: *const FieldConfig<N> =
+            &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let input = 3;
+        let ccs = get_test_ccs_F::<N>(config);
+        let statement = get_test_ccs_F_statement::<N>(input, config);
+        let z = get_test_z_F::<N>(input, config);
+
+        let res = ccs.check_relation(&statement.constraints, &z);
+        assert!(res.is_ok())
+    }
 }

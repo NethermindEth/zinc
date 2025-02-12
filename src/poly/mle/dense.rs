@@ -9,6 +9,8 @@ use ark_std::{
     rand,
     vec::*,
 };
+#[cfg(feature = "parallel")]
+use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
 use crate::sparse_matrix::SparseMatrix;

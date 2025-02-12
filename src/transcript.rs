@@ -51,7 +51,7 @@ impl KeccakTranscript {
         }
     }
 
-    pub fn get_challenge_limbs(&mut self) -> (u128, u128) {
+    fn get_challenge_limbs(&mut self) -> (u128, u128) {
         let challenge = self.hasher.clone().finalize();
 
         let lo = u128::from_be_bytes(challenge[0..16].try_into().unwrap());
@@ -64,7 +64,8 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
-    pub(crate) fn get_challenge<const N: usize>(
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
+    pub fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {

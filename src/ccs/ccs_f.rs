@@ -2,6 +2,8 @@
 
 #![allow(non_snake_case, dead_code, non_camel_case_types)]
 
+use std::sync::atomic::AtomicPtr;
+
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{log2, rand};
 
@@ -34,7 +36,7 @@ pub trait Arith<const N: usize> {
 
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug)]
 pub struct CCS_F<const N: usize> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
@@ -57,7 +59,7 @@ pub struct CCS_F<const N: usize> {
     /// vector of coefficients
     pub c: Vec<RandomField<N>>,
     /// The field the constraint system operates in
-    pub config: *const FieldConfig<N>,
+    pub config: AtomicPtr<FieldConfig<N>>,
 }
 
 impl<const N: usize> Arith<N> for CCS_F<N> {
@@ -212,7 +214,7 @@ impl<const N: usize> Instance_F<N> for Statement<N> {
     }
 }
 
-pub fn from_ccs_z<const N: usize>(
+pub(crate) fn from_ccs_z<const N: usize>(
     ccs_z: &CCS_Z,
     config: *const FieldConfig<N>,
 ) -> Result<CCS_F<N>, ()> {
@@ -252,7 +254,7 @@ pub fn from_ccs_z<const N: usize>(
         s_prime: ccs_z.s_prime,
         S: ccs_z.S.clone(),
         c,
-        config,
+        config: AtomicPtr::new(config as *mut FieldConfig<N>),
     })
 }
 
@@ -318,7 +320,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
                 .unwrap()
                 .neg(),
         ],
-        config,
+        config: AtomicPtr::new(config as *mut FieldConfig<N>),
     }
 }
 

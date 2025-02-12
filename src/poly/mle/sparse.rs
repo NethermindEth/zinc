@@ -11,6 +11,8 @@ use ark_std::{
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
     vec::*,
 };
+#[cfg(feature = "parallel")]
+use rayon::iter::*;
 
 use crate::field::RandomField;
 

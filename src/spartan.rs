@@ -335,7 +335,7 @@ impl<const N: usize> ZincProver<N> {
         mles: Vec<DenseMultilinearExtension<N>>,
         nvars: usize,
         degree: usize,
-        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N>,
+        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
         config: *const FieldConfig<N>,
     ) -> Result<(Proof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         let (sum_check_proof, prover_state) =

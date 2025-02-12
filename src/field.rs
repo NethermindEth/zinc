@@ -315,9 +315,7 @@ impl<const N: usize> RandomField<N> {
         }
 
         unsafe {
-            if value.is_zero() {
-                Some(Self::zero())
-            } else if value >= (*config).modulus {
+            if value >= (*config).modulus {
                 None
             } else {
                 let mut r = value;

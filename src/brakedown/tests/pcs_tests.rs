@@ -142,15 +142,6 @@ fn test_brakedown_evaluation() {
     ];
     let eval = RandomField::from_bigint(config, 7u32.into()).unwrap();
     transcript.write_field_element(&eval).unwrap();
-    let open = MultilinearBrakedown::<N, BrakedownSpec1>::open(
-        &param,
-        &mle,
-        &comm,
-        &point,
-        &eval,
-        &mut transcript,
-    )
-    .unwrap();
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);

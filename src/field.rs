@@ -1,6 +1,6 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-use ark_ff::{UniformRand, Zero};
+use ark_ff::UniformRand;
 
 use crate::{
     biginteger::BigInt,

@@ -389,6 +389,13 @@ impl<const N: usize> Default for RandomField<N> {
     }
 }
 
+pub fn zero_with_config<const N: usize>(config: *const FieldConfig<N>) -> RandomField<N> {
+    Initialized {
+        config,
+        value: BigInt::zero(),
+    }
+}
+
 unsafe impl<const N: usize> Send for RandomField<N> {}
 unsafe impl<const N: usize> Sync for RandomField<N> {}
 

@@ -1,7 +1,14 @@
-#![allow(dead_code)]
-use ark_ff::One;
+#![allow(dead_code, non_snake_case)]
+use std::{ops::Neg, sync::atomic::AtomicPtr};
 
-use crate::{field::RandomField, sparse_matrix::SparseMatrix};
+use ark_ff::One;
+use ark_std::log2;
+
+use crate::{
+    biginteger::BigInt, field::RandomField, field_config::FieldConfig, sparse_matrix::SparseMatrix,
+};
+
+use super::ccs_f::{Statement, CCS_F};
 
 pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
     rows: usize,
@@ -38,4 +45,39 @@ pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
         row.push((witness[i], i));
     }
     matrix
+}
+
+pub fn get_dummy_ccs<const N: usize>(
+    z: &[RandomField<N>],
+    config: *const FieldConfig<N>,
+) -> (CCS_F<N>, Statement<N>) {
+    let ccs = CCS_F {
+        m: z.len(),
+        n: z.len(),
+        l: 1,
+        t: 3,
+        q: 2,
+        d: 2,
+        s: log2(z.len()) as usize,
+        s_prime: log2(z.len()) as usize,
+        S: vec![vec![0, 1], vec![2]],
+        c: vec![
+            RandomField::from_bigint(config, BigInt::one()).unwrap(),
+            RandomField::from_bigint(config, BigInt::one())
+                .unwrap()
+                .neg(),
+        ],
+        config: AtomicPtr::new(config as *mut FieldConfig<N>),
+    };
+
+    let A = create_dummy_identity_sparse_matrix(z.len(), z.len());
+    let B = A.clone();
+    let C = create_dummy_squaring_sparse_matrix(z.len(), z.len(), z);
+
+    let statement = Statement {
+        constraints: vec![A, B, C],
+        public_input: Vec::new(),
+    };
+
+    (ccs, statement)
 }

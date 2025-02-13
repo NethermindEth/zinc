@@ -9,6 +9,10 @@ use utils::{
 };
 
 use crate::{
+    brakedown::{
+        code::{BrakedownSpec, BrakedownSpec1},
+        pcs::MultilinearBrakedown,
+    },
     ccs::{
         ccs_f::{Commitment, Instance_F, Statement, Witness, CCS_F},
         error::CSError,
@@ -83,7 +87,7 @@ pub trait SpartanVerifier<const N: usize> {
     ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize> SpartanProver<N> for ZincProver<N> {
+impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
     fn prove(
         &self,
         statement: &Statement<N>,
@@ -97,6 +101,14 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
+        let w_mle = DenseMultilinearExtension::from_evaluations_slice(
+            ccs.m - ccs.l - 1,
+            &wit.w_ccs,
+            unsafe { *ccs.config.as_ptr() },
+        );
+        let rng = ark_std::test_rng();
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
+        let w_comm = MultilinearBrakedown::<N, S>::commit(&param, &w_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
             transcript,
@@ -160,11 +172,12 @@ impl<const N: usize> SpartanProver<N> for ZincProver<N> {
             second_sumcheck: sumcheck_proof_2,
             V_s,
             v,
+            w_comm,
         })
     }
 }
 
-impl<const N: usize> SpartanVerifier<N> for ZincVerifier<N> {
+impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
@@ -197,7 +210,7 @@ impl<const N: usize> SpartanVerifier<N> for ZincVerifier<N> {
     }
 }
 
-impl<const N: usize> ZincVerifier<N> {
+impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,
         proof: &Proof<N>,
@@ -283,7 +296,7 @@ impl<const N: usize> ZincVerifier<N> {
     }
 }
 
-impl<const N: usize> ZincProver<N> {
+impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
     /// Step 2 of Fig 5: Construct polynomial $g$ and generate $\beta$ challenges.
     fn construct_polynomial_g(
         z_ccs: &[RandomField<N>],

@@ -1,7 +1,10 @@
 #![allow(clippy::enum_variant_names, dead_code)]
 use thiserror::Error;
 
-use crate::{ccs::error::CSError, poly::polynomials::ArithErrors, sumcheck::SumCheckError};
+use crate::{
+    brakedown::Error as BrakedownError, ccs::error::CSError, poly::polynomials::ArithErrors,
+    sumcheck::SumCheckError,
+};
 
 #[derive(Debug, Error)]
 pub enum SpartanError<const N: usize> {
@@ -17,6 +20,8 @@ pub enum SpartanError<const N: usize> {
     EvaluationError(#[from] MleEvaluationError),
     #[error("Verification Failed {0}")]
     VerificationError(String),
+    #[error("")]
+    BrakedownError(#[from] BrakedownError),
 }
 
 #[derive(Debug, Error)]

@@ -23,7 +23,7 @@ pub struct SpartanProof<const N: usize> {
     pub second_sumcheck: sumcheck::Proof<N>,
     pub V_s: Vec<RandomField<N>>,
     pub v: RandomField<N>,
-    pub w_comm: MultilinearBrakedownCommitment<N>,
+    pub z_comm: MultilinearBrakedownCommitment<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

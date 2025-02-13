@@ -101,14 +101,12 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        let w_mle = DenseMultilinearExtension::from_evaluations_slice(
-            ccs.m - ccs.l - 1,
-            &wit.w_ccs,
-            unsafe { *ccs.config.as_ptr() },
-        );
+        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.m, &z_ccs, unsafe {
+            *ccs.config.as_ptr()
+        });
         let rng = ark_std::test_rng();
         let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
-        let w_comm = MultilinearBrakedown::<N, S>::commit(&param, &w_mle)?;
+        let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
             transcript,
@@ -172,7 +170,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             second_sumcheck: sumcheck_proof_2,
             V_s,
             v,
-            w_comm,
+            z_comm,
         })
     }
 }
@@ -206,6 +204,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             ccs,
             second_sumcheck_claimed_sum,
         )?;
+
         Ok(())
     }
 }

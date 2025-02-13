@@ -2,10 +2,13 @@
 use std::{ops::Neg, sync::atomic::AtomicPtr};
 
 use ark_ff::One;
-use ark_std::log2;
+use ark_std::{log2, rand::Rng};
 
 use crate::{
-    biginteger::BigInt, field::RandomField, field_config::FieldConfig, sparse_matrix::SparseMatrix,
+    biginteger::BigInt,
+    field::{rand_with_config, RandomField},
+    field_config::FieldConfig,
+    sparse_matrix::SparseMatrix,
 };
 
 use super::ccs_f::{Statement, CCS_F};
@@ -47,7 +50,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
     matrix
 }
 
-pub fn get_dummy_ccs<const N: usize>(
+fn get_dummy_ccs_from_witness<const N: usize>(
     z: &[RandomField<N>],
     config: *const FieldConfig<N>,
 ) -> (CCS_F<N>, Statement<N>) {
@@ -80,4 +83,15 @@ pub fn get_dummy_ccs<const N: usize>(
     };
 
     (ccs, statement)
+}
+
+pub(crate) fn get_dummy_ccs_from_wit_length<const N: usize>(
+    n: usize,
+    rng: &mut impl Rng,
+    config: *const FieldConfig<N>,
+) -> (Vec<RandomField<N>>, CCS_F<N>, Statement<N>) {
+    let z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
+    let (ccs, statement) = get_dummy_ccs_from_witness(&z, config);
+
+    (z, ccs, statement)
 }

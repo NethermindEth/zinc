@@ -1,6 +1,5 @@
 #![allow(dead_code, non_snake_case)]
 use ark_ff::Zero;
-use ark_std::cfg_iter;
 
 use errors::{MleEvaluationError, SpartanError};
 use structs::{SpartanProof, ZincProver, ZincVerifier};
@@ -399,7 +398,7 @@ where
 {
     to_mles_err::<N, _, E, CSError>(
         ccs_s,
-        cfg_iter!(constraints).map(|M| mat_vec_mul(M, z_ccs)),
+        constraints.iter().map(|M| mat_vec_mul(M, z_ccs)),
         config,
     )
 }

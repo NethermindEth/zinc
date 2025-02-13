@@ -214,16 +214,20 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         let mut rx_ry = r_x;
         rx_ry.extend_from_slice(&r_y);
 
-        let V_x: Vec<RandomField<N>> = cm_i
+        let V_x: Result<Vec<RandomField<N>>, MleEvaluationError> = cm_i
             .constraints
             .iter()
-            .map(|M| {
-                DenseMultilinearExtension::from_matrix(M, self.config)
-                    .evaluate(&rx_ry, self.config)
-                    .unwrap()
+            .map(|M| -> Result<RandomField<N>, MleEvaluationError> {
+                let mle = DenseMultilinearExtension::from_matrix(M, self.config);
+                mle.evaluate(&rx_ry, self.config)
+                    .ok_or(MleEvaluationError::IncorrectLength(
+                        rx_ry.len(),
+                        mle.num_vars,
+                    ))
             })
             .collect();
 
+        let V_x = V_x?;
         let V_x_gamma = Self::lin_comb_V_s(&gamma, &V_x) * proof.v;
         if V_x_gamma != e_y {
             return Err(SpartanError::VerificationError(

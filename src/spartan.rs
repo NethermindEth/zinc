@@ -9,12 +9,9 @@ use utils::{
 };
 
 use crate::{
-    brakedown::{
-        code::{BrakedownSpec, BrakedownSpec1},
-        pcs::MultilinearBrakedown,
-    },
+    brakedown::{code::BrakedownSpec, pcs::MultilinearBrakedown, pcs_transcript::PcsTranscript},
     ccs::{
-        ccs_f::{Commitment, Instance_F, Statement, Witness, CCS_F},
+        ccs_f::{Instance_F, Statement, Witness, CCS_F},
         error::CSError,
         utils::mat_vec_mul,
     },
@@ -80,7 +77,6 @@ pub trait SpartanVerifier<const N: usize> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
-        w_commitment: &Commitment<N>,
         proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
@@ -179,20 +175,21 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
     fn verify(
         &self,
         cm_i: &Statement<N>,
-        w_commitment: &Commitment<N>,
         proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
+        let rng = ark_std::test_rng();
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
 
         //Step 2: The sumcheck.
-        let (point_r, s) =
+        let (r_x, s) =
             self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
 
         // Step 3. Check V_s is congruent to s
-        Self::verify_linearization_claim(&beta_s, &point_r, s, proof, ccs)?;
+        Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
         let gamma = transcript.squeeze_gamma_challenge(self.config);
 
@@ -204,6 +201,35 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             ccs,
             second_sumcheck_claimed_sum,
         )?;
+
+        let mut pcs_transcript = PcsTranscript::new();
+        MultilinearBrakedown::<N, S>::verify(
+            &param,
+            &proof.z_comm,
+            &r_y,
+            &proof.v,
+            &mut pcs_transcript,
+        )?;
+
+        let mut rx_ry = r_x;
+        rx_ry.extend_from_slice(&r_y);
+
+        let V_x: Vec<RandomField<N>> = cm_i
+            .constraints
+            .iter()
+            .map(|M| {
+                DenseMultilinearExtension::from_matrix(M, self.config)
+                    .evaluate(&rx_ry, self.config)
+                    .unwrap()
+            })
+            .collect();
+
+        let V_x_gamma = Self::lin_comb_V_s(&gamma, &V_x) * proof.v;
+        if V_x_gamma != e_y {
+            return Err(SpartanError::VerificationError(
+                "linear combination of powers of gamma and V_x != e_y".to_string(),
+            ));
+        }
 
         Ok(())
     }

@@ -85,7 +85,7 @@ fn get_dummy_ccs_from_witness<const N: usize>(
     (ccs, statement)
 }
 
-pub(crate) fn get_dummy_ccs_from_wit_length<const N: usize>(
+pub fn get_dummy_ccs_from_wit_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
     config: *const FieldConfig<N>,

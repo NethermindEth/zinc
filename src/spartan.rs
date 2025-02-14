@@ -24,7 +24,7 @@ use crate::{
 };
 
 mod errors;
-mod structs;
+pub mod structs;
 mod utils;
 
 /// Prover for the Linearization subprotocol
@@ -96,7 +96,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.m, &z_ccs, unsafe {
+        println!("{}", z_ccs.len());
+        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s, &z_ccs, unsafe {
             *ccs.config.as_ptr()
         });
         let rng = ark_std::test_rng();

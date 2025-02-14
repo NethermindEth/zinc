@@ -1,5 +1,5 @@
 #![allow(dead_code, non_snake_case)]
-use std::{ops::Neg, sync::atomic::AtomicPtr};
+use std::{ops::Neg, sync::atomic::AtomicPtr, vec};
 
 use ark_ff::One;
 use ark_std::{log2, rand::Rng};
@@ -11,7 +11,7 @@ use crate::{
     sparse_matrix::SparseMatrix,
 };
 
-use super::ccs_f::{Statement, CCS_F};
+use super::ccs_f::{Statement, Witness, CCS_F};
 
 pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
     rows: usize,
@@ -50,10 +50,10 @@ pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
     matrix
 }
 
-fn get_dummy_ccs_from_witness<const N: usize>(
+fn get_dummy_ccs_from_z<const N: usize>(
     z: &[RandomField<N>],
     config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement<N>) {
+) -> (CCS_F<N>, Statement<N>, Witness<N>) {
     let ccs = CCS_F {
         m: z.len(),
         n: z.len(),
@@ -82,16 +82,20 @@ fn get_dummy_ccs_from_witness<const N: usize>(
         public_input: Vec::new(),
     };
 
-    (ccs, statement)
+    let wit = Witness {
+        w_ccs: z[ccs.l..].to_vec(),
+    };
+
+    (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_from_wit_length<const N: usize>(
+pub fn get_dummy_ccs_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
     config: *const FieldConfig<N>,
-) -> (Vec<RandomField<N>>, CCS_F<N>, Statement<N>) {
+) -> (Vec<RandomField<N>>, CCS_F<N>, Statement<N>, Witness<N>) {
     let z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
-    let (ccs, statement) = get_dummy_ccs_from_witness(&z, config);
+    let (ccs, statement, wit) = get_dummy_ccs_from_z(&z, config);
 
-    (z, ccs, statement)
+    (z, ccs, statement, wit)
 }

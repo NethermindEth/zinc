@@ -96,12 +96,12 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        println!("{}", z_ccs.len());
+
         let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s, &z_ccs, unsafe {
             *ccs.config.as_ptr()
         });
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m, ccs.m, rng);
         let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
@@ -465,4 +465,36 @@ where
             }
         })
         .collect::<Result<_, E>>()
+}
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{
+        biginteger::BigInt,
+        brakedown::code::BrakedownSpec1,
+        ccs::test_utils::get_dummy_ccs_from_z_length,
+        field_config::FieldConfig,
+        spartan::{structs::ZincProver, SpartanProver},
+        transcript::KeccakTranscript,
+    };
+    #[test]
+    fn test_spartan_prover() {
+        let n = 1 << 10;
+        let mut rng = ark_std::test_rng();
+        let config: *const FieldConfig<3> = &FieldConfig::new(
+            BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap(),
+        );
+
+        let (_, ccs, statement, wit) = get_dummy_ccs_from_z_length(n, &mut rng, config);
+        let mut transcript = KeccakTranscript::new();
+
+        let prover = ZincProver {
+            config,
+            data: std::marker::PhantomData::<BrakedownSpec1>,
+        };
+        let proof = prover.prove(&statement, &wit, &mut transcript, &ccs);
+
+        assert!(proof.is_ok())
+    }
 }

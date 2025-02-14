@@ -1,7 +1,6 @@
 #![allow(dead_code, non_snake_case)]
 use std::{ops::Neg, sync::atomic::AtomicPtr, vec};
 
-use ark_ff::One;
 use ark_std::{log2, rand::Rng};
 
 use crate::{
@@ -16,6 +15,7 @@ use super::ccs_f::{Statement, Witness, CCS_F};
 pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
     rows: usize,
     columns: usize,
+    config: *const FieldConfig<N>,
 ) -> SparseMatrix<RandomField<N>> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
@@ -23,7 +23,7 @@ pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((RandomField::one(), i));
+        row.push((RandomField::from_bigint(config, 1u32.into()).unwrap(), i));
     }
     matrix
 }
@@ -73,7 +73,7 @@ fn get_dummy_ccs_from_z<const N: usize>(
         config: AtomicPtr::new(config as *mut FieldConfig<N>),
     };
 
-    let A = create_dummy_identity_sparse_matrix(z.len(), z.len());
+    let A = create_dummy_identity_sparse_matrix(z.len(), z.len(), config);
     let B = A.clone();
     let C = create_dummy_squaring_sparse_matrix(z.len(), z.len(), z);
 

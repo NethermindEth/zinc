@@ -101,7 +101,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             *ccs.config.as_ptr()
         });
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m, ccs.m, rng);
+        let param =
+            MultilinearBrakedown::<N, S>::setup(ccs.m, ccs.m, rng, unsafe { *ccs.config.as_ptr() });
         let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
@@ -180,7 +181,9 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng, unsafe {
+            *ccs.config.as_ptr()
+        });
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
 

@@ -135,7 +135,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         let eq_r_a = build_eq_x_r(&r_a, self.config)?;
         let evals = {
-            // compute the initial evaluation table for R(\tau, x)
+            // compute the initial evaluation table for R(r_a, x)
 
             let evals_vec =
                 statement.compute_eval_table_sparse(ccs.n, ccs.m, ccs, &eq_r_a.evaluations);
@@ -155,7 +155,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         };
 
         let evals_mle =
-            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &evals, unsafe {
+            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
                 *(ccs.config.as_ptr())
             });
 

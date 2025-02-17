@@ -3,9 +3,7 @@ use ark_ff::Zero;
 
 use errors::{MleEvaluationError, SpartanError};
 use structs::{SpartanProof, ZincProver, ZincVerifier};
-use utils::{
-    sumcheck_polynomial_comb_fn_1, sumcheck_polynomial_comb_fn_2, SqueezeBeta, SqueezeGamma,
-};
+use utils::{sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma};
 
 use crate::{
     brakedown::{code::BrakedownSpec, pcs::MultilinearBrakedown, pcs_transcript::PcsTranscript},
@@ -19,7 +17,11 @@ use crate::{
     poly::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     spartan::utils::prepare_lin_sumcheck_polynomial,
-    sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
+    sumcheck::{
+        utils::{build_eq_x_r, eq_eval},
+        MLSumcheck, Proof,
+        SumCheckError::SumCheckFailed,
+    },
     transcript::KeccakTranscript,
 };
 
@@ -126,18 +128,49 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             self.config,
         )?;
 
-        let (all_mles, z_mle) = calculate_poly_2_mles(
-            &statement.constraints,
-            &r_a,
-            &z_ccs,
+        let gamma = transcript.squeeze_gamma_challenge(self.config);
+        let mut sumcheck_2_mles = Vec::with_capacity(2);
+        let z_mle =
+            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, self.config);
+
+        let eq_r_a = build_eq_x_r(&r_a, self.config)?;
+        let evals = {
+            // compute the initial evaluation table for R(\tau, x)
+
+            let evals_vec =
+                statement.compute_eval_table_sparse(ccs.n, ccs.m, ccs, &eq_r_a.evaluations);
+
+            (0..evals_vec[0].len())
+                .map(|i| {
+                    evals_vec
+                        .iter()
+                        .rev()
+                        .fold(RandomField::zero(), |mut lin_comb, eval_vec| {
+                            lin_comb *= &gamma;
+                            lin_comb += &eval_vec[i];
+                            lin_comb
+                        })
+                })
+                .collect::<Vec<RandomField<N>>>()
+        };
+
+        let evals_mle =
+            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &evals, unsafe {
+                *(ccs.config.as_ptr())
+            });
+
+        sumcheck_2_mles.push(evals_mle);
+        sumcheck_2_mles.push(z_mle.clone());
+        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> { vals[0] * vals[1] };
+
+        let (sumcheck_proof_2, r_y) = Self::generate_sumcheck_proof(
+            transcript,
+            sumcheck_2_mles,
             ccs.s,
-            ccs.s_prime,
+            2,
+            comb_fn_2,
             self.config,
         )?;
-        let gamma = transcript.squeeze_gamma_challenge(self.config);
-        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> {
-            sumcheck_polynomial_comb_fn_2(vals, ccs, &gamma)
-        };
 
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
@@ -150,17 +183,12 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             .collect();
 
         let V_s = V_s?;
-
-        let (sumcheck_proof_2, r_y) =
-            Self::generate_sumcheck_proof(transcript, all_mles, ccs.s, 2, comb_fn_2, self.config)?;
-
         let v = z_mle
             .evaluate(&r_y, self.config)
             .ok_or(MleEvaluationError::IncorrectLength(
                 r_y.len(),
                 z_mle.num_vars,
-            ));
-        let v = v?;
+            ))?;
 
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,

@@ -10,7 +10,7 @@ use ark_std::{log2, rand};
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
 use crate::poly::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
-use crate::sparse_matrix::dense_matrix_to_sparse;
+use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
 use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
 
 use super::ccs_z::CCS_Z;
@@ -142,6 +142,28 @@ impl<const N: usize> CCS_F<N> {
 pub struct Statement<const N: usize> {
     pub constraints: Vec<SparseMatrix<RandomField<N>>>,
     pub public_input: Vec<RandomField<N>>,
+}
+
+impl<const N: usize> Statement<N> {
+    pub fn compute_eval_table_sparse(
+        &self,
+        num_rows: usize,
+        num_cols: usize,
+        ccs: &CCS_F<N>,
+        evals: &[RandomField<N>],
+    ) -> Vec<Vec<RandomField<N>>> {
+        assert_eq!(num_rows, ccs.n);
+        assert!(num_cols > (ccs.m - ccs.l) - 1);
+
+        self.constraints
+            .iter()
+            .map(|M| {
+                compute_eval_table_sparse(M, evals, num_rows, num_cols, unsafe {
+                    *(ccs.config.as_ptr())
+                })
+            })
+            .collect()
+    }
 }
 
 /// A representation of a linearised CCS statement

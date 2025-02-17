@@ -32,7 +32,7 @@ where
     S: BrakedownSpec,
 {
     pub config: *const FieldConfig<N>,
-    data: PhantomData<S>,
+    pub data: PhantomData<S>,
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.

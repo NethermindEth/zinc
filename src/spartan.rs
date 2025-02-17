@@ -3,9 +3,7 @@ use ark_ff::Zero;
 
 use errors::{MleEvaluationError, SpartanError};
 use structs::{SpartanProof, ZincProver, ZincVerifier};
-use utils::{
-    sumcheck_polynomial_comb_fn_1, sumcheck_polynomial_comb_fn_2, SqueezeBeta, SqueezeGamma,
-};
+use utils::{sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma};
 
 use crate::{
     brakedown::{code::BrakedownSpec, pcs::MultilinearBrakedown, pcs_transcript::PcsTranscript},
@@ -19,12 +17,16 @@ use crate::{
     poly::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     spartan::utils::prepare_lin_sumcheck_polynomial,
-    sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
+    sumcheck::{
+        utils::{build_eq_x_r, eq_eval},
+        MLSumcheck, Proof,
+        SumCheckError::SumCheckFailed,
+    },
     transcript::KeccakTranscript,
 };
 
 mod errors;
-mod structs;
+pub mod structs;
 mod utils;
 
 /// Prover for the Linearization subprotocol
@@ -96,11 +98,13 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let z_ccs = statement.get_z_vector(&wit.w_ccs);
-        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.m, &z_ccs, unsafe {
+
+        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s, &z_ccs, unsafe {
             *ccs.config.as_ptr()
         });
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
+        let param =
+            MultilinearBrakedown::<N, S>::setup(ccs.m, ccs.m, rng, unsafe { *ccs.config.as_ptr() });
         let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
@@ -124,18 +128,49 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             self.config,
         )?;
 
-        let (all_mles, z_mle) = calculate_poly_2_mles(
-            &statement.constraints,
-            &r_a,
-            &z_ccs,
+        let gamma = transcript.squeeze_gamma_challenge(self.config);
+        let mut sumcheck_2_mles = Vec::with_capacity(2);
+        let z_mle =
+            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, self.config);
+
+        let eq_r_a = build_eq_x_r(&r_a, self.config)?;
+        let evals = {
+            // compute the initial evaluation table for R(\tau, x)
+
+            let evals_vec =
+                statement.compute_eval_table_sparse(ccs.n, ccs.m, ccs, &eq_r_a.evaluations);
+
+            (0..evals_vec[0].len())
+                .map(|i| {
+                    evals_vec
+                        .iter()
+                        .rev()
+                        .fold(RandomField::zero(), |mut lin_comb, eval_vec| {
+                            lin_comb *= &gamma;
+                            lin_comb += &eval_vec[i];
+                            lin_comb
+                        })
+                })
+                .collect::<Vec<RandomField<N>>>()
+        };
+
+        let evals_mle =
+            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &evals, unsafe {
+                *(ccs.config.as_ptr())
+            });
+
+        sumcheck_2_mles.push(evals_mle);
+        sumcheck_2_mles.push(z_mle.clone());
+        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> { vals[0] * vals[1] };
+
+        let (sumcheck_proof_2, r_y) = Self::generate_sumcheck_proof(
+            transcript,
+            sumcheck_2_mles,
             ccs.s,
-            ccs.s_prime,
+            2,
+            comb_fn_2,
             self.config,
         )?;
-        let gamma = transcript.squeeze_gamma_challenge(self.config);
-        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> {
-            sumcheck_polynomial_comb_fn_2(vals, ccs, &gamma)
-        };
 
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
@@ -148,17 +183,12 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             .collect();
 
         let V_s = V_s?;
-
-        let (sumcheck_proof_2, r_y) =
-            Self::generate_sumcheck_proof(transcript, all_mles, ccs.s, 2, comb_fn_2, self.config)?;
-
         let v = z_mle
             .evaluate(&r_y, self.config)
             .ok_or(MleEvaluationError::IncorrectLength(
                 r_y.len(),
                 z_mle.num_vars,
-            ));
-        let v = v?;
+            ))?;
 
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
@@ -179,7 +209,9 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng);
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng, unsafe {
+            *ccs.config.as_ptr()
+        });
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
 
@@ -353,23 +385,6 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
         Ok((g_mles, g_degree, Mz_mles))
     }
 
-    fn construct_polynomial_2(
-        constraints: &[SparseMatrix<RandomField<N>>],
-        r_a: &[RandomField<N>],
-        z: &[RandomField<N>],
-        ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<
-        (
-            Vec<DenseMultilinearExtension<N>>,
-            DenseMultilinearExtension<N>,
-        ),
-        SpartanError<N>,
-    > {
-        let (mles, z) = calculate_poly_2_mles(constraints, r_a, z, ccs.s, ccs.s_prime, config)?;
-        Ok((mles, z))
-    }
-
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof(
         transcript: &mut KeccakTranscript,
@@ -387,7 +402,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
 }
 
 // Prepare MLE's of the form mle[M_i \cdot z_ccs](x), a.k.a. \sum mle[M_i](x, b) * mle[z_ccs](b).
-pub fn calculate_Mz_mles<E, const N: usize>(
+fn calculate_Mz_mles<E, const N: usize>(
     constraints: &[SparseMatrix<RandomField<N>>],
     ccs_s: usize,
     z_ccs: &[RandomField<N>],
@@ -403,46 +418,7 @@ where
     )
 }
 
-pub fn calculate_poly_2_mles<const N: usize>(
-    constraints: &[SparseMatrix<RandomField<N>>],
-    r_a: &[RandomField<N>],
-    z: &[RandomField<N>],
-    ccs_s: usize,
-    log_n: usize,
-    config: *const FieldConfig<N>,
-) -> Result<
-    (
-        Vec<DenseMultilinearExtension<N>>,
-        DenseMultilinearExtension<N>,
-    ),
-    MleEvaluationError,
-> {
-    let mut mles: Vec<DenseMultilinearExtension<N>> = constraints
-        .iter()
-        .map(|constraint| {
-            let evaluated_vec: Vec<_> = constraint
-                .to_dense()
-                .iter()
-                .map(|constraint_vec| {
-                    DenseMultilinearExtension::<N>::from_evaluations_slice(
-                        ccs_s,
-                        constraint_vec,
-                        config,
-                    )
-                    .evaluate(r_a, config)
-                    .unwrap()
-                })
-                .collect();
-
-            DenseMultilinearExtension::from_evaluations_vec(log_n, evaluated_vec, config)
-        })
-        .collect();
-    let z = DenseMultilinearExtension::from_evaluations_slice(log_n, z, config);
-    mles.push(z.clone());
-    Ok((mles, z))
-}
-
-pub fn to_mles_err<const N: usize, I, E, E1>(
+fn to_mles_err<const N: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
     config: *const FieldConfig<N>,
@@ -464,4 +440,38 @@ where
             }
         })
         .collect::<Result<_, E>>()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use crate::{
+        biginteger::BigInt,
+        brakedown::code::BrakedownSpec1,
+        ccs::test_utils::get_dummy_ccs_from_z_length,
+        field_config::FieldConfig,
+        spartan::{structs::ZincProver, SpartanProver},
+        transcript::KeccakTranscript,
+    };
+    #[test]
+    fn test_spartan_prover() {
+        const N: usize = 3;
+        let config: *const FieldConfig<N> = &FieldConfig::new(
+            BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap(),
+        );
+        let mut rng = ark_std::test_rng();
+        let n = 1 << 13;
+        let (_, ccs, statement, wit) = get_dummy_ccs_from_z_length::<N>(n, &mut rng, config);
+        let mut transcript = KeccakTranscript::new();
+
+        let prover = ZincProver {
+            config,
+            data: std::marker::PhantomData::<BrakedownSpec1>,
+        };
+
+        let proof = prover.prove(&statement, &wit, &mut transcript, &ccs);
+
+        assert!(proof.is_ok())
+    }
 }

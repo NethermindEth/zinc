@@ -1,5 +1,5 @@
 #![allow(dead_code, non_snake_case)]
-use ark_ff::{One, Zero};
+use ark_ff::Zero;
 
 use crate::{
     ccs::ccs_f::CCS_F, field::RandomField, field_config::FieldConfig,
@@ -89,21 +89,6 @@ pub(crate) fn sumcheck_polynomial_comb_fn_1<const N: usize>(
     }
     // eq() is the last term added
     result * vals[vals.len() - 1]
-}
-
-pub(crate) fn sumcheck_polynomial_comb_fn_2<const N: usize>(
-    vals: &[RandomField<N>],
-    ccs: &CCS_F<N>,
-    gamma: &RandomField<N>,
-) -> RandomField<N> {
-    let mut result = RandomField::zero();
-    let mut g = RandomField::one();
-    for i in 0..ccs.t {
-        let summand = vals[i] * vals[ccs.t] * g;
-        result += &summand;
-        g *= gamma;
-    }
-    result
 }
 
 pub(crate) trait SqueezeBeta<const N: usize> {

@@ -385,23 +385,6 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
         Ok((g_mles, g_degree, Mz_mles))
     }
 
-    fn construct_polynomial_2(
-        constraints: &[SparseMatrix<RandomField<N>>],
-        r_a: &[RandomField<N>],
-        z: &[RandomField<N>],
-        ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<
-        (
-            Vec<DenseMultilinearExtension<N>>,
-            DenseMultilinearExtension<N>,
-        ),
-        SpartanError<N>,
-    > {
-        let (mles, z) = calculate_poly_2_mles(constraints, r_a, z, ccs.s, ccs.s_prime, config)?;
-        Ok((mles, z))
-    }
-
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof(
         transcript: &mut KeccakTranscript,
@@ -419,7 +402,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
 }
 
 // Prepare MLE's of the form mle[M_i \cdot z_ccs](x), a.k.a. \sum mle[M_i](x, b) * mle[z_ccs](b).
-pub fn calculate_Mz_mles<E, const N: usize>(
+fn calculate_Mz_mles<E, const N: usize>(
     constraints: &[SparseMatrix<RandomField<N>>],
     ccs_s: usize,
     z_ccs: &[RandomField<N>],
@@ -435,46 +418,7 @@ where
     )
 }
 
-pub fn calculate_poly_2_mles<const N: usize>(
-    constraints: &[SparseMatrix<RandomField<N>>],
-    r_a: &[RandomField<N>],
-    z: &[RandomField<N>],
-    ccs_s: usize,
-    log_n: usize,
-    config: *const FieldConfig<N>,
-) -> Result<
-    (
-        Vec<DenseMultilinearExtension<N>>,
-        DenseMultilinearExtension<N>,
-    ),
-    MleEvaluationError,
-> {
-    let mut mles: Vec<DenseMultilinearExtension<N>> = constraints
-        .iter()
-        .map(|constraint| {
-            let evaluated_vec: Vec<_> = constraint
-                .to_dense()
-                .iter()
-                .map(|constraint_vec| {
-                    DenseMultilinearExtension::<N>::from_evaluations_slice(
-                        ccs_s,
-                        constraint_vec,
-                        config,
-                    )
-                    .evaluate(r_a, config)
-                    .unwrap()
-                })
-                .collect();
-
-            DenseMultilinearExtension::from_evaluations_vec(log_n, evaluated_vec, config)
-        })
-        .collect();
-    let z = DenseMultilinearExtension::from_evaluations_slice(log_n, z, config);
-    mles.push(z.clone());
-    Ok((mles, z))
-}
-
-pub fn to_mles_err<const N: usize, I, E, E1>(
+fn to_mles_err<const N: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
     config: *const FieldConfig<N>,
@@ -497,6 +441,7 @@ where
         })
         .collect::<Result<_, E>>()
 }
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

@@ -509,8 +509,295 @@ fn squeeze_challenge_idx<const N: usize>(
     config: *const FieldConfig<N>,
     cap: usize,
 ) -> usize {
+    assert!(!config.is_null(), "FieldConfig pointer is null!");
+
     let challenge = transcript.fs_transcript.get_challenge(config);
+
     let mut bytes = [0; size_of::<u32>()];
     bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
     u32::from_le_bytes(bytes) as usize % cap
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::biginteger::BigInt;
+    use crate::brakedown::code::BrakedownSpec1;
+    use crate::field_config::FieldConfig;
+    use crate::poly::mle::{DenseMultilinearExtension, MultilinearExtension};
+    use ark_std::test_rng;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_multilinear_brakedown_setup() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+
+        assert_eq!(params.num_vars(), 4);
+        assert!(params.num_rows() > 0);
+        assert!(params.brakedown().row_len() > 0);
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_trim_success() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+
+        let trimmed = MultilinearBrakedown::<1, BrakedownSpec1>::trim(&params, 16, 0);
+        assert!(trimmed.is_ok());
+
+        let (prover_params, verifier_params) = trimmed.unwrap();
+        assert_eq!(prover_params.num_vars(), params.num_vars());
+        assert_eq!(verifier_params.num_vars(), params.num_vars());
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_trim_failure() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+
+        let trimmed = MultilinearBrakedown::<1, BrakedownSpec1>::trim(&params, 8, 0);
+        assert!(trimmed.is_err());
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_commit() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+        let poly = DenseMultilinearExtension::rand(4, &config, &mut rng);
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly);
+
+        assert!(commitment.is_ok());
+        let commitment = commitment.unwrap();
+        assert!(!commitment.rows().is_empty());
+        assert!(!commitment.intermediate_hashes().is_empty());
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_batch_commit() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let polys = vec![
+            DenseMultilinearExtension::rand(4, &config, &mut rng),
+            DenseMultilinearExtension::rand(4, &config, &mut rng),
+        ];
+        let commitments = MultilinearBrakedown::<1, BrakedownSpec1>::batch_commit(&params, &polys);
+
+        assert!(commitments.is_ok());
+        let commitments = commitments.unwrap();
+        assert_eq!(commitments.len(), 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_multilinear_brakedown_setup_invalid_size() {
+        let mut rng = test_rng();
+        MultilinearBrakedown::<1, BrakedownSpec1>::setup(15, 0, &mut rng);
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_commit_zero_poly() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let zero_poly = DenseMultilinearExtension {
+            num_vars: 4,
+            evaluations: vec![F::zero(); 16], // All zeros
+            config: &config,
+        };
+
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &zero_poly);
+        assert!(commitment.is_ok());
+        assert!(!commitment.unwrap().rows().is_empty());
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_batch_commit_empty() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+
+        let result = MultilinearBrakedown::<1, BrakedownSpec1>::batch_commit(&params, vec![]);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0,);
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_open_invalid_point() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let poly = DenseMultilinearExtension::rand(4, &config, &mut rng);
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly).unwrap();
+        let mut transcript = PcsTranscript::new();
+
+        let invalid_point = vec![F::from(2u32); 5]; // Incorrect number of variables
+        let eval = F::from(10u32);
+
+        let result = MultilinearBrakedown::<1, BrakedownSpec1>::open(
+            &params,
+            &poly,
+            &commitment,
+            &invalid_point,
+            &eval,
+            &mut transcript,
+        );
+
+        assert!(result.is_err(),);
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_batch_open_empty() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let mut transcript = PcsTranscript::new();
+
+        let result = MultilinearBrakedown::<1, BrakedownSpec1>::batch_open(
+            &params,
+            vec![],
+            vec![],
+            &[],
+            &[],
+            &mut transcript,
+        );
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0,);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_multilinear_brakedown_verify_incorrect_commitment() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let poly = DenseMultilinearExtension::rand(4, &config, &mut rng);
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly).unwrap();
+
+        let points = vec![F::from(2u32); 4];
+        let eval = F::from(10u32);
+        let mut transcript = PcsTranscript::new();
+
+        let _ = MultilinearBrakedown::<1, BrakedownSpec1>::verify(
+            &params,
+            &commitment,
+            &points,
+            &eval,
+            &mut transcript,
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_multilinear_brakedown_batch_verify_invalid() {
+        let mut rng = test_rng();
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+        let config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let poly = DenseMultilinearExtension::rand(4, &config, &mut rng);
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly).unwrap();
+
+        let points = vec![vec![F::from(2u32); 4], vec![F::from(3u32); 4]];
+        let evals = vec![F::from(10u32), F::from(20u32)];
+        let mut transcript = PcsTranscript::new();
+
+        let _ = MultilinearBrakedown::<1, BrakedownSpec1>::batch_verify(
+            &params,
+            vec![&commitment, &commitment],
+            &points,
+            &evals,
+            &mut transcript,
+        );
+    }
+
+    #[test]
+    fn test_multilinear_brakedown_verify() {
+        let mut rng = test_rng();
+        let field_config = FieldConfig::new(BigInt::<1>::from_str("2147483647").unwrap());
+
+        let params = MultilinearBrakedown::<1, BrakedownSpec1>::setup(16, 0, &mut rng);
+
+        let poly = DenseMultilinearExtension::<1>::rand(4, &field_config, &mut rng);
+        let commitment = MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly).unwrap();
+        let point = vec![F::from(2u32); 4];
+        let eval = F::from(10u32);
+        let mut transcript = PcsTranscript::new();
+
+        let _ = MultilinearBrakedown::<1, BrakedownSpec1>::open(
+            &params,
+            &poly,
+            &commitment,
+            &point,
+            &eval,
+            &mut transcript,
+        )
+        .unwrap();
+
+        // Correct verification
+        let mut verify_transcript = PcsTranscript::new();
+        let verify_result = MultilinearBrakedown::<1, BrakedownSpec1>::verify(
+            &params,
+            &commitment,
+            &point,
+            &eval,
+            &mut verify_transcript,
+        );
+        assert!(
+            verify_result.is_ok(),
+            "Verification should succeed with valid inputs."
+        );
+
+        // Incorrect commitment
+        let poly2 = DenseMultilinearExtension::<1>::rand(4, &field_config, &mut rng);
+        let wrong_commitment =
+            MultilinearBrakedown::<1, BrakedownSpec1>::commit(&params, &poly2).unwrap();
+
+        let mut verify_transcript_wrong_commit = PcsTranscript::new();
+        let verify_result_wrong_commit = MultilinearBrakedown::<1, BrakedownSpec1>::verify(
+            &params,
+            &wrong_commitment,
+            &point,
+            &eval,
+            &mut verify_transcript_wrong_commit,
+        );
+        assert!(
+            verify_result_wrong_commit.is_err(),
+            "Verification should fail with an incorrect commitment."
+        );
+
+        // Incorrect evaluation
+        let wrong_eval = F::from(20u32); // Different evaluation value
+        let mut verify_transcript_wrong_eval = PcsTranscript::new();
+        let verify_result_wrong_eval = MultilinearBrakedown::<1, BrakedownSpec1>::verify(
+            &params,
+            &commitment,
+            &point,
+            &wrong_eval,
+            &mut verify_transcript_wrong_eval,
+        );
+        assert!(
+            verify_result_wrong_eval.is_err(),
+            "Verification should fail with an incorrect evaluation."
+        );
+
+        // Incorrect evaluation point
+        let wrong_point = vec![F::from(3u32); 4]; // Different point
+        let mut verify_transcript_wrong_point = PcsTranscript::new();
+        let verify_result_wrong_point = MultilinearBrakedown::<1, BrakedownSpec1>::verify(
+            &params,
+            &commitment,
+            &wrong_point,
+            &eval,
+            &mut verify_transcript_wrong_point,
+        );
+        assert!(
+            verify_result_wrong_point.is_err(),
+            "Verification should fail with an incorrect evaluation point."
+        );
+    }
 }

@@ -359,3 +359,86 @@ fn h(p: f64) -> f64 {
 fn ceil(v: f64) -> usize {
     v.ceil() as usize
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::field::RandomField;
+    use ark_std::test_rng;
+
+    type F = RandomField<1>;
+
+    #[test]
+    fn test_brakedown_proof_size() {
+        let proof_size = Brakedown::<1>::proof_size::<BrakedownSpec1>(10, 16, 8);
+        assert!(proof_size > 0, "Proof size should be positive");
+    }
+
+    #[test]
+    fn test_brakedown_new_multilinear_initializes_correctly() {
+        let mut rng = test_rng();
+        let brakedown = Brakedown::<1>::new_multilinear::<BrakedownSpec1>(4, 10, &mut rng);
+
+        assert!(brakedown.row_len() > 0);
+        assert!(brakedown.codeword_len() > 0);
+    }
+
+    #[test]
+    fn test_brakedown_new_multilinear_different_specs() {
+        let mut rng = test_rng();
+
+        let brakedown1 = Brakedown::<1>::new_multilinear::<BrakedownSpec1>(4, 10, &mut rng);
+        let brakedown2 = Brakedown::<1>::new_multilinear::<BrakedownSpec2>(4, 10, &mut rng);
+        let brakedown3 = Brakedown::<1>::new_multilinear::<BrakedownSpec3>(4, 10, &mut rng);
+
+        assert_ne!(brakedown1.codeword_len(), brakedown2.codeword_len());
+        assert_ne!(brakedown2.codeword_len(), brakedown3.codeword_len());
+    }
+
+    #[test]
+    fn test_brakedown_encode_zero_vector() {
+        let mut rng = test_rng();
+        let brakedown = Brakedown::<1>::new_multilinear::<BrakedownSpec1>(3, 5, &mut rng);
+        let mut data = vec![F::zero(); brakedown.codeword_len()];
+
+        brakedown.encode(&mut data);
+
+        assert_ne!(data, vec![F::zero(); brakedown.codeword_len()]);
+    }
+
+    #[test]
+    fn test_brakedown_encode_vector() {
+        let mut rng = test_rng();
+        let brakedown = Brakedown::<1>::new_multilinear::<BrakedownSpec1>(3, 5, &mut rng);
+        let mut data = (0..brakedown.codeword_len())
+            .map(|_| F::rand(&mut rng))
+            .collect::<Vec<_>>();
+
+        let original_data = data.clone();
+        brakedown.encode(&mut data);
+
+        assert_ne!(data, original_data,);
+    }
+
+    #[test]
+    fn test_sparse_matrix_dot() {
+        let mut rng = test_rng();
+        let dimension = SparseMatrixDimension::new(4, 5, 3);
+        let matrix = SparseMatrix::<1>::new(dimension, &mut rng);
+        let input = vec![F::from(1u32); dimension.n];
+
+        let result = matrix.dot(&input);
+        assert_eq!(result.len(), dimension.m,);
+    }
+
+    #[test]
+    fn test_brakedown_encode_transforms_input_correctly() {
+        let mut rng = test_rng();
+        let brakedown = Brakedown::<1>::new_multilinear::<BrakedownSpec1>(3, 5, &mut rng);
+        let mut data = vec![F::from(1u32); brakedown.codeword_len()];
+
+        brakedown.encode(&mut data);
+
+        assert_ne!(data, vec![F::from(1u32); brakedown.codeword_len()],);
+    }
+}

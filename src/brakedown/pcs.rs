@@ -156,21 +156,6 @@ where
         }
     }
 
-    pub fn trim(
-        param: &Self::Param,
-        poly_size: usize,
-        _: usize,
-    ) -> Result<(Self::ProverParam, Self::VerifierParam), Error> {
-        assert!(poly_size.is_power_of_two());
-        if poly_size == 1 << param.num_vars {
-            Ok((param.clone(), param.clone()))
-        } else {
-            Err(Error::InvalidPcsParam(
-                "Can't trim MultilinearBrakedownParams into different poly_size".to_string(),
-            ))
-        }
-    }
-
     pub fn commit(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,

@@ -175,14 +175,14 @@ where
 
         let row_len = pp.brakedown.row_len();
         let codeword_len = pp.brakedown.codeword_len();
-        let depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         let mut rows = vec![F::zero(); pp.num_rows * codeword_len];
-        let mut hashes = vec![Output::<Keccak256>::default(); (2 << depth) - 1];
+        let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
         Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
-        Self::merklize_column_hashes(depth, &mut hashes);
+        Self::merklize_column_hashes(merkle_depth, &mut hashes);
 
         let (intermediate_hashes, root) = {
             let mut intermediate_hashes = hashes;

@@ -50,6 +50,7 @@ impl<const N: usize> MultilinearBrakedownParams<N> {
         &self.brakedown
     }
 }
+
 /// Representantation of a brakedown commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearBrakedownCommitment<const N: usize> {
@@ -89,15 +90,11 @@ impl<const N: usize> AsRef<[Output<Keccak256>]> for MultilinearBrakedownCommitme
 }
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
-    Error::InvalidPcsParam(if function == "trim" {
-        format!(
-            "Too many variates to {function} (param supports variates up to {upto} but got {got})"
-        )
-    } else {
+    Error::InvalidPcsParam(
         format!(
             "Too many variates of poly to {function} (param supports variates up to {upto} but got {got})"
         )
-    })
+    )
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size

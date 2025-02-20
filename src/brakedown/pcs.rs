@@ -141,7 +141,7 @@ where
     pub type Commitment = MultilinearBrakedownCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 
-    pub fn setup(poly_size: usize, _: usize, rng: impl RngCore) -> Self::Param {
+    pub fn setup(poly_size: usize, rng: impl RngCore) -> Self::Param {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
         let brakedown = Brakedown::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng);

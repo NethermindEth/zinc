@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::{marker::PhantomData, slice};
 
 use ark_ff::Zero;
+use ark_std::iterable::Iterable;
 use ark_std::rand::RngCore;
 use itertools::Itertools;
 use sha3::Digest;
@@ -96,14 +97,14 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
     })
 }
 
+// Ensures that polynomials and evaluation points are of appropriate size
 fn validate_input<'a, const N: usize>(
     function: &str,
     param_num_vars: usize,
-    polys: impl IntoIterator<Item = &'a DenseMultilinearExtension<N>>,
-    points: impl IntoIterator<Item = &'a Vec<F<N>>>,
+    polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+    points: impl Iterable<Item = &'a Vec<F<N>>>,
 ) -> Result<(), Error> {
-    let polys = polys.into_iter().collect_vec();
-    let points = points.into_iter().collect_vec();
+    // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
         if param_num_vars < poly.num_vars {
             return Err(err_too_many_variates(
@@ -113,13 +114,16 @@ fn validate_input<'a, const N: usize>(
             ));
         }
     }
+
+    // Ensure all the points are of correct length
     let input_num_vars = polys
         .iter()
         .map(|poly| poly.num_vars)
         .chain(points.iter().map(|point| point.len()))
         .next()
         .expect("To have at least 1 poly or point");
-    for point in points.into_iter() {
+
+    for point in points.iter() {
         if point.len() != input_num_vars {
             return Err(Error::InvalidPcsParam(format!(
                 "Invalid point (expect point to have {input_num_vars} variates but got {})",

@@ -50,11 +50,14 @@ impl<const N: usize> MultilinearBrakedownParams<N> {
         &self.brakedown
     }
 }
-
+/// Representantation of a brakedown commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearBrakedownCommitment<const N: usize> {
+    /// The encoded rows of the polynomial matrix representation
     rows: Vec<F<N>>,
+    /// Hashes of the merkle tree with the encoded columns as leaves
     intermediate_hashes: Vec<Output<Keccak256>>,
+    /// Root of the merkle tree with the encoded columns as leaves
     root: Output<Keccak256>,
 }
 

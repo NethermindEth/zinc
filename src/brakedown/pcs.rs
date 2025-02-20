@@ -4,7 +4,7 @@ use std::{marker::PhantomData, slice};
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 use ark_std::rand::RngCore;
-use itertools::Itertools;
+use itertools::{izip, Itertools};
 use sha3::Digest;
 use sha3::{digest::Output, Keccak256};
 
@@ -188,13 +188,9 @@ where
 
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,
-        polys: impl IntoIterator<Item = &'a DenseMultilinearExtension<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
     ) -> Result<Vec<Self::Commitment>, Error> {
-        let polys_vec: Vec<&Self::Polynomial> = polys.into_iter().collect();
-        polys_vec
-            .iter()
-            .map(|poly| Self::commit(pp, poly))
-            .collect()
+        polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
 
     pub fn open(
@@ -277,8 +273,8 @@ where
     // TODO: Apply 2022/1355
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
-        polys: impl IntoIterator<Item = &'a DenseMultilinearExtension<N>>,
-        comms: impl IntoIterator<Item = &'a MultilinearBrakedownCommitment<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+        comms: impl Iterable<Item = &'a MultilinearBrakedownCommitment<N>>,
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
@@ -286,13 +282,10 @@ where
         //	use std::env;
         //	let key = "RAYON_NUM_THREADS";
         //	env::set_var(key, "8");
-        let polys = polys.into_iter().collect_vec();
-        let comms = comms.into_iter().collect_vec();
+
         let mut proofs = vec![];
-        for (i, eval) in evals.iter().enumerate() {
-            proofs.push(Self::open(
-                pp, polys[i], comms[i], &points[i], eval, transcript,
-            )?);
+        for (i, (eval, poly, comm)) in izip!(evals.iter(), polys.iter(), comms.iter()).enumerate() {
+            proofs.push(Self::open(pp, poly, comm, &points[i], eval, transcript)?);
         }
         Ok(proofs)
     }
@@ -402,14 +395,13 @@ where
 
     pub fn batch_verify<'a>(
         vp: &Self::VerifierParam,
-        comms: impl IntoIterator<Item = &'a MultilinearBrakedownCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearBrakedownCommitment<N>>,
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
-        let comms = comms.into_iter().collect_vec();
-        for (i, eval) in evals.iter().enumerate() {
-            Self::verify(vp, comms[i], &points[i], eval, transcript)?;
+        for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
+            Self::verify(vp, comm, &points[i], eval, transcript)?;
         }
         Ok(())
     }

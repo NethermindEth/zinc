@@ -208,7 +208,7 @@ where
         let codeword_len = pp.brakedown.codeword_len();
 
         // prove proximity
-        let (t_0, _t_1) = point_to_tensor(pp.num_rows, point, eval.config_ptr()).unwrap();
+        let (t_0, _) = point_to_tensor(pp.num_rows, point, eval.config_ptr()).unwrap();
         let t_0_combined_row = if pp.num_rows > 1 {
             let combine = |combined_row: &mut [F<N>], coeffs: &[F<N>]| {
                 parallelize(combined_row, |(combined_row, offset)| {
@@ -243,7 +243,7 @@ where
         transcript.write_field_elements(&t_0_combined_row)?;
 
         // open merkle tree
-        let depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
         for _ in 0..pp.brakedown.num_column_opening() {
             let column = squeeze_challenge_idx(transcript, eval.config_ptr(), codeword_len);
@@ -259,7 +259,7 @@ where
             )?;
 
             let mut offset = 0;
-            for (idx, width) in (1..=depth).rev().map(|depth| 1 << depth).enumerate() {
+            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
                 let neighbor_idx = (column >> idx) ^ 1;
                 transcript.write_commitment(&comm.intermediate_hashes[offset + neighbor_idx])?;
                 proof.push(comm.intermediate_hashes[offset + neighbor_idx]);

@@ -145,10 +145,15 @@ where
     pub type Commitment = MultilinearBrakedownCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 
-    pub fn setup(poly_size: usize, rng: impl RngCore) -> Self::Param {
+    pub fn setup(
+        poly_size: usize,
+        rng: impl RngCore,
+        config: *const FieldConfig<N>,
+    ) -> Self::Param {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let brakedown = Brakedown::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng);
+        let brakedown =
+            Brakedown::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng, config);
         MultilinearBrakedownParams {
             num_vars,
             num_rows: (1 << num_vars) / brakedown.row_len(),
@@ -515,8 +520,18 @@ fn point_to_tensor<const N: usize>(
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
-    let t_0 = build_eq_x_r(lo, config).unwrap();
-    let t_1 = build_eq_x_r(hi, config).unwrap();
+    let t_0 = if !lo.is_empty() {
+        build_eq_x_r(lo, config).unwrap()
+    } else {
+        DenseMultilinearExtension::<N>::zero()
+    };
+
+    let t_1 = if !hi.is_empty() {
+        build_eq_x_r(hi, config).unwrap()
+    } else {
+        DenseMultilinearExtension::<N>::zero()
+    };
+
     Ok((t_0.evaluations, t_1.evaluations))
 }
 

@@ -207,81 +207,32 @@ where
 
         let codeword_len = pp.brakedown.codeword_len();
 
-        // prove proximity
-        //Todo Let's make this its own function
-        let (t_0, _) = point_to_tensor(pp.num_rows, point, eval.config_ptr()).unwrap();
-        let t_0_combined_row = if pp.num_rows > 1 {
-            // Define function that performs a row operation on the evaluation matrix
-            // [t_0]^T * M]
-            //
-            // TODO make this its own function
-            let combine = |combined_row: &mut [F<N>], coeffs: &[F<N>]| {
-                parallelize(combined_row, |(combined_row, offset)| {
-                    combined_row
-                        .iter_mut()
-                        .zip(offset..)
-                        .for_each(|(combined, column)| {
-                            *combined = F::zero();
-                            coeffs
-                                .iter()
-                                .zip(poly.evaluations.iter().skip(column).step_by(row_len))
-                                .for_each(|(coeff, eval)| {
-                                    *combined += &(*coeff * eval);
-                                });
-                        })
-                });
-            };
-            let mut combined_row = Vec::with_capacity(row_len);
+        Self::prove_proximity(
+            pp.num_rows,
+            row_len,
+            transcript,
+            pp.brakedown.num_proximity_testing(),
+            point,
+            eval,
+            poly,
+        )?;
 
-            // perform the proximity test an arbitrary number of times
-            for _ in 0..pp.brakedown.num_proximity_testing() {
-                let coeffs = transcript
-                    .fs_transcript
-                    .get_challenges(eval.config_ptr(), pp.num_rows);
-                combine(&mut combined_row, &coeffs);
-                transcript.write_field_elements(&combined_row)?;
-            }
-            // Return the evalauation row combination
-            combine(&mut combined_row, &t_0);
-            Cow::<Vec<F<N>>>::Owned(combined_row)
-        } else {
-            // If there is only one row, we have no need to take linear combinations
-            // We just return the evaluation row combination
-            Cow::Borrowed(&poly.evaluations)
-        };
-        // And we write the evaluation row combination to the transcript
-        transcript.write_field_elements(&t_0_combined_row)?;
-
-        // open merkle tree
-        // TODO make this its own function
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
-        for _ in 0..pp.brakedown.num_column_opening() {
-            let column = squeeze_challenge_idx(transcript, eval.config_ptr(), codeword_len);
-
-            transcript.write_field_elements(
-                &comm
-                    .rows
-                    .iter()
-                    .copied()
-                    .skip(column)
-                    .step_by(codeword_len)
-                    .collect::<Vec<_>>(),
-            )?;
-
-            let mut offset = 0;
-            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
-                let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&comm.intermediate_hashes[offset + neighbor_idx])?;
-                proof.push(comm.intermediate_hashes[offset + neighbor_idx]);
-                offset += width;
-            }
-        }
+        Self::open_merkle_tree(
+            merkle_depth,
+            &mut proof,
+            pp.brakedown.num_column_opening(),
+            transcript,
+            eval,
+            codeword_len,
+            comm,
+        )?;
 
         Ok(proof)
     }
 
-    // TODO: Apply 2022/1355
+    // TODO Apply 2022/1355
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
@@ -419,6 +370,38 @@ where
         Ok(())
     }
 
+    fn prove_proximity(
+        num_rows: usize,
+        row_len: usize,
+        transcript: &mut PcsTranscript<N>,
+        num_proximity_testing: usize,
+        point: &[F<N>],
+        evaluation: &F<N>,
+        poly: &Self::Polynomial,
+    ) -> Result<(), Error> {
+        let (t_0, _) = point_to_tensor(num_rows, point, evaluation.config_ptr()).unwrap();
+        let t_0_combined_row = if num_rows > 1 {
+            let mut combined_row = Vec::with_capacity(row_len);
+
+            // perform the proximity test an arbitrary number of times
+            for _ in 0..num_proximity_testing {
+                let coeffs = transcript
+                    .fs_transcript
+                    .get_challenges(evaluation.config_ptr(), num_rows);
+                combine_rows(&mut combined_row, &coeffs, &poly.evaluations, row_len);
+                transcript.write_field_elements(&combined_row)?;
+            }
+            // Return the evalauation row combination
+            combine_rows(&mut combined_row, &t_0, &poly.evaluations, row_len);
+            Cow::<Vec<F<N>>>::Owned(combined_row)
+        } else {
+            // If there is only one row, we have no need to take linear combinations
+            // We just return the evaluation row combination
+            Cow::Borrowed(&poly.evaluations)
+        };
+        transcript.write_field_elements(&t_0_combined_row)
+    }
+
     fn encode_rows(
         pp: &Self::ProverParam,
         codeword_len: usize,
@@ -483,6 +466,39 @@ where
             offset += width;
         }
     }
+
+    fn open_merkle_tree(
+        merkle_depth: usize,
+        proof: &mut Vec<Output<Keccak256>>,
+        num_col_opening: usize,
+        transcript: &mut PcsTranscript<N>,
+        eval: &F<N>,
+        codeword_len: usize,
+        comm: &Self::Commitment,
+    ) -> Result<(), Error> {
+        for _ in 0..num_col_opening {
+            let column = squeeze_challenge_idx(transcript, eval.config_ptr(), codeword_len);
+
+            transcript.write_field_elements(
+                &comm
+                    .rows
+                    .iter()
+                    .copied()
+                    .skip(column)
+                    .step_by(codeword_len)
+                    .collect::<Vec<_>>(),
+            )?;
+
+            let mut offset = 0;
+            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
+                let neighbor_idx = (column >> idx) ^ 1;
+                transcript.write_commitment(&comm.intermediate_hashes[offset + neighbor_idx])?;
+                proof.push(comm.intermediate_hashes[offset + neighbor_idx]);
+                offset += width;
+            }
+        }
+        Ok(())
+    }
 }
 
 fn point_to_tensor<const N: usize>(
@@ -507,4 +523,28 @@ fn squeeze_challenge_idx<const N: usize>(
     let mut bytes = [0; size_of::<u32>()];
     bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
     u32::from_le_bytes(bytes) as usize % cap
+}
+
+// Define function that performs a row operation on the evaluation matrix
+// [t_0]^T * M]
+fn combine_rows<const N: usize>(
+    combined_row: &mut [F<N>],
+    coeffs: &[F<N>],
+    evaluations: &[F<N>],
+    row_len: usize,
+) {
+    parallelize(combined_row, |(combined_row, offset)| {
+        combined_row
+            .iter_mut()
+            .zip(offset..)
+            .for_each(|(combined, column)| {
+                *combined = F::zero();
+                coeffs
+                    .iter()
+                    .zip(evaluations.iter().skip(column).step_by(row_len))
+                    .for_each(|(coeff, eval)| {
+                        *combined += &(*coeff * eval);
+                    });
+            })
+    });
 }

@@ -307,13 +307,12 @@ where
         combined_rows.push({
             let mut t_0_combined_row =
                 transcript.read_field_elements(row_len, eval.config_ptr())?;
-            println!("{:?}", transcript.stream.position());
-            println!("{:?}", t_0_combined_row);
+
             t_0_combined_row.resize(codeword_len, F::zero());
             vp.brakedown.encode(&mut t_0_combined_row);
             (t_0, t_0_combined_row)
         });
-
+        println!("{:?}", combined_rows);
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         // Ensure that the test combinations are valid codewords

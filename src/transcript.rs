@@ -115,13 +115,14 @@ impl KeccakTranscript {
             ret
         }
     }
-
     pub fn get_challenges<const N: usize>(
         &mut self,
-        config: *const FieldConfig<N>,
         n: usize,
+        config: *const FieldConfig<N>,
     ) -> Vec<RandomField<N>> {
-        (0..n).map(|_| self.get_challenge(config)).collect()
+        let mut challenges = Vec::with_capacity(n);
+        challenges.extend((0..n).map(|_| self.get_challenge(config)));
+        challenges
     }
 }
 

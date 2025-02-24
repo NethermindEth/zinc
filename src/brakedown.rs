@@ -2,13 +2,17 @@ pub mod code;
 pub mod pcs;
 pub mod pcs_transcript;
 pub mod utils;
-
-#[derive(Clone, Debug, PartialEq)]
+use thiserror::Error;
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum Error {
-    InvalidSumcheck(String),
+    #[error("Invalid PCS param: {0}")]
     InvalidPcsParam(String),
+    #[error("Invalid commitment opening: {0}")]
     InvalidPcsOpen(String),
+    #[error("Bad Snark: {0}")]
     InvalidSnark(String),
+    #[error("Serialization Error: {0}")]
     Serialization(String),
+    #[error("Transcript failure: {1}")]
     Transcript(std::io::ErrorKind, String),
 }

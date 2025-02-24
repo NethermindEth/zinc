@@ -2,14 +2,16 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
 
-use ark_ff::{One, UniformRand, Zero};
+use ark_ff::{One, Zero};
 use ark_std::fmt::Debug;
 use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
 
 use crate::brakedown::utils::evaluate_poly;
+use crate::field::rand_with_config;
 use crate::field::RandomField as F;
+use crate::field_config::FieldConfig;
 
 pub trait LinearCodes<const N: usize>: Sync + Send {
     fn row_len(&self) -> usize;
@@ -44,6 +46,7 @@ impl<const N: usize> Brakedown<N> {
         num_vars: usize,
         n_0: usize,
         rng: impl RngCore,
+        config: *const FieldConfig<N>,
     ) -> Self {
         assert!(1 << num_vars > n_0);
 
@@ -64,7 +67,7 @@ impl<const N: usize> Brakedown<N> {
         let codeword_len = S::codeword_len(log2_q, row_len, n_0);
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
-        let (a, b) = S::matrices(log2_q, row_len, n_0, rng);
+        let (a, b) = S::matrices(log2_q, row_len, n_0, rng, config);
 
         Self {
             row_len,
@@ -232,14 +235,15 @@ pub trait BrakedownSpec: Debug {
         n: usize,
         n_0: usize,
         mut rng: impl RngCore,
+        config: *const FieldConfig<N>,
     ) -> (Vec<SparseMatrix<N>>, Vec<SparseMatrix<N>>) {
         let (a, b) = Self::dimensions(log2_q, n, n_0);
         a.into_iter()
             .zip(b)
             .map(|(a, b)| {
                 (
-                    SparseMatrix::new(a, &mut rng),
-                    SparseMatrix::new(b, &mut rng),
+                    SparseMatrix::new(a, &mut rng, config),
+                    SparseMatrix::new(b, &mut rng, config),
                 )
             })
             .unzip()
@@ -291,7 +295,11 @@ pub struct SparseMatrix<const N: usize> {
 }
 
 impl<const N: usize> SparseMatrix<N> {
-    fn new(dimension: SparseMatrixDimension, mut rng: impl RngCore) -> Self {
+    fn new(
+        dimension: SparseMatrixDimension,
+        mut rng: impl RngCore,
+        config: *const FieldConfig<N>,
+    ) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             (&mut rng)
@@ -301,7 +309,7 @@ impl<const N: usize> SparseMatrix<N> {
                 .count();
             columns
                 .into_iter()
-                .map(|column| (column, F::rand(&mut rng)))
+                .map(|column| (column, rand_with_config(&mut rng, config)))
                 .collect_vec()
         })
         .take(dimension.n)

@@ -1,6 +1,10 @@
+#![allow(non_snake_case)]
+
 use ark_ff::{vec::*, UniformRand, Zero};
 
 use ark_std::rand::Rng;
+
+use crate::{field::RandomField, field_config::FieldConfig};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SparseMatrix<R1: Clone + Send + Sync> {
@@ -113,4 +117,23 @@ where
         r.coeffs.push(row);
     }
     r
+}
+
+pub fn compute_eval_table_sparse<const N: usize>(
+    M: &SparseMatrix<RandomField<N>>,
+    rx: &[RandomField<N>],
+    num_rows: usize,
+    num_cols: usize,
+    config: *const FieldConfig<N>,
+) -> Vec<RandomField<N>> {
+    assert_eq!(rx.len(), num_rows);
+    M.coeffs.iter().enumerate().fold(
+        vec![RandomField::from_bigint(config, 0u32.into()).unwrap(); num_cols],
+        |mut M_evals, (row, vals)| {
+            for (val, col) in vals {
+                M_evals[*col] += &(rx[row] * val);
+            }
+            M_evals
+        },
+    )
 }

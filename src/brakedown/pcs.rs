@@ -280,7 +280,8 @@ where
         let row_len = vp.brakedown.row_len();
         let codeword_len = vp.brakedown.codeword_len();
 
-        let (t_0, t_1) = point_to_tensor(vp.num_rows, point, eval.config_ptr())?;
+        // Retrieve the row combinations from the transcript
+        // Pair the combinations with the coefficients that generated them
         let mut combined_rows = Vec::with_capacity(vp.brakedown.num_proximity_testing() + 1);
         if vp.num_rows > 1 {
             let coeffs = transcript
@@ -291,15 +292,19 @@ where
             vp.brakedown.encode(&mut combined_row);
             combined_rows.push((coeffs, combined_row));
         }
+
+        let (t_0, t_1) = point_to_tensor(vp.num_rows, point, eval.config_ptr())?;
         combined_rows.push({
-            let mut combined_row = transcript.read_field_elements(row_len, eval.config_ptr())?;
-            combined_row.resize(codeword_len, F::zero());
-            vp.brakedown.encode(&mut combined_row);
-            (t_0, combined_row)
+            let mut t_0_combined_row =
+                transcript.read_field_elements(row_len, eval.config_ptr())?;
+            t_0_combined_row.resize(codeword_len, F::zero());
+            vp.brakedown.encode(&mut t_0_combined_row);
+            (t_0, t_0_combined_row)
         });
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
 
+        // Ensure that the test combinations are valid codewords
         for _ in 0..vp.brakedown.num_column_opening() {
             let column = squeeze_challenge_idx(transcript, eval.config_ptr(), codeword_len);
             let items = transcript.read_field_elements(vp.num_rows, eval.config_ptr())?;

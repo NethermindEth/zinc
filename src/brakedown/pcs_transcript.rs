@@ -52,6 +52,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
+    // TODO if we change this to an iterator we may be able to save some memory
     pub fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;

@@ -312,48 +312,12 @@ where
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.brakedown.num_column_opening() {
             let column = squeeze_challenge_idx(transcript, eval.config_ptr(), codeword_len);
+
             let items = transcript.read_field_elements(vp.num_rows, eval.config_ptr())?;
-            let path = transcript.read_commitments(depth)?;
+            let merkle_path = transcript.read_commitments(depth)?;
 
-            // verify proximity
-            for (coeff, encoded) in combined_rows.iter() {
-                let item = if vp.num_rows > 1 {
-                    inner_product(coeff, &items)
-                } else {
-                    items[0]
-                };
-                if item != encoded[column] {
-                    return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
-                }
-            }
-
-            // verify merkle tree opening
-            let mut hasher = Keccak256::default();
-            let mut output = {
-                for item in items.iter() {
-                    <Keccak256 as sha3::digest::Update>::update(
-                        &mut hasher,
-                        &item.value().to_bytes_be(),
-                    );
-                }
-
-                hasher.clone().finalize()
-            };
-            for (idx, neighbor) in path.iter().enumerate() {
-                if (column >> idx) & 1 == 0 {
-                    <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
-                    <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
-                } else {
-                    <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
-                    <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
-                }
-                output = hasher.clone().finalize();
-            }
-            if &output != comm.root() {
-                return Err(Error::InvalidPcsOpen(
-                    "Invalid merkle tree opening".to_string(),
-                ));
-            }
+            Self::verify_proximity(&combined_rows, &items, column, vp.num_rows)?;
+            Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }
 
         // verify consistency
@@ -506,6 +470,60 @@ where
                 transcript.write_commitment(&comm.intermediate_hashes[offset + neighbor_idx])?;
                 proof.push(comm.intermediate_hashes[offset + neighbor_idx]);
                 offset += width;
+            }
+        }
+        Ok(())
+    }
+
+    fn verify_merkle_path(
+        items: &[F<N>],
+        path: &[Output<Keccak256>],
+        column: usize,
+        comm: &Self::Commitment,
+    ) -> Result<(), Error> {
+        let mut hasher = Keccak256::default();
+        let mut output = {
+            for item in items.iter() {
+                <Keccak256 as sha3::digest::Update>::update(
+                    &mut hasher,
+                    &item.value().to_bytes_be(),
+                );
+            }
+
+            hasher.clone().finalize()
+        };
+        for (idx, neighbor) in path.iter().enumerate() {
+            if (column >> idx) & 1 == 0 {
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
+            } else {
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
+            }
+            output = hasher.clone().finalize();
+        }
+        if &output != comm.root() {
+            return Err(Error::InvalidPcsOpen(
+                "Invalid merkle tree opening".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    fn verify_proximity(
+        combined_rows: &[(Vec<F<N>>, Vec<F<N>>)],
+        items: &[F<N>],
+        column: usize,
+        num_rows: usize,
+    ) -> Result<(), Error> {
+        for (coeff, encoded) in combined_rows.iter() {
+            let item = if num_rows > 1 {
+                inner_product(coeff, items)
+            } else {
+                items[0]
+            };
+            if item != encoded[column] {
+                return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
             }
         }
         Ok(())

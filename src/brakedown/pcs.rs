@@ -208,8 +208,13 @@ where
         let codeword_len = pp.brakedown.codeword_len();
 
         // prove proximity
+        //Todo Let's make this its own function
         let (t_0, _) = point_to_tensor(pp.num_rows, point, eval.config_ptr()).unwrap();
         let t_0_combined_row = if pp.num_rows > 1 {
+            // Define function that performs a row operation on the evaluation matrix
+            // [t_0]^T * M]
+            //
+            // TODO make this its own function
             let combine = |combined_row: &mut [F<N>], coeffs: &[F<N>]| {
                 parallelize(combined_row, |(combined_row, offset)| {
                     combined_row
@@ -226,8 +231,9 @@ where
                         })
                 });
             };
-            let mut combined_row = vec![F::zero(); row_len];
+            let mut combined_row = Vec::with_capacity(row_len);
 
+            // perform the proximity test an arbitrary number of times
             for _ in 0..pp.brakedown.num_proximity_testing() {
                 let coeffs = transcript
                     .fs_transcript
@@ -235,14 +241,19 @@ where
                 combine(&mut combined_row, &coeffs);
                 transcript.write_field_elements(&combined_row)?;
             }
+            // Return the evalauation row combination
             combine(&mut combined_row, &t_0);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
+            // If there is only one row, we have no need to take linear combinations
+            // We just return the evaluation row combination
             Cow::Borrowed(&poly.evaluations)
         };
+        // And we write the evaluation row combination to the transcript
         transcript.write_field_elements(&t_0_combined_row)?;
 
         // open merkle tree
+        // TODO make this its own function
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
         for _ in 0..pp.brakedown.num_column_opening() {
@@ -284,8 +295,10 @@ where
         //	env::set_var(key, "8");
 
         let mut proofs = vec![];
-        for (i, (eval, poly, comm)) in izip!(evals.iter(), polys.iter(), comms.iter()).enumerate() {
-            proofs.push(Self::open(pp, poly, comm, &points[i], eval, transcript)?);
+        for (eval, poly, comm, point) in
+            izip!(evals.iter(), polys.iter(), comms.iter(), points.iter())
+        {
+            proofs.push(Self::open(pp, poly, comm, point, eval, transcript)?);
         }
         Ok(proofs)
     }

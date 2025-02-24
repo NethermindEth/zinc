@@ -219,6 +219,7 @@ where
 
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
+
         Self::open_merkle_tree(
             merkle_depth,
             &mut proof,
@@ -232,7 +233,7 @@ where
         Ok(proof)
     }
 
-    // TODO Apply 2022/1355
+    // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,

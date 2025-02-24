@@ -72,19 +72,14 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     pub fn read_field_element(&mut self, config: *const FieldConfig<N>) -> Result<F<N>, Error> {
-        let mut bytes: [u8; N] = [0; N];
+        let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        let fe =
-            F::from_bigint(config, BigInt::from_bytes_be(&bytes).unwrap()).ok_or_else(|| {
-                Error::Transcript(
-                    std::io::ErrorKind::Other,
-                    "Invalid field element encoding in proof".to_string(),
-                )
-            })?;
+        let fe = F::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
+
         self.common_field_element(&fe);
         Ok(fe)
     }

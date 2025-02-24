@@ -288,20 +288,27 @@ where
         // Retrieve the row combinations from the transcript
         // Pair the combinations with the coefficients that generated them
         let mut combined_rows = Vec::with_capacity(vp.brakedown.num_proximity_testing() + 1);
+
         if vp.num_rows > 1 {
-            let coeffs = transcript
-                .fs_transcript
-                .get_challenges(eval.config_ptr(), vp.num_rows);
-            let mut combined_row = transcript.read_field_elements(row_len, eval.config_ptr())?;
-            combined_row.resize(codeword_len, F::zero());
-            vp.brakedown.encode(&mut combined_row);
-            combined_rows.push((coeffs, combined_row));
+            for _ in 0..vp.brakedown.num_proximity_testing() {
+                let coeffs = transcript
+                    .fs_transcript
+                    .get_challenges(eval.config_ptr(), vp.num_rows);
+                let mut combined_row =
+                    transcript.read_field_elements(row_len, eval.config_ptr())?;
+
+                combined_row.resize(codeword_len, F::zero());
+                vp.brakedown.encode(&mut combined_row);
+                combined_rows.push((coeffs, combined_row));
+            }
         }
 
         let (t_0, t_1) = point_to_tensor(vp.num_rows, point, eval.config_ptr())?;
         combined_rows.push({
             let mut t_0_combined_row =
                 transcript.read_field_elements(row_len, eval.config_ptr())?;
+            println!("{:?}", transcript.stream.position());
+            println!("{:?}", t_0_combined_row);
             t_0_combined_row.resize(codeword_len, F::zero());
             vp.brakedown.encode(&mut t_0_combined_row);
             (t_0, t_0_combined_row)
@@ -377,6 +384,8 @@ where
             // We just return the evaluation row combination
             Cow::Borrowed(&poly.evaluations)
         };
+
+        println!("{:?}\n\n", t_0_combined_row);
         transcript.write_field_elements(&t_0_combined_row)
     }
 
@@ -589,5 +598,6 @@ fn combine_rows<const N: usize>(
                     });
             })
     });
+
     combined_row
 }

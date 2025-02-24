@@ -302,7 +302,7 @@ impl<const N: usize> RandomField<N> {
 }
 
 impl<const N: usize> RandomField<N> {
-    fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
+    pub fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
         Initialized { config, value }
     }
 

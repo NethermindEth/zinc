@@ -355,19 +355,22 @@ where
         poly: &Self::Polynomial,
     ) -> Result<(), Error> {
         let (t_0, _) = point_to_tensor(num_rows, point, evaluation.config_ptr()).unwrap();
-        let t_0_combined_row = if num_rows > 1 {
-            let mut combined_row = Vec::with_capacity(row_len);
 
+        if num_rows > 1 {
+            // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
             for _ in 0..num_proximity_testing {
                 let coeffs = transcript
                     .fs_transcript
                     .get_challenges(evaluation.config_ptr(), num_rows);
-                combine_rows(&mut combined_row, &coeffs, &poly.evaluations, row_len);
+                let combined_row = combine_rows(&coeffs, &poly.evaluations, row_len);
                 transcript.write_field_elements(&combined_row)?;
             }
+        }
+
+        let t_0_combined_row = if num_rows > 1 {
             // Return the evalauation row combination
-            combine_rows(&mut combined_row, &t_0, &poly.evaluations, row_len);
+            let combined_row = combine_rows(&t_0, &poly.evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -567,12 +570,12 @@ fn squeeze_challenge_idx<const N: usize>(
 // Define function that performs a row operation on the evaluation matrix
 // [t_0]^T * M]
 fn combine_rows<const N: usize>(
-    combined_row: &mut [F<N>],
     coeffs: &[F<N>],
     evaluations: &[F<N>],
     row_len: usize,
-) {
-    parallelize(combined_row, |(combined_row, offset)| {
+) -> Vec<F<N>> {
+    let mut combined_row = Vec::with_capacity(row_len);
+    parallelize(&mut combined_row, |(combined_row, offset)| {
         combined_row
             .iter_mut()
             .zip(offset..)
@@ -586,4 +589,5 @@ fn combine_rows<const N: usize>(
                     });
             })
     });
+    combined_row
 }

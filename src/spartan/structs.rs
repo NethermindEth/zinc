@@ -41,5 +41,5 @@ where
     S: BrakedownSpec,
 {
     pub config: *const FieldConfig<N>,
-    data: PhantomData<S>,
+    pub data: PhantomData<S>,
 }

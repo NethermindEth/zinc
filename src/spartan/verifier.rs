@@ -51,9 +51,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, rng, unsafe {
-            *ccs.config.as_ptr()
-        });
+        let param =
+            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
 

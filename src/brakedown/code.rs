@@ -99,6 +99,7 @@ impl<const N: usize> LinearCodes<N> for Brakedown<N> {
 
     fn encode(&self, mut target: impl AsMut<[F<N>]>) {
         let target = target.as_mut();
+
         assert_eq!(target.len(), self.codeword_len);
 
         let mut input_offset = 0;

@@ -6,7 +6,9 @@ use structs::{SpartanProof, ZincProver, ZincVerifier};
 use utils::{sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma};
 
 use crate::{
-    brakedown::{code::BrakedownSpec, pcs::MultilinearBrakedown, pcs_transcript::PcsTranscript},
+    brakedown::{
+        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+    },
     ccs::{
         ccs_f::{Instance_F, Statement, Witness, CCS_F},
         error::CSError,
@@ -104,7 +106,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         });
         let rng = ark_std::test_rng();
         let param =
-            MultilinearBrakedown::<N, S>::setup(ccs.m, ccs.m, rng, unsafe { *ccs.config.as_ptr() });
+            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
         let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
         let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
             &z_ccs,
@@ -209,7 +211,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, ccs.m, rng, unsafe {
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m - ccs.l - 1, rng, unsafe {
             *ccs.config.as_ptr()
         });
         // Step 1: Generate the beta challenges.

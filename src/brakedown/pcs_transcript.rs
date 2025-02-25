@@ -52,6 +52,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
+    // TODO if we change this to an iterator we may be able to save some memory
     pub fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;
@@ -71,19 +72,14 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     pub fn read_field_element(&mut self, config: *const FieldConfig<N>) -> Result<F<N>, Error> {
-        let mut bytes: [u8; N] = [0; N];
+        let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        let fe =
-            F::from_bigint(config, BigInt::from_bytes_be(&bytes).unwrap()).ok_or_else(|| {
-                Error::Transcript(
-                    std::io::ErrorKind::Other,
-                    "Invalid field element encoding in proof".to_string(),
-                )
-            })?;
+        let fe = F::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
+
         self.common_field_element(&fe);
         Ok(fe)
     }
@@ -108,5 +104,12 @@ impl<const N: usize> PcsTranscript<N> {
             self.write_commitment(comm)?;
         }
         Ok(())
+    }
+
+    pub fn squeeze_challenge_idx(&mut self, config: *const FieldConfig<N>, cap: usize) -> usize {
+        let challenge = self.fs_transcript.get_challenge(config);
+        let mut bytes = [0; size_of::<u32>()];
+        bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
+        u32::from_le_bytes(bytes) as usize % cap
     }
 }

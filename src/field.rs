@@ -1,6 +1,6 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-use ark_ff::{UniformRand, Zero};
+use ark_ff::UniformRand;
 
 use crate::{
     biginteger::BigInt,
@@ -302,7 +302,7 @@ impl<const N: usize> RandomField<N> {
 }
 
 impl<const N: usize> RandomField<N> {
-    fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
+    pub fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
         Initialized { config, value }
     }
 
@@ -315,9 +315,7 @@ impl<const N: usize> RandomField<N> {
         }
 
         unsafe {
-            if value.is_zero() {
-                Some(Self::zero())
-            } else if value >= (*config).modulus {
+            if value >= (*config).modulus {
                 None
             } else {
                 let mut r = value;
@@ -388,6 +386,13 @@ impl<const N: usize> Default for RandomField<N> {
         Raw {
             value: BigInt::zero(),
         }
+    }
+}
+
+pub fn zero_with_config<const N: usize>(config: *const FieldConfig<N>) -> RandomField<N> {
+    Initialized {
+        config,
+        value: BigInt::zero(),
     }
 }
 

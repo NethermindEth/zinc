@@ -2,6 +2,9 @@ pub mod code;
 pub mod pcs;
 pub mod pcs_transcript;
 pub mod utils;
+
+#[cfg(test)]
+mod tests;
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum Error {

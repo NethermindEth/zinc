@@ -55,7 +55,7 @@ where
             for _ in 0..vp.brakedown().num_proximity_testing() {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_challenges(eval.config_ptr(), vp.num_rows());
+                    .get_challenges(vp.num_rows(), eval.config_ptr());
                 let mut combined_row =
                     transcript.read_field_elements(row_len, eval.config_ptr())?;
 

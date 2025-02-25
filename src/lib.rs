@@ -9,6 +9,7 @@ pub mod field;
 pub mod field_config;
 pub mod poly;
 pub mod sparse_matrix;
+pub mod spartan;
 pub mod sumcheck;
 pub mod traits;
 pub mod transcript;

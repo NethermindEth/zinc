@@ -105,7 +105,7 @@ where
             for _ in 0..num_proximity_testing {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_challenges(evaluation.config_ptr(), num_rows);
+                    .get_challenges(num_rows, evaluation.config_ptr());
                 let combined_row = combine_rows(&coeffs, &poly.evaluations, row_len);
                 transcript.write_field_elements(&combined_row)?;
             }

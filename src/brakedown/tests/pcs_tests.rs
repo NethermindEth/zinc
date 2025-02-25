@@ -2,7 +2,9 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    brakedown::{code::BrakedownSpec1, pcs::MultilinearBrakedown, pcs_transcript::PcsTranscript},
+    brakedown::{
+        code::BrakedownSpec1, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+    },
     field::RandomField,
     field_config::FieldConfig,
     poly::mle::DenseMultilinearExtension,

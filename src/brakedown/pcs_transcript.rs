@@ -105,4 +105,11 @@ impl<const N: usize> PcsTranscript<N> {
         }
         Ok(())
     }
+
+    pub fn squeeze_challenge_idx(&mut self, config: *const FieldConfig<N>, cap: usize) -> usize {
+        let challenge = self.fs_transcript.get_challenge(config);
+        let mut bytes = [0; size_of::<u32>()];
+        bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
+        u32::from_le_bytes(bytes) as usize % cap
+    }
 }

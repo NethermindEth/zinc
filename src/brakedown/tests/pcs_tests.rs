@@ -152,5 +152,48 @@ fn test_brakedown_evaluation() {
 
     let res = MultilinearBrakedown::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
 
-    println!("{:?}", res);
+    assert!(res.is_ok())
+}
+
+#[test]
+fn test_failing_brakedown_evaluation() {
+    let config: *const FieldConfig<N> =
+        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let rng = ark_std::test_rng();
+    type S = BrakedownSpec1;
+
+    let param: MultilinearBrakedown<N, S>::Param =
+        MultilinearBrakedown::<N, S>::setup(8, rng, config);
+
+    let evaluations = [
+        RandomField::from_bigint(config, 0u32.into()).unwrap(),
+        RandomField::from_bigint(config, 1u32.into()).unwrap(),
+        RandomField::from_bigint(config, 2u32.into()).unwrap(),
+        RandomField::from_bigint(config, 3u32.into()).unwrap(),
+        RandomField::from_bigint(config, 4u32.into()).unwrap(),
+        RandomField::from_bigint(config, 5u32.into()).unwrap(),
+        RandomField::from_bigint(config, 6u32.into()).unwrap(),
+        RandomField::from_bigint(config, 7u32.into()).unwrap(),
+    ];
+    let n = 3;
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+
+    let comm = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle).unwrap();
+
+    let point = vec![
+        RandomField::from_bigint(config, 1u32.into()).unwrap(),
+        RandomField::from_bigint(config, 1u32.into()).unwrap(),
+        RandomField::from_bigint(config, 1u32.into()).unwrap(),
+    ];
+    let eval = RandomField::from_bigint(config, 0u32.into()).unwrap();
+
+    let mut transcript = PcsTranscript::new();
+    let _ = MultilinearBrakedown::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+
+    let proof = transcript.into_proof();
+    let mut transcript = PcsTranscript::from_proof(&proof);
+
+    let res = MultilinearBrakedown::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
+
+    assert!(res.is_err())
 }

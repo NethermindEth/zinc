@@ -86,6 +86,8 @@ where
         }
         Ok(proofs)
     }
+
+    // Subprotocol functions
     fn prove_proximity(
         num_rows: usize,
         row_len: usize,
@@ -134,6 +136,7 @@ where
         for _ in 0..num_col_opening {
             let column = transcript.squeeze_challenge_idx(eval.config_ptr(), codeword_len);
 
+            //Write the elements in the squeezed column to the shared transcript
             transcript.write_field_elements(
                 &comm
                     .rows()
@@ -144,6 +147,7 @@ where
                     .collect::<Vec<_>>(),
             )?;
 
+            //Write the neighbour hash path to the shared transcript
             let mut offset = 0;
             for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
                 let neighbor_idx = (column >> idx) ^ 1;

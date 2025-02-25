@@ -82,6 +82,7 @@ where
             let column = transcript.squeeze_challenge_idx(eval.config_ptr(), codeword_len);
 
             let items = transcript.read_field_elements(vp.num_rows(), eval.config_ptr())?;
+
             let merkle_path = transcript.read_commitments(depth)?;
 
             Self::verify_proximity(&combined_rows, &items, column, vp.num_rows())?;
@@ -130,6 +131,7 @@ where
 
             hasher.clone().finalize()
         };
+        hasher.reset();
         for (idx, neighbor) in path.iter().enumerate() {
             if (column >> idx) & 1 == 0 {
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
@@ -139,6 +141,7 @@ where
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
             }
             output = hasher.clone().finalize();
+            hasher.reset();
         }
 
         if &output != comm.root() {

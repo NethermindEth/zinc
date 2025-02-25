@@ -36,6 +36,7 @@ where
 
         Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
+
         Self::merklize_column_hashes(merkle_depth, &mut hashes);
 
         let (intermediate_hashes, root) = {

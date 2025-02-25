@@ -2,12 +2,16 @@
 use ark_ff::Zero;
 
 use crate::{
-    ccs::ccs_f::CCS_F, field::RandomField, field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension, sumcheck::utils::build_eq_x_r,
+    ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
+    field::RandomField,
+    field_config::FieldConfig,
+    poly::mle::DenseMultilinearExtension,
+    sparse_matrix::SparseMatrix,
+    sumcheck::utils::build_eq_x_r,
     transcript::KeccakTranscript,
 };
 
-use super::errors::SpartanError;
+use super::errors::{MleEvaluationError, SpartanError};
 
 /// Prepare the main linearization polynomial.
 ///
@@ -121,4 +125,45 @@ impl<const N: usize> SqueezeGamma<N> for KeccakTranscript {
 
         self.get_challenge(config)
     }
+}
+
+// Prepare MLE's of the form mle[M_i \cdot z_ccs](x), a.k.a. \sum mle[M_i](x, b) * mle[z_ccs](b).
+pub(super) fn calculate_Mz_mles<E, const N: usize>(
+    constraints: &[SparseMatrix<RandomField<N>>],
+    ccs_s: usize,
+    z_ccs: &[RandomField<N>],
+    config: *const FieldConfig<N>,
+) -> Result<Vec<DenseMultilinearExtension<N>>, E>
+where
+    E: From<MleEvaluationError> + From<CSError> + Sync + Send,
+{
+    to_mles_err::<N, _, E, CSError>(
+        ccs_s,
+        constraints.iter().map(|M| mat_vec_mul(M, z_ccs)),
+        config,
+    )
+}
+
+fn to_mles_err<const N: usize, I, E, E1>(
+    n_vars: usize,
+    mle_s: I,
+    config: *const FieldConfig<N>,
+) -> Result<Vec<DenseMultilinearExtension<N>>, E>
+where
+    I: IntoIterator<Item = Result<Vec<RandomField<N>>, E1>>,
+    E: From<MleEvaluationError> + From<E1>,
+{
+    mle_s
+        .into_iter()
+        .map(|m| {
+            let m = m?;
+            if 1 << n_vars < m.len() {
+                Err(MleEvaluationError::IncorrectLength(1 << n_vars, m.len()).into())
+            } else {
+                Ok(DenseMultilinearExtension::from_evaluations_vec(
+                    n_vars, m, config,
+                ))
+            }
+        })
+        .collect::<Result<_, E>>()
 }

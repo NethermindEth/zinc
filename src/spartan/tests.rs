@@ -6,8 +6,9 @@ use crate::{
     ccs::test_utils::get_dummy_ccs_from_z_length,
     field_config::FieldConfig,
     spartan::{
+        prover::SpartanProver,
         structs::{ZincProver, ZincVerifier},
-        SpartanProver, SpartanVerifier,
+        verifier::SpartanVerifier,
     },
     transcript::KeccakTranscript,
 };

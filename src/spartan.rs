@@ -1,7 +1,7 @@
 #![allow(dead_code, non_snake_case)]
 
 mod errors;
-mod prover;
+pub mod prover;
 pub mod structs;
 #[cfg(test)]
 mod tests;

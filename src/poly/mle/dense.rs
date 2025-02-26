@@ -53,11 +53,23 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         config: *const FieldConfig<N>,
     ) -> Self {
         // assert that the number of variables matches the size of evaluations
-        assert_eq!(
-            evaluations.len(),
-            1 << num_vars,
-            "The size of evaluations should be 2^num_vars."
+        assert!(
+            evaluations.len() <= 1 << num_vars,
+            "The size of evaluations should not exceed 2^num_vars. \n eval len: {:?}. num vars: {num_vars}", evaluations.len()
         );
+
+        if evaluations.len() != 1 << num_vars {
+            let mut evaluations = evaluations;
+            evaluations.resize(
+                1 << num_vars,
+                RandomField::new_unchecked(config, 0u32.into()),
+            );
+            return Self {
+                num_vars,
+                evaluations,
+                config,
+            };
+        }
 
         Self {
             num_vars,

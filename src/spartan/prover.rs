@@ -63,11 +63,19 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let z_ccs = statement.get_z_vector(&wit.w_ccs);
+        let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
+
+        if z_ccs.len() <= ccs.m {
+            z_ccs.resize(
+                ccs.m,
+                RandomField::new_unchecked(unsafe { *ccs.config.as_ptr() }, 0u32.into()),
+            )
+        }
 
         let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s, &z_ccs, unsafe {
             *ccs.config.as_ptr()
         });
+
         let rng = ark_std::test_rng();
         let param =
             MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });

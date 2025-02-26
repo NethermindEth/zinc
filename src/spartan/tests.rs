@@ -3,7 +3,7 @@ use std::str::FromStr;
 use crate::{
     biginteger::BigInt,
     brakedown::code::BrakedownSpec1,
-    ccs::test_utils::get_dummy_ccs_from_z_length,
+    ccs::{ccs_f::get_test_ccs_stuff_F, test_utils::get_dummy_ccs_from_z_length},
     field_config::FieldConfig,
     spartan::{
         prover::SpartanProver,
@@ -39,9 +39,9 @@ fn test_spartan_verifier() {
     let config: *const FieldConfig<N> = &FieldConfig::new(
         BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap(),
     );
-    let mut rng = ark_std::test_rng();
-    let n = 1 << 13;
-    let (_, ccs, statement, wit) = get_dummy_ccs_from_z_length::<N>(n, &mut rng, config);
+    let input = 3;
+    let (ccs, statement, wit, _) = get_test_ccs_stuff_F(input, config);
+
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver {

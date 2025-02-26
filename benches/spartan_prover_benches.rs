@@ -8,7 +8,7 @@ use zinc::{
     brakedown::code::BrakedownSpec1,
     ccs::test_utils::get_dummy_ccs_from_z_length,
     field_config::FieldConfig,
-    spartan::{structs::ZincProver, SpartanProver},
+    spartan::{prover::SpartanProver, structs::ZincProver},
     transcript::KeccakTranscript,
 };
 

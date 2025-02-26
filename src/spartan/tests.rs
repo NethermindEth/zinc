@@ -59,7 +59,7 @@ fn test_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(&statement, &proof, &mut verifier_transcript, &ccs);
+    let res = verifier.verify(&statement, proof, &mut verifier_transcript, &ccs);
 
     assert!(res.is_ok())
 }

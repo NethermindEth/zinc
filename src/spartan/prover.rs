@@ -1,7 +1,9 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedown},
+    brakedown::{
+        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+    },
     ccs::ccs_f::{Instance_F, Statement, Witness, CCS_F},
     field::RandomField,
     field_config::FieldConfig,
@@ -146,6 +148,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             self.config,
         )?;
 
+        let pcs_transcript = PcsTranscript::new();
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
@@ -170,6 +173,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             V_s,
             v,
             z_comm,
+            pcs_transcript,
         })
     }
 }

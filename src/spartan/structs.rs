@@ -1,7 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::{
-    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment},
+    brakedown::{
+        code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment,
+        pcs_transcript::PcsTranscript,
+    },
     field::RandomField,
     field_config::FieldConfig,
     sumcheck,
@@ -14,7 +17,6 @@ use crate::{
 /// * `linearization_sumcheck` - A list of non-interactive sumcheck prover messages.
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
-#[derive(Clone, Debug)]
 pub struct SpartanProof<const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
@@ -24,6 +26,7 @@ pub struct SpartanProof<const N: usize> {
     pub V_s: Vec<RandomField<N>>,
     pub v: RandomField<N>,
     pub z_comm: MultilinearBrakedownCommitment<N>,
+    pub pcs_transcript: PcsTranscript<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

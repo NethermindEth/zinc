@@ -1,9 +1,7 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
-    },
+    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedown},
     ccs::ccs_f::{Statement, CCS_F},
     field::RandomField,
     poly::mle::DenseMultilinearExtension,
@@ -36,7 +34,7 @@ pub trait SpartanVerifier<const N: usize> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
-        proof: &SpartanProof<N>,
+        proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>>;
@@ -46,7 +44,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
     fn verify(
         &self,
         cm_i: &Statement<N>,
-        proof: &SpartanProof<N>,
+        proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
@@ -61,7 +59,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
 
         // Step 3. Check V_s is congruent to s
-        Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
+        Self::verify_linearization_claim(&beta_s, &r_x, s, &proof, ccs)?;
 
         let gamma = transcript.squeeze_gamma_challenge(self.config);
 
@@ -73,8 +71,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             ccs,
             second_sumcheck_claimed_sum,
         )?;
-
-        let mut pcs_transcript = PcsTranscript::new();
+        let mut pcs_transcript = proof.pcs_transcript;
         MultilinearBrakedown::<N, S>::verify(
             &param,
             &proof.z_comm,

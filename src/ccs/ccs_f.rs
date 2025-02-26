@@ -229,15 +229,23 @@ impl<const N: usize> Witness<N> {
 ///
 pub trait Instance_F<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>>;
+    fn get_z_vector(
+        &self,
+        w: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>>;
 }
 
 impl<const N: usize> Instance_F<N> for Statement<N> {
-    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>> {
+    fn get_z_vector(
+        &self,
+        w: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>> {
         let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
-        z.push(RandomField::<N>::one());
+        z.push(RandomField::from_bigint(config, 1u32.into()).unwrap());
         z.extend_from_slice(w);
 
         z

@@ -94,6 +94,7 @@ where
             .last()
             .map(|(_, combined_row)| &combined_row[..row_len])
             .unwrap();
+
         if inner_product(t_0_combined_row, &t_1) != *eval {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         }

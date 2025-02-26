@@ -61,5 +61,5 @@ fn test_spartan_verifier() {
 
     let res = verifier.verify(&statement, proof, &mut verifier_transcript, &ccs);
 
-    println!("{:?}", res);
+    assert!(res.is_ok())
 }

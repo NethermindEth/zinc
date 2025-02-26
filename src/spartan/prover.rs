@@ -65,7 +65,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
+        let mut z_ccs = statement.get_z_vector(&wit.w_ccs, unsafe { *ccs.config.as_ptr() });
 
         if z_ccs.len() <= ccs.m {
             z_ccs.resize(

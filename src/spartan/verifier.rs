@@ -83,8 +83,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             &mut pcs_transcript,
         )?;
 
-        let mut rx_ry = r_x;
-        rx_ry.extend_from_slice(&r_y);
+        let mut rx_ry = r_y;
+        rx_ry.extend_from_slice(&r_x);
 
         let V_x: Result<Vec<RandomField<N>>, MleEvaluationError> = cm_i
             .constraints

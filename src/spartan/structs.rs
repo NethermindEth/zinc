@@ -1,10 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment,
-        pcs_transcript::PcsTranscript,
-    },
+    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment},
     field::RandomField,
     field_config::FieldConfig,
     sumcheck,
@@ -26,7 +23,7 @@ pub struct SpartanProof<const N: usize> {
     pub V_s: Vec<RandomField<N>>,
     pub v: RandomField<N>,
     pub z_comm: MultilinearBrakedownCommitment<N>,
-    pub pcs_transcript: PcsTranscript<N>,
+    pub pcs_proof: Vec<u8>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

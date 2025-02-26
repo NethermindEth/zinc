@@ -148,7 +148,6 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             self.config,
         )?;
 
-        let pcs_transcript = PcsTranscript::new();
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
@@ -167,13 +166,18 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
                 z_mle.num_vars,
             ))?;
 
+        let mut pcs_transcript = PcsTranscript::new();
+        MultilinearBrakedown::<N, S>::open(&param, &z_mle, &z_comm, &r_y, &v, &mut pcs_transcript)?;
+
+        let pcs_proof = pcs_transcript.into_proof();
+
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
             second_sumcheck: sumcheck_proof_2,
             V_s,
             v,
             z_comm,
-            pcs_transcript,
+            pcs_proof,
         })
     }
 }

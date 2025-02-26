@@ -1,7 +1,9 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedown},
+    brakedown::{
+        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+    },
     ccs::ccs_f::{Statement, CCS_F},
     field::RandomField,
     poly::mle::DenseMultilinearExtension,
@@ -71,7 +73,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             ccs,
             second_sumcheck_claimed_sum,
         )?;
-        let mut pcs_transcript = proof.pcs_transcript;
+
+        let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
         MultilinearBrakedown::<N, S>::verify(
             &param,
             &proof.z_comm,

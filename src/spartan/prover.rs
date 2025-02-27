@@ -62,18 +62,14 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
-        // Step 1: Generate tau challenges (done in construct_polynomial_g because they are not needed
-        // elsewhere.
-
-        // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, self.config, ccs);
+
         // Do first Sumcheck
         let (sumcheck_proof_1, r_a, mz_mles) =
             Self::sumcheck_1(&z_ccs, transcript, statement, ccs, self.config)?;
 
         // Do second sumcheck
-
         let (sumcheck_proof_2, r_y) =
             Self::sumcheck_2(&r_a, ccs, statement, self.config, &z_mle, transcript)?;
 

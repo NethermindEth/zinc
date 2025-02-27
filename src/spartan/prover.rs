@@ -100,18 +100,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             Self::commit_z_mle_and_prove_evaluation(&z_mle, ccs, self.config, &r_y)?;
 
         // Calculate V_s
-        let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
-            .iter()
-            .map(
-                |mle: &DenseMultilinearExtension<N>| -> Result<RandomField<N>, MleEvaluationError> {
-                    mle.evaluate(&r_a, self.config)
-                        .ok_or(MleEvaluationError::IncorrectLength(r_a.len(), mle.num_vars))
-                },
-            )
-            .collect();
-
-        let V_s = V_s?;
-
+        let V_s = Self::calculate_V_s(&mz_mles, &r_a, self.config)?;
         // Return proof
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
@@ -244,6 +233,25 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok((z_comm, v, pcs_proof))
+    }
+
+    fn calculate_V_s(
+        mz_mles: &[DenseMultilinearExtension<N>],
+        r_a: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Result<Vec<RandomField<N>>, SpartanError<N>> {
+        let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
+            .iter()
+            .map(
+                |mle: &DenseMultilinearExtension<N>| -> Result<RandomField<N>, MleEvaluationError> {
+                    mle.evaluate(r_a, config)
+                        .ok_or(MleEvaluationError::IncorrectLength(r_a.len(), mle.num_vars))
+                },
+            )
+            .collect();
+
+        let V_s = V_s?;
+        Ok(V_s)
     }
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof(

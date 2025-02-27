@@ -2,7 +2,9 @@ use ark_ff::Zero;
 
 use crate::{
     brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+        code::BrakedownSpec,
+        pcs::structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+        pcs_transcript::PcsTranscript,
     },
     ccs::ccs_f::{Instance_F, Statement, Witness, CCS_F},
     field::RandomField,
@@ -82,62 +84,20 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         // Do second sumcheck
         let gamma = transcript.squeeze_gamma_challenge(self.config);
-        let mut sumcheck_2_mles = Vec::with_capacity(2);
 
-        let eq_r_a = build_eq_x_r(&r_a, self.config)?;
-        let evals = {
-            // compute the initial evaluation table for R(r_a, x)
-
-            let evals_vec =
-                statement.compute_eval_table_sparse(ccs.n, ccs.m, ccs, &eq_r_a.evaluations);
-
-            (0..evals_vec[0].len())
-                .map(|i| {
-                    evals_vec
-                        .iter()
-                        .rev()
-                        .fold(RandomField::zero(), |mut lin_comb, eval_vec| {
-                            lin_comb *= &gamma;
-                            lin_comb += &eval_vec[i];
-                            lin_comb
-                        })
-                })
-                .collect::<Vec<RandomField<N>>>()
-        };
-
-        let evals_mle =
-            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
-                *(ccs.config.as_ptr())
-            });
-
-        sumcheck_2_mles.push(evals_mle);
-        sumcheck_2_mles.push(z_mle.clone());
-        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> { vals[0] * vals[1] };
-
-        let (sumcheck_proof_2, r_y) = Self::generate_sumcheck_proof(
-            transcript,
-            sumcheck_2_mles,
-            ccs.s,
-            2,
-            comb_fn_2,
+        let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
+            &r_a,
+            ccs,
+            statement,
+            &gamma,
             self.config,
+            &z_mle,
+            transcript,
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let rng = ark_std::test_rng();
-        let param =
-            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
-        let z_comm = MultilinearBrakedown::<N, S>::commit(&param, &z_mle)?;
-        let mut pcs_transcript = PcsTranscript::new();
-        let v = z_mle
-            .evaluate(&r_y, self.config)
-            .ok_or(MleEvaluationError::IncorrectLength(
-                r_y.len(),
-                z_mle.num_vars,
-            ))?;
-        MultilinearBrakedown::<N, S>::open(&param, &z_mle, &z_comm, &r_y, &v, &mut pcs_transcript)?;
-
-        let pcs_proof = pcs_transcript.into_proof();
+        let (z_comm, v, pcs_proof) =
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, ccs, self.config, &r_y)?;
 
         // Calculate V_s
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
@@ -220,6 +180,71 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
         Ok((sumcheck_proof_1, r_a, mz_mles))
     }
 
+    fn sumcheck_2(
+        r_a: &[RandomField<N>],
+        ccs: &CCS_F<N>,
+        statement: &Statement<N>,
+        gamma: &RandomField<N>,
+        config: *const FieldConfig<N>,
+        z_mle: &DenseMultilinearExtension<N>,
+        transcript: &mut KeccakTranscript,
+    ) -> Result<(Proof<N>, Vec<RandomField<N>>), SpartanError<N>> {
+        let mut sumcheck_2_mles = Vec::with_capacity(2);
+
+        let eq_r_a = build_eq_x_r(r_a, config)?;
+        let evals = {
+            // compute the initial evaluation table for R(r_a, x)
+
+            let evals_vec =
+                statement.compute_eval_table_sparse(ccs.n, ccs.m, ccs, &eq_r_a.evaluations);
+
+            (0..evals_vec[0].len())
+                .map(|i| {
+                    evals_vec
+                        .iter()
+                        .rev()
+                        .fold(RandomField::zero(), |mut lin_comb, eval_vec| {
+                            lin_comb *= gamma;
+                            lin_comb += &eval_vec[i];
+                            lin_comb
+                        })
+                })
+                .collect::<Vec<RandomField<N>>>()
+        };
+
+        let evals_mle =
+            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
+                *(ccs.config.as_ptr())
+            });
+
+        sumcheck_2_mles.push(evals_mle);
+        sumcheck_2_mles.push(z_mle.clone());
+        let comb_fn_2 = |vals: &[RandomField<N>]| -> RandomField<N> { vals[0] * vals[1] };
+
+        Self::generate_sumcheck_proof(transcript, sumcheck_2_mles, ccs.s, 2, comb_fn_2, config)
+    }
+
+    fn commit_z_mle_and_prove_evaluation(
+        z_mle: &DenseMultilinearExtension<N>,
+        ccs: &CCS_F<N>,
+        config: *const FieldConfig<N>,
+        r_y: &Vec<RandomField<N>>,
+    ) -> Result<(MultilinearBrakedownCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
+        let rng = ark_std::test_rng();
+        let param = MultilinearBrakedown::<N, S>::setup(ccs.m, rng, config);
+        let z_comm = MultilinearBrakedown::<N, S>::commit(&param, z_mle)?;
+        let mut pcs_transcript = PcsTranscript::new();
+        let v = z_mle
+            .evaluate(r_y, config)
+            .ok_or(MleEvaluationError::IncorrectLength(
+                r_y.len(),
+                z_mle.num_vars,
+            ))?;
+        MultilinearBrakedown::<N, S>::open(&param, z_mle, &z_comm, r_y, &v, &mut pcs_transcript)?;
+
+        let pcs_proof = pcs_transcript.into_proof();
+        Ok((z_comm, v, pcs_proof))
+    }
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof(
         transcript: &mut KeccakTranscript,

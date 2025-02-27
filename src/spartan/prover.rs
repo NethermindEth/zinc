@@ -77,27 +77,8 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, self.config);
 
         // Do first Sumcheck
-        let (g_mles, g_degree, mz_mles) = Self::construct_polynomial_g(
-            &z_ccs,
-            transcript,
-            &statement.constraints,
-            ccs,
-            self.config,
-        )?;
-
-        let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
-            sumcheck_polynomial_comb_fn_1(vals, ccs)
-        };
-
-        // Run sumcheck protocol.
-        let (sumcheck_proof_1, r_a) = Self::generate_sumcheck_proof(
-            transcript,
-            g_mles,
-            ccs.s,
-            g_degree,
-            comb_fn,
-            self.config,
-        )?;
+        let (sumcheck_proof_1, r_a, mz_mles) =
+            Self::sumcheck_1(&z_ccs, transcript, statement, ccs, self.config)?;
 
         // Do second sumcheck
         let gamma = transcript.squeeze_gamma_challenge(self.config);
@@ -210,6 +191,33 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
             prepare_lin_sumcheck_polynomial(&ccs.c, &ccs.d, &Mz_mles, &ccs.S, &beta_s, config)?;
 
         Ok((g_mles, g_degree, Mz_mles))
+    }
+
+    fn sumcheck_1(
+        z_ccs: &[RandomField<N>],
+        transcript: &mut KeccakTranscript,
+        statement: &Statement<N>,
+        ccs: &CCS_F<N>,
+        config: *const FieldConfig<N>,
+    ) -> Result<
+        (
+            Proof<N>,
+            Vec<RandomField<N>>,
+            Vec<DenseMultilinearExtension<N>>,
+        ),
+        SpartanError<N>,
+    > {
+        let (g_mles, g_degree, mz_mles) =
+            Self::construct_polynomial_g(z_ccs, transcript, &statement.constraints, ccs, config)?;
+
+        let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
+            sumcheck_polynomial_comb_fn_1(vals, ccs)
+        };
+
+        // Run sumcheck protocol.
+        let (sumcheck_proof_1, r_a) =
+            Self::generate_sumcheck_proof(transcript, g_mles, ccs.s, g_degree, comb_fn, config)?;
+        Ok((sumcheck_proof_1, r_a, mz_mles))
     }
 
     /// Step 2: Run linearization sum-check protocol.

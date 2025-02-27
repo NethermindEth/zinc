@@ -83,17 +83,9 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             Self::sumcheck_1(&z_ccs, transcript, statement, ccs, self.config)?;
 
         // Do second sumcheck
-        let gamma = transcript.squeeze_gamma_challenge(self.config);
 
-        let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
-            &r_a,
-            ccs,
-            statement,
-            &gamma,
-            self.config,
-            &z_mle,
-            transcript,
-        )?;
+        let (sumcheck_proof_2, r_y) =
+            Self::sumcheck_2(&r_a, ccs, statement, self.config, &z_mle, transcript)?;
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
@@ -101,6 +93,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         // Calculate V_s
         let V_s = Self::calculate_V_s(&mz_mles, &r_a, self.config)?;
+
         // Return proof
         Ok(SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
@@ -173,11 +166,11 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
         r_a: &[RandomField<N>],
         ccs: &CCS_F<N>,
         statement: &Statement<N>,
-        gamma: &RandomField<N>,
         config: *const FieldConfig<N>,
         z_mle: &DenseMultilinearExtension<N>,
         transcript: &mut KeccakTranscript,
     ) -> Result<(Proof<N>, Vec<RandomField<N>>), SpartanError<N>> {
+        let gamma = transcript.squeeze_gamma_challenge(config);
         let mut sumcheck_2_mles = Vec::with_capacity(2);
 
         let eq_r_a = build_eq_x_r(r_a, config)?;

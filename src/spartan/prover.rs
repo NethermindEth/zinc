@@ -67,17 +67,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
 
         // Step 2: Sum check protocol.
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let mut z_ccs = statement.get_z_vector(&wit.w_ccs, unsafe { *ccs.config.as_ptr() });
-
-        if z_ccs.len() <= ccs.m {
-            z_ccs.resize(
-                ccs.m,
-                RandomField::new_unchecked(unsafe { *ccs.config.as_ptr() }, 0u32.into()),
-            )
-        }
-        let z_mle =
-            DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, self.config);
-
+        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, self.config, ccs);
         // Do first Sumcheck
         let (sumcheck_proof_1, r_a, mz_mles) =
             Self::sumcheck_1(&z_ccs, transcript, statement, ccs, self.config)?;
@@ -133,6 +123,25 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
             prepare_lin_sumcheck_polynomial(&ccs.c, &ccs.d, &Mz_mles, &ccs.S, &beta_s, config)?;
 
         Ok((g_mles, g_degree, Mz_mles))
+    }
+
+    fn get_z_ccs_and_z_mle(
+        statement: &Statement<N>,
+        wit: &Witness<N>,
+        config: *const FieldConfig<N>,
+        ccs: &CCS_F<N>,
+    ) -> (Vec<RandomField<N>>, DenseMultilinearExtension<N>) {
+        let mut z_ccs = statement.get_z_vector(&wit.w_ccs, config);
+
+        if z_ccs.len() <= ccs.m {
+            z_ccs.resize(
+                ccs.m,
+                RandomField::new_unchecked(unsafe { *ccs.config.as_ptr() }, 0u32.into()),
+            )
+        }
+        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, config);
+
+        (z_ccs, z_mle)
     }
 
     fn sumcheck_1(

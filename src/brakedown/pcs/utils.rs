@@ -50,6 +50,7 @@ pub(super) fn validate_input<'a, const N: usize>(
     }
     Ok(())
 }
+
 pub(super) fn point_to_tensor<const N: usize>(
     num_rows: usize,
     point: &[F<N>],

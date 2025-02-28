@@ -72,13 +72,13 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
         let mut result = vec![RandomField::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
-                m.n_rows, self.m,
+                m.n_rows, self.n,
                 "Incorrect number of rows, expected {} and got {}.",
                 self.m, m.n_rows
             );
             assert_eq!(
-                m.n_cols, self.n,
-                "Incorrect number of rows, expected {} and got {}.",
+                m.n_cols, self.m,
+                "Incorrect number of cols, expected {} and got {}.",
                 self.n, m.n_cols
             );
         }
@@ -124,15 +124,23 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
 }
 
 impl<const N: usize> CCS_F<N> {
-    fn pad_rows_to(&mut self, M: &mut [SparseMatrix<RandomField<N>>], size: usize) {
+    fn pad(&mut self, statement: &mut Statement<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
+            let log_m = log2(size) as usize;
             self.m = size;
-            self.s = log2(size) as usize;
+            self.s = log_m;
+            self.n = size;
+            self.s_prime = log_m;
 
             // Update matrices
-            M.iter_mut()
-                .for_each(|mat: &mut SparseMatrix<RandomField<N>>| mat.pad_rows(size));
+            statement
+                .constraints
+                .iter_mut()
+                .for_each(|mat: &mut SparseMatrix<RandomField<N>>| {
+                    mat.pad_cols(size);
+                    mat.pad_rows(size);
+                });
         }
     }
 }
@@ -221,15 +229,23 @@ impl<const N: usize> Witness<N> {
 ///
 pub trait Instance_F<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>>;
+    fn get_z_vector(
+        &self,
+        w: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>>;
 }
 
 impl<const N: usize> Instance_F<N> for Statement<N> {
-    fn get_z_vector(&self, w: &[RandomField<N>]) -> Vec<RandomField<N>> {
+    fn get_z_vector(
+        &self,
+        w: &[RandomField<N>],
+        config: *const FieldConfig<N>,
+    ) -> Vec<RandomField<N>> {
         let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
-        z.push(RandomField::<N>::one());
+        z.push(RandomField::from_bigint(config, 1u32.into()).unwrap());
         z.extend_from_slice(w);
 
         z
@@ -324,8 +340,8 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
-    let m = 4;
-    let n = 6;
+    let m = 6;
+    let n = 4;
     CCS_F {
         m,
         n,
@@ -347,7 +363,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
 }
 
 #[cfg(test)]
-fn get_test_ccs_F_statement<const N: usize>(
+pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
 ) -> Statement<N> {
@@ -406,8 +422,40 @@ pub(crate) fn get_test_z_F<const N: usize>(
 }
 
 #[cfg(test)]
+pub(crate) fn get_test_wit_F<const N: usize>(
+    input: u64,
+    config: *const FieldConfig<N>,
+) -> Witness<N> {
+    Witness::new(to_F_vec(
+        vec![
+            input * input * input + input + 5, // x^3 + x + 5
+            input * input,                     // x^2
+            input * input * input,             // x^2 * x
+            input * input * input + input,     // x^3 + x
+        ],
+        config,
+    ))
+}
+
+#[cfg(test)]
+pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
+    input: u64,
+    config: *const FieldConfig<N>,
+) -> (CCS_F<N>, Statement<N>, Witness<N>, Vec<RandomField<N>>) {
+    let mut ccs = get_test_ccs_F(config);
+    let mut statement = get_test_ccs_F_statement(input, config);
+    let witness = get_test_wit_F(input, config);
+    let z = get_test_z_F(input, config);
+    let len = usize::max(ccs.m.next_power_of_two(), ccs.n.next_power_of_two());
+    ccs.pad(&mut statement, len);
+    (ccs, statement, witness, z)
+}
+
+#[cfg(test)]
 mod tests {
-    use crate::{biginteger::BigInt, field_config::FieldConfig};
+    use crate::{
+        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_from_z_length, field_config::FieldConfig,
+    };
 
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
 
@@ -422,6 +470,21 @@ mod tests {
         let ccs = get_test_ccs_F::<N>(config);
         let statement = get_test_ccs_F_statement::<N>(input, config);
         let z = get_test_z_F::<N>(input, config);
+
+        let res = ccs.check_relation(&statement.constraints, &z);
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_dummy_ccs_f() {
+        use std::str::FromStr;
+
+        const N: usize = 2;
+        let config: *const FieldConfig<N> =
+            &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let mut rng = ark_std::test_rng();
+        let n = 1 << 13;
+        let (z, ccs, statement, _) = get_dummy_ccs_from_z_length::<N>(n, &mut rng, config);
 
         let res = ccs.check_relation(&statement.constraints, &z);
         assert!(res.is_ok())

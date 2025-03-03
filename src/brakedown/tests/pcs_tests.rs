@@ -7,7 +7,7 @@ use crate::{
     },
     field::{rand_with_config, RandomField},
     field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
 };
 const N: usize = 2;
 #[test]

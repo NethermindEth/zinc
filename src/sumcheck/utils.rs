@@ -22,7 +22,7 @@ use crate::{
     biginteger::BigInt,
     field::{rand_with_config, RandomField},
     field_config::FieldConfig,
-    poly::{
+    poly_f::{
         mle::DenseMultilinearExtension,
         polynomials::{random_mle_list, ArithErrors, RefCounter},
     },

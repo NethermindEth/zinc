@@ -3,7 +3,7 @@ use ark_std::iterable::Iterable;
 
 use crate::{
     brakedown::Error, field::RandomField as F, field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension, sumcheck::utils::build_eq_x_r,
+    poly_f::mle::DenseMultilinearExtension, sumcheck::utils::build_eq_x_r,
 };
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {

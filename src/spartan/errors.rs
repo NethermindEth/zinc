@@ -2,7 +2,7 @@
 use thiserror::Error;
 
 use crate::{
-    brakedown::Error as BrakedownError, ccs::error::CSError, poly::polynomials::ArithErrors,
+    brakedown::Error as BrakedownError, ccs::error::CSError, poly_f::polynomials::ArithErrors,
     sumcheck::SumCheckError,
 };
 

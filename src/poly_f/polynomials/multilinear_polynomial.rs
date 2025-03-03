@@ -7,11 +7,11 @@ use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 
 use super::{util::get_batched_nv, ArithErrors, RefCounter};
-pub use crate::poly::mle::DenseMultilinearExtension;
+pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
     field::{rand_with_config, RandomField},
     field_config::FieldConfig,
-    poly::mle::MultilinearExtension,
+    poly_f::mle::MultilinearExtension,
 };
 
 /// Sample a random list of multilinear polynomials.

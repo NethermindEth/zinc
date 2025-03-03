@@ -6,7 +6,7 @@ use crate::{
     },
     ccs::ccs_f::{Statement, CCS_F},
     field::RandomField,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
     transcript::KeccakTranscript,
 };

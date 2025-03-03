@@ -5,7 +5,7 @@ use crate::{
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
     field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
     transcript::KeccakTranscript,

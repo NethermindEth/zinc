@@ -7,7 +7,7 @@ use crate::{
     brakedown::code::{Brakedown, BrakedownSpec, LinearCodes},
     field::RandomField as F,
     field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
 };
 
 #[derive(Debug)]

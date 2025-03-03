@@ -9,7 +9,7 @@ use crate::{
         Error,
     },
     field::RandomField as F,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
 };
 
 use super::{

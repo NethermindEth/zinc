@@ -9,7 +9,7 @@ use crate::{
     ccs::ccs_f::{Instance_F, Statement, Witness, CCS_F},
     field::RandomField,
     field_config::FieldConfig,
-    poly::mle::DenseMultilinearExtension,
+    poly_f::mle::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, Proof},
     transcript::KeccakTranscript,

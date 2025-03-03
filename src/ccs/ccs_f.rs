@@ -9,7 +9,7 @@ use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
-use crate::poly::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
+use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
 use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
 

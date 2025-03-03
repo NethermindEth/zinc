@@ -8,6 +8,7 @@ mod const_helpers;
 pub mod field;
 pub mod field_config;
 pub mod poly_f;
+pub mod poly_z;
 pub mod sparse_matrix;
 pub mod spartan;
 pub mod sumcheck;

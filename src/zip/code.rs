@@ -98,39 +98,7 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
     }
 
     fn encode(&self, mut target: impl AsMut<[i64]>) {
-        let target = target.as_mut();
-
-        assert_eq!(target.len(), self.codeword_len);
-
-        let mut input_offset = 0;
-        self.a[..self.a.len() - 1].iter().for_each(|a| {
-            let (input, output) = target[input_offset..].split_at_mut(a.dimension.n);
-            a.dot_into(input, &mut output[..a.dimension.m]);
-            input_offset += a.dimension.n;
-        });
-
-        let a_last = self.a.last().unwrap();
-        let b_last = self.b.last().unwrap();
-        let (input, output) = target[input_offset..].split_at_mut(a_last.dimension.n);
-        let tmp = a_last.dot(input);
-        reed_solomon_into(&tmp, &mut output[..b_last.dimension.n]);
-        let mut output_offset = input_offset + a_last.dimension.n + b_last.dimension.n;
-        input_offset += a_last.dimension.n + a_last.dimension.m;
-
-        // TODO: parallelise this at some point.
-        self.a
-            .iter()
-            .rev()
-            .zip(self.b.iter().rev())
-            .for_each(|(a, b)| {
-                input_offset -= a.dimension.m;
-                let (input, output) = target.split_at_mut(output_offset);
-                b.dot_into(
-                    &input[input_offset..input_offset + b.dimension.n],
-                    &mut output[..b.dimension.m],
-                );
-                output_offset += b.dimension.m;
-            });
+        todo!()
     }
 }
 

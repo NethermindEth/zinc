@@ -1,16 +1,16 @@
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 use itertools::Itertools;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
+    field::RandomField as F,
+    field_config::FieldConfig,
     zip::{
         code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::inner_product,
         Error,
     },
-    field::RandomField as F,
 };
 
 use super::{
@@ -38,9 +38,10 @@ where
     pub fn verify(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
-        point: &Vec<F<N>>,
-        eval: &F<N>,
+        point: &Vec<i64>,
+        eval: &i64,
         transcript: &mut PcsTranscript<N>,
+        field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         validate_input("verify", vp.num_vars(), [], [point])?;
 
@@ -55,33 +56,47 @@ where
             for _ in 0..vp.zip().num_proximity_testing() {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_challenges(vp.num_rows(), eval.config_ptr());
-                let mut combined_row =
-                    transcript.read_field_elements(row_len, eval.config_ptr())?;
+                    .get_challenges(vp.num_rows(), field);
+                let mut combined_row = transcript.read_integers(row_len)?;
 
-                combined_row.resize(codeword_len, F::zero());
+                combined_row.resize(codeword_len, 0i64);
                 vp.zip().encode(&mut combined_row);
-                combined_rows.push((coeffs, combined_row));
+                let combined_row_f = combined_row
+                    .iter()
+                    .map(|i| F::from_i64(*i, field).unwrap())
+                    .collect::<Vec<_>>();
+                combined_rows.push((coeffs, combined_row_f));
             }
         }
 
-        let (t_0, t_1) = point_to_tensor(vp.num_rows(), point, eval.config_ptr())?;
+        let (t_0, t_1) = point_to_tensor(vp.num_rows(), point)?;
+        let t_0_f = t_0
+            .iter()
+            .map(|i| F::from_i64(*i, field).unwrap())
+            .collect::<Vec<_>>();
+        let t_1_f = t_1
+            .iter()
+            .map(|i| F::from_i64(*i, field).unwrap())
+            .collect::<Vec<_>>();
         combined_rows.push({
-            let mut t_0_combined_row =
-                transcript.read_field_elements(row_len, eval.config_ptr())?;
+            let mut t_0_combined_row = transcript.read_integers(row_len)?;
 
-            t_0_combined_row.resize(codeword_len, F::zero());
+            t_0_combined_row.resize(codeword_len, 0i64);
             vp.zip().encode(&mut t_0_combined_row);
-            (t_0, t_0_combined_row)
+            let t_0_combined_row_f = t_0_combined_row
+                .iter()
+                .map(|i| F::from_i64(*i, field).unwrap())
+                .collect::<Vec<_>>();
+            (t_0_f, t_0_combined_row_f)
         });
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.zip().num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(eval.config_ptr(), codeword_len);
+            let column = transcript.squeeze_challenge_idx(field, codeword_len);
 
-            let items = transcript.read_field_elements(vp.num_rows(), eval.config_ptr())?;
+            let items = transcript.read_field_elements(vp.num_rows(), field)?;
 
             let merkle_path = transcript.read_commitments(depth)?;
 
@@ -95,7 +110,8 @@ where
             .map(|(_, combined_row)| &combined_row[..row_len])
             .unwrap();
 
-        if inner_product(t_0_combined_row, &t_1) != *eval {
+        let eval_f = F::from_i64(*eval, field).unwrap();
+        if inner_product(t_0_combined_row, &t_1_f) != eval_f {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         }
 
@@ -105,12 +121,13 @@ where
     pub fn batch_verify<'a>(
         vp: &Self::VerifierParam,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<F<N>>],
-        evals: &[F<N>],
+        points: &[Vec<i64>],
+        evals: &[i64],
         transcript: &mut PcsTranscript<N>,
+        field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify(vp, comm, &points[i], eval, transcript)?;
+            Self::verify(vp, comm, &points[i], eval, transcript, field)?;
         }
         Ok(())
     }

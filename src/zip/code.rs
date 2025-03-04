@@ -8,10 +8,10 @@ use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
 
-use crate::zip::utils::evaluate_poly;
 use crate::field::rand_with_config;
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
+use crate::zip::utils::evaluate_poly;
 
 pub trait LinearCodes<const N: usize>: Sync + Send {
     fn row_len(&self) -> usize;
@@ -22,7 +22,7 @@ pub trait LinearCodes<const N: usize>: Sync + Send {
 
     fn num_proximity_testing(&self) -> usize;
 
-    fn encode(&self, input: impl AsMut<[F<N>]>);
+    fn encode(&self, input: impl AsMut<[i64]>);
 }
 
 #[derive(Clone, Debug)]
@@ -97,7 +97,7 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
         self.num_proximity_testing
     }
 
-    fn encode(&self, mut target: impl AsMut<[F<N>]>) {
+    fn encode(&self, mut target: impl AsMut<[i64]>) {
         let target = target.as_mut();
 
         assert_eq!(target.len(), self.codeword_len);

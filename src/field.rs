@@ -327,6 +327,27 @@ impl<const N: usize> RandomField<N> {
         }
     }
 
+    pub fn from_i64(value: i64, config: *const FieldConfig<N>) -> Option<RandomField<N>> {
+        if config.is_null() {
+            panic!("Cannot convert signed integer to prime field element without a modulus")
+        }
+        unsafe {
+            if BigInt::from(value.unsigned_abs() as u64) >= (*config).modulus {
+                None
+            } else {
+                let mut r = (value.unsigned_abs() as u64).into();
+
+                (*config).mul_assign(&mut r, &(*config).r2);
+
+                let mut elem = Self::new_unchecked(config, r);
+                if value.is_negative() {
+                    elem = -elem;
+                }
+                Some(elem)
+            }
+        }
+    }
+
     pub fn into_bigint(self) -> BigInt<N> {
         self.with_either_owned(|value| value, Self::demontgomery)
     }

@@ -2,8 +2,8 @@ use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
 use crate::{
-    zip::Error, field::RandomField as F, field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension, sumcheck::utils::build_eq_x_r,
+    poly_z::mle::{build_eq_x_r, DenseMultilinearExtension},
+    zip::Error,
 };
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
@@ -15,11 +15,11 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, const N: usize>(
+pub(super) fn validate_input<'a>(
     function: &str,
     param_num_vars: usize,
-    polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
-    points: impl Iterable<Item = &'a Vec<F<N>>>,
+    polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
+    points: impl Iterable<Item = &'a Vec<i64>>,
 ) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
@@ -51,24 +51,23 @@ pub(super) fn validate_input<'a, const N: usize>(
     Ok(())
 }
 
-pub(super) fn point_to_tensor<const N: usize>(
+pub(super) fn point_to_tensor(
     num_rows: usize,
-    point: &[F<N>],
-    config: *const FieldConfig<N>,
-) -> Result<(Vec<F<N>>, Vec<F<N>>), Error> {
+    point: &[i64],
+) -> Result<(Vec<i64>, Vec<i64>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let t_0 = if !lo.is_empty() {
-        build_eq_x_r(lo, config).unwrap()
+        build_eq_x_r(lo).unwrap()
     } else {
-        DenseMultilinearExtension::<N>::zero()
+        DenseMultilinearExtension::zero()
     };
 
     let t_1 = if !hi.is_empty() {
-        build_eq_x_r(hi, config).unwrap()
+        build_eq_x_r(hi).unwrap()
     } else {
-        DenseMultilinearExtension::<N>::zero()
+        DenseMultilinearExtension::zero()
     };
 
     Ok((t_0.evaluations, t_1.evaluations))

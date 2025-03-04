@@ -4,9 +4,8 @@ use ark_std::rand::RngCore;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field::RandomField as F,
     field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension,
+    poly_z::mle::DenseMultilinearExtension,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
 
@@ -44,7 +43,7 @@ impl<const N: usize> MultilinearZipParams<N> {
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment<const N: usize> {
     /// The encoded rows of the polynomial matrix representation
-    rows: Vec<F<N>>,
+    rows: Vec<i64>,
     /// Hashes of the merkle tree with the encoded columns as leaves
     intermediate_hashes: Vec<Output<Keccak256>>,
     /// Root of the merkle tree with the encoded columns as leaves
@@ -53,7 +52,7 @@ pub struct MultilinearZipCommitment<const N: usize> {
 
 impl<const N: usize> MultilinearZipCommitment<N> {
     pub fn new(
-        rows: Vec<F<N>>,
+        rows: Vec<i64>,
         intermediate_hashes: Vec<Output<Keccak256>>,
         root: Output<Keccak256>,
     ) -> MultilinearZipCommitment<N> {
@@ -70,7 +69,7 @@ impl<const N: usize> MultilinearZipCommitment<N> {
         }
     }
 
-    pub fn rows(&self) -> &[F<N>] {
+    pub fn rows(&self) -> &[i64] {
         &self.rows
     }
 
@@ -96,7 +95,7 @@ where
     pub type Param = MultilinearZipParams<N>;
     pub type ProverParam = MultilinearZipParams<N>;
     pub type VerifierParam = MultilinearZipParams<N>;
-    pub type Polynomial = DenseMultilinearExtension<N>;
+    pub type Polynomial = DenseMultilinearExtension;
     pub type Commitment = MultilinearZipCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 

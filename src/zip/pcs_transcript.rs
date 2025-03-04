@@ -92,6 +92,34 @@ impl<const N: usize> PcsTranscript<N> {
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
     }
 
+    pub fn write_integer(&mut self, int: &i64) -> Result<(), Error> {
+        self.stream
+            .write_all(int.to_be_bytes().as_ref())
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
+    }
+
+    pub fn write_integers(&mut self, ints: &[i64]) -> Result<(), Error> {
+        for int in ints {
+            self.write_integer(int)?;
+        }
+        Ok(())
+    }
+
+    pub fn read_integer(&mut self) -> Result<i64, Error> {
+        let mut bytes = [0; 8];
+
+        self.stream
+            .read_exact(&mut bytes)
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+        Ok(i64::from_be_bytes(bytes))
+    }
+
+    pub fn read_integers(&mut self, n: usize) -> Result<Vec<i64>, Error> {
+        (0..n)
+            .map(|_| self.read_integer())
+            .collect::<Result<Vec<_>, _>>()
+    }
+
     pub fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, Error> {
         (0..n).map(|_| self.read_commitment()).collect()
     }

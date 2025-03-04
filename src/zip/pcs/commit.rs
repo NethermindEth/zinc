@@ -1,15 +1,13 @@
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
+    poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, ZipSpec},
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
         Error,
     },
-    field::RandomField as F,
-    poly_f::mle::DenseMultilinearExtension,
 };
 
 use super::{
@@ -31,7 +29,7 @@ where
         let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut rows = vec![F::zero(); pp.num_rows() * codeword_len];
+        let mut rows = vec![0i64; pp.num_rows() * codeword_len];
         let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
         Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
@@ -54,7 +52,7 @@ where
 
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
     ) -> Result<Vec<Self::Commitment>, Error> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
@@ -62,7 +60,7 @@ where
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-        rows: &mut [F<N>],
+        rows: &mut [i64],
         poly: &Self::Polynomial,
     ) {
         let chunk_size = div_ceil(pp.num_rows(), num_threads());
@@ -81,7 +79,7 @@ where
         );
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[F<N>]) {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[i64]) {
         parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {
@@ -91,7 +89,7 @@ where
                     .for_each(|item| {
                         <Keccak256 as sha3::digest::Update>::update(
                             &mut hasher,
-                            &item.value().to_bytes_be(),
+                            &item.to_be_bytes(),
                         )
                     });
                 hasher.finalize_into_reset(hash);

@@ -3,8 +3,8 @@ use ark_std::iterable::Iterable;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
-    brakedown::{
-        code::{BrakedownSpec, LinearCodes},
+    zip::{
+        code::{LinearCodes, ZipSpec},
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
         Error,
     },
@@ -13,13 +13,13 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment},
     utils::validate_input,
 };
 
-impl<const N: usize, S> MultilinearBrakedown<N, S>
+impl<const N: usize, S> MultilinearZip<N, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub fn commit(
         pp: &Self::ProverParam,
@@ -27,8 +27,8 @@ where
     ) -> Result<Self::Commitment, Error> {
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = pp.brakedown().row_len();
-        let codeword_len = pp.brakedown().codeword_len();
+        let row_len = pp.zip().row_len();
+        let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         let mut rows = vec![F::zero(); pp.num_rows() * codeword_len];
@@ -45,7 +45,7 @@ where
             (intermediate_hashes, root)
         };
 
-        Ok(MultilinearBrakedownCommitment::new(
+        Ok(MultilinearZipCommitment::new(
             rows,
             intermediate_hashes,
             root,
@@ -75,7 +75,7 @@ where
                     .zip(evals.chunks_exact(row_len))
                 {
                     row[..evals.len()].copy_from_slice(evals);
-                    pp.brakedown().encode(row);
+                    pp.zip().encode(row);
                 }
             },
         );

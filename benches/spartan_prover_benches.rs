@@ -5,11 +5,11 @@ use criterion::{
 };
 use zinc::{
     biginteger::BigInt,
-    brakedown::code::BrakedownSpec1,
     ccs::test_utils::get_dummy_ccs_from_z_length,
     field_config::FieldConfig,
     spartan::{prover::SpartanProver, structs::ZincProver},
     transcript::KeccakTranscript,
+    zip::code::ZipSpec1,
 };
 
 fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {
@@ -20,7 +20,7 @@ fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {
 
     let prover = ZincProver {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
     let _proof = prover.prove(&statement, &wit, &mut transcript, &ccs);
 }

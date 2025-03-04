@@ -4,8 +4,8 @@ use itertools::Itertools;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
-    brakedown::{
-        code::{BrakedownSpec, LinearCodes},
+    zip::{
+        code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::inner_product,
         Error,
@@ -14,13 +14,13 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment},
     utils::{point_to_tensor, validate_input},
 };
 
-impl<const N: usize, S> MultilinearBrakedown<N, S>
+impl<const N: usize, S> MultilinearZip<N, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub fn read_commitments(
         _: &Self::VerifierParam,
@@ -30,7 +30,7 @@ where
         transcript.read_commitments(num_polys).map(|roots| {
             roots
                 .into_iter()
-                .map(MultilinearBrakedownCommitment::from_root)
+                .map(MultilinearZipCommitment::from_root)
                 .collect_vec()
         })
     }
@@ -44,15 +44,15 @@ where
     ) -> Result<(), Error> {
         validate_input("verify", vp.num_vars(), [], [point])?;
 
-        let row_len = vp.brakedown().row_len();
-        let codeword_len = vp.brakedown().codeword_len();
+        let row_len = vp.zip().row_len();
+        let codeword_len = vp.zip().codeword_len();
 
         // Retrieve the row combinations from the transcript
         // Pair the combinations with the coefficients that generated them
-        let mut combined_rows = Vec::with_capacity(vp.brakedown().num_proximity_testing() + 1);
+        let mut combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing() + 1);
 
         if vp.num_rows() > 1 {
-            for _ in 0..vp.brakedown().num_proximity_testing() {
+            for _ in 0..vp.zip().num_proximity_testing() {
                 let coeffs = transcript
                     .fs_transcript
                     .get_challenges(vp.num_rows(), eval.config_ptr());
@@ -60,7 +60,7 @@ where
                     transcript.read_field_elements(row_len, eval.config_ptr())?;
 
                 combined_row.resize(codeword_len, F::zero());
-                vp.brakedown().encode(&mut combined_row);
+                vp.zip().encode(&mut combined_row);
                 combined_rows.push((coeffs, combined_row));
             }
         }
@@ -71,14 +71,14 @@ where
                 transcript.read_field_elements(row_len, eval.config_ptr())?;
 
             t_0_combined_row.resize(codeword_len, F::zero());
-            vp.brakedown().encode(&mut t_0_combined_row);
+            vp.zip().encode(&mut t_0_combined_row);
             (t_0, t_0_combined_row)
         });
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         // Ensure that the test combinations are valid codewords
-        for _ in 0..vp.brakedown().num_column_opening() {
+        for _ in 0..vp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(eval.config_ptr(), codeword_len);
 
             let items = transcript.read_field_elements(vp.num_rows(), eval.config_ptr())?;
@@ -104,7 +104,7 @@ where
 
     pub fn batch_verify<'a>(
         vp: &Self::VerifierParam,
-        comms: impl Iterable<Item = &'a MultilinearBrakedownCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,

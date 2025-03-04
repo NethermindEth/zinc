@@ -2,7 +2,7 @@ use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
 use crate::{
-    brakedown::Error, field::RandomField as F, field_config::FieldConfig,
+    zip::Error, field::RandomField as F, field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension, sumcheck::utils::build_eq_x_r,
 };
 

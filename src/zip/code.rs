@@ -8,7 +8,7 @@ use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
 
-use crate::brakedown::utils::evaluate_poly;
+use crate::zip::utils::evaluate_poly;
 use crate::field::rand_with_config;
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
@@ -26,7 +26,7 @@ pub trait LinearCodes<const N: usize>: Sync + Send {
 }
 
 #[derive(Clone, Debug)]
-pub struct Brakedown<const N: usize> {
+pub struct Zip<const N: usize> {
     row_len: usize,
     codeword_len: usize,
     num_column_opening: usize,
@@ -35,14 +35,14 @@ pub struct Brakedown<const N: usize> {
     b: Vec<SparseMatrix<N>>,
 }
 
-impl<const N: usize> Brakedown<N> {
-    pub fn proof_size<S: BrakedownSpec>(n_0: usize, c: usize, r: usize) -> usize {
+impl<const N: usize> Zip<N> {
+    pub fn proof_size<S: ZipSpec>(n_0: usize, c: usize, r: usize) -> usize {
         let log2_q = N;
         let num_ldt = S::num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    pub fn new_multilinear<S: BrakedownSpec>(
+    pub fn new_multilinear<S: ZipSpec>(
         num_vars: usize,
         n_0: usize,
         rng: impl RngCore,
@@ -80,7 +80,7 @@ impl<const N: usize> Brakedown<N> {
     }
 }
 
-impl<const N: usize> LinearCodes<N> for Brakedown<N> {
+impl<const N: usize> LinearCodes<N> for Zip<N> {
     fn row_len(&self) -> usize {
         self.row_len
     }
@@ -134,7 +134,7 @@ impl<const N: usize> LinearCodes<N> for Brakedown<N> {
     }
 }
 
-pub trait BrakedownSpec: Debug {
+pub trait ZipSpec: Debug {
     const LAMBDA: f64;
     const ALPHA: f64;
     const BETA: f64;
@@ -256,7 +256,7 @@ macro_rules! impl_spec_128 {
         $(
             #[derive(Debug)]
             pub struct $name;
-            impl BrakedownSpec for $name {
+            impl ZipSpec for $name {
                 const LAMBDA: f64 = 128.0;
                 const ALPHA: f64 = $alpha;
                 const BETA: f64 = $beta;
@@ -268,12 +268,12 @@ macro_rules! impl_spec_128 {
 
 // Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
 impl_spec_128!(
-    (BrakedownSpec1, 0.1195, 0.0284, 1.420),
-    (BrakedownSpec2, 0.1380, 0.0444, 1.470),
-    (BrakedownSpec3, 0.1780, 0.0610, 1.521),
-    (BrakedownSpec4, 0.2000, 0.0820, 1.640),
-    (BrakedownSpec5, 0.2110, 0.0970, 1.616),
-    (BrakedownSpec6, 0.2380, 0.1205, 1.720)
+    (ZipSpec1, 0.1195, 0.0284, 1.420),
+    (ZipSpec2, 0.1380, 0.0444, 1.470),
+    (ZipSpec3, 0.1780, 0.0610, 1.521),
+    (ZipSpec4, 0.2000, 0.0820, 1.640),
+    (ZipSpec5, 0.2110, 0.0970, 1.616),
+    (ZipSpec6, 0.2380, 0.1205, 1.720)
 );
 
 #[derive(Clone, Copy, Debug)]

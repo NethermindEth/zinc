@@ -6,24 +6,24 @@ use itertools::izip;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    brakedown::{
-        code::{BrakedownSpec, LinearCodes},
+    field::RandomField as F,
+    poly_f::mle::DenseMultilinearExtension,
+    zip::{
+        code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::parallelize,
         Error,
     },
-    field::RandomField as F,
-    poly_f::mle::DenseMultilinearExtension,
 };
 
 use super::{
-    structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment},
     utils::{point_to_tensor, validate_input},
 };
 
-impl<const N: usize, S> MultilinearBrakedown<N, S>
+impl<const N: usize, S> MultilinearZip<N, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub fn open(
         pp: &Self::ProverParam,
@@ -35,15 +35,15 @@ where
     ) -> Result<Vec<Output<Keccak256>>, Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let row_len = pp.brakedown().row_len();
+        let row_len = pp.zip().row_len();
 
-        let codeword_len = pp.brakedown().codeword_len();
+        let codeword_len = pp.zip().codeword_len();
 
         Self::prove_proximity(
             pp.num_rows(),
             row_len,
             transcript,
-            pp.brakedown().num_proximity_testing(),
+            pp.zip().num_proximity_testing(),
             point,
             eval,
             poly,
@@ -55,7 +55,7 @@ where
         Self::open_merkle_tree(
             merkle_depth,
             &mut proof,
-            pp.brakedown().num_column_opening(),
+            pp.zip().num_column_opening(),
             transcript,
             eval,
             codeword_len,
@@ -69,7 +69,7 @@ where
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
-        comms: impl Iterable<Item = &'a MultilinearBrakedownCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,

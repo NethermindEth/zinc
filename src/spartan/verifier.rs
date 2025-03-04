@@ -1,9 +1,7 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
-    },
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
     ccs::ccs_f::{Statement, CCS_F},
     field::RandomField,
     poly_f::mle::DenseMultilinearExtension,
@@ -42,7 +40,7 @@ pub trait SpartanVerifier<const N: usize> {
     ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
         cm_i: &Statement<N>,
@@ -51,8 +49,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param =
-            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
+        let param = MultilinearZip::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
 
@@ -75,13 +72,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         )?;
 
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearBrakedown::<N, S>::verify(
-            &param,
-            &proof.z_comm,
-            &r_y,
-            &proof.v,
-            &mut pcs_transcript,
-        )?;
+        MultilinearZip::<N, S>::verify(&param, &proof.z_comm, &r_y, &proof.v, &mut pcs_transcript)?;
 
         let mut rx_ry = r_y;
         rx_ry.extend_from_slice(&r_x);
@@ -110,7 +101,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         Ok(())
     }
 }
-impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,
         proof: &Proof<N>,

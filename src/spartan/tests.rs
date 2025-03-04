@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    brakedown::code::BrakedownSpec1,
     ccs::{ccs_f::get_test_ccs_stuff_F, test_utils::get_dummy_ccs_from_z_length},
     field::RandomField,
     field_config::FieldConfig,
@@ -12,6 +11,7 @@ use crate::{
         verifier::SpartanVerifier,
     },
     transcript::KeccakTranscript,
+    zip::code::ZipSpec1,
 };
 #[test]
 fn test_spartan_prover() {
@@ -26,7 +26,7 @@ fn test_spartan_prover() {
 
     let prover = ZincProver {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = prover.prove(&statement, &wit, &mut transcript, &ccs);
@@ -47,7 +47,7 @@ fn test_spartan_verifier() {
 
     let prover = ZincProver {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = prover
@@ -56,7 +56,7 @@ fn test_spartan_verifier() {
 
     let verifier = ZincVerifier {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
@@ -79,7 +79,7 @@ fn test_failing_spartan_verifier() {
 
     let prover = ZincProver {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = prover
@@ -88,7 +88,7 @@ fn test_failing_spartan_verifier() {
 
     let verifier = ZincVerifier {
         config,
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 

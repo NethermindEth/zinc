@@ -2,23 +2,20 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    brakedown::{
-        code::BrakedownSpec1, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
-    },
     field::{rand_with_config, RandomField},
     field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension,
+    zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 const N: usize = 2;
 #[test]
-fn test_brakedown_commitment() {
+fn test_zip_commitment() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
-    type S = BrakedownSpec1;
+    type S = ZipSpec1;
 
-    let param: MultilinearBrakedown<N, S>::Param =
-        MultilinearBrakedown::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
 
     let evaluations = [
         RandomField::from_bigint(config, 0u32.into()).unwrap(),
@@ -33,20 +30,19 @@ fn test_brakedown_commitment() {
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
 
-    let res = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle);
+    let res = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle);
 
     assert!(res.is_ok())
 }
 
 #[test]
-fn test_failing_brakedown_commitment() {
+fn test_failing_zip_commitment() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
-    type S = BrakedownSpec1;
+    type S = ZipSpec1;
 
-    let param: MultilinearBrakedown<N, S>::Param =
-        MultilinearBrakedown::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
 
     let evaluations = [
         RandomField::from_bigint(config, 0u32.into()).unwrap(),
@@ -69,20 +65,19 @@ fn test_failing_brakedown_commitment() {
     let n = 4;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
 
-    let res = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle);
+    let res = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle);
 
     assert!(res.is_err())
 }
 
 #[test]
-fn test_brakedown_opening() {
+fn test_zip_opening() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
-    type S = BrakedownSpec1;
+    type S = ZipSpec1;
     let mut transcript = PcsTranscript::new();
-    let param: MultilinearBrakedown<N, S>::Param =
-        MultilinearBrakedown::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
 
     let evaluations = [
         RandomField::from_bigint(config, 0u32.into()).unwrap(),
@@ -97,7 +92,7 @@ fn test_brakedown_opening() {
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
 
-    let comm = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle).unwrap();
+    let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
     let point = vec![
         RandomField::from_bigint(config, 0u32.into()).unwrap(),
@@ -106,21 +101,20 @@ fn test_brakedown_opening() {
     ];
     let eval = RandomField::from_bigint(config, 0u32.into()).unwrap();
 
-    let res =
-        MultilinearBrakedown::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
 
     assert!(res.is_ok())
 }
 
 #[test]
-fn test_brakedown_evaluation() {
+fn test_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let mut rng = ark_std::test_rng();
-    type S = BrakedownSpec1;
+    type S = ZipSpec1;
     let n = 8;
-    let param: MultilinearBrakedown<N, S>::Param =
-        MultilinearBrakedown::<N, S>::setup(1 << 8, &mut rng, config);
+    let param: MultilinearZip<N, S>::Param =
+        MultilinearZip::<N, S>::setup(1 << 8, &mut rng, config);
 
     let evaluations: Vec<RandomField<N>> = (0..(1 << n))
         .map(|_| rand_with_config(&mut rng, config))
@@ -128,32 +122,31 @@ fn test_brakedown_evaluation() {
 
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
 
-    let comm = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle).unwrap();
+    let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
     let point: Vec<RandomField<N>> = (0..n).map(|_| rand_with_config(&mut rng, config)).collect();
 
     let eval = mle.evaluate(&point, config).unwrap();
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearBrakedown::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res = MultilinearBrakedown::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
 
     assert!(res.is_ok())
 }
 
 #[test]
-fn test_failing_brakedown_evaluation() {
+fn test_failing_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
-    type S = BrakedownSpec1;
+    type S = ZipSpec1;
 
-    let param: MultilinearBrakedown<N, S>::Param =
-        MultilinearBrakedown::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
 
     let evaluations = [
         RandomField::from_bigint(config, 0u32.into()).unwrap(),
@@ -168,7 +161,7 @@ fn test_failing_brakedown_evaluation() {
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
 
-    let comm = MultilinearBrakedown::<N, BrakedownSpec1>::commit(&param, &mle).unwrap();
+    let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
     let point = vec![
         RandomField::from_bigint(config, 1u32.into()).unwrap(),
@@ -178,12 +171,12 @@ fn test_failing_brakedown_evaluation() {
     let eval = RandomField::from_bigint(config, 0u32.into()).unwrap();
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearBrakedown::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res = MultilinearBrakedown::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
 
     assert!(res.is_err())
 }

@@ -7,7 +7,7 @@ use crate::{
         pcs_transcript::PcsTranscript,
     },
     ccs::{
-        ccs_f::{Instance_F, Statement, Witness_F, CCS_F},
+        ccs_f::{Instance_F, Statement_F, Witness_F, CCS_F},
         ccs_z::{Statement_Z, Witness_Z, CCS_Z},
     },
     field::RandomField,
@@ -126,7 +126,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement<N>,
+        statement: &Statement_F<N>,
         wit: &Witness_F<N>,
         config: *const FieldConfig<N>,
         ccs: &CCS_F<N>,
@@ -147,7 +147,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
     fn sumcheck_1(
         z_ccs: &[RandomField<N>],
         transcript: &mut KeccakTranscript,
-        statement: &Statement<N>,
+        statement: &Statement_F<N>,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
     ) -> Result<
@@ -174,7 +174,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
     fn sumcheck_2(
         r_a: &[RandomField<N>],
         ccs: &CCS_F<N>,
-        statement: &Statement<N>,
+        statement: &Statement_F<N>,
         config: *const FieldConfig<N>,
         z_mle: &DenseMultilinearExtension<N>,
         transcript: &mut KeccakTranscript,

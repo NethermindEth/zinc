@@ -17,32 +17,21 @@ impl<const N: usize> From<u128> for RandomField<N> {
     }
 }
 
-impl<const N: usize> From<u64> for RandomField<N> {
-    fn from(value: u64) -> Self {
-        let value = BigInt::from(value);
-        Raw { value }
-    }
+macro_rules! impl_from_uint {
+    ($type:ty) => {
+        impl<const N: usize> From<$type> for RandomField<N> {
+            fn from(value: $type) -> Self {
+                let value = BigInt::from(value);
+                Raw { value }
+            }
+        }
+    };
 }
 
-impl<const N: usize> From<u32> for RandomField<N> {
-    fn from(value: u32) -> Self {
-        let value = BigInt::from(value);
-        Raw { value }
-    }
-}
-
-impl<const N: usize> From<u16> for RandomField<N> {
-    fn from(value: u16) -> Self {
-        let value = BigInt::from(value);
-        Raw { value }
-    }
-}
-impl<const N: usize> From<u8> for RandomField<N> {
-    fn from(value: u8) -> Self {
-        let value = BigInt::from(value);
-        Raw { value }
-    }
-}
+impl_from_uint!(u64);
+impl_from_uint!(u32);
+impl_from_uint!(u16);
+impl_from_uint!(u8);
 
 impl<const N: usize> From<bool> for RandomField<N> {
     fn from(value: bool) -> Self {
@@ -78,6 +67,36 @@ impl<const N: usize> RandomField<N> {
         Self::from_bigint(config, value?)
     }
 }
+
+pub trait FieldMap {
+    type Output<const N: usize>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N>;
+}
+
+macro_rules! impl_field_map_for_int {
+    ($type:ty) => {
+        impl FieldMap for $type {
+            type Output<const N: usize> = RandomField<N>;
+            fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+                let field = RandomField::from(self.unsigned_abs());
+                if self.is_negative() { -field } else { field }
+            }
+        }
+
+        impl FieldMap for &$type {
+            type Output<const N: usize> = RandomField<N>;
+            fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+                (*self).map_to_field(config)
+            }
+        }
+    };
+}
+
+impl_field_map_for_int!(i8);
+impl_field_map_for_int!(i16);
+impl_field_map_for_int!(i32);
+impl_field_map_for_int!(i64);
+impl_field_map_for_int!(i128);
 
 #[cfg(test)]
 mod tests {

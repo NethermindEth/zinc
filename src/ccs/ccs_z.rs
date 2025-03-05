@@ -2,11 +2,16 @@
 
 #![allow(non_snake_case, dead_code, non_camel_case_types)]
 
+use std::sync::atomic::AtomicPtr;
+
 use ark_ff::{One, Zero};
 
+use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
+use crate::field_config::FieldConfig;
 use crate::sparse_matrix::SparseMatrix;
+use crate::field::conversion::FieldMap;
 use num_bigint::BigInt as Z;
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -46,7 +51,7 @@ pub struct CCS_Z {
     /// vector of multisets
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
-    pub c: Vec<Z>,
+    pub c: Vec<i128>,
 }
 
 impl Arith_Z for CCS_Z {
@@ -78,7 +83,7 @@ impl Arith_Z for CCS_Z {
             }
 
             // multiply by the coefficient of this step
-            let c_M_j_z = vec_scalar_mul(&hadamard_result, &self.c[i]);
+            let c_M_j_z = vec_scalar_mul(&hadamard_result, &self.c[i].into());
 
             // add it to the final vector
             result = vec_add(&result, &c_M_j_z)?;
@@ -105,22 +110,57 @@ impl Arith_Z for CCS_Z {
     }
 }
 
-pub struct Statement_Z {
-    pub constraints: Vec<SparseMatrix<Z>>,
-    pub public_input: Vec<Z>,
+impl FieldMap for CCS_Z {
+    type Output<const N: usize> = CCS_F<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        CCS_F{
+            m: self.m,
+            n: self.n,
+            l: self.l,
+            t: self.t,
+            q: self.q,
+            d: self.d,
+            s: self.s,
+            s_prime: self.s_prime,
+            S: self.S.clone(),
+            c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
+            config: AtomicPtr::new(config as *mut FieldConfig<N>),
+        }
+    }
 }
 
+pub struct Statement_Z {
+    pub constraints: Vec<SparseMatrix<i128>>,
+    pub public_input: Vec<i64>,
+}
+
+impl FieldMap for Statement_Z {
+    type Output<const N: usize> = Statement_F<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        Statement_F{
+            constraints: self.constraints.iter().map(|m| m.map_to_field(config)).collect(),
+            public_input: self.public_input.iter().map(|i| i.map_to_field(config)).collect(),
+        }
+    }
+}
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Witness_Z {
     /// `w_ccs` is the original CCS witness.
-    pub w_ccs: Vec<Z>,
+    pub w_ccs: Vec<i64>,
 }
 
 impl Witness_Z {
     /// Create a [`Witness`] from a ccs witness.
-    pub fn new(w_ccs: Vec<Z>) -> Self {
+    pub fn new(w_ccs: Vec<i64>) -> Self {
         Self { w_ccs }
+    }
+}
+
+impl FieldMap for Witness_Z {
+    type Output<const N: usize> = Witness_F<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        Witness_F { w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect() }
     }
 }
 
@@ -131,5 +171,5 @@ impl Witness_Z {
 ///
 pub trait Instance_Z {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, x: &[SparseMatrix<Z>], w: &[Z]) -> Vec<Z>;
+    fn get_z_vector(&self, x: &[i64], w: &[i64]) -> Vec<Z>;
 }

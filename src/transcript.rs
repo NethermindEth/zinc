@@ -52,18 +52,6 @@ impl KeccakTranscript {
         }
     }
 
-    pub fn absorb_bigint<const N: usize>(&mut self, value: &Z) {
-        let mut bytes = vec![value.sign() as u8];
-        bytes.extend(value.magnitude().to_bytes_be());
-        self.absorb(&bytes);
-    }
-
-    pub fn absorb_bigint_slice<const N: usize>(&mut self, slice: &[Z]) {
-        for bigint in slice.iter() {
-            self.absorb_bigint::<N>(bigint);
-        }
-    }
-
     fn get_challenge_limbs(&mut self) -> (u128, u128) {
         let challenge = self.hasher.clone().finalize();
 

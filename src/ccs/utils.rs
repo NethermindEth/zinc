@@ -9,7 +9,7 @@ use std::{
 
 use ark_std::cfg_iter;
 
-use crate::sparse_matrix::SparseMatrix;
+use crate::{field_config::FieldConfig, sparse_matrix::SparseMatrix};
 
 use super::error::CSError as Error;
 

@@ -601,41 +601,34 @@ impl<const N: usize> AsRef<[u64]> for BigInt<N> {
     }
 }
 
-impl<const N: usize> From<u64> for BigInt<N> {
+macro_rules! impl_from_uint {
+    ($type:ty) => {
+        impl<const N: usize> From<$type> for BigInt<N> {
+            #[inline]
+            fn from(val: $type) -> BigInt<N> {
+                let mut repr = Self::default();
+                repr.0[0] = val.into();
+                repr
+            }
+        }
+    };
+}
+
+impl_from_uint!(u64);
+impl_from_uint!(u32);
+impl_from_uint!(u16);
+impl_from_uint!(u8);
+
+impl<const N: usize> From<u128> for BigInt<N> {
     #[inline]
-    fn from(val: u64) -> BigInt<N> {
+    fn from(val: u128) -> BigInt<N> {
         let mut repr = Self::default();
-        repr.0[0] = val;
+        repr.0[0] = val as u64;
+        repr.0[1] = (val >> 64) as u64;
         repr
     }
 }
 
-impl<const N: usize> From<u32> for BigInt<N> {
-    #[inline]
-    fn from(val: u32) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val.into();
-        repr
-    }
-}
-
-impl<const N: usize> From<u16> for BigInt<N> {
-    #[inline]
-    fn from(val: u16) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val.into();
-        repr
-    }
-}
-
-impl<const N: usize> From<u8> for BigInt<N> {
-    #[inline]
-    fn from(val: u8) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val.into();
-        repr
-    }
-}
 
 impl<const N: usize> TryFrom<BigUint> for BigInt<N> {
     type Error = ();

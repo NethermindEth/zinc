@@ -5,5 +5,5 @@ pub mod prover;
 pub mod structs;
 #[cfg(test)]
 mod tests;
-mod utils;
+pub mod utils; // TODO: move to another place
 mod verifier;

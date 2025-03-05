@@ -124,7 +124,7 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
 }
 
 impl<const N: usize> CCS_F<N> {
-    fn pad(&mut self, statement: &mut Statement<N>, size: usize) {
+    fn pad(&mut self, statement: &mut Statement_F<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
             let log_m = log2(size) as usize;
@@ -147,12 +147,12 @@ impl<const N: usize> CCS_F<N> {
 
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct Statement<const N: usize> {
+pub struct Statement_F<const N: usize> {
     pub constraints: Vec<SparseMatrix<RandomField<N>>>,
     pub public_input: Vec<RandomField<N>>,
 }
 
-impl<const N: usize> Statement<N> {
+impl<const N: usize> Statement_F<N> {
     pub fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
@@ -236,7 +236,7 @@ pub trait Instance_F<const N: usize> {
     ) -> Vec<RandomField<N>>;
 }
 
-impl<const N: usize> Instance_F<N> for Statement<N> {
+impl<const N: usize> Instance_F<N> for Statement_F<N> {
     fn get_z_vector(
         &self,
         w: &[RandomField<N>],
@@ -366,7 +366,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
 pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> Statement<N> {
+) -> Statement_F<N> {
     let A = to_F_matrix::<N>(
         config,
         vec![
@@ -396,7 +396,7 @@ pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     );
     let constraints = vec![A, B, C];
     let public_input = vec![RandomField::from_bigint(config, input.into()).unwrap()];
-    Statement {
+    Statement_F {
         constraints,
         public_input,
     }
@@ -441,7 +441,7 @@ pub(crate) fn get_test_wit_F<const N: usize>(
 pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement<N>, Witness_F<N>, Vec<RandomField<N>>) {
+) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>, Vec<RandomField<N>>) {
     let mut ccs = get_test_ccs_F(config);
     let mut statement = get_test_ccs_F_statement(input, config);
     let witness = get_test_wit_F(input, config);

@@ -4,7 +4,7 @@ use ark_ff::{vec::*, UniformRand, Zero};
 
 use ark_std::rand::Rng;
 
-use crate::{field::RandomField, field_config::FieldConfig};
+use crate::{field::RandomField, field_config::FieldConfig, field::conversion::FieldMap};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SparseMatrix<R1: Clone + Send + Sync> {
@@ -13,6 +13,25 @@ pub struct SparseMatrix<R1: Clone + Send + Sync> {
     pub coeffs: Vec<Vec<(R1, usize)>>,
 }
 
+// At the moment only using i128 for the sparse matrix, macro later if needed
+impl FieldMap for SparseMatrix<i128> {
+    type Output<const N: usize> = SparseMatrix<RandomField<N>>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        let mut matrix = SparseMatrix::<RandomField<N>> {
+            n_rows: self.n_rows,
+            n_cols: self.n_cols,
+            coeffs: Vec::new(),
+        };
+        for row in self.coeffs.iter() {
+            let mut new_row = Vec::new();
+            for (value, col) in row.iter() {
+                new_row.push((value.map_to_field(config), *col));
+            }
+            matrix.coeffs.push(new_row);
+        }
+        matrix
+    }
+}
 impl<R: Copy + Send + Sync + Zero + UniformRand> SparseMatrix<R> {
     pub fn empty() -> Self {
         Self {

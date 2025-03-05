@@ -4,7 +4,7 @@ use crate::{
     brakedown::{
         code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
     },
-    ccs::ccs_f::{Statement, CCS_F},
+    ccs::ccs_f::{Statement_F, CCS_F},
     field::RandomField,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
@@ -35,7 +35,7 @@ pub trait SpartanVerifier<const N: usize> {
     ///
     fn verify(
         &self,
-        cm_i: &Statement<N>,
+        cm_i: &Statement_F<N>,
         proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
@@ -45,7 +45,7 @@ pub trait SpartanVerifier<const N: usize> {
 impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement<N>,
+        cm_i: &Statement_F<N>,
         proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,

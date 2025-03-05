@@ -177,7 +177,7 @@ pub(super) fn draw_random_field<const N: usize>(
     transcript: &mut KeccakTranscript,
 ) -> *const FieldConfig<N> {
     for input in public_inputs {
-        transcript.absorb(&input.to_be_bytes());   
+        transcript.absorb(&input.to_be_bytes());
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now

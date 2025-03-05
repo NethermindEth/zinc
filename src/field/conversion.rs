@@ -77,15 +77,25 @@ macro_rules! impl_field_map_for_int {
     ($type:ty) => {
         impl FieldMap for $type {
             type Output<const N: usize> = RandomField<N>;
-            fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
                 let field = RandomField::from(self.unsigned_abs());
-                if self.is_negative() { -field } else { field }
+                if self.is_negative() {
+                    -field
+                } else {
+                    field
+                }
             }
         }
 
         impl FieldMap for &$type {
             type Output<const N: usize> = RandomField<N>;
-            fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
                 (*self).map_to_field(config)
             }
         }

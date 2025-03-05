@@ -9,9 +9,9 @@ use ark_ff::{One, Zero};
 use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
+use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
 use crate::sparse_matrix::SparseMatrix;
-use crate::field::conversion::FieldMap;
 use num_bigint::BigInt as Z;
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -113,7 +113,7 @@ impl Arith_Z for CCS_Z {
 impl FieldMap for CCS_Z {
     type Output<const N: usize> = CCS_F<N>;
     fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
-        CCS_F{
+        CCS_F {
             m: self.m,
             n: self.n,
             l: self.l,
@@ -137,9 +137,17 @@ pub struct Statement_Z {
 impl FieldMap for Statement_Z {
     type Output<const N: usize> = Statement_F<N>;
     fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
-        Statement_F{
-            constraints: self.constraints.iter().map(|m| m.map_to_field(config)).collect(),
-            public_input: self.public_input.iter().map(|i| i.map_to_field(config)).collect(),
+        Statement_F {
+            constraints: self
+                .constraints
+                .iter()
+                .map(|m| m.map_to_field(config))
+                .collect(),
+            public_input: self
+                .public_input
+                .iter()
+                .map(|i| i.map_to_field(config))
+                .collect(),
         }
     }
 }
@@ -160,7 +168,9 @@ impl Witness_Z {
 impl FieldMap for Witness_Z {
     type Output<const N: usize> = Witness_F<N>;
     fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
-        Witness_F { w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect() }
+        Witness_F {
+            w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
+        }
     }
 }
 

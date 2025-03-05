@@ -6,7 +6,7 @@ use crate::{
     ccs::{ccs_f::get_test_ccs_stuff_F, test_utils::get_dummy_ccs_from_z_length},
     field::RandomField,
     field_config::FieldConfig,
-    spartan::{
+    zinc::{
         prover::SpartanProver,
         structs::{ZincProver, ZincVerifier},
         verifier::SpartanVerifier,

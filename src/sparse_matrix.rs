@@ -4,7 +4,7 @@ use ark_ff::{vec::*, UniformRand, Zero};
 
 use ark_std::rand::Rng;
 
-use crate::{field::RandomField, field_config::FieldConfig, field::conversion::FieldMap};
+use crate::{field::conversion::FieldMap, field::RandomField, field_config::FieldConfig};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SparseMatrix<R1: Clone + Send + Sync> {

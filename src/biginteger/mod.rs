@@ -629,7 +629,6 @@ impl<const N: usize> From<u128> for BigInt<N> {
     }
 }
 
-
 impl<const N: usize> TryFrom<BigUint> for BigInt<N> {
     type Error = ();
 

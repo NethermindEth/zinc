@@ -65,7 +65,30 @@ where
         rows: &mut [i64],
         poly: &Self::Polynomial,
     ) -> Vec<I256> {
-        todo!()
+        let chunk_size = div_ceil(pp.num_rows(), num_threads());
+        let mut encoded_rows = vec![I256::default(); rows.len()];
+
+        parallelize_iter(
+            encoded_rows
+                .chunks_exact_mut(chunk_size * codeword_len)
+                .zip(poly.evaluations.chunks_exact(chunk_size * row_len)),
+            |(encoded_chunk, evals)| {
+                for (row, evals) in encoded_chunk
+                    .chunks_exact_mut(codeword_len)
+                    .zip(evals.chunks_exact(row_len))
+                {
+                    let mut temp_row = vec![0i64; codeword_len];
+                    temp_row[..evals.len()].copy_from_slice(evals);
+                    pp.zip().encode(&mut temp_row);
+
+                    for (i, val) in temp_row.iter().enumerate() {
+                        row[i] = I256::from(*val);
+                    }
+                }
+            },
+        );
+
+        encoded_rows
     }
 
     fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I256]) {

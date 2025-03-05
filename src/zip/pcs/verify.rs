@@ -60,7 +60,7 @@ where
                 let mut combined_row = transcript.read_integers(row_len)?;
 
                 combined_row.resize(codeword_len, 0i64);
-                vp.zip().encode(&mut combined_row);
+                vp.zip().encode(&combined_row);
                 let combined_row_f = combined_row
                     .iter()
                     .map(|i| F::from_i64(*i, field).unwrap())
@@ -82,7 +82,7 @@ where
             let mut t_0_combined_row = transcript.read_integers(row_len)?;
 
             t_0_combined_row.resize(codeword_len, 0i64);
-            vp.zip().encode(&mut t_0_combined_row);
+            let code = vp.zip().encode(&mut t_0_combined_row);
             let t_0_combined_row_f = t_0_combined_row
                 .iter()
                 .map(|i| F::from_i64(*i, field).unwrap())
@@ -101,6 +101,7 @@ where
             let merkle_path = transcript.read_commitments(depth)?;
 
             Self::verify_proximity(&combined_rows, &items, column, vp.num_rows())?;
+
             Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }
 

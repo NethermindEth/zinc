@@ -11,6 +11,8 @@ use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
 
+const PROB_MULTIPLIER: usize = 18;
+const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize>: Sync + Send {
     fn row_len(&self) -> usize;
 
@@ -56,7 +58,6 @@ impl<const N: usize> Zip<N> {
                 }
             });
 
-        //	let row_len = (((1 << num_vars) as f64).sqrt() as usize).next_power_of_two() as usize;
         let codeword_len = S::codeword_len(log2_q, row_len, n_0);
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
@@ -90,8 +91,11 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
         self.num_proximity_testing
     }
 
-    fn encode(&self, mut row: &[i64]) -> Vec<I256> {
-        todo!()
+    fn encode(&self, row: &[i64]) -> Vec<I256> {
+        let mut code = Vec::with_capacity(2 * self.codeword_len);
+        code.extend(SparseMatrix::mat_vec_mul(&self.a, row));
+        code.extend(SparseMatrix::mat_vec_mul(&self.b, row));
+        code
     }
 }
 
@@ -144,9 +148,6 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_column_opening() -> usize {
-        //	1
-
-        //	println!("num c {:?}", numc);
         ceil(-Self::LAMBDA / (1.0 - Self::delta() / 3.0).log2())
     }
 
@@ -154,29 +155,20 @@ pub trait ZipSpec: Debug {
         ceil(Self::LAMBDA / (log2_q as f64 - (Self::codeword_len(log2_q, n, n_0) as f64).log2()))
     }
 
-    fn dimensions(
-        log2_q: usize,
-        n: usize,
-        n_0: usize,
-    ) -> (SparseMatrixDimension, SparseMatrixDimension) {
-        todo!()
-    }
-
-    fn codeword_len(log2_q: usize, n: usize, n_0: usize) -> usize {
-        todo!()
+    fn codeword_len(_log2_q: usize, n: usize, _n_0: usize) -> usize {
+        n
     }
 
     fn matrices(
-        log2_q: usize,
-        n: usize,
-        n_0: usize,
+        rows: usize,
+        cols: usize,
+        density: usize,
         mut rng: impl RngCore,
     ) -> (SparseMatrix, SparseMatrix) {
-        let (a, b) = Self::dimensions(log2_q, n, n_0);
-
+        let dim = SparseMatrixDimension::new(rows, cols, density);
         (
-            SparseMatrix::new(a, &mut rng),
-            SparseMatrix::new(b, &mut rng),
+            SparseMatrix::new(dim, &mut rng),
+            SparseMatrix::new(dim, &mut rng),
         )
     }
 }
@@ -280,7 +272,7 @@ impl SparseMatrix {
         self.rows().enumerate().for_each(|(row_idx, cells)| {
             let mut sum = I256::from(0);
             for (column, coeff) in cells.iter() {
-                sum += I256::from((*coeff) * (vector[*column] as i128));
+                sum += I256::from(*coeff) * (I256::from(vector[*column]));
             }
             result[row_idx] = sum;
         });

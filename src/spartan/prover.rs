@@ -6,7 +6,10 @@ use crate::{
         pcs::structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
         pcs_transcript::PcsTranscript,
     },
-    ccs::ccs_f::{Instance_F, Statement, Witness, CCS_F},
+    ccs::{
+        ccs_f::{Instance_F, Statement, Witness_F, CCS_F},
+        ccs_z::{Statement_Z, Witness_Z, CCS_Z},
+    },
     field::RandomField,
     field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension,
@@ -19,8 +22,8 @@ use super::{
     errors::{MleEvaluationError, SpartanError},
     structs::{SpartanProof, ZincProver},
     utils::{
-        calculate_Mz_mles, prepare_lin_sumcheck_polynomial, sumcheck_polynomial_comb_fn_1,
-        SqueezeBeta, SqueezeGamma,
+        calculate_Mz_mles, draw_random_field, prepare_lin_sumcheck_polynomial,
+        sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
     },
 };
 
@@ -47,21 +50,22 @@ pub trait SpartanProver<const N: usize> {
     ///
     fn prove(
         &self,
-        statement: &Statement<N>,
-        wit: &Witness<N>,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_Z,
     ) -> Result<SpartanProof<N>, SpartanError<N>>;
 }
 
 impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement<N>,
-        wit: &Witness<N>,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_Z,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
+        let config = draw_random_field::<N>(&statement.public_input, transcript);
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, self.config, ccs);
 
@@ -123,7 +127,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
 
     fn get_z_ccs_and_z_mle(
         statement: &Statement<N>,
-        wit: &Witness<N>,
+        wit: &Witness_F<N>,
         config: *const FieldConfig<N>,
         ccs: &CCS_F<N>,
     ) -> (Vec<RandomField<N>>, DenseMultilinearExtension<N>) {

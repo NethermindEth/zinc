@@ -7,7 +7,7 @@ use ark_ff::{One, Zero};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::sparse_matrix::SparseMatrix;
-use num_bigint::BigInt;
+use num_bigint::BigInt as Z;
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
 ///
@@ -16,7 +16,7 @@ use num_bigint::BigInt;
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
 pub trait Arith_Z {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<BigInt>], z: &[BigInt]) -> Result<(), Error>;
+    fn check_relation(&self, M: &[SparseMatrix<Z>], z: &[Z]) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
     /// public inputs, etc, without the matrices/polynomials values.
@@ -46,13 +46,13 @@ pub struct CCS_Z {
     /// vector of multisets
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
-    pub c: Vec<BigInt>,
+    pub c: Vec<Z>,
 }
 
 impl Arith_Z for CCS_Z {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<BigInt>], z: &[BigInt]) -> Result<(), Error> {
-        let mut result = vec![BigInt::zero(); self.m];
+    fn check_relation(&self, M: &[SparseMatrix<Z>], z: &[Z]) -> Result<(), Error> {
+        let mut result = vec![Z::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.m,
@@ -67,13 +67,13 @@ impl Arith_Z for CCS_Z {
         }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
-            let vec_M_j: Vec<&SparseMatrix<BigInt>> = self.S[i].iter().map(|j| &M[*j]).collect();
+            let vec_M_j: Vec<&SparseMatrix<Z>> = self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
-            let mut hadamard_result = vec![BigInt::one(); self.m];
+            let mut hadamard_result = vec![Z::one(); self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, BigInt::zero());
+                res.resize(self.m, Z::zero());
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
@@ -105,16 +105,21 @@ impl Arith_Z for CCS_Z {
     }
 }
 
-/// A representation of a CCS witness.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Witness {
-    /// `w_ccs` is the original CCS witness.
-    pub w_ccs: Vec<BigInt>,
+pub struct Statement_Z {
+    pub constraints: Vec<SparseMatrix<Z>>,
+    pub public_input: Vec<Z>,
 }
 
-impl Witness {
+/// A representation of a CCS witness.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Witness_Z {
+    /// `w_ccs` is the original CCS witness.
+    pub w_ccs: Vec<Z>,
+}
+
+impl Witness_Z {
     /// Create a [`Witness`] from a ccs witness.
-    pub fn new(w_ccs: Vec<BigInt>) -> Self {
+    pub fn new(w_ccs: Vec<Z>) -> Self {
         Self { w_ccs }
     }
 }
@@ -124,7 +129,7 @@ impl Witness {
 /// # Types
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
-pub trait Instance_F {
+pub trait Instance_Z {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, x: &[SparseMatrix<BigInt>], w: &[BigInt]) -> Vec<BigInt>;
+    fn get_z_vector(&self, x: &[SparseMatrix<Z>], w: &[Z]) -> Vec<Z>;
 }

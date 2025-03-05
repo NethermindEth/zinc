@@ -1,7 +1,11 @@
 #![allow(dead_code, non_snake_case)]
+use num_bigint::BigInt as Z;
+use std::str::FromStr;
+
 use ark_ff::Zero;
 
 use crate::{
+    biginteger::BigInt,
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
     field_config::FieldConfig,
@@ -166,4 +170,21 @@ where
             }
         })
         .collect::<Result<_, E>>()
+}
+
+pub(super) fn draw_random_field<const N: usize>(
+    public_input: &[Z],
+    transcript: &mut KeccakTranscript,
+) -> *const FieldConfig<N> {
+    transcript.absorb_bigint_slice::<N>(public_input);
+    // Method for efficient random prime sampling not yet implemented
+    // Fixing the random prime q for now
+    let config: *const FieldConfig<N> = &FieldConfig::new(
+        BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
+    );
+    config
+}
+
+fn field_map<const N: usize>(x: BigInt<N>, config: *const FieldConfig<N>) -> RandomField<N> {
+    todo!()
 }

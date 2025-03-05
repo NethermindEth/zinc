@@ -10,7 +10,7 @@ use crate::{
     sparse_matrix::SparseMatrix,
 };
 
-use super::ccs_f::{Statement, Witness, CCS_F};
+use super::ccs_f::{Statement, Witness_F, CCS_F};
 
 pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
     rows: usize,
@@ -53,7 +53,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
 fn get_dummy_ccs_from_z<const N: usize>(
     z: &[RandomField<N>],
     config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement<N>, Witness<N>) {
+) -> (CCS_F<N>, Statement<N>, Witness_F<N>) {
     let ccs = CCS_F {
         m: z.len(),
         n: z.len(),
@@ -82,7 +82,7 @@ fn get_dummy_ccs_from_z<const N: usize>(
         public_input: Vec::new(),
     };
 
-    let wit = Witness {
+    let wit = Witness_F {
         w_ccs: z[ccs.l..].to_vec(),
     };
 
@@ -93,7 +93,7 @@ pub fn get_dummy_ccs_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
     config: *const FieldConfig<N>,
-) -> (Vec<RandomField<N>>, CCS_F<N>, Statement<N>, Witness<N>) {
+) -> (Vec<RandomField<N>>, CCS_F<N>, Statement<N>, Witness_F<N>) {
     let z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
     let (ccs, statement, wit) = get_dummy_ccs_from_z(&z, config);
 

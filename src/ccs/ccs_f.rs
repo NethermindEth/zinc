@@ -183,7 +183,7 @@ pub struct LStatement<const N: usize> {
 
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness<const N: usize> {
+pub struct Witness_F<const N: usize> {
     /// `w_ccs` is the original CCS witness.
     pub w_ccs: Vec<RandomField<N>>,
 }
@@ -200,7 +200,7 @@ pub struct LWitness<const N: usize> {
     pub lw_ccs: DenseMultilinearExtension<N>,
 }
 
-impl<const N: usize> Witness<N> {
+impl<const N: usize> Witness_F<N> {
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<RandomField<N>>) -> Self {
         Self { w_ccs }
@@ -425,8 +425,8 @@ pub(crate) fn get_test_z_F<const N: usize>(
 pub(crate) fn get_test_wit_F<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> Witness<N> {
-    Witness::new(to_F_vec(
+) -> Witness_F<N> {
+    Witness_F::new(to_F_vec(
         vec![
             input * input * input + input + 5, // x^3 + x + 5
             input * input,                     // x^2
@@ -441,7 +441,7 @@ pub(crate) fn get_test_wit_F<const N: usize>(
 pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement<N>, Witness<N>, Vec<RandomField<N>>) {
+) -> (CCS_F<N>, Statement<N>, Witness_F<N>, Vec<RandomField<N>>) {
     let mut ccs = get_test_ccs_F(config);
     let mut statement = get_test_ccs_F_statement(input, config);
     let witness = get_test_wit_F(input, config);

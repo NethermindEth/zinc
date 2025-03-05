@@ -1,6 +1,7 @@
 use sha3::{Digest, Keccak256};
 
 use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
+use num_bigint::BigInt as Z;
 
 #[derive(Clone)]
 pub struct KeccakTranscript {
@@ -48,6 +49,18 @@ impl KeccakTranscript {
     pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
+        }
+    }
+
+    pub fn absorb_bigint<const N: usize>(&mut self, value: &Z) {
+        let mut bytes = vec![value.sign() as u8];
+        bytes.extend(value.magnitude().to_bytes_be());
+        self.absorb(&bytes);
+    }
+
+    pub fn absorb_bigint_slice<const N: usize>(&mut self, slice: &[Z]) {
+        for bigint in slice.iter() {
+            self.absorb_bigint::<N>(bigint);
         }
     }
 

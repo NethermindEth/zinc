@@ -2,16 +2,13 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
 
-use ark_ff::{One, Zero};
+use crate::zip::utils::evaluate_poly;
+
+use ark_ff::UniformRand;
 use ark_std::fmt::Debug;
 use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
-
-use crate::field::rand_with_config;
-use crate::field::RandomField as F;
-use crate::field_config::FieldConfig;
-use crate::zip::utils::evaluate_poly;
 
 pub trait LinearCodes<const N: usize>: Sync + Send {
     fn row_len(&self) -> usize;
@@ -42,12 +39,7 @@ impl<const N: usize> Zip<N> {
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    pub fn new_multilinear<S: ZipSpec>(
-        num_vars: usize,
-        n_0: usize,
-        rng: impl RngCore,
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    pub fn new_multilinear<S: ZipSpec>(num_vars: usize, n_0: usize, rng: impl RngCore) -> Self {
         assert!(1 << num_vars > n_0);
 
         let log2_q = N;
@@ -67,7 +59,7 @@ impl<const N: usize> Zip<N> {
         let codeword_len = S::codeword_len(log2_q, row_len, n_0);
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
-        let (a, b) = S::matrices(log2_q, row_len, n_0, rng, config);
+        let (a, b) = S::matrices(log2_q, row_len, n_0, rng);
 
         Self {
             row_len,
@@ -98,7 +90,39 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
     }
 
     fn encode(&self, mut target: impl AsMut<[i64]>) {
-        todo!()
+        let target = target.as_mut();
+
+        assert_eq!(target.len(), self.codeword_len);
+
+        let mut input_offset = 0;
+        self.a[..self.a.len() - 1].iter().for_each(|a| {
+            let (input, output) = target[input_offset..].split_at_mut(a.dimension.n);
+            a.dot_into(input, &mut output[..a.dimension.m]);
+            input_offset += a.dimension.n;
+        });
+
+        let a_last = self.a.last().unwrap();
+        let b_last = self.b.last().unwrap();
+        let (input, output) = target[input_offset..].split_at_mut(a_last.dimension.n);
+        let tmp = a_last.dot(input);
+        reed_solomon_into(&tmp, &mut output[..b_last.dimension.n]);
+        let mut output_offset = input_offset + a_last.dimension.n + b_last.dimension.n;
+        input_offset += a_last.dimension.n + a_last.dimension.m;
+
+        // TODO: parallelise this at some point.
+        self.a
+            .iter()
+            .rev()
+            .zip(self.b.iter().rev())
+            .for_each(|(a, b)| {
+                input_offset -= a.dimension.m;
+                let (input, output) = target.split_at_mut(output_offset);
+                b.dot_into(
+                    &input[input_offset..input_offset + b.dimension.n],
+                    &mut output[..b.dimension.m],
+                );
+                output_offset += b.dimension.m;
+            });
     }
 }
 
@@ -204,15 +228,14 @@ pub trait ZipSpec: Debug {
         n: usize,
         n_0: usize,
         mut rng: impl RngCore,
-        config: *const FieldConfig<N>,
     ) -> (Vec<SparseMatrix<N>>, Vec<SparseMatrix<N>>) {
         let (a, b) = Self::dimensions(log2_q, n, n_0);
         a.into_iter()
             .zip(b)
             .map(|(a, b)| {
                 (
-                    SparseMatrix::new(a, &mut rng, config),
-                    SparseMatrix::new(b, &mut rng, config),
+                    SparseMatrix::new(a, &mut rng),
+                    SparseMatrix::new(b, &mut rng),
                 )
             })
             .unzip()
@@ -260,15 +283,11 @@ impl SparseMatrixDimension {
 #[derive(Clone, Debug)]
 pub struct SparseMatrix<const N: usize> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, F<N>)>,
+    cells: Vec<(usize, i64)>,
 }
 
 impl<const N: usize> SparseMatrix<N> {
-    fn new(
-        dimension: SparseMatrixDimension,
-        mut rng: impl RngCore,
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    fn new(dimension: SparseMatrixDimension, mut rng: impl RngCore) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             (&mut rng)
@@ -278,7 +297,7 @@ impl<const N: usize> SparseMatrix<N> {
                 .count();
             columns
                 .into_iter()
-                .map(|column| (column, rand_with_config(&mut rng, config)))
+                .map(|column| (column, i64::rand(&mut rng)))
                 .collect_vec()
         })
         .take(dimension.n)
@@ -287,11 +306,11 @@ impl<const N: usize> SparseMatrix<N> {
         Self { dimension, cells }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, F<N>)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, i64)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn dot_into(&self, array: &[F<N>], mut target: impl AsMut<[F<N>]>) {
+    fn dot_into(&self, array: &[i64], mut target: impl AsMut<[i64]>) {
         let target = target.as_mut();
         assert_eq!(self.dimension.n, array.len());
         assert_eq!(self.dimension.m, target.len());
@@ -303,26 +322,26 @@ impl<const N: usize> SparseMatrix<N> {
         });
     }
 
-    fn dot(&self, array: &[F<N>]) -> Vec<F<N>> {
-        let mut target = vec![F::zero(); self.dimension.m];
+    fn dot(&self, array: &[i64]) -> Vec<i64> {
+        let mut target = vec![0i64; self.dimension.m];
         self.dot_into(array, &mut target);
         target
     }
 }
 
-pub fn steps<const N: usize>(start: F<N>) -> impl Iterator<Item = F<N>> {
-    steps_by(start, F::one())
+pub fn steps(start: i64) -> impl Iterator<Item = i64> {
+    steps_by(start, 1i64)
 }
 
-pub fn steps_by<const N: usize>(start: F<N>, step: F<N>) -> impl Iterator<Item = F<N>> {
+pub fn steps_by(start: i64, step: i64) -> impl Iterator<Item = i64> {
     iter::successors(Some(start), move |state| Some(step + *state))
 }
 
-fn reed_solomon_into<const N: usize>(input: &[F<N>], mut target: impl AsMut<[F<N>]>) {
+fn reed_solomon_into(input: &[i64], mut target: impl AsMut<[i64]>) {
     target
         .as_mut()
         .iter_mut()
-        .zip(steps(F::one()))
+        .zip(steps(1i64))
         .for_each(|(target, x)| *target = evaluate_poly(input, &x));
 }
 

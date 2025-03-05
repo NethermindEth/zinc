@@ -1,11 +1,10 @@
 use crate::field::RandomField as F;
-use ark_ff::Zero;
 use itertools::Itertools;
 use num_integer::Integer;
 
-pub(crate) fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
-    let coeff_vec: Vec<&F<N>> = coeffs.iter().rev().collect();
-    let mut acc = F::zero();
+pub(crate) fn evaluate_poly(coeffs: &[i64], x: &i64) -> i64 {
+    let coeff_vec: Vec<&i64> = coeffs.iter().rev().collect();
+    let mut acc = 0i64;
     for c in coeff_vec {
         acc = acc * x + *c;
     }

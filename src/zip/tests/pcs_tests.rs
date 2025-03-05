@@ -2,33 +2,22 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    field::{rand_with_config, RandomField},
     field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension,
+    poly_z::mle::DenseMultilinearExtension,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
+use ark_ff::UniformRand;
 const N: usize = 2;
 #[test]
 fn test_zip_commitment() {
-    let config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
     type S = ZipSpec1;
 
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng);
 
-    let evaluations = [
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 2u32.into()).unwrap(),
-        RandomField::from_bigint(config, 3u32.into()).unwrap(),
-        RandomField::from_bigint(config, 4u32.into()).unwrap(),
-        RandomField::from_bigint(config, 5u32.into()).unwrap(),
-        RandomField::from_bigint(config, 6u32.into()).unwrap(),
-        RandomField::from_bigint(config, 7u32.into()).unwrap(),
-    ];
+    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
     let n = 3;
-    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let res = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle);
 
@@ -37,33 +26,17 @@ fn test_zip_commitment() {
 
 #[test]
 fn test_failing_zip_commitment() {
-    let config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
     type S = ZipSpec1;
 
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng);
 
     let evaluations = [
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 2u32.into()).unwrap(),
-        RandomField::from_bigint(config, 3u32.into()).unwrap(),
-        RandomField::from_bigint(config, 4u32.into()).unwrap(),
-        RandomField::from_bigint(config, 5u32.into()).unwrap(),
-        RandomField::from_bigint(config, 6u32.into()).unwrap(),
-        RandomField::from_bigint(config, 7u32.into()).unwrap(),
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 2u32.into()).unwrap(),
-        RandomField::from_bigint(config, 3u32.into()).unwrap(),
-        RandomField::from_bigint(config, 4u32.into()).unwrap(),
-        RandomField::from_bigint(config, 5u32.into()).unwrap(),
-        RandomField::from_bigint(config, 6u32.into()).unwrap(),
-        RandomField::from_bigint(config, 7u32.into()).unwrap(),
+        0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64,
+        7i64,
     ];
     let n = 4;
-    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let res = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle);
 
@@ -77,31 +50,17 @@ fn test_zip_opening() {
     let rng = ark_std::test_rng();
     type S = ZipSpec1;
     let mut transcript = PcsTranscript::new();
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng);
 
-    let evaluations = [
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 2u32.into()).unwrap(),
-        RandomField::from_bigint(config, 3u32.into()).unwrap(),
-        RandomField::from_bigint(config, 4u32.into()).unwrap(),
-        RandomField::from_bigint(config, 5u32.into()).unwrap(),
-        RandomField::from_bigint(config, 6u32.into()).unwrap(),
-        RandomField::from_bigint(config, 7u32.into()).unwrap(),
-    ];
+    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
     let n = 3;
-    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point = vec![
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-    ];
-    let eval = RandomField::from_bigint(config, 0u32.into()).unwrap();
+    let point = vec![0i64, 0i64, 0i64];
 
-    let res = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, config, &mut transcript);
 
     assert!(res.is_ok())
 }
@@ -113,28 +72,25 @@ fn test_zip_evaluation() {
     let mut rng = ark_std::test_rng();
     type S = ZipSpec1;
     let n = 8;
-    let param: MultilinearZip<N, S>::Param =
-        MultilinearZip::<N, S>::setup(1 << 8, &mut rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << 8, &mut rng);
 
-    let evaluations: Vec<RandomField<N>> = (0..(1 << n))
-        .map(|_| rand_with_config(&mut rng, config))
-        .collect();
+    let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
 
-    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point: Vec<RandomField<N>> = (0..n).map(|_| rand_with_config(&mut rng, config)).collect();
+    let point: Vec<_> = (0..n).map(|_| i64::rand(&mut rng)).collect();
 
-    let eval = mle.evaluate(&point, config).unwrap();
+    let eval = mle.evaluate(&point).unwrap();
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript, config);
 
     assert!(res.is_ok())
 }
@@ -146,37 +102,24 @@ fn test_failing_zip_evaluation() {
     let rng = ark_std::test_rng();
     type S = ZipSpec1;
 
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng, config);
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng);
 
-    let evaluations = [
-        RandomField::from_bigint(config, 0u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 2u32.into()).unwrap(),
-        RandomField::from_bigint(config, 3u32.into()).unwrap(),
-        RandomField::from_bigint(config, 4u32.into()).unwrap(),
-        RandomField::from_bigint(config, 5u32.into()).unwrap(),
-        RandomField::from_bigint(config, 6u32.into()).unwrap(),
-        RandomField::from_bigint(config, 7u32.into()).unwrap(),
-    ];
+    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
     let n = 3;
-    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations, config);
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point = vec![
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-        RandomField::from_bigint(config, 1u32.into()).unwrap(),
-    ];
-    let eval = RandomField::from_bigint(config, 0u32.into()).unwrap();
+    let point = vec![1i64, 1i64, 1i64];
+    let eval = 0i64;
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, &eval, &mut transcript);
+    let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript);
+    let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript, config);
 
     assert!(res.is_err())
 }

@@ -4,7 +4,6 @@ use ark_std::rand::RngCore;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
@@ -99,14 +98,10 @@ where
     pub type Commitment = MultilinearZipCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 
-    pub fn setup(
-        poly_size: usize,
-        rng: impl RngCore,
-        config: *const FieldConfig<N>,
-    ) -> Self::Param {
+    pub fn setup(poly_size: usize, rng: impl RngCore) -> Self::Param {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let zip = Zip::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng, config);
+        let zip = Zip::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng);
         MultilinearZipParams {
             num_vars,
             num_rows: (1 << num_vars) / zip.row_len(),

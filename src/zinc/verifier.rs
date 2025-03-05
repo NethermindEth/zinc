@@ -12,10 +12,36 @@ use crate::{
 };
 
 use super::{
-    errors::{MleEvaluationError, SpartanError},
-    structs::{SpartanProof, ZincVerifier},
+    errors::{LookupError, MleEvaluationError, SpartanError, ZincError},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincVerifier},
     utils::{SqueezeBeta, SqueezeGamma},
 };
+
+pub trait Verifier<const N: usize> {
+    fn verify(
+        &self,
+        cm_i: &Statement_F<N>,
+        proof: ZincProof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_F<N>,
+    ) -> Result<(), ZincError<N>>;
+}
+
+impl<const N: usize, S: BrakedownSpec> Verifier<N> for ZincVerifier<N, S> {
+    fn verify(
+        &self,
+        cm_i: &Statement_F<N>,
+        proof: ZincProof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_F<N>,
+    ) -> Result<(), ZincError<N>> {
+        SpartanVerifier::<N>::verify(self, cm_i, proof.spartan_proof, transcript, ccs)
+            .map_err(|e| ZincError::SpartanError(e))?;
+        LookupVerifier::<N>::verify(self, proof.lookup_proof)
+            .map_err(|e| ZincError::LookupError(e))?;
+        Ok(())
+    }
+}
 
 /// Verifier for the Linearization subprotocol.
 pub trait SpartanVerifier<const N: usize> {
@@ -110,6 +136,17 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         Ok(())
     }
 }
+
+pub trait LookupVerifier<const N: usize> {
+    fn verify(&self, proof: LookupProof<N>) -> Result<(), LookupError>;
+}
+
+impl<const N: usize, S: BrakedownSpec> LookupVerifier<N> for ZincVerifier<N, S> {
+    fn verify(&self, _proof: LookupProof<N>) -> Result<(), LookupError> {
+        todo!()
+    }
+}
+
 impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,

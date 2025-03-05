@@ -7,6 +7,14 @@ use crate::{
 };
 
 #[derive(Debug, Error)]
+pub enum ZincError<const N: usize> {
+    #[error("lookup error: {0}")]
+    LookupError(#[from] LookupError),
+    #[error("spartan error: {0}")]
+    SpartanError(#[from] SpartanError<N>),
+}
+
+#[derive(Debug, Error)]
 pub enum SpartanError<const N: usize> {
     #[error("sum check failed at linearization step: {0}")]
     SumCheckError(#[from] SumCheckError<N>),
@@ -22,6 +30,12 @@ pub enum SpartanError<const N: usize> {
     VerificationError(String),
     #[error("")]
     BrakedownError(#[from] BrakedownError),
+}
+
+#[derive(Debug, Error)]
+pub enum LookupError {
+    #[error("lookup failed")]
+    LookupFailed,
 }
 
 #[derive(Debug, Error)]

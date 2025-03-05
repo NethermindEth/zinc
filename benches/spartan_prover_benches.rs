@@ -8,8 +8,8 @@ use zinc::{
     brakedown::code::BrakedownSpec1,
     ccs::test_utils::get_dummy_ccs_from_z_length,
     field_config::FieldConfig,
-    zinc::{prover::SpartanProver, structs::ZincProver},
     transcript::KeccakTranscript,
+    zinc::{prover::SpartanProver, structs::ZincProver},
 };
 
 fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {

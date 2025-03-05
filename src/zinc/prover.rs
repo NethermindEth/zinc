@@ -19,14 +19,40 @@ use crate::{
 };
 
 use super::{
-    errors::{MleEvaluationError, SpartanError},
-    structs::{SpartanProof, ZincProver},
+    errors::{MleEvaluationError, SpartanError, ZincError},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincProver},
     utils::{
         calculate_Mz_mles, draw_random_field, prepare_lin_sumcheck_polynomial,
         sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
     },
 };
 
+pub trait Prover<const N: usize> {
+    fn prove(
+        &self,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_Z,
+    ) -> Result<ZincProof<N>, ZincError<N>>;
+}
+
+impl<const N: usize, S: BrakedownSpec> Prover<N> for ZincProver<N, S> {
+    fn prove(
+        &self,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_Z,
+    ) -> Result<ZincProof<N>, ZincError<N>> {
+        let spartan_proof = SpartanProver::<N>::prove(self, statement, wit, transcript, ccs)?;
+        let lookup_proof = LookupProver::<N>::prove(self, wit)?;
+        Ok(ZincProof {
+            spartan_proof,
+            lookup_proof,
+        })
+    }
+}
 /// Prover for the Spartan protocol
 pub trait SpartanProver<const N: usize> {
     /// Generates a proof for the spartan protocol
@@ -103,6 +129,16 @@ impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
             z_comm,
             pcs_proof,
         })
+    }
+}
+
+pub trait LookupProver<const N: usize> {
+    fn prove(&self, wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>>;
+}
+
+impl<const N: usize, S: BrakedownSpec> LookupProver<N> for ZincProver<N, S> {
+    fn prove(&self, _wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>> {
+        todo!()
     }
 }
 

@@ -172,7 +172,7 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub(super) fn draw_random_field<const N: usize>(
+pub fn draw_random_field<const N: usize>(
     public_inputs: &[i64],
     transcript: &mut KeccakTranscript,
 ) -> *const FieldConfig<N> {

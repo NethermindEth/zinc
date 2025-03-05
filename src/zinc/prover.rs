@@ -45,7 +45,19 @@ impl<const N: usize, S: BrakedownSpec> Prover<N> for ZincProver<N, S> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z,
     ) -> Result<ZincProof<N>, ZincError<N>> {
-        let spartan_proof = SpartanProver::<N>::prove(self, statement, wit, transcript, ccs)?;
+        let field_config = draw_random_field::<N>(&statement.public_input, transcript);
+        // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
+        let ccs_F = ccs.map_to_field(field_config);
+        let wit_F = wit.map_to_field(field_config);
+        let statement_F = statement.map_to_field(field_config);
+        let spartan_proof = SpartanProver::<N>::prove(
+            self,
+            &statement_F,
+            &wit_F,
+            transcript,
+            &ccs_F,
+            field_config,
+        )?;
         let lookup_proof = LookupProver::<N>::prove(self, wit)?;
         Ok(ZincProof {
             spartan_proof,
@@ -76,47 +88,40 @@ pub trait SpartanProver<const N: usize> {
     ///
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_F<N>,
+        wit: &Witness_F<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_F<N>,
+        config: *const FieldConfig<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>>;
 }
 
 impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_F<N>,
+        wit: &Witness_F<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_F<N>,
+        config: *const FieldConfig<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
-        let field_config = draw_random_field::<N>(&statement.public_input, transcript);
-        // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs = ccs.map_to_field(field_config);
-        let statement = statement.map_to_field(field_config);
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(
-            &statement,
-            &wit.map_to_field(field_config),
-            field_config,
-            &ccs,
-        );
+        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(&statement, &wit, config, &ccs);
 
         // Do first Sumcheck
         let (sumcheck_proof_1, r_a, mz_mles) =
-            Self::sumcheck_1(&z_ccs, transcript, &statement, &ccs, field_config)?;
+            Self::sumcheck_1(&z_ccs, transcript, &statement, &ccs, config)?;
 
         // Do second sumcheck
         let (sumcheck_proof_2, r_y) =
-            Self::sumcheck_2(&r_a, &ccs, &statement, field_config, &z_mle, transcript)?;
+            Self::sumcheck_2(&r_a, &ccs, &statement, config, &z_mle, transcript)?;
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs, field_config, &r_y)?;
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs, config, &r_y)?;
 
         // Calculate V_s
-        let V_s = Self::calculate_V_s(&mz_mles, &r_a, field_config)?;
+        let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
 
         // TODO: Add lookup argument for enforcing integers
 

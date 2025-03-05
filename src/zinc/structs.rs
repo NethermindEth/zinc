@@ -38,7 +38,6 @@ pub struct ZincProver<const N: usize, S>
 where
     S: BrakedownSpec,
 {
-    pub config: *const FieldConfig<N>,
     pub data: PhantomData<S>,
 }
 
@@ -47,6 +46,5 @@ pub struct ZincVerifier<const N: usize, S>
 where
     S: BrakedownSpec,
 {
-    pub config: *const FieldConfig<N>,
     pub data: PhantomData<S>,
 }

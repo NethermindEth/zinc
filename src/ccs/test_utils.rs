@@ -10,30 +10,32 @@ use crate::{
     sparse_matrix::SparseMatrix,
 };
 
-use super::ccs_f::{Statement_F, Witness_F, CCS_F};
+use super::{
+    ccs_f::{Statement_F, Witness_F, CCS_F},
+    ccs_z::{Statement_Z, Witness_Z, CCS_Z},
+};
 
-pub(crate) fn create_dummy_identity_sparse_matrix<const N: usize>(
+pub(crate) fn create_dummy_identity_sparse_matrix(
     rows: usize,
     columns: usize,
-    config: *const FieldConfig<N>,
-) -> SparseMatrix<RandomField<N>> {
+) -> SparseMatrix<i128> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
         n_cols: columns,
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((RandomField::from_bigint(config, 1u32.into()).unwrap(), i));
+        row.push((1i128, i));
     }
     matrix
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
+pub(crate) fn create_dummy_squaring_sparse_matrix(
     rows: usize,
     columns: usize,
-    witness: &[RandomField<N>],
-) -> SparseMatrix<RandomField<N>> {
+    witness: &[i64],
+) -> SparseMatrix<i128> {
     assert_eq!(
         rows,
         witness.len(),
@@ -45,16 +47,13 @@ pub(crate) fn create_dummy_squaring_sparse_matrix<const N: usize>(
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((witness[i], i));
+        row.push((witness[i] as i128, i));
     }
     matrix
 }
 
-fn get_dummy_ccs_from_z<const N: usize>(
-    z: &[RandomField<N>],
-    config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
-    let ccs = CCS_F {
+fn get_dummy_ccs_from_z(z: &[i64]) -> (CCS_Z, Statement_Z, Witness_Z) {
+    let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
         l: 1,
@@ -64,38 +63,31 @@ fn get_dummy_ccs_from_z<const N: usize>(
         s: log2(z.len()) as usize,
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
-        c: vec![
-            RandomField::from_bigint(config, BigInt::one()).unwrap(),
-            RandomField::from_bigint(config, BigInt::one())
-                .unwrap()
-                .neg(),
-        ],
-        config: AtomicPtr::new(config as *mut FieldConfig<N>),
+        c: vec![1, -1],
     };
 
-    let A = create_dummy_identity_sparse_matrix(z.len(), z.len(), config);
+    let A = create_dummy_identity_sparse_matrix(z.len(), z.len());
     let B = A.clone();
     let C = create_dummy_squaring_sparse_matrix(z.len(), z.len(), z);
 
-    let statement = Statement_F {
+    let statement = Statement_Z {
         constraints: vec![A, B, C],
         public_input: Vec::new(),
     };
 
-    let wit = Witness_F {
+    let wit = Witness_Z {
         w_ccs: z[ccs.l..].to_vec(),
     };
 
     (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_from_z_length<const N: usize>(
+pub fn get_dummy_ccs_from_z_length(
     n: usize,
     rng: &mut impl Rng,
-    config: *const FieldConfig<N>,
-) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
-    let z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
-    let (ccs, statement, wit) = get_dummy_ccs_from_z(&z, config);
+) -> (Vec<i64>, CCS_Z, Statement_Z, Witness_Z) {
+    let z: Vec<_> = (0..n).map(|_| rng.gen_range(i64::MIN..=i64::MAX)).collect();
+    let (ccs, statement, wit) = get_dummy_ccs_from_z(&z);
 
     (z, ccs, statement, wit)
 }

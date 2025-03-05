@@ -1,3 +1,4 @@
+use i256::I256;
 use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
@@ -19,7 +20,7 @@ pub trait LinearCodes<const N: usize>: Sync + Send {
 
     fn num_proximity_testing(&self) -> usize;
 
-    fn encode(&self, input: impl AsMut<[i64]>);
+    fn encode(&self, input: &[i64]) -> Vec<I256>;
 }
 
 #[derive(Clone, Debug)]
@@ -28,8 +29,8 @@ pub struct Zip<const N: usize> {
     codeword_len: usize,
     num_column_opening: usize,
     num_proximity_testing: usize,
-    a: Vec<SparseMatrix<N>>,
-    b: Vec<SparseMatrix<N>>,
+    a: SparseMatrix,
+    b: SparseMatrix,
 }
 
 impl<const N: usize> Zip<N> {
@@ -89,40 +90,8 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
         self.num_proximity_testing
     }
 
-    fn encode(&self, mut target: impl AsMut<[i64]>) {
-        let target = target.as_mut();
-
-        assert_eq!(target.len(), self.codeword_len);
-
-        let mut input_offset = 0;
-        self.a[..self.a.len() - 1].iter().for_each(|a| {
-            let (input, output) = target[input_offset..].split_at_mut(a.dimension.n);
-            a.dot_into(input, &mut output[..a.dimension.m]);
-            input_offset += a.dimension.n;
-        });
-
-        let a_last = self.a.last().unwrap();
-        let b_last = self.b.last().unwrap();
-        let (input, output) = target[input_offset..].split_at_mut(a_last.dimension.n);
-        let tmp = a_last.dot(input);
-        reed_solomon_into(&tmp, &mut output[..b_last.dimension.n]);
-        let mut output_offset = input_offset + a_last.dimension.n + b_last.dimension.n;
-        input_offset += a_last.dimension.n + a_last.dimension.m;
-
-        // TODO: parallelise this at some point.
-        self.a
-            .iter()
-            .rev()
-            .zip(self.b.iter().rev())
-            .for_each(|(a, b)| {
-                input_offset -= a.dimension.m;
-                let (input, output) = target.split_at_mut(output_offset);
-                b.dot_into(
-                    &input[input_offset..input_offset + b.dimension.n],
-                    &mut output[..b.dimension.m],
-                );
-                output_offset += b.dimension.m;
-            });
+    fn encode(&self, mut row: &[i64]) -> Vec<I256> {
+        todo!()
     }
 }
 
@@ -189,56 +158,26 @@ pub trait ZipSpec: Debug {
         log2_q: usize,
         n: usize,
         n_0: usize,
-    ) -> (Vec<SparseMatrixDimension>, Vec<SparseMatrixDimension>) {
-        assert!(n > n_0);
-
-        let a = iter::successors(Some(n), |n| Some(ceil(*n as f64 * Self::ALPHA)))
-            .tuple_windows()
-            .map(|(n, m)| SparseMatrixDimension::new(n, m, std::cmp::min(Self::c_n(n), m)))
-            .take_while(|a| a.n > n_0)
-            .collect_vec();
-        let b = a
-            .iter()
-            .map(|a| {
-                let n_prime = ceil(a.m as f64 * Self::R);
-                let m_prime = ceil(a.n as f64 * Self::R) - a.n - n_prime;
-                SparseMatrixDimension::new(
-                    n_prime,
-                    m_prime,
-                    std::cmp::min(Self::d_n(log2_q, a.n), m_prime),
-                )
-            })
-            .collect();
-
-        (a, b)
+    ) -> (SparseMatrixDimension, SparseMatrixDimension) {
+        todo!()
     }
 
     fn codeword_len(log2_q: usize, n: usize, n_0: usize) -> usize {
-        let (a, b) = Self::dimensions(log2_q, n, n_0);
-        iter::empty()
-            .chain(Some(a[0].n))
-            .chain(a[..a.len() - 1].iter().map(|a| a.m))
-            .chain(Some(b.last().unwrap().n))
-            .chain(b.iter().map(|b| b.m))
-            .sum()
+        todo!()
     }
 
-    fn matrices<const N: usize>(
+    fn matrices(
         log2_q: usize,
         n: usize,
         n_0: usize,
         mut rng: impl RngCore,
-    ) -> (Vec<SparseMatrix<N>>, Vec<SparseMatrix<N>>) {
+    ) -> (SparseMatrix, SparseMatrix) {
         let (a, b) = Self::dimensions(log2_q, n, n_0);
-        a.into_iter()
-            .zip(b)
-            .map(|(a, b)| {
-                (
-                    SparseMatrix::new(a, &mut rng),
-                    SparseMatrix::new(b, &mut rng),
-                )
-            })
-            .unzip()
+
+        (
+            SparseMatrix::new(a, &mut rng),
+            SparseMatrix::new(b, &mut rng),
+        )
     }
 }
 
@@ -281,12 +220,12 @@ impl SparseMatrixDimension {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrix<const N: usize> {
+pub struct SparseMatrix {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, i64)>,
+    cells: Vec<(usize, i128)>,
 }
 
-impl<const N: usize> SparseMatrix<N> {
+impl SparseMatrix {
     fn new(dimension: SparseMatrixDimension, mut rng: impl RngCore) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
@@ -297,7 +236,7 @@ impl<const N: usize> SparseMatrix<N> {
                 .count();
             columns
                 .into_iter()
-                .map(|column| (column, i64::rand(&mut rng)))
+                .map(|column| (column, i128::rand(&mut rng)))
                 .collect_vec()
         })
         .take(dimension.n)
@@ -306,26 +245,47 @@ impl<const N: usize> SparseMatrix<N> {
         Self { dimension, cells }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, i64)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, i128)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn dot_into(&self, array: &[i64], mut target: impl AsMut<[i64]>) {
-        let target = target.as_mut();
+    fn dot(&self, array: &[i64], target: &[i128]) -> Vec<I256> {
+        let mut result: Vec<I256> = target.iter().map(|i| I256::from(*i)).collect();
         assert_eq!(self.dimension.n, array.len());
         assert_eq!(self.dimension.m, target.len());
 
         self.rows().zip(array.iter()).for_each(|(cells, item)| {
             cells.iter().for_each(|(column, coeff)| {
-                target[*column] += &(*item * *coeff);
+                result[*column] += I256::from((*item as i128) * *coeff);
             })
         });
+        result
     }
 
-    fn dot(&self, array: &[i64]) -> Vec<i64> {
-        let mut target = vec![0i64; self.dimension.m];
-        self.dot_into(array, &mut target);
-        target
+    // fn dot(&self, array: &[i64]) -> Vec<i64> {
+    //     let mut target = vec![0i64; self.dimension.m];
+    //     self.dot_into(array, &mut target);
+    //     target
+    // }
+
+    fn mat_vec_mul(&self, vector: &[i64]) -> Vec<I256> {
+        assert_eq!(
+            self.dimension.m,
+            vector.len(),
+            "Vector length must match matrix column dimension"
+        );
+
+        let mut result = vec![I256::from(0); self.dimension.n];
+
+        self.rows().enumerate().for_each(|(row_idx, cells)| {
+            let mut sum = I256::from(0);
+            for (column, coeff) in cells.iter() {
+                sum += I256::from((*coeff) * (vector[*column] as i128));
+            }
+            result[row_idx] = sum;
+        });
+
+        result
     }
 }
 

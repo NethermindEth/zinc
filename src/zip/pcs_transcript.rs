@@ -1,5 +1,6 @@
 use std::io::{Cursor, Read, Write};
 
+use i256::I256;
 use sha3::digest::Output;
 use sha3::Keccak256;
 
@@ -104,7 +105,18 @@ impl<const N: usize> PcsTranscript<N> {
         }
         Ok(())
     }
+    pub fn write_I256(&mut self, int: &I256) -> Result<(), Error> {
+        self.stream
+            .write_all(int.to_be_bytes().as_ref())
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
+    }
 
+    pub fn write_I256_vec(&mut self, ints: &[I256]) -> Result<(), Error> {
+        for int in ints {
+            self.write_I256(int)?;
+        }
+        Ok(())
+    }
     pub fn read_integer(&mut self) -> Result<i64, Error> {
         let mut bytes = [0; 8];
 
@@ -117,6 +129,21 @@ impl<const N: usize> PcsTranscript<N> {
     pub fn read_integers(&mut self, n: usize) -> Result<Vec<i64>, Error> {
         (0..n)
             .map(|_| self.read_integer())
+            .collect::<Result<Vec<_>, _>>()
+    }
+
+    pub fn read_I256(&mut self) -> Result<I256, Error> {
+        let mut bytes = [0; 32];
+
+        self.stream
+            .read_exact(&mut bytes)
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+        Ok(I256::from_be_bytes(bytes))
+    }
+
+    pub fn read_I256_vec(&mut self, n: usize) -> Result<Vec<I256>, Error> {
+        (0..n)
+            .map(|_| self.read_I256())
             .collect::<Result<Vec<_>, _>>()
     }
 

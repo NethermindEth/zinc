@@ -147,7 +147,7 @@ where
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
 
             //Write the elements in the squeezed column to the shared transcript
-            transcript.write_integers(
+            transcript.write_I256_vec(
                 &comm
                     .rows()
                     .iter()

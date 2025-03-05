@@ -1,4 +1,5 @@
 use ark_std::iterable::Iterable;
+use i256::I256;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
@@ -32,7 +33,7 @@ where
         let mut rows = vec![0i64; pp.num_rows() * codeword_len];
         let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
-        Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
 
         Self::merklize_column_hashes(merkle_depth, &mut hashes);
@@ -56,30 +57,18 @@ where
     ) -> Result<Vec<Self::Commitment>, Error> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
+
     fn encode_rows(
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
         rows: &mut [i64],
         poly: &Self::Polynomial,
-    ) {
-        let chunk_size = div_ceil(pp.num_rows(), num_threads());
-        parallelize_iter(
-            rows.chunks_exact_mut(chunk_size * codeword_len)
-                .zip(poly.evaluations.chunks_exact(chunk_size * row_len)),
-            |(rows, evals)| {
-                for (row, evals) in rows
-                    .chunks_exact_mut(codeword_len)
-                    .zip(evals.chunks_exact(row_len))
-                {
-                    row[..evals.len()].copy_from_slice(evals);
-                    pp.zip().encode(row);
-                }
-            },
-        );
+    ) -> Vec<I256> {
+        todo!()
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[i64]) {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I256]) {
         parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {

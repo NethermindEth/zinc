@@ -355,18 +355,22 @@ impl<const N: usize> RandomField<N> {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
         unsafe {
-            let modulus: [u64; N] = (*config).modulus.0;
-            let val: [u64; 4] = value.abs().to_be_u64();
+            let mut modulus: [u64; N] = (*config).modulus.0;
+            modulus.reverse();
+            let val: [u64; 4] = value.abs().to_le_u64();
             let mut r = match N {
                 n if n < 4 => {
                     let mut wider_modulus: [u64; 4] = [0; 4];
-                    wider_modulus[(4 - N)..].copy_from_slice(&modulus);
-
+                    wider_modulus[..(4 - N)].copy_from_slice(&modulus);
                     let mut value = crypto_bigint::Uint::<4>::from_words(val);
+
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
+
                     value %= crypto_bigint::NonZero::from_uint(modu);
+
                     let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[(4 - N)..]);
+                    result.copy_from_slice(&value.to_words()[..4 - N]);
+
                     BigInt(result)
                 }
                 4 => {
@@ -394,6 +398,7 @@ impl<const N: usize> RandomField<N> {
             if value.is_negative() {
                 elem = -elem;
             }
+
             elem
         }
     }

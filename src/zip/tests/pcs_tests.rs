@@ -100,10 +100,10 @@ fn test_zip_evaluation() {
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let mut rng = ark_std::test_rng();
     type S = ZipSpec1;
+    let n = 10;
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << n, &mut rng);
 
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, &mut rng);
-
-    let n = 3;
+    let n = 10;
     let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 

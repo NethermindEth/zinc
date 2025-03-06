@@ -66,23 +66,22 @@ fn test_zip_opening() {
 }
 
 #[test]
-fn test_zip_evaluation() {
+fn test_failing_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
-    let mut rng = ark_std::test_rng();
+    let rng = ark_std::test_rng();
     type S = ZipSpec1;
-    let n = 8;
-    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << 8, &mut rng);
 
-    let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(8, rng);
 
+    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
+    let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point: Vec<_> = (0..n).map(|_| i64::rand(&mut rng)).collect();
-
-    let eval = mle.evaluate(&point).unwrap();
+    let point = vec![0i64, 0i64, 0i64];
+    let eval = 7i64;
 
     let mut transcript = PcsTranscript::new();
     let _ = MultilinearZip::<N, S>::open(&param, &mle, &comm, &point, config, &mut transcript);
@@ -92,11 +91,11 @@ fn test_zip_evaluation() {
 
     let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript, config);
 
-    assert!(res.is_ok())
+    assert!(res.is_err())
 }
 
 #[test]
-fn test_failing_zip_evaluation() {
+fn test_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let rng = ark_std::test_rng();
@@ -121,5 +120,5 @@ fn test_failing_zip_evaluation() {
 
     let res = MultilinearZip::<N, S>::verify(&param, &comm, &point, &eval, &mut transcript, config);
 
-    println!("{:?}", res)
+    assert!(res.is_ok())
 }

@@ -162,6 +162,7 @@ where
             for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
                 let neighbor_idx = (column >> idx) ^ 1;
                 transcript.write_commitment(&comm.intermediate_hashes()[offset + neighbor_idx])?;
+
                 proof.push(comm.intermediate_hashes()[offset + neighbor_idx]);
                 offset += width;
             }

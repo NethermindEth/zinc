@@ -1,7 +1,7 @@
-#![allow(clippy::not_unsafe_ptr_arg_deref)]
+#![allow(clippy::not_unsafe_ptr_arg_deref, non_snake_case)]
 
 use ark_ff::UniformRand;
-use crypto_bigint::modular::constant_mod;
+
 use i256::I256;
 
 use crate::{
@@ -335,10 +335,10 @@ impl<const N: usize> RandomField<N> {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
         unsafe {
-            if BigInt::from(value.unsigned_abs() as u64) >= (*config).modulus {
+            if BigInt::from(value.unsigned_abs()) >= (*config).modulus {
                 None
             } else {
-                let mut r = (value.unsigned_abs() as u64).into();
+                let mut r = (value.unsigned_abs()).into();
 
                 (*config).mul_assign(&mut r, &(*config).r2);
 
@@ -350,8 +350,8 @@ impl<const N: usize> RandomField<N> {
             }
         }
     }
-
-    pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> Option<RandomField<N>> {
+    // TODO This meethod is rather bad, needs to be improved
+    pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> RandomField<N> {
         if config.is_null() {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
@@ -363,18 +363,29 @@ impl<const N: usize> RandomField<N> {
                     let mut wider_modulus: [u64; 4] = [0; 4];
                     wider_modulus[(4 - N)..].copy_from_slice(&modulus);
 
-                    let value = BigInt::<4>(val);
-                    const_modulo!(value, &(*config).modulus)
+                    let mut value = crypto_bigint::Uint::<4>::from_words(val);
+                    let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
+                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[(4 - N)..]);
+                    BigInt(result)
                 }
                 4 => {
-                    let val = BigInt::<4>(val);
-                    const_modulo!(val, &(*config).modulus)
+                    let mut value_N: [u64; N] = [0; N];
+                    value_N.copy_from_slice(&val);
+
+                    let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    BigInt(value.to_words())
                 }
                 _ => {
                     let mut wider_value: [u64; N] = [0; N];
                     wider_value[(N - 4)..].copy_from_slice(&val);
-                    let wider_value = BigInt::<N>(wider_value);
-                    const_modulo!(wider_value, &(*config).modulus)
+                    let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    wider %= crypto_bigint::NonZero::from_uint(modu);
+                    BigInt(wider.to_words())
                 }
             };
 
@@ -384,7 +395,7 @@ impl<const N: usize> RandomField<N> {
             if value.is_negative() {
                 elem = -elem;
             }
-            Some(elem)
+            elem
         }
     }
 

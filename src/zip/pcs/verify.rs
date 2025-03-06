@@ -1,4 +1,7 @@
+use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use crypto_bigint::Random;
+use i256::I256;
 use itertools::Itertools;
 use sha3::{digest::Output, Digest, Keccak256};
 
@@ -78,16 +81,13 @@ where
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect::<Vec<_>>();
-        combined_rows.push({
-            let mut t_0_combined_row = transcript.read_integers(row_len)?;
 
-            t_0_combined_row.resize(codeword_len, 0i64);
-            let code = vp.zip().encode(&mut t_0_combined_row);
-            let t_0_combined_row_f = t_0_combined_row
-                .iter()
-                .map(|i| F::from_i64(*i, field).unwrap())
-                .collect::<Vec<_>>();
-            (t_0_f, t_0_combined_row_f)
+        combined_rows.push({
+            let mut t_0_combined_row = transcript.read_field_elements(row_len, field)?;
+
+            t_0_combined_row.resize(codeword_len, F::zero());
+
+            (t_0_f, t_0_combined_row)
         });
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
@@ -96,11 +96,11 @@ where
         for _ in 0..vp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
 
-            let items = transcript.read_field_elements(vp.num_rows(), field)?;
+            let items = transcript.read_I256_vec(vp.num_rows())?;
 
             let merkle_path = transcript.read_commitments(depth)?;
 
-            Self::verify_proximity(&combined_rows, &items, column, vp.num_rows())?;
+            Self::verify_proximity(&combined_rows, &items, column, vp.num_rows(), field)?;
 
             Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }
@@ -134,22 +134,21 @@ where
     }
 
     fn verify_merkle_path(
-        items: &[F<N>],
+        items: &[I256],
         path: &[Output<Keccak256>],
         column: usize,
         comm: &Self::Commitment,
     ) -> Result<(), Error> {
         let mut hasher = Keccak256::default();
+
         let mut output = {
             for item in items.iter() {
-                <Keccak256 as sha3::digest::Update>::update(
-                    &mut hasher,
-                    &item.value().to_bytes_be(),
-                );
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &item.to_be_bytes());
             }
 
             hasher.clone().finalize()
         };
+
         hasher.reset();
         for (idx, neighbor) in path.iter().enumerate() {
             if (column >> idx) & 1 == 0 {
@@ -162,7 +161,6 @@ where
             output = hasher.clone().finalize();
             hasher.reset();
         }
-
         if &output != comm.root() {
             return Err(Error::InvalidPcsOpen(
                 "Invalid merkle tree opening".to_string(),
@@ -173,16 +171,19 @@ where
 
     fn verify_proximity(
         combined_rows: &[(Vec<F<N>>, Vec<F<N>>)],
-        items: &[F<N>],
+        items: &[I256],
         column: usize,
         num_rows: usize,
+        field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
+        let items_f: Vec<_> = items.iter().map(|i| F::from_I256(*i, field)).collect();
         for (coeff, encoded) in combined_rows.iter() {
             let item = if num_rows > 1 {
-                inner_product(coeff, items)
+                inner_product(coeff, &items_f)
             } else {
-                items[0]
+                items_f[0]
             };
+
             if item != encoded[column] {
                 return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
             }

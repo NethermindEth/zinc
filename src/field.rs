@@ -6,7 +6,6 @@ use i256::I256;
 
 use crate::{
     biginteger::BigInt,
-    const_modulo,
     field_config::{self, FieldConfig},
 };
 

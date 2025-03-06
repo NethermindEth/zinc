@@ -6,7 +6,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
-use ark_ff::UniformRand;
+
 const N: usize = 2;
 #[test]
 fn test_zip_commitment() {

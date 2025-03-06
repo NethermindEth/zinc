@@ -79,7 +79,7 @@ where
                 {
                     let mut temp_row = vec![0i64; codeword_len];
                     temp_row[..evals.len()].copy_from_slice(evals);
-                    pp.zip().encode(&mut temp_row);
+                    pp.zip().encode(&temp_row);
 
                     for (i, val) in temp_row.iter().enumerate() {
                         row[i] = I256::from(*val);

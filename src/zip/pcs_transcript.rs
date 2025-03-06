@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use std::io::{Cursor, Read, Write};
 
 use i256::I256;

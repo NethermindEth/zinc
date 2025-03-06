@@ -2,15 +2,6 @@ use crate::field::RandomField as F;
 use itertools::Itertools;
 use num_integer::Integer;
 
-pub(crate) fn evaluate_poly(coeffs: &[i64], x: &i64) -> i64 {
-    let coeff_vec: Vec<&i64> = coeffs.iter().rev().collect();
-    let mut acc = 0i64;
-    for c in coeff_vec {
-        acc = acc * x + *c;
-    }
-    acc
-}
-
 pub(crate) fn inner_product<'a, 'b, const N: usize>(
     lhs: impl IntoIterator<Item = &'a F<N>>,
     rhs: impl IntoIterator<Item = &'b F<N>>,

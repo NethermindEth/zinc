@@ -3,15 +3,14 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
 
-use crate::zip::utils::evaluate_poly;
-
 use ark_ff::UniformRand;
 use ark_std::fmt::Debug;
 use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
-
+#[allow(dead_code)]
 const PROB_MULTIPLIER: usize = 18;
+#[allow(dead_code)]
 const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize>: Sync + Send {
     fn row_len(&self) -> usize;
@@ -241,19 +240,6 @@ impl SparseMatrix {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn dot(&self, array: &[i64], target: &[i128]) -> Vec<I256> {
-        let mut result: Vec<I256> = target.iter().map(|i| I256::from(*i)).collect();
-        assert_eq!(self.dimension.n, array.len());
-        assert_eq!(self.dimension.m, target.len());
-
-        self.rows().zip(array.iter()).for_each(|(cells, item)| {
-            cells.iter().for_each(|(column, coeff)| {
-                result[*column] += I256::from((*item as i128) * *coeff);
-            })
-        });
-        result
-    }
-
     // fn dot(&self, array: &[i64]) -> Vec<i64> {
     //     let mut target = vec![0i64; self.dimension.m];
     //     self.dot_into(array, &mut target);
@@ -287,14 +273,6 @@ pub fn steps(start: i64) -> impl Iterator<Item = i64> {
 
 pub fn steps_by(start: i64, step: i64) -> impl Iterator<Item = i64> {
     iter::successors(Some(start), move |state| Some(step + *state))
-}
-
-fn reed_solomon_into(input: &[i64], mut target: impl AsMut<[i64]>) {
-    target
-        .as_mut()
-        .iter_mut()
-        .zip(steps(1i64))
-        .for_each(|(target, x)| *target = evaluate_poly(input, &x));
 }
 
 // H(p) = -p \log_2(p) - (1 - p) \log_2(1 - p)

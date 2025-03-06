@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment},
+    zip::{code::ZipSpec, pcs::structs::MultilinearZipCommitment},
     field::RandomField,
     sumcheck,
 };
@@ -21,7 +21,7 @@ pub struct SpartanProof<const N: usize> {
     pub second_sumcheck: sumcheck::Proof<N>,
     pub V_s: Vec<RandomField<N>>,
     pub v: RandomField<N>,
-    pub z_comm: MultilinearBrakedownCommitment<N>,
+    pub z_comm: MultilinearZipCommitment<N>,
     pub pcs_proof: Vec<u8>,
 }
 
@@ -35,7 +35,7 @@ pub struct ZincProof<const N: usize> {
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
 pub struct ZincProver<const N: usize, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub data: PhantomData<S>,
 }
@@ -43,7 +43,7 @@ where
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
 pub struct ZincVerifier<const N: usize, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub data: PhantomData<S>,
 }

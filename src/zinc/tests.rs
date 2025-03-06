@@ -2,17 +2,16 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    brakedown::code::BrakedownSpec1,
     ccs::{ccs_f::get_test_ccs_stuff_F, test_utils::get_dummy_ccs_F_from_z_length},
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField,
     field_config::FieldConfig,
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,
         structs::{ZincProver, ZincVerifier},
-        utils::draw_random_field,
         verifier::SpartanVerifier,
     },
+    zip::code::ZipSpec1,
 };
 #[test]
 fn test_spartan_prover() {
@@ -25,7 +24,7 @@ fn test_spartan_prover() {
 
     let prover = ZincProver::<3, _> {
         // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = SpartanProver::<3>::prove(
@@ -50,7 +49,7 @@ fn test_spartan_verifier() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver {
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = SpartanProver::<3>::prove(
@@ -64,7 +63,7 @@ fn test_spartan_verifier() {
     .unwrap();
 
     let verifier = ZincVerifier::<3, _> {
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
@@ -86,7 +85,7 @@ fn test_failing_spartan_verifier() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver {
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
 
     let proof = SpartanProver::<N>::prove(
@@ -100,7 +99,7 @@ fn test_failing_spartan_verifier() {
     .unwrap();
 
     let verifier = ZincVerifier {
-        data: std::marker::PhantomData::<BrakedownSpec1>,
+        data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 

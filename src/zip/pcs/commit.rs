@@ -1,25 +1,24 @@
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use i256::I256;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
-    brakedown::{
-        code::{BrakedownSpec, LinearCodes},
+    poly_z::mle::DenseMultilinearExtension,
+    zip::{
+        code::{LinearCodes, ZipSpec},
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
         Error,
     },
-    field::RandomField as F,
-    poly_f::mle::DenseMultilinearExtension,
 };
 
 use super::{
-    structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment},
     utils::validate_input,
 };
 
-impl<const N: usize, S> MultilinearBrakedown<N, S>
+impl<const N: usize, S> MultilinearZip<N, S>
 where
-    S: BrakedownSpec,
+    S: ZipSpec,
 {
     pub fn commit(
         pp: &Self::ProverParam,
@@ -27,14 +26,14 @@ where
     ) -> Result<Self::Commitment, Error> {
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = pp.brakedown().row_len();
-        let codeword_len = pp.brakedown().codeword_len();
+        let row_len = pp.zip().row_len();
+        let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut rows = vec![F::zero(); pp.num_rows() * codeword_len];
+        let mut rows = vec![0i64; pp.num_rows() * codeword_len];
         let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
-        Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
 
         Self::merklize_column_hashes(merkle_depth, &mut hashes);
@@ -45,7 +44,7 @@ where
             (intermediate_hashes, root)
         };
 
-        Ok(MultilinearBrakedownCommitment::new(
+        Ok(MultilinearZipCommitment::new(
             rows,
             intermediate_hashes,
             root,
@@ -54,34 +53,45 @@ where
 
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
     ) -> Result<Vec<Self::Commitment>, Error> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
+
     fn encode_rows(
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-        rows: &mut [F<N>],
+        rows: &mut [i64],
         poly: &Self::Polynomial,
-    ) {
+    ) -> Vec<I256> {
         let chunk_size = div_ceil(pp.num_rows(), num_threads());
+        let mut encoded_rows = vec![I256::default(); rows.len()];
+
         parallelize_iter(
-            rows.chunks_exact_mut(chunk_size * codeword_len)
+            encoded_rows
+                .chunks_exact_mut(chunk_size * codeword_len)
                 .zip(poly.evaluations.chunks_exact(chunk_size * row_len)),
-            |(rows, evals)| {
-                for (row, evals) in rows
+            |(encoded_chunk, evals)| {
+                for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row[..evals.len()].copy_from_slice(evals);
-                    pp.brakedown().encode(row);
+                    let mut temp_row = vec![0i64; codeword_len];
+                    temp_row[..evals.len()].copy_from_slice(evals);
+                    pp.zip().encode(&temp_row);
+
+                    for (i, val) in temp_row.iter().enumerate() {
+                        row[i] = I256::from(*val);
+                    }
                 }
             },
         );
+
+        encoded_rows
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[F<N>]) {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I256]) {
         parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {
@@ -91,7 +101,7 @@ where
                     .for_each(|item| {
                         <Keccak256 as sha3::digest::Update>::update(
                             &mut hasher,
-                            &item.value().to_bytes_be(),
+                            &item.to_be_bytes(),
                         )
                     });
                 hasher.finalize_into_reset(hash);

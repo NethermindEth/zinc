@@ -1,14 +1,14 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
-    },
     ccs::{
         ccs_f::{Statement_F, CCS_F},
         ccs_z::{Statement_Z, CCS_Z},
     },
     field::{conversion::FieldMap, RandomField},
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
+    ccs::ccs_f::{Statement, CCS_F},
+    field::RandomField,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
     transcript::KeccakTranscript,
@@ -75,7 +75,7 @@ pub trait SpartanVerifier<const N: usize> {
     ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
         cm_i: &Statement_F<N>,
@@ -84,8 +84,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param =
-            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
+        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, unsafe { *ccs.config.as_ptr() });
 
@@ -108,13 +107,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         )?;
 
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearBrakedown::<N, S>::verify(
-            &param,
-            &proof.z_comm,
-            &r_y,
-            &proof.v,
-            &mut pcs_transcript,
-        )?;
+        MultilinearZip::<N, S>::verify(&param, &proof.z_comm, &r_y, &proof.v, &mut pcs_transcript, unsafe { *ccs.config.as_ptr() })?;
 
         let mut rx_ry = r_y;
         rx_ry.extend_from_slice(&r_x);
@@ -147,13 +140,13 @@ pub trait LookupVerifier<const N: usize> {
     fn verify(&self, proof: LookupProof<N>) -> Result<(), LookupError>;
 }
 
-impl<const N: usize, S: BrakedownSpec> LookupVerifier<N> for ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> LookupVerifier<N> for ZincVerifier<N, S> {
     fn verify(&self, _proof: LookupProof<N>) -> Result<(), LookupError> {
         todo!()
     }
 }
 
-impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,
         proof: &Proof<N>,

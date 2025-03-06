@@ -2,8 +2,8 @@
 use thiserror::Error;
 
 use crate::{
-    brakedown::Error as BrakedownError, ccs::error::CSError, poly_f::polynomials::ArithErrors,
-    sumcheck::SumCheckError,
+    ccs::error::CSError, poly_f::polynomials::ArithErrors, sumcheck::SumCheckError,
+    zip::Error as ZipError,
 };
 
 #[derive(Debug, Error)]
@@ -29,7 +29,7 @@ pub enum SpartanError<const N: usize> {
     #[error("Verification Failed {0}")]
     VerificationError(String),
     #[error("")]
-    BrakedownError(#[from] BrakedownError),
+    ZipError(#[from] ZipError),
 }
 
 #[derive(Debug, Error)]

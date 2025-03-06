@@ -1,16 +1,6 @@
 use crate::field::RandomField as F;
-use ark_ff::Zero;
 use itertools::Itertools;
 use num_integer::Integer;
-
-pub(crate) fn evaluate_poly<const N: usize>(coeffs: &[F<N>], x: &F<N>) -> F<N> {
-    let coeff_vec: Vec<&F<N>> = coeffs.iter().rev().collect();
-    let mut acc = F::zero();
-    for c in coeff_vec {
-        acc = acc * x + *c;
-    }
-    acc
-}
 
 pub(crate) fn inner_product<'a, 'b, const N: usize>(
     lhs: impl IntoIterator<Item = &'a F<N>>,
@@ -60,7 +50,7 @@ where
 {
     #[cfg(feature = "parallel")]
     {
-        use crate::brakedown::utils::div_ceil;
+        use crate::zip::utils::div_ceil;
         let num_threads = num_threads();
         let chunk_size = div_ceil(v.len(), num_threads);
         if chunk_size < num_threads {

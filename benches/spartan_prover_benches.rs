@@ -4,7 +4,13 @@ use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 use zinc::{
-    biginteger::BigInt, brakedown::code::BrakedownSpec1, ccs::test_utils::get_dummy_ccs_Z_from_z_length, field::conversion::FieldMap, field_config::FieldConfig, transcript::KeccakTranscript, zinc::{prover::SpartanProver, structs::ZincProver}
+    biginteger::BigInt,
+    ccs::test_utils::get_dummy_ccs_Z_from_z_length,
+    field::conversion::FieldMap,
+    field_config::FieldConfig,
+    spartan::{prover::SpartanProver, structs::ZincProver},
+    transcript::KeccakTranscript,
+    zip::code::ZipSpec1,
 };
 
 fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {

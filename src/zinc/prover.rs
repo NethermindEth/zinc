@@ -1,9 +1,9 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec,
-        pcs::structs::{MultilinearBrakedown, MultilinearBrakedownCommitment},
+    zip::{
+        code::ZipSpec,
+        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
         pcs_transcript::PcsTranscript,
     },
     ccs::{
@@ -96,7 +96,7 @@ pub trait SpartanProver<const N: usize> {
     ) -> Result<SpartanProof<N>, SpartanError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> SpartanProver<N> for ZincProver<N, S> {
+impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
     fn prove(
         &self,
         statement: &Statement_F<N>,
@@ -141,13 +141,13 @@ pub trait LookupProver<const N: usize> {
     fn prove(&self, wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> LookupProver<N> for ZincProver<N, S> {
+impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
     fn prove(&self, _wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>> {
         todo!()
     }
 }
 
-impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
+impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     /// Step 2 of Fig 5: Construct polynomial $g$ and generate $\beta$ challenges.
     fn construct_polynomial_g(
         z_ccs: &[RandomField<N>],
@@ -271,10 +271,10 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
         r_y: &Vec<RandomField<N>>,
-    ) -> Result<(MultilinearBrakedownCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
+    ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param = MultilinearBrakedown::<N, S>::setup(ccs.m, rng, config);
-        let z_comm = MultilinearBrakedown::<N, S>::commit(&param, z_mle)?;
+        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
+        let z_comm = MultilinearZip::<N, S>::commit(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle
             .evaluate(r_y, config)
@@ -282,7 +282,7 @@ impl<const N: usize, S: BrakedownSpec> ZincProver<N, S> {
                 r_y.len(),
                 z_mle.num_vars,
             ))?;
-        MultilinearBrakedown::<N, S>::open(&param, z_mle, &z_comm, r_y, &v, &mut pcs_transcript)?;
+        MultilinearZip::<N, S>::open(&param, z_mle, &z_comm, r_y, &v, &mut pcs_transcript)?;
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok((z_comm, v, pcs_proof))

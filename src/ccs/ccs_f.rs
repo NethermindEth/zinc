@@ -189,11 +189,6 @@ pub struct Witness_F<const N: usize> {
     pub w_ccs: Vec<RandomField<N>>,
 }
 
-// A representation of the brakedown commitment
-pub struct Commitment<const N: usize> {
-    pub commitment: Vec<Vec<RandomField<N>>>,
-}
-
 /// A representation of a linearised CCS witness.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LWitness<const N: usize> {

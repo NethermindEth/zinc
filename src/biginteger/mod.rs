@@ -103,12 +103,13 @@ macro_rules! BigInt {
 }
 
 #[doc(hidden)]
+#[macro_export]
 macro_rules! const_modulo {
     ($a:expr, $divisor:expr) => {{
         // Stupid slow base-2 long division taken from
         // https://en.wikipedia.org/wiki/Division_algorithm
         assert!(!$divisor.const_is_zero());
-        let mut remainder = Self::new([0u64; N]);
+        let mut remainder = BigInt::new([0u64; N]);
         let mut i = ($a.num_bits() - 1) as isize;
         let mut carry;
         while i >= 0 {
@@ -173,7 +174,7 @@ impl<const N: usize> BigInt<N> {
         result
     }
 
-    const fn const_geq(&self, other: &Self) -> bool {
+    pub(crate) const fn const_geq(&self, other: &Self) -> bool {
         const_for!((i in 0..N) {
             let a = self.0[N - i - 1];
             let b = other.0[N - i - 1];
@@ -255,7 +256,7 @@ impl<const N: usize> BigInt<N> {
         (self, carry != 0)
     }
 
-    const fn const_mul2_with_carry(mut self) -> (Self, bool) {
+    pub(crate) const fn const_mul2_with_carry(mut self) -> (Self, bool) {
         let mut last = 0;
         crate::const_for!((i in 0..N) {
             let a = self.0[i];

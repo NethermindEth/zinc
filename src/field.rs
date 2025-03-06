@@ -1,9 +1,12 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use ark_ff::UniformRand;
+use crypto_bigint::modular::constant_mod;
+use i256::I256;
 
 use crate::{
     biginteger::BigInt,
+    const_modulo,
     field_config::{self, FieldConfig},
 };
 
@@ -345,6 +348,43 @@ impl<const N: usize> RandomField<N> {
                 }
                 Some(elem)
             }
+        }
+    }
+
+    pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> Option<RandomField<N>> {
+        if config.is_null() {
+            panic!("Cannot convert signed integer to prime field element without a modulus")
+        }
+        unsafe {
+            let modulus: [u64; N] = (*config).modulus.0;
+            let val: [u64; 4] = value.abs().to_be_u64();
+            let mut r = match N {
+                n if n < 4 => {
+                    let mut wider_modulus: [u64; 4] = [0; 4];
+                    wider_modulus[(4 - N)..].copy_from_slice(&modulus);
+
+                    let value = BigInt::<4>(val);
+                    const_modulo!(value, &(*config).modulus)
+                }
+                4 => {
+                    let val = BigInt::<4>(val);
+                    const_modulo!(val, &(*config).modulus)
+                }
+                _ => {
+                    let mut wider_value: [u64; N] = [0; N];
+                    wider_value[(N - 4)..].copy_from_slice(&val);
+                    let wider_value = BigInt::<N>(wider_value);
+                    const_modulo!(wider_value, &(*config).modulus)
+                }
+            };
+
+            (*config).mul_assign(&mut r, &(*config).r2);
+
+            let mut elem = Self::new_unchecked(config, r);
+            if value.is_negative() {
+                elem = -elem;
+            }
+            Some(elem)
         }
     }
 

@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use crate::{
     brakedown::{code::BrakedownSpec, pcs::structs::MultilinearBrakedownCommitment},
     field::RandomField,
-    field_config::FieldConfig,
     sumcheck,
 };
 

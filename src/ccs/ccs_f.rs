@@ -11,11 +11,8 @@ use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
 use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
-use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
+use crate::{field::RandomField, sparse_matrix::SparseMatrix};
 
-use super::ccs_z::Statement_Z;
-use super::ccs_z::Witness_Z;
-use super::ccs_z::CCS_Z;
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -73,6 +70,8 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
     ) -> Result<(), Error> {
         let mut result = vec![RandomField::zero(); self.m];
         for m in M.iter() {
+            println!("This M rows: {:?}", m.n_rows);
+            println!("This self.m: {:?}", self.m);
             assert_eq!(
                 m.n_rows, self.n,
                 "Incorrect number of rows, expected {} and got {}.",
@@ -454,11 +453,10 @@ pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_from_z_length, field_config::FieldConfig,
+        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length, field_config::FieldConfig
     };
 
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
-
     #[test]
     fn test_ccs_f() {
         use std::str::FromStr;
@@ -475,18 +473,18 @@ mod tests {
         assert!(res.is_ok())
     }
 
-    // #[test]
-    // fn test_dummy_ccs_f() {
-    //     use std::str::FromStr;
+    #[test]
+    fn test_dummy_ccs_f() {
+        use std::str::FromStr;
 
-    //     const N: usize = 2;
-    //     let config: *const FieldConfig<N> =
-    //         &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
-    //     let mut rng = ark_std::test_rng();
-    //     let n = 1 << 13;
-    //     let (z, ccs, statement, _) = get_dummy_ccs_from_z_length::<N>(n, &mut rng, config);
+        const N: usize = 2;
+        let config: *const FieldConfig<N> =
+            &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let mut rng = ark_std::test_rng();
+        let n = 1 << 13;
+        let (z, ccs, statement, _) = get_dummy_ccs_F_from_z_length::<N>(n, &mut rng, config);
 
-    //     let res = ccs.check_relation(&statement.constraints, &z);
-    //     assert!(res.is_ok())
-    // }
+        let res = ccs.check_relation(&statement.constraints, &z);
+        assert!(res.is_ok())
+    }
 }

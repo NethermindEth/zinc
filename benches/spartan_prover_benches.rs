@@ -4,22 +4,22 @@ use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 use zinc::{
-    biginteger::BigInt, brakedown::code::BrakedownSpec1, ccs::test_utils::get_dummy_ccs_from_z_length, field::conversion::FieldMap, field_config::FieldConfig, transcript::KeccakTranscript, zinc::{prover::SpartanProver, structs::ZincProver}
+    biginteger::BigInt, brakedown::code::BrakedownSpec1, ccs::test_utils::get_dummy_ccs_Z_from_z_length, field::conversion::FieldMap, field_config::FieldConfig, transcript::KeccakTranscript, zinc::{prover::SpartanProver, structs::ZincProver}
 };
 
 fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {
     let mut rng = ark_std::test_rng();
 
-    let (_, ccs, statement, wit) = get_dummy_ccs_from_z_length(n, &mut rng);
+    let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut transcript = KeccakTranscript::new();
-    let ccs_F = ccs.map_to_field(config);
-    let wit_F = wit.map_to_field(config);
-    let statement_F = statement.map_to_field(config);
+    let ccs_f = ccs.map_to_field(config);
+    let wit_f = wit.map_to_field(config);
+    let statement_f = statement.map_to_field(config);
 
     let prover = ZincProver {
         data: std::marker::PhantomData::<BrakedownSpec1>,
     };
-    let _proof = SpartanProver::<N>::prove(&prover, &statement_F, &wit_F, &mut transcript, &ccs_F, config);
+    let _proof = SpartanProver::<N>::prove(&prover, &statement_f, &wit_f, &mut transcript, &ccs_f, config);
 }
 
 fn bench_spartan_prover_1(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {

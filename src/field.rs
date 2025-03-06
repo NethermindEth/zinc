@@ -350,24 +350,26 @@ impl<const N: usize> RandomField<N> {
         }
     }
     // TODO This meethod is rather bad, needs to be improved
+    /// Converts from an I256 integer into a field, but crucially takes a modulus as well
     pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> RandomField<N> {
         if config.is_null() {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
         unsafe {
-            let mut modulus: [u64; N] = (*config).modulus.0;
-            modulus.reverse();
+            let modulus: [u64; N] = (*config).modulus.0;
             let val: [u64; 4] = value.abs().to_le_u64();
-            let mut r = match N {
+
+            // The next block makes the value and the modulus the same size
+            // then performs the modulus operation
+            // Then returns our local bigint type and stores it in r
+            let mut r: BigInt<N> = match N {
                 n if n < 4 => {
                     let mut wider_modulus: [u64; 4] = [0; 4];
                     wider_modulus[..(4 - N)].copy_from_slice(&modulus);
                     let mut value = crypto_bigint::Uint::<4>::from_words(val);
-
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
 
                     value %= crypto_bigint::NonZero::from_uint(modu);
-
                     let mut result = [0u64; N];
                     result.copy_from_slice(&value.to_words()[..4 - N]);
 
@@ -384,7 +386,7 @@ impl<const N: usize> RandomField<N> {
                 }
                 _ => {
                     let mut wider_value: [u64; N] = [0; N];
-                    wider_value[(N - 4)..].copy_from_slice(&val);
+                    wider_value[..(N - 4)].copy_from_slice(&val);
                     let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                     wider %= crypto_bigint::NonZero::from_uint(modu);

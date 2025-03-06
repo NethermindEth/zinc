@@ -27,14 +27,8 @@ fn test_spartan_prover() {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
 
-    let proof = SpartanProver::<3>::prove(
-        &prover,
-        &statement,
-        &wit,
-        &mut transcript,
-        &ccs,
-        &config,
-    );
+    let proof =
+        SpartanProver::<3>::prove(&prover, &statement, &wit, &mut transcript, &ccs, &config);
 
     assert!(proof.is_ok())
 }

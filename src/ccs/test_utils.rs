@@ -119,7 +119,10 @@ fn get_dummy_ccs_Z_from_z(z: &[i64]) -> (CCS_Z, Statement_Z, Witness_Z) {
     (ccs, statement, wit)
 }
 
-fn get_dummy_ccs_F_from_z<const N: usize>(z: &[RandomField<N>], config: *const FieldConfig<N>) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
+fn get_dummy_ccs_F_from_z<const N: usize>(
+    z: &[RandomField<N>],
+    config: *const FieldConfig<N>,
+) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
     let ccs = CCS_F::<N> {
         m: z.len(),
         n: z.len(),
@@ -130,7 +133,10 @@ fn get_dummy_ccs_F_from_z<const N: usize>(z: &[RandomField<N>], config: *const F
         s: log2(z.len()) as usize,
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
-        c: vec![RandomField::from_bigint(config, 1u32.into()).unwrap(), RandomField::from_bigint(config, 1u32.into()).unwrap().neg()],
+        c: vec![
+            RandomField::from_bigint(config, 1u32.into()).unwrap(),
+            RandomField::from_bigint(config, 1u32.into()).unwrap().neg(),
+        ],
         config: AtomicPtr::new(config as *mut FieldConfig<N>),
     };
 

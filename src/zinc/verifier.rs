@@ -6,12 +6,10 @@ use crate::{
         ccs_z::{Statement_Z, CCS_Z},
     },
     field::{conversion::FieldMap, RandomField},
-    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
-    ccs::ccs_f::{Statement, CCS_F},
-    field::RandomField,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
     transcript::KeccakTranscript,
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 use super::{
@@ -30,7 +28,7 @@ pub trait Verifier<const N: usize> {
     ) -> Result<(), ZincError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> Verifier<N> for ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
         cm_i: &Statement_Z,
@@ -107,7 +105,14 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         )?;
 
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearZip::<N, S>::verify(&param, &proof.z_comm, &r_y, &proof.v, &mut pcs_transcript, unsafe { *ccs.config.as_ptr() })?;
+        MultilinearZip::<N, S>::verify(
+            &param,
+            &proof.z_comm,
+            &r_y,
+            &proof.v,
+            &mut pcs_transcript,
+            unsafe { *ccs.config.as_ptr() },
+        )?;
 
         let mut rx_ry = r_y;
         rx_ry.extend_from_slice(&r_x);

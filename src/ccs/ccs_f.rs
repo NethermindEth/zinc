@@ -448,7 +448,8 @@ pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length, field_config::FieldConfig
+        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length,
+        field_config::FieldConfig,
     };
 
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};

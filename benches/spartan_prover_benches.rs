@@ -25,7 +25,14 @@ fn run_spartan_prover<const N: usize>(n: usize, config: &FieldConfig<N>) {
     let prover = ZincProver {
         data: std::marker::PhantomData::<BrakedownSpec1>,
     };
-    let _proof = SpartanProver::<N>::prove(&prover, &statement_f, &wit_f, &mut transcript, &ccs_f, config);
+    let _proof = SpartanProver::<N>::prove(
+        &prover,
+        &statement_f,
+        &wit_f,
+        &mut transcript,
+        &ccs_f,
+        config,
+    );
 }
 
 fn bench_spartan_prover_1(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {

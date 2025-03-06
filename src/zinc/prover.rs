@@ -1,11 +1,6 @@
 use ark_ff::Zero;
 
 use crate::{
-    zip::{
-        code::ZipSpec,
-        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
-        pcs_transcript::PcsTranscript,
-    },
     ccs::{
         ccs_f::{Instance_F, Statement_F, Witness_F, CCS_F},
         ccs_z::{Statement_Z, Witness_Z, CCS_Z},
@@ -16,6 +11,11 @@ use crate::{
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, Proof},
     transcript::KeccakTranscript,
+    zip::{
+        code::ZipSpec,
+        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
+        pcs_transcript::PcsTranscript,
+    },
 };
 
 use super::{
@@ -37,7 +37,7 @@ pub trait Prover<const N: usize> {
     ) -> Result<ZincProof<N>, ZincError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> Prover<N> for ZincProver<N, S> {
+impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
     fn prove(
         &self,
         statement: &Statement_Z,

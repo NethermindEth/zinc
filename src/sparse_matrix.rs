@@ -18,7 +18,10 @@ macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
         impl FieldMap for SparseMatrix<$type> {
             type Output<const N: usize> = SparseMatrix<RandomField<N>>;
-            fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
                     n_cols: self.n_cols,

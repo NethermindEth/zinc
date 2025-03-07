@@ -1,5 +1,7 @@
 mod commit;
-mod open;
+mod open_f;
+mod open_z;
 pub mod structs;
 mod utils;
-mod verify;
+mod verify_f;
+mod verify_z;

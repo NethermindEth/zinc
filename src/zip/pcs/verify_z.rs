@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{point_to_tensor, validate_input},
+    utils::{point_to_tensor_z, validate_input},
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
@@ -38,7 +38,7 @@ where
         })
     }
 
-    pub fn verify(
+    pub fn verify_z(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
         point: &Vec<i64>,
@@ -72,7 +72,7 @@ where
             }
         }
 
-        let (t_0, t_1) = point_to_tensor(vp.num_rows(), point)?;
+        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
         let t_0_f = t_0
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
@@ -128,7 +128,7 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify(vp, comm, &points[i], eval, transcript, field)?;
+            Self::verify_z(vp, comm, &points[i], eval, transcript, field)?;
         }
         Ok(())
     }

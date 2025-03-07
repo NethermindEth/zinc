@@ -20,28 +20,29 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{point_to_tensor, validate_input},
+    utils::{point_to_tensor_f, validate_input},
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
 where
     S: ZipSpec,
 {
-    pub fn open(
+    pub fn open_f(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         comm: &Self::Commitment,
-        point: &Vec<i64>,
+        point: &[F<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<Vec<Output<Keccak256>>, Error> {
-        validate_input("open", pp.num_vars(), [poly], [point])?;
+        // TODO put this back as when we have a function
+        // validate_input("open", pp.num_vars(), [poly], [point])?;
 
         let row_len = pp.zip().row_len();
 
         let codeword_len = pp.zip().codeword_len();
 
-        Self::prove_proximity(
+        Self::prove_proximity_f(
             pp.num_rows(),
             row_len,
             transcript,
@@ -68,11 +69,11 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a>(
+    pub fn batch_open_f<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<i64>],
+        points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
@@ -82,28 +83,23 @@ where
 
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
-            proofs.push(Self::open(pp, poly, comm, point, field, transcript)?);
+            proofs.push(Self::open_f(pp, poly, comm, point, field, transcript)?);
         }
         Ok(proofs)
     }
 
     // Subprotocol functions
-    fn prove_proximity(
+    fn prove_proximity_f(
         num_rows: usize,
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
         num_proximity_testing: usize,
-        point: &[i64],
+        point: &[F<N>],
 
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let (t_0, _) = point_to_tensor(num_rows, point).unwrap();
-
-        let t_O_f: Vec<F<N>> = t_0
-            .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
-            .collect();
+        let (t_0, _) = point_to_tensor_f(num_rows, point, field).unwrap();
 
         let evaluations: Vec<F<N>> = poly
             .evaluations
@@ -122,7 +118,7 @@ where
 
         let t_0_combined_row = if num_rows > 1 {
             // Return the evalauation row combination
-            let combined_row = combine_rows(&t_O_f, &evaluations, row_len);
+            let combined_row = combine_rows(&t_0, &evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -131,43 +127,6 @@ where
         };
 
         transcript.write_field_elements(&t_0_combined_row)
-    }
-
-    fn open_merkle_tree(
-        merkle_depth: usize,
-        proof: &mut Vec<Output<Keccak256>>,
-        num_col_opening: usize,
-        transcript: &mut PcsTranscript<N>,
-
-        codeword_len: usize,
-        comm: &Self::Commitment,
-        field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
-        for _ in 0..num_col_opening {
-            let column = transcript.squeeze_challenge_idx(field, codeword_len);
-
-            //Write the elements in the squeezed column to the shared transcript
-            transcript.write_I256_vec(
-                &comm
-                    .rows()
-                    .iter()
-                    .copied()
-                    .skip(column)
-                    .step_by(codeword_len)
-                    .collect::<Vec<_>>(),
-            )?;
-
-            //Write the neighbour hash path to the shared transcript
-            let mut offset = 0;
-            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
-                let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&comm.intermediate_hashes()[offset + neighbor_idx])?;
-
-                proof.push(comm.intermediate_hashes()[offset + neighbor_idx]);
-                offset += width;
-            }
-        }
-        Ok(())
     }
 }
 

@@ -119,7 +119,7 @@ where
         Ok(())
     }
 
-    pub fn batch_verify<'a>(
+    pub fn batch_verify_z<'a>(
         vp: &Self::VerifierParam,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
         points: &[Vec<i64>],
@@ -133,7 +133,7 @@ where
         Ok(())
     }
 
-    fn verify_merkle_path(
+    pub(super) fn verify_merkle_path(
         items: &[I256],
         path: &[Output<Keccak256>],
         column: usize,
@@ -169,7 +169,7 @@ where
         Ok(())
     }
 
-    fn verify_proximity(
+    pub(super) fn verify_proximity(
         combined_rows: &[(Vec<F<N>>, Vec<F<N>>)],
         items: &[I256],
         column: usize,

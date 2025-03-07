@@ -105,7 +105,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         )?;
 
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearZip::<N, S>::verify(
+        MultilinearZip::<N, S>::verify_f(
             &param,
             &proof.z_comm,
             &r_y,

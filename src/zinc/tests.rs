@@ -2,8 +2,12 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    ccs::{ccs_f::get_test_ccs_stuff_F, test_utils::get_dummy_ccs_F_from_z_length},
-    field::RandomField,
+    ccs::{
+        ccs_f::get_test_ccs_stuff_F,
+        ccs_z::get_test_ccs_stuff_Z,
+        test_utils::{get_dummy_ccs_F_from_z_length, get_dummy_ccs_Z_from_z_length},
+    },
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     transcript::KeccakTranscript,
     zinc::{
@@ -19,7 +23,7 @@ fn test_spartan_prover() {
     let mut rng = ark_std::test_rng();
     let config =
         FieldConfig::new(BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap());
-    let (_, ccs, statement, wit) = get_dummy_ccs_F_from_z_length(n, &mut rng, &config);
+    let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<3, _> {
@@ -36,9 +40,11 @@ fn test_spartan_prover() {
 #[test]
 fn test_spartan_verifier() {
     let input = 3;
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap());
-    let (ccs, statement, wit, _) = get_test_ccs_stuff_F(input, &config);
+    const N: usize = 3;
+    let config: *const FieldConfig<N> = &FieldConfig::new(
+        BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap(),
+    );
+    let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
 
     let mut prover_transcript = KeccakTranscript::new();
 
@@ -52,7 +58,7 @@ fn test_spartan_verifier() {
         &wit,
         &mut prover_transcript,
         &ccs,
-        &config,
+        config,
     )
     .unwrap();
 
@@ -61,7 +67,12 @@ fn test_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(&statement, proof, &mut verifier_transcript, &ccs);
+    let res = verifier.verify(
+        &statement.map_to_field(config),
+        proof,
+        &mut verifier_transcript,
+        &ccs.map_to_field(config),
+    );
 
     assert!(res.is_ok())
 }
@@ -73,9 +84,9 @@ fn test_failing_spartan_verifier() {
         BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap(),
     );
     let input = 3;
-    let (ccs, statement, mut wit, _) = get_test_ccs_stuff_F(input, config);
+    let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
     // Change the witness such that it is no longer valid
-    wit.w_ccs[3] = RandomField::from_bigint(config, 0u32.into()).unwrap();
+    wit.w_ccs[3] = 0i64;
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver {
@@ -97,7 +108,12 @@ fn test_failing_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(&statement, proof, &mut verifier_transcript, &ccs);
+    let res = verifier.verify(
+        &statement.map_to_field(config),
+        proof,
+        &mut verifier_transcript,
+        &ccs.map_to_field(config),
+    );
 
     assert!(res.is_err())
 }

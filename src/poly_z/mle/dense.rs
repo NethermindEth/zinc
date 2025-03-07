@@ -13,7 +13,11 @@ use ark_std::{
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-use crate::{poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix};
+use crate::{
+    field::conversion::FieldMap, field_config::FieldConfig,
+    poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
+    poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMultilinearExtension {
@@ -34,6 +38,18 @@ impl DenseMultilinearExtension {
         } else {
             None
         }
+    }
+
+    pub fn to_random_field<const N: usize>(
+        &self,
+        config: *const FieldConfig<N>,
+    ) -> DenseMultilinearExtensionF<N> {
+        let evaluations = self
+            .evaluations
+            .iter()
+            .map(|x| x.map_to_field(config))
+            .collect();
+        DenseMultilinearExtensionF::from_evaluations_vec(self.num_vars, evaluations, config)
     }
 
     pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<i64>) -> Self {

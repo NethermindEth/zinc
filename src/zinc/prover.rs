@@ -3,11 +3,12 @@ use ark_ff::Zero;
 use crate::{
     ccs::{
         ccs_f::{Instance_F, Statement_F, Witness_F, CCS_F},
-        ccs_z::{Statement_Z, Witness_Z, CCS_Z},
+        ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
     },
     field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension,
+    poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, Proof},
     transcript::KeccakTranscript,
@@ -47,17 +48,8 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
     ) -> Result<ZincProof<N>, ZincError<N>> {
         let field_config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(field_config);
-        let wit_F = wit.map_to_field(field_config);
-        let statement_F = statement.map_to_field(field_config);
-        let spartan_proof = SpartanProver::<N>::prove(
-            self,
-            &statement_F,
-            &wit_F,
-            transcript,
-            &ccs_F,
-            field_config,
-        )?;
+        let spartan_proof =
+            SpartanProver::<N>::prove(self, statement, wit, transcript, ccs, field_config)?;
         let lookup_proof = LookupProver::<N>::prove(self, wit)?;
         Ok(ZincProof {
             spartan_proof,
@@ -88,10 +80,10 @@ pub trait SpartanProver<const N: usize> {
     ///
     fn prove(
         &self,
-        statement: &Statement_F<N>,
-        wit: &Witness_F<N>,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_Z,
         config: *const FieldConfig<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>>;
 }
@@ -99,26 +91,34 @@ pub trait SpartanProver<const N: usize> {
 impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement_F<N>,
-        wit: &Witness_F<N>,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_Z,
         config: *const FieldConfig<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(&statement, &wit, config, &ccs);
+        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(&statement, &wit, &ccs, config);
+        let ccs_f = ccs.map_to_field(config);
+        let statement_f = statement.map_to_field(config);
 
         // Do first Sumcheck
         let (sumcheck_proof_1, r_a, mz_mles) =
-            Self::sumcheck_1(&z_ccs, transcript, &statement, &ccs, config)?;
+            Self::sumcheck_1(&z_ccs, transcript, &statement_f, &ccs_f, config)?;
 
         // Do second sumcheck
-        let (sumcheck_proof_2, r_y) =
-            Self::sumcheck_2(&r_a, &ccs, &statement, config, &z_mle, transcript)?;
+        let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
+            &r_a,
+            &ccs_f,
+            &statement_f,
+            config,
+            &z_mle.to_random_field(config),
+            transcript,
+        )?;
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs, config, &r_y)?;
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y)?;
 
         // Calculate V_s
         let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
@@ -177,22 +177,22 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_F<N>,
-        wit: &Witness_F<N>,
+        statement: &Statement_Z,
+        wit: &Witness_Z,
+        ccs: &CCS_Z,
         config: *const FieldConfig<N>,
-        ccs: &CCS_F<N>,
-    ) -> (Vec<RandomField<N>>, DenseMultilinearExtension<N>) {
-        let mut z_ccs = statement.get_z_vector(&wit.w_ccs, config);
+    ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ) {
+        let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(
-                ccs.m,
-                RandomField::new_unchecked(unsafe { *ccs.config.as_ptr() }, 0u32.into()),
-            )
+            z_ccs.resize(ccs.m, 0i64);
         }
-        let z_mle = DenseMultilinearExtension::from_evaluations_slice(ccs.s_prime, &z_ccs, config);
+        let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 
-        (z_ccs, z_mle)
+        (
+            z_ccs.into_iter().map(|x| x.map_to_field(config)).collect(),
+            z_mle,
+        )
     }
 
     fn sumcheck_1(
@@ -267,7 +267,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn commit_z_mle_and_prove_evaluation(
-        z_mle: &DenseMultilinearExtension<N>,
+        z_mle: &DenseMultilinearExtensionZ,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
         r_y: &Vec<RandomField<N>>,
@@ -276,13 +276,10 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
         let z_comm = MultilinearZip::<N, S>::commit(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
-        let v = z_mle
-            .evaluate(r_y, config)
-            .ok_or(MleEvaluationError::IncorrectLength(
-                r_y.len(),
-                z_mle.num_vars,
-            ))?;
-        MultilinearZip::<N, S>::open(&param, z_mle, &z_comm, r_y, &v, &mut pcs_transcript)?;
+        let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
+            MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
+        )?;
+        MultilinearZip::<N, S>::open_f(&param, z_mle, &z_comm, r_y, config, &mut pcs_transcript)?;
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok((z_comm, v, pcs_proof))

@@ -202,7 +202,19 @@ impl FieldMap for Witness_Z {
 ///
 pub trait Instance_Z {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, x: &[i64], w: &[i64]) -> Vec<i128>;
+    fn get_z_vector(&self, w: &[i64]) -> Vec<i64>;
+}
+
+impl Instance_Z for Statement_Z {
+    fn get_z_vector(&self, w: &[i64]) -> Vec<i64> {
+        let mut z: Vec<i64> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
+
+        z.extend_from_slice(&self.public_input);
+        z.push(1i64);
+        z.extend_from_slice(w);
+
+        z
+    }
 }
 
 #[cfg(test)]

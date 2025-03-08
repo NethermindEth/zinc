@@ -81,7 +81,8 @@ macro_rules! impl_field_map_for_int {
                 &self,
                 config: *const FieldConfig<N>,
             ) -> Self::Output<N> {
-                let field = RandomField::from(self.unsigned_abs());
+                let field = RandomField::from(self.unsigned_abs())
+                    .set_config_owned(config);
                 if self.is_negative() {
                     -field
                 } else {

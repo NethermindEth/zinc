@@ -248,51 +248,6 @@ impl<const N: usize> Instance_F<N> for Statement_F<N> {
     }
 }
 
-// TODO: Should we keep this?
-// pub(crate) fn from_ccs_z<const N: usize>(
-//     ccs_z: &CCS_Z,
-//     config: *const FieldConfig<N>,
-// ) -> Result<CCS_F<N>, ()> {
-//     for c in ccs_z.c.iter() {
-//         let bigint: Result<BigInt<N>, _> = c.magnitude().clone().try_into();
-//         if bigint.is_err() || bigint.unwrap() >= unsafe { *config }.modulus {
-//             return Err(());
-//         }
-//     }
-//     // now we can safely convert all the integers into field elements
-//     let c: Vec<RandomField<N>> = ccs_z
-//         .c
-//         .iter()
-//         .map(|c| match c.sign() {
-//             num_bigint::Sign::Minus => {
-//                 -RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-//                     .unwrap()
-//             }
-//             num_bigint::Sign::NoSign => {
-//                 RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-//                     .unwrap()
-//             }
-//             num_bigint::Sign::Plus => {
-//                 RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-//                     .unwrap()
-//             }
-//         })
-//         .collect();
-//     Ok(CCS_F {
-//         m: ccs_z.m,
-//         n: ccs_z.n,
-//         l: ccs_z.l,
-//         t: ccs_z.t,
-//         q: ccs_z.q,
-//         d: ccs_z.d,
-//         s: ccs_z.s,
-//         s_prime: ccs_z.s_prime,
-//         S: ccs_z.S.clone(),
-//         c,
-//         config: AtomicPtr::new(config as *mut FieldConfig<N>),
-//     })
-// }
-
 /// Returns a sparse matrix of field elements given a matrix of unsigned ints
 pub fn to_F_matrix<const N: usize>(
     config: *const FieldConfig<N>,

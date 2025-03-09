@@ -20,7 +20,7 @@ use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
 pub trait Arith_Z {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<i64>], z: &[i64]) -> Result<(), Error>;
+    fn check_relation(&self, M: &[SparseMatrix<i128>], z: &[i128]) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
     /// public inputs, etc, without the matrices/polynomials values.
@@ -55,8 +55,8 @@ pub struct CCS_Z {
 
 impl Arith_Z for CCS_Z {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<i64>], z: &[i64]) -> Result<(), Error> {
-        let mut result = vec![0i64; self.m];
+    fn check_relation(&self, M: &[SparseMatrix<i128>], z: &[i128]) -> Result<(), Error> {
+        let mut result = vec![0i128; self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.n,
@@ -71,18 +71,18 @@ impl Arith_Z for CCS_Z {
         }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
-            let vec_M_j: Vec<&SparseMatrix<i64>> = self.S[i].iter().map(|j| &M[*j]).collect();
+            let vec_M_j: Vec<&SparseMatrix<i128>> = self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
-            let mut hadamard_result = vec![1i64; self.m];
+            let mut hadamard_result = vec![1i128; self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, 0i64);
+                res.resize(self.m, 0i128);
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
             // multiply by the coefficient of this step
-            let c_M_j_z = vec_scalar_mul(&hadamard_result, &self.c[i]);
+            let c_M_j_z = vec_scalar_mul(&hadamard_result, &(self.c[i] as i128));
 
             // add it to the final vector
             result = vec_add(&result, &c_M_j_z)?;
@@ -311,6 +311,8 @@ pub(crate) fn get_test_ccs_stuff_Z(input: i64) -> (CCS_Z, Statement_Z, Witness_Z
 #[cfg(test)]
 mod tests {
 
+    use crate::{ccs::test_utils::get_dummy_ccs_Z_from_z_length, sparse_matrix::SparseMatrix};
+
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
 
     #[test]
@@ -318,19 +320,53 @@ mod tests {
         let input = 3;
         let ccs = get_test_ccs_Z();
         let statement = get_test_ccs_Z_statement(input);
-        let z = get_test_z_Z(input).into_iter().collect::<Vec<_>>();
+        let z = get_test_z_Z(input)
+            .into_iter()
+            .map(|i| i as i128)
+            .collect::<Vec<_>>();
+        let constraints = statement
+            .constraints
+            .iter()
+            .map(|m_i64| {
+                let mut m = SparseMatrix::empty();
+                m.n_rows = m_i64.n_rows;
+                m.n_cols = m_i64.n_cols;
+                m.coeffs = m_i64
+                    .coeffs
+                    .iter()
+                    .map(|vec| {
+                        vec.iter()
+                            .map(|(coeff, col)| (*coeff as i128, *col))
+                            .collect()
+                    })
+                    .collect();
+                m
+            })
+            .collect::<Vec<_>>();
 
-        let res = ccs.check_relation(statement.constraints.as_slice(), z.as_slice());
+        let res = ccs.check_relation(&constraints, z.as_slice());
         assert!(res.is_ok())
     }
 
-    // #[test]
-    // fn test_dummy_ccs_z() {
-    //     let mut rng = ark_std::test_rng();
-    //     let n = 1 << 13;
-    //     let (z, ccs, statement, _) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+    #[test]
+    fn test_dummy_ccs_z() {
+        let mut rng = ark_std::test_rng();
+        let n = 1 << 13;
+        let (z, ccs, statement, _) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+        let z = z.iter().map(|i| *i as i128).collect::<Vec<_>>();
+        let constraints = statement
+            .constraints
+            .iter()
+            .map(|m_i64| {
+                let mut m = SparseMatrix::empty();
+                m.n_rows = m_i64.n_rows;
+                m.n_cols = m_i64.n_cols;
+                m.coeffs = m_i64.coeffs.iter().map(|vec| vec.iter().map(|(coeff, col)| (*coeff as i128, *col)).collect()).collect();
+                m
+            })
+            .collect::<Vec<_>>();
 
-    //     let res = ccs.check_relation(&statement.constraints, &z);
-    //     assert!(res.is_ok())
-    // }
+        let res = ccs.check_relation(&constraints, &z);
+        assert!(res.is_ok())
+    }
 }

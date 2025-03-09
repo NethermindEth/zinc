@@ -24,7 +24,7 @@ where
     pub fn verify_f(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
-        point: &Vec<F<N>>,
+        point: &[F<N>],
         eval: &F<N>,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,

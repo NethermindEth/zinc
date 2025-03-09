@@ -41,9 +41,8 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         let ccs_F = ccs.map_to_field(field_config);
         let statement_F = cm_i.map_to_field(field_config);
         SpartanVerifier::<N>::verify(self, &statement_F, proof.spartan_proof, transcript, &ccs_F)
-            .map_err(|e| ZincError::SpartanError(e))?;
-        LookupVerifier::<N>::verify(self, proof.lookup_proof)
-            .map_err(|e| ZincError::LookupError(e))?;
+            .map_err(ZincError::SpartanError)?;
+        LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
         Ok(())
     }
 }

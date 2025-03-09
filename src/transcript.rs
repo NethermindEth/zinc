@@ -1,7 +1,6 @@
 use sha3::{Digest, Keccak256};
 
 use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
-use num_bigint::BigInt as Z;
 
 #[derive(Clone)]
 pub struct KeccakTranscript {

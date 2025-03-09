@@ -150,7 +150,7 @@ pub trait ZipSpec: Debug {
         2617
     }
 
-    fn num_proximity_testing(log2_q: usize, n: usize, n_0: usize) -> usize {
+    fn num_proximity_testing(log2_q: usize, n: usize, _n_0: usize) -> usize {
         ceil(Self::LAMBDA / (log2_q as f64 - (Self::codeword_len(n) as f64).log2()))
     }
 

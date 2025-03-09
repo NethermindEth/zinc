@@ -2,12 +2,8 @@ use std::str::FromStr;
 
 use crate::{
     biginteger::BigInt,
-    ccs::{
-        ccs_f::get_test_ccs_stuff_F,
-        ccs_z::get_test_ccs_stuff_Z,
-        test_utils::{get_dummy_ccs_F_from_z_length, get_dummy_ccs_Z_from_z_length},
-    },
-    field::{conversion::FieldMap, RandomField},
+    ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
+    field::conversion::FieldMap,
     field_config::FieldConfig,
     transcript::KeccakTranscript,
     zinc::{

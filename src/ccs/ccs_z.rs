@@ -82,7 +82,7 @@ impl Arith_Z for CCS_Z {
             }
 
             // multiply by the coefficient of this step
-            let c_M_j_z = vec_scalar_mul(&hadamard_result, &self.c[i].into());
+            let c_M_j_z = vec_scalar_mul(&hadamard_result, &self.c[i]);
 
             // add it to the final vector
             result = vec_add(&result, &c_M_j_z)?;
@@ -311,8 +311,6 @@ pub(crate) fn get_test_ccs_stuff_Z(input: i64) -> (CCS_Z, Statement_Z, Witness_Z
 #[cfg(test)]
 mod tests {
 
-    use crate::ccs::test_utils::get_dummy_ccs_Z_from_z_length;
-
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
 
     #[test]
@@ -320,10 +318,7 @@ mod tests {
         let input = 3;
         let ccs = get_test_ccs_Z();
         let statement = get_test_ccs_Z_statement(input);
-        let z = get_test_z_Z(input)
-            .into_iter()
-            .map(|i| i as i64)
-            .collect::<Vec<_>>();
+        let z = get_test_z_Z(input).into_iter().collect::<Vec<_>>();
 
         let res = ccs.check_relation(statement.constraints.as_slice(), z.as_slice());
         assert!(res.is_ok())

@@ -1,5 +1,5 @@
 #![allow(dead_code, non_snake_case)]
-use num_bigint::BigInt as Z;
+
 use std::str::FromStr;
 
 use ark_ff::Zero;

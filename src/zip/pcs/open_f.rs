@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{point_to_tensor_f, validate_input},
+    utils::point_to_tensor_f,
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>

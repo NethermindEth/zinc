@@ -2,7 +2,7 @@ use ark_ff::Zero;
 
 use crate::{
     ccs::{
-        ccs_f::{Instance_F, Statement_F, Witness_F, CCS_F},
+        ccs_f::{Statement_F, CCS_F},
         ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
     },
     field::{conversion::FieldMap, RandomField},
@@ -98,7 +98,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         config: *const FieldConfig<N>,
     ) -> Result<SpartanProof<N>, SpartanError<N>> {
         // z_ccs vector, i.e. concatenation x || 1 || w.
-        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(&statement, &wit, &ccs, config);
+        let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, ccs, config);
         let ccs_f = ccs.map_to_field(config);
         let statement_f = statement.map_to_field(config);
 
@@ -270,7 +270,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         z_mle: &DenseMultilinearExtensionZ,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
-        r_y: &Vec<RandomField<N>>,
+        r_y: &[RandomField<N>],
     ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
         let rng = ark_std::test_rng();
         let param = MultilinearZip::<N, S>::setup(ccs.m, rng);

@@ -34,7 +34,3 @@ harness = false
 name = "sumcheck_benches"
 harness = false
 
-[[bench]]
-name = "spartan_prover_benches"
-harness = false
-

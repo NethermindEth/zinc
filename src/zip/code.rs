@@ -57,7 +57,7 @@ impl<const N: usize> Zip<N> {
                 }
             });
 
-        let codeword_len = S::codeword_len(log2_q, row_len, n_0);
+        let codeword_len = S::codeword_len(row_len);
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
         let (a, b) = S::matrices(log2_q, row_len, n_0, rng);
@@ -91,7 +91,7 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
     }
 
     fn encode(&self, row: &[i64]) -> Vec<I256> {
-        let mut code = Vec::with_capacity(2 * self.codeword_len);
+        let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(SparseMatrix::mat_vec_mul(&self.a, row));
         code.extend(SparseMatrix::mat_vec_mul(&self.b, row));
         code
@@ -147,15 +147,15 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_column_opening() -> usize {
-        ceil(-Self::LAMBDA / (1.0 - Self::delta() / 3.0).log2())
+        2617
     }
 
     fn num_proximity_testing(log2_q: usize, n: usize, n_0: usize) -> usize {
-        ceil(Self::LAMBDA / (log2_q as f64 - (Self::codeword_len(log2_q, n, n_0) as f64).log2()))
+        ceil(Self::LAMBDA / (log2_q as f64 - (Self::codeword_len(n) as f64).log2()))
     }
 
-    fn codeword_len(_log2_q: usize, n: usize, _n_0: usize) -> usize {
-        n
+    fn codeword_len(n: usize) -> usize {
+        n * INVERSE_RATE
     }
 
     fn matrices(
@@ -164,7 +164,7 @@ pub trait ZipSpec: Debug {
         density: usize,
         mut rng: impl RngCore,
     ) -> (SparseMatrix, SparseMatrix) {
-        let dim = SparseMatrixDimension::new(rows, cols, density);
+        let dim = SparseMatrixDimension::new(rows, cols * INVERSE_RATE, density);
         (
             SparseMatrix::new(dim, &mut rng),
             SparseMatrix::new(dim, &mut rng),

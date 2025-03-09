@@ -365,13 +365,13 @@ impl<const N: usize> RandomField<N> {
             let mut r: BigInt<N> = match N {
                 n if n < 4 => {
                     let mut wider_modulus: [u64; 4] = [0; 4];
-                    wider_modulus[..(4 - N)].copy_from_slice(&modulus);
+                    wider_modulus[..(N)].copy_from_slice(&modulus);
                     let mut value = crypto_bigint::Uint::<4>::from_words(val);
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
 
                     value %= crypto_bigint::NonZero::from_uint(modu);
                     let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..4 - N]);
+                    result.copy_from_slice(&value.to_words()[..N]);
 
                     BigInt(result)
                 }

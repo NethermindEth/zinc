@@ -141,7 +141,7 @@ fn test_dummy_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(
+    verifier.verify(
         &statement.map_to_field(config),
         SpartanProof {
             linearization_sumcheck: first_sumcheck,
@@ -153,9 +153,7 @@ fn test_dummy_spartan_verifier() {
         },
         &mut verifier_transcript,
         &ccs.map_to_field(config),
-    );
-
-    assert!(res.is_ok())
+    ).expect("Failed to verify Spartan proof");
 }
 
 #[test]

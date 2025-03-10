@@ -361,7 +361,15 @@ mod tests {
                 let mut m = SparseMatrix::empty();
                 m.n_rows = m_i64.n_rows;
                 m.n_cols = m_i64.n_cols;
-                m.coeffs = m_i64.coeffs.iter().map(|vec| vec.iter().map(|(coeff, col)| (*coeff as i128, *col)).collect()).collect();
+                m.coeffs = m_i64
+                    .coeffs
+                    .iter()
+                    .map(|vec| {
+                        vec.iter()
+                            .map(|(coeff, col)| (*coeff as i128, *col))
+                            .collect()
+                    })
+                    .collect();
                 m
             })
             .collect::<Vec<_>>();

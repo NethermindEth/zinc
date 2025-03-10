@@ -103,9 +103,10 @@ where
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
         let zip = Zip::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng);
+
         MultilinearZipParams {
             num_vars,
-            num_rows: (1 << num_vars) / zip.row_len(),
+            num_rows: ((1 << num_vars) / zip.row_len()).next_power_of_two(),
             zip,
         }
     }

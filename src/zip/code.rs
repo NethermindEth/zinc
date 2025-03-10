@@ -45,23 +45,15 @@ impl<const N: usize> Zip<N> {
         assert!(1 << num_vars > n_0);
 
         let log2_q = N;
-        let min_log2_n = (n_0 + 1).next_power_of_two().ilog2() as usize;
 
-        let (_, row_len) =
-            (min_log2_n..=num_vars).fold((usize::MAX, 0), |(min_proof_size, row_len), log2_n| {
-                let proof_size = Self::proof_size::<S>(n_0, 1 << log2_n, 1 << (num_vars - log2_n));
-                if proof_size < min_proof_size {
-                    (proof_size, 1 << log2_n)
-                } else {
-                    (min_proof_size, row_len)
-                }
-            });
+        let row_len = num_vars.pow(2).isqrt();
 
         let codeword_len = S::codeword_len(row_len);
+
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
-        let (a, b) = S::matrices(log2_q, row_len, n_0, rng);
 
+        let (a, b) = S::matrices(log2_q, row_len, row_len / 2, rng);
         Self {
             row_len,
             codeword_len,
@@ -239,12 +231,6 @@ impl SparseMatrix {
     fn rows(&self) -> impl Iterator<Item = &[(usize, i128)]> {
         self.cells.chunks(self.dimension.d)
     }
-
-    // fn dot(&self, array: &[i64]) -> Vec<i64> {
-    //     let mut target = vec![0i64; self.dimension.m];
-    //     self.dot_into(array, &mut target);
-    //     target
-    // }
 
     fn mat_vec_mul(&self, vector: &[i64]) -> Vec<I256> {
         assert_eq!(

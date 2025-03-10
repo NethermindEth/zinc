@@ -13,6 +13,7 @@ use crate::{
 /// * `linearization_sumcheck` - A list of non-interactive sumcheck prover messages.
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
+#[derive(Debug, Clone)]
 pub struct SpartanProof<const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///

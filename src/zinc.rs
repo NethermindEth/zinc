@@ -6,4 +6,4 @@ pub mod structs;
 #[cfg(test)]
 mod tests;
 mod utils;
-mod verifier;
+pub mod verifier;

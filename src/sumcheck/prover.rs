@@ -11,7 +11,7 @@ use crate::{
     biginteger::BigInt,
     field::RandomField,
     field_config::FieldConfig,
-    poly::mle::{DenseMultilinearExtension, MultilinearExtension},
+    poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
 };
 
 use super::{verifier::VerifierMsg, IPForMLSumcheck};

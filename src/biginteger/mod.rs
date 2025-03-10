@@ -103,12 +103,13 @@ macro_rules! BigInt {
 }
 
 #[doc(hidden)]
+#[macro_export]
 macro_rules! const_modulo {
     ($a:expr, $divisor:expr) => {{
         // Stupid slow base-2 long division taken from
         // https://en.wikipedia.org/wiki/Division_algorithm
         assert!(!$divisor.const_is_zero());
-        let mut remainder = Self::new([0u64; N]);
+        let mut remainder = BigInt::new([0u64; N]);
         let mut i = ($a.num_bits() - 1) as isize;
         let mut carry;
         while i >= 0 {
@@ -173,7 +174,7 @@ impl<const N: usize> BigInt<N> {
         result
     }
 
-    const fn const_geq(&self, other: &Self) -> bool {
+    pub(crate) const fn const_geq(&self, other: &Self) -> bool {
         const_for!((i in 0..N) {
             let a = self.0[N - i - 1];
             let b = other.0[N - i - 1];
@@ -255,7 +256,7 @@ impl<const N: usize> BigInt<N> {
         (self, carry != 0)
     }
 
-    const fn const_mul2_with_carry(mut self) -> (Self, bool) {
+    pub(crate) const fn const_mul2_with_carry(mut self) -> (Self, bool) {
         let mut last = 0;
         crate::const_for!((i in 0..N) {
             let a = self.0[i];
@@ -601,38 +602,30 @@ impl<const N: usize> AsRef<[u64]> for BigInt<N> {
     }
 }
 
-impl<const N: usize> From<u64> for BigInt<N> {
-    #[inline]
-    fn from(val: u64) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val;
-        repr
-    }
+macro_rules! impl_from_uint {
+    ($type:ty) => {
+        impl<const N: usize> From<$type> for BigInt<N> {
+            #[inline]
+            fn from(val: $type) -> BigInt<N> {
+                let mut repr = Self::default();
+                repr.0[0] = val.into();
+                repr
+            }
+        }
+    };
 }
 
-impl<const N: usize> From<u32> for BigInt<N> {
-    #[inline]
-    fn from(val: u32) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val.into();
-        repr
-    }
-}
+impl_from_uint!(u64);
+impl_from_uint!(u32);
+impl_from_uint!(u16);
+impl_from_uint!(u8);
 
-impl<const N: usize> From<u16> for BigInt<N> {
+impl<const N: usize> From<u128> for BigInt<N> {
     #[inline]
-    fn from(val: u16) -> BigInt<N> {
+    fn from(val: u128) -> BigInt<N> {
         let mut repr = Self::default();
-        repr.0[0] = val.into();
-        repr
-    }
-}
-
-impl<const N: usize> From<u8> for BigInt<N> {
-    #[inline]
-    fn from(val: u8) -> BigInt<N> {
-        let mut repr = Self::default();
-        repr.0[0] = val.into();
+        repr.0[0] = val as u64;
+        repr.0[1] = (val >> 64) as u64;
         repr
     }
 }

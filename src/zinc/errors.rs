@@ -2,9 +2,17 @@
 use thiserror::Error;
 
 use crate::{
-    brakedown::Error as BrakedownError, ccs::error::CSError, poly::polynomials::ArithErrors,
-    sumcheck::SumCheckError,
+    ccs::error::CSError, poly_f::polynomials::ArithErrors, sumcheck::SumCheckError,
+    zip::Error as ZipError,
 };
+
+#[derive(Debug, Error)]
+pub enum ZincError<const N: usize> {
+    #[error("lookup error: {0}")]
+    LookupError(#[from] LookupError),
+    #[error("spartan error: {0}")]
+    SpartanError(#[from] SpartanError<N>),
+}
 
 #[derive(Debug, Error)]
 pub enum SpartanError<const N: usize> {
@@ -21,7 +29,13 @@ pub enum SpartanError<const N: usize> {
     #[error("Verification Failed {0}")]
     VerificationError(String),
     #[error("")]
-    BrakedownError(#[from] BrakedownError),
+    ZipError(#[from] ZipError),
+}
+
+#[derive(Debug, Error)]
+pub enum LookupError {
+    #[error("lookup failed")]
+    LookupFailed,
 }
 
 #[derive(Debug, Error)]

@@ -9,11 +9,10 @@ use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
 use crate::field_config::FieldConfig;
-use crate::poly::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
+use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
-use crate::{biginteger::BigInt, field::RandomField, sparse_matrix::SparseMatrix};
+use crate::{field::RandomField, sparse_matrix::SparseMatrix};
 
-use super::ccs_z::CCS_Z;
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -71,6 +70,8 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
     ) -> Result<(), Error> {
         let mut result = vec![RandomField::zero(); self.m];
         for m in M.iter() {
+            println!("This M rows: {:?}", m.n_rows);
+            println!("This self.m: {:?}", self.m);
             assert_eq!(
                 m.n_rows, self.n,
                 "Incorrect number of rows, expected {} and got {}.",
@@ -124,7 +125,7 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
 }
 
 impl<const N: usize> CCS_F<N> {
-    fn pad(&mut self, statement: &mut Statement<N>, size: usize) {
+    fn pad(&mut self, statement: &mut Statement_F<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
             let log_m = log2(size) as usize;
@@ -147,12 +148,12 @@ impl<const N: usize> CCS_F<N> {
 
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct Statement<const N: usize> {
+pub struct Statement_F<const N: usize> {
     pub constraints: Vec<SparseMatrix<RandomField<N>>>,
     pub public_input: Vec<RandomField<N>>,
 }
 
-impl<const N: usize> Statement<N> {
+impl<const N: usize> Statement_F<N> {
     pub fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
@@ -183,14 +184,9 @@ pub struct LStatement<const N: usize> {
 
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness<const N: usize> {
+pub struct Witness_F<const N: usize> {
     /// `w_ccs` is the original CCS witness.
     pub w_ccs: Vec<RandomField<N>>,
-}
-
-// A representation of the brakedown commitment
-pub struct Commitment<const N: usize> {
-    pub commitment: Vec<Vec<RandomField<N>>>,
 }
 
 /// A representation of a linearised CCS witness.
@@ -200,7 +196,7 @@ pub struct LWitness<const N: usize> {
     pub lw_ccs: DenseMultilinearExtension<N>,
 }
 
-impl<const N: usize> Witness<N> {
+impl<const N: usize> Witness_F<N> {
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<RandomField<N>>) -> Self {
         Self { w_ccs }
@@ -236,7 +232,7 @@ pub trait Instance_F<const N: usize> {
     ) -> Vec<RandomField<N>>;
 }
 
-impl<const N: usize> Instance_F<N> for Statement<N> {
+impl<const N: usize> Instance_F<N> for Statement_F<N> {
     fn get_z_vector(
         &self,
         w: &[RandomField<N>],
@@ -250,50 +246,6 @@ impl<const N: usize> Instance_F<N> for Statement<N> {
 
         z
     }
-}
-
-pub(crate) fn from_ccs_z<const N: usize>(
-    ccs_z: &CCS_Z,
-    config: *const FieldConfig<N>,
-) -> Result<CCS_F<N>, ()> {
-    for c in ccs_z.c.iter() {
-        let bigint: Result<BigInt<N>, _> = c.magnitude().clone().try_into();
-        if bigint.is_err() || bigint.unwrap() >= unsafe { *config }.modulus {
-            return Err(());
-        }
-    }
-    // now we can safely convert all the integers into field elements
-    let c: Vec<RandomField<N>> = ccs_z
-        .c
-        .iter()
-        .map(|c| match c.sign() {
-            num_bigint::Sign::Minus => {
-                -RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-                    .unwrap()
-            }
-            num_bigint::Sign::NoSign => {
-                RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-                    .unwrap()
-            }
-            num_bigint::Sign::Plus => {
-                RandomField::from_bigint(config, BigInt::try_from(c.magnitude().clone()).unwrap())
-                    .unwrap()
-            }
-        })
-        .collect();
-    Ok(CCS_F {
-        m: ccs_z.m,
-        n: ccs_z.n,
-        l: ccs_z.l,
-        t: ccs_z.t,
-        q: ccs_z.q,
-        d: ccs_z.d,
-        s: ccs_z.s,
-        s_prime: ccs_z.s_prime,
-        S: ccs_z.S.clone(),
-        c,
-        config: AtomicPtr::new(config as *mut FieldConfig<N>),
-    })
 }
 
 /// Returns a sparse matrix of field elements given a matrix of unsigned ints
@@ -336,7 +288,6 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> V
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
     use std::ops::Neg;
-
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -353,10 +304,8 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![
-            RandomField::from_bigint(config, BigInt::one()).unwrap(),
-            RandomField::from_bigint(config, BigInt::one())
-                .unwrap()
-                .neg(),
+            RandomField::from_bigint(config, 1u32.into()).unwrap(),
+            RandomField::from_bigint(config, 1u32.into()).unwrap().neg(),
         ],
         config: AtomicPtr::new(config as *mut FieldConfig<N>),
     }
@@ -366,8 +315,8 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
 pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> Statement<N> {
-    let A = to_F_matrix::<N>(
+) -> Statement_F<N> {
+    let A = to_F_matrix(
         config,
         vec![
             vec![1, 0, 0, 0, 0, 0],
@@ -376,7 +325,7 @@ pub(crate) fn get_test_ccs_F_statement<const N: usize>(
             vec![0, 5, 0, 0, 0, 1],
         ],
     );
-    let B = to_F_matrix::<N>(
+    let B = to_F_matrix(
         config,
         vec![
             vec![1, 0, 0, 0, 0, 0],
@@ -385,7 +334,7 @@ pub(crate) fn get_test_ccs_F_statement<const N: usize>(
             vec![0, 1, 0, 0, 0, 0],
         ],
     );
-    let C = to_F_matrix::<N>(
+    let C = to_F_matrix(
         config,
         vec![
             vec![0, 0, 0, 1, 0, 0],
@@ -395,8 +344,8 @@ pub(crate) fn get_test_ccs_F_statement<const N: usize>(
         ],
     );
     let constraints = vec![A, B, C];
-    let public_input = vec![RandomField::from_bigint(config, input.into()).unwrap()];
-    Statement {
+    let public_input = to_F_vec(vec![input], config);
+    Statement_F {
         constraints,
         public_input,
     }
@@ -425,8 +374,8 @@ pub(crate) fn get_test_z_F<const N: usize>(
 pub(crate) fn get_test_wit_F<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> Witness<N> {
-    Witness::new(to_F_vec(
+) -> Witness_F<N> {
+    Witness_F::new(to_F_vec(
         vec![
             input * input * input + input + 5, // x^3 + x + 5
             input * input,                     // x^2
@@ -441,9 +390,9 @@ pub(crate) fn get_test_wit_F<const N: usize>(
 pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
     input: u64,
     config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement<N>, Witness<N>, Vec<RandomField<N>>) {
-    let mut ccs = get_test_ccs_F(config);
-    let mut statement = get_test_ccs_F_statement(input, config);
+) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>, Vec<RandomField<N>>) {
+    let mut ccs = get_test_ccs_F::<N>(config);
+    let mut statement = get_test_ccs_F_statement::<N>(input, config);
     let witness = get_test_wit_F(input, config);
     let z = get_test_z_F(input, config);
     let len = usize::max(ccs.m.next_power_of_two(), ccs.n.next_power_of_two());
@@ -454,11 +403,11 @@ pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
 #[cfg(test)]
 mod tests {
     use crate::{
-        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_from_z_length, field_config::FieldConfig,
+        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length,
+        field_config::FieldConfig,
     };
 
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
-
     #[test]
     fn test_ccs_f() {
         use std::str::FromStr;
@@ -484,7 +433,7 @@ mod tests {
             &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
         let mut rng = ark_std::test_rng();
         let n = 1 << 13;
-        let (z, ccs, statement, _) = get_dummy_ccs_from_z_length::<N>(n, &mut rng, config);
+        let (z, ccs, statement, _) = get_dummy_ccs_F_from_z_length::<N>(n, &mut rng, config);
 
         let res = ccs.check_relation(&statement.constraints, &z);
         assert!(res.is_ok())

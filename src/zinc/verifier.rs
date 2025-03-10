@@ -1,21 +1,51 @@
 use ark_ff::Zero;
 
 use crate::{
-    brakedown::{
-        code::BrakedownSpec, pcs::structs::MultilinearBrakedown, pcs_transcript::PcsTranscript,
+    ccs::{
+        ccs_f::{Statement_F, CCS_F},
+        ccs_z::{Statement_Z, CCS_Z},
     },
-    ccs::ccs_f::{Statement, CCS_F},
-    field::RandomField,
-    poly::mle::DenseMultilinearExtension,
+    field::{conversion::FieldMap, RandomField},
+    poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
     transcript::KeccakTranscript,
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 use super::{
-    errors::{MleEvaluationError, SpartanError},
-    structs::{SpartanProof, ZincVerifier},
-    utils::{SqueezeBeta, SqueezeGamma},
+    errors::{LookupError, MleEvaluationError, SpartanError, ZincError},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincVerifier},
+    utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
+
+pub trait Verifier<const N: usize> {
+    fn verify(
+        &self,
+        cm_i: &Statement_Z,
+        proof: ZincProof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_Z,
+    ) -> Result<(), ZincError<N>>;
+}
+
+impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
+    fn verify(
+        &self,
+        cm_i: &Statement_Z,
+        proof: ZincProof<N>,
+        transcript: &mut KeccakTranscript,
+        ccs: &CCS_Z,
+    ) -> Result<(), ZincError<N>> {
+        let field_config = draw_random_field::<N>(&cm_i.public_input, transcript);
+        // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
+        let ccs_F = ccs.map_to_field(field_config);
+        let statement_F = cm_i.map_to_field(field_config);
+        SpartanVerifier::<N>::verify(self, &statement_F, proof.spartan_proof, transcript, &ccs_F)
+            .map_err(ZincError::SpartanError)?;
+        LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
+        Ok(())
+    }
+}
 
 /// Verifier for the Linearization subprotocol.
 pub trait SpartanVerifier<const N: usize> {
@@ -35,26 +65,25 @@ pub trait SpartanVerifier<const N: usize> {
     ///
     fn verify(
         &self,
-        cm_i: &Statement<N>,
+        cm_i: &Statement_F<N>,
         proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>>;
 }
 
-impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
+impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement<N>,
+        cm_i: &Statement_F<N>,
         proof: SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
         let rng = ark_std::test_rng();
-        let param =
-            MultilinearBrakedown::<N, S>::setup(ccs.m, rng, unsafe { *ccs.config.as_ptr() });
+        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, self.config);
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, unsafe { *ccs.config.as_ptr() });
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -63,7 +92,7 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, &proof, ccs)?;
 
-        let gamma = transcript.squeeze_gamma_challenge(self.config);
+        let gamma = transcript.squeeze_gamma_challenge(unsafe { *ccs.config.as_ptr() });
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -75,12 +104,13 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         )?;
 
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearBrakedown::<N, S>::verify(
+        MultilinearZip::<N, S>::verify_f(
             &param,
             &proof.z_comm,
             &r_y,
             &proof.v,
             &mut pcs_transcript,
+            unsafe { *ccs.config.as_ptr() },
         )?;
 
         let mut rx_ry = r_y;
@@ -90,12 +120,11 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
             .constraints
             .iter()
             .map(|M| -> Result<RandomField<N>, MleEvaluationError> {
-                let mle = DenseMultilinearExtension::from_matrix(M, self.config);
-                mle.evaluate(&rx_ry, self.config)
-                    .ok_or(MleEvaluationError::IncorrectLength(
-                        rx_ry.len(),
-                        mle.num_vars,
-                    ))
+                let mle =
+                    DenseMultilinearExtension::from_matrix(M, unsafe { *ccs.config.as_ptr() });
+                mle.evaluate(&rx_ry, unsafe { *ccs.config.as_ptr() }).ok_or(
+                    MleEvaluationError::IncorrectLength(rx_ry.len(), mle.num_vars),
+                )
             })
             .collect();
 
@@ -110,7 +139,18 @@ impl<const N: usize, S: BrakedownSpec> SpartanVerifier<N> for ZincVerifier<N, S>
         Ok(())
     }
 }
-impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
+
+pub trait LookupVerifier<const N: usize> {
+    fn verify(&self, proof: LookupProof<N>) -> Result<(), LookupError>;
+}
+
+impl<const N: usize, S: ZipSpec> LookupVerifier<N> for ZincVerifier<N, S> {
+    fn verify(&self, _proof: LookupProof<N>) -> Result<(), LookupError> {
+        todo!()
+    }
+}
+
+impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,
         proof: &Proof<N>,
@@ -127,7 +167,7 @@ impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
             degree,
             RandomField::zero(),
             proof,
-            self.config,
+            unsafe { *ccs.config.as_ptr() },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -180,7 +220,7 @@ impl<const N: usize, S: BrakedownSpec> ZincVerifier<N, S> {
             degree,
             claimed_sum,
             proof,
-            self.config,
+            unsafe { *ccs.config.as_ptr() },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))

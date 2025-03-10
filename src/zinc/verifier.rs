@@ -7,7 +7,7 @@ use crate::{
     },
     field::{conversion::FieldMap, RandomField},
     poly_f::mle::DenseMultilinearExtension,
-    sumcheck::{utils::eq_eval, MLSumcheck, Proof, SumCheckError::SumCheckFailed},
+    sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
@@ -39,9 +39,11 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         let field_config = draw_random_field::<N>(&cm_i.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let ccs_F = ccs.map_to_field(field_config);
-        let statement_F = cm_i.map_to_field(field_config);
-        SpartanVerifier::<N>::verify(self, &statement_F, proof.spartan_proof, transcript, &ccs_F)
-            .map_err(ZincError::SpartanError)?;
+        let statement_f = cm_i.map_to_field(field_config);
+        let (r_x, r_y, e_y, gamma) =
+            SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F)
+                .map_err(ZincError::SpartanError)?;
+        self.verify_pcs_proof(&statement_f, &proof, &r_x, &r_y, e_y, gamma, &ccs_F)?;
         LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
         Ok(())
     }
@@ -65,23 +67,35 @@ pub trait SpartanVerifier<const N: usize> {
     ///
     fn verify(
         &self,
-        cm_i: &Statement_F<N>,
-        proof: SpartanProof<N>,
+        proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-    ) -> Result<(), SpartanError<N>>;
+    ) -> Result<
+        (
+            Vec<RandomField<N>>,
+            Vec<RandomField<N>>,
+            RandomField<N>,
+            RandomField<N>,
+        ),
+        SpartanError<N>,
+    >;
 }
 
 impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement_F<N>,
-        proof: SpartanProof<N>,
+        proof: &SpartanProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
-    ) -> Result<(), SpartanError<N>> {
-        let rng = ark_std::test_rng();
-        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
+    ) -> Result<
+        (
+            Vec<RandomField<N>>,
+            Vec<RandomField<N>>,
+            RandomField<N>,
+            RandomField<N>,
+        ),
+        SpartanError<N>,
+    > {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, unsafe { *ccs.config.as_ptr() });
 
@@ -103,40 +117,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
             second_sumcheck_claimed_sum,
         )?;
 
-        let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearZip::<N, S>::verify_f(
-            &param,
-            &proof.z_comm,
-            &r_y,
-            &proof.v,
-            &mut pcs_transcript,
-            unsafe { *ccs.config.as_ptr() },
-        )?;
-
-        let mut rx_ry = r_y;
-        rx_ry.extend_from_slice(&r_x);
-
-        let V_x: Result<Vec<RandomField<N>>, MleEvaluationError> = cm_i
-            .constraints
-            .iter()
-            .map(|M| -> Result<RandomField<N>, MleEvaluationError> {
-                let mle =
-                    DenseMultilinearExtension::from_matrix(M, unsafe { *ccs.config.as_ptr() });
-                mle.evaluate(&rx_ry, unsafe { *ccs.config.as_ptr() }).ok_or(
-                    MleEvaluationError::IncorrectLength(rx_ry.len(), mle.num_vars),
-                )
-            })
-            .collect();
-
-        let V_x = V_x?;
-        let V_x_gamma = Self::lin_comb_V_s(&gamma, &V_x) * proof.v;
-        if V_x_gamma != e_y {
-            return Err(SpartanError::VerificationError(
-                "linear combination of powers of gamma and V_x != e_y".to_string(),
-            ));
-        }
-
-        Ok(())
+        Ok((r_x, r_y, e_y, gamma))
     }
 }
 
@@ -153,7 +134,7 @@ impl<const N: usize, S: ZipSpec> LookupVerifier<N> for ZincVerifier<N, S> {
 impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof(
         &self,
-        proof: &Proof<N>,
+        proof: &SumcheckProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(Vec<RandomField<N>>, RandomField<N>), SpartanError<N>> {
@@ -205,7 +186,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
 
     fn verify_second_sumcheck_proof(
         &self,
-        proof: &Proof<N>,
+        proof: &SumcheckProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
         claimed_sum: RandomField<N>,
@@ -233,5 +214,52 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             res += V_i;
         }
         res
+    }
+
+    fn verify_pcs_proof(
+        &self,
+        cm_i: &Statement_F<N>,
+        proof: &ZincProof<N>,
+        r_x: &[RandomField<N>],
+        r_y: &[RandomField<N>],
+        e_y: RandomField<N>,
+        gamma: RandomField<N>,
+        ccs: &CCS_F<N>,
+    ) -> Result<(), SpartanError<N>> {
+        let rng = ark_std::test_rng();
+        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
+        let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
+        MultilinearZip::<N, S>::verify_f(
+            &param,
+            &proof.z_comm,
+            r_y,
+            &proof.v,
+            &mut pcs_transcript,
+            unsafe { *ccs.config.as_ptr() },
+        )?;
+
+        let mut rx_ry = r_y.to_vec();
+        rx_ry.extend_from_slice(&r_x);
+
+        let V_x: Result<Vec<RandomField<N>>, MleEvaluationError> = cm_i
+            .constraints
+            .iter()
+            .map(|M| -> Result<RandomField<N>, MleEvaluationError> {
+                let mle =
+                    DenseMultilinearExtension::from_matrix(M, unsafe { *ccs.config.as_ptr() });
+                mle.evaluate(&rx_ry, unsafe { *ccs.config.as_ptr() }).ok_or(
+                    MleEvaluationError::IncorrectLength(rx_ry.len(), mle.num_vars),
+                )
+            })
+            .collect();
+
+        let V_x = V_x?;
+        let V_x_gamma = Self::lin_comb_V_s(&gamma, &V_x) * proof.v;
+        if V_x_gamma != e_y {
+            return Err(SpartanError::VerificationError(
+                "linear combination of powers of gamma and V_x != e_y".to_string(),
+            ));
+        }
+        todo!()
     }
 }

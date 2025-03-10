@@ -18,19 +18,19 @@ pub struct SpartanProof<const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
     /// Sent in step 2 of linearization subprotocol.  
-    pub linearization_sumcheck: sumcheck::Proof<N>,
-    pub second_sumcheck: sumcheck::Proof<N>,
+    pub linearization_sumcheck: sumcheck::SumcheckProof<N>,
+    pub second_sumcheck: sumcheck::SumcheckProof<N>,
     pub V_s: Vec<RandomField<N>>,
-    pub v: RandomField<N>,
-    pub z_comm: MultilinearZipCommitment<N>,
-    pub pcs_proof: Vec<u8>,
 }
 
 pub struct LookupProof<const N: usize> {}
 
 pub struct ZincProof<const N: usize> {
-    pub lookup_proof: LookupProof<N>,
     pub spartan_proof: SpartanProof<N>,
+    pub v: RandomField<N>,
+    pub z_comm: MultilinearZipCommitment<N>,
+    pub pcs_proof: Vec<u8>,
+    pub lookup_proof: LookupProof<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

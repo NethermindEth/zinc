@@ -4,7 +4,6 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
-    field::conversion::FieldMap,
     field_config::FieldConfig,
     transcript::KeccakTranscript,
     zinc::{
@@ -30,22 +29,33 @@ fn benchmark_spartan_prover<const N: usize>(
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
+        let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+
+        let (z_ccs, z_mle, ccs_f, statement_f) =
+            ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
+                &statement, &wit, &ccs, config,
+            )
+            .expect("Failed to prepare for random field PIOP");
+
         group.bench_function(format!("n={}", n), |b| {
-            let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
-            let mut transcript = KeccakTranscript::new();
-            b.iter(|| {
-                black_box(
-                    SpartanProver::<N>::prove(
-                        &prover,
-                        &statement,
-                        &wit,
-                        &mut transcript,
-                        &ccs,
-                        config,
+            b.iter_batched(
+                || KeccakTranscript::new(),
+                |mut prover_transcript| {
+                    black_box(
+                        SpartanProver::<N>::prove(
+                            &prover,
+                            &statement_f,
+                            &z_ccs,
+                            &z_mle,
+                            &ccs_f,
+                            &mut prover_transcript,
+                            config,
+                        )
+                        .expect("Proof generation failed"),
                     )
-                    .expect("Proof generation failed"),
-                )
-            })
+                },
+                criterion::BatchSize::SmallInput,
+            )
         });
     }
     group.finish();
@@ -69,24 +79,42 @@ fn benchmark_spartan_verifier<const N: usize>(
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
+        let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+        let mut prover_transcript = KeccakTranscript::new();
+
+        let (z_ccs, z_mle, ccs_f, statement_f) =
+            ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
+                &statement, &wit, &ccs, config,
+            )
+            .expect("Failed to prepare for random field PIOP");
+
+        let (spartan_proof, _) = SpartanProver::<N>::prove(
+            &prover,
+            &statement_f,
+            &z_ccs,
+            &z_mle,
+            &ccs_f,
+            &mut prover_transcript,
+            config,
+        )
+        .expect("Failed to generate Spartan proof");
+
         group.bench_function(format!("n={}", n), |b| {
-            let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
-            let mut transcript = KeccakTranscript::new();
-            let proof =
-                SpartanProver::<N>::prove(&prover, &statement, &wit, &mut transcript, &ccs, config)
-                    .expect("Proof generation failed");
-            b.iter(|| {
-                black_box(
-                    SpartanVerifier::<N>::verify(
-                        &verifier,
-                        &statement.map_to_field(config),
-                        proof.clone(),
-                        &mut transcript,
-                        &ccs.map_to_field(config),
+            b.iter_batched(
+                || KeccakTranscript::new(),
+                |mut verifier_transcript| {
+                    black_box(
+                        SpartanVerifier::<N>::verify(
+                            &verifier,
+                            &spartan_proof,
+                            &mut verifier_transcript,
+                            &ccs_f,
+                        )
+                        .expect("Proof verification failed"),
                     )
-                    .expect("Proof verification failed"),
-                )
-            })
+                },
+                criterion::BatchSize::SmallInput,
+            )
         });
     }
     group.finish();

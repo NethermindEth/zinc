@@ -3,12 +3,11 @@ use std::str::FromStr;
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
-    field::conversion::FieldMap,
     field_config::FieldConfig,
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,
-        structs::{SpartanProof, ZincProver, ZincVerifier},
+        structs::{ZincProver, ZincVerifier},
         verifier::SpartanVerifier,
     },
     zip::code::ZipSpec1,
@@ -63,7 +62,7 @@ fn test_spartan_verifier() {
         ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (first_sumcheck, second_sumcheck, r_a, r_y, mz_mles) = SpartanProver::<N>::prove(
+    let (spartan_proof, _) = SpartanProver::<N>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -73,30 +72,14 @@ fn test_spartan_verifier() {
         config,
     )
     .expect("Failed to generate Spartan proof");
-    // Commit to z_mle and prove its evaluation at v
-    let (z_comm, v, pcs_proof, V_s) = ZincProver::<N, ZipSpec1>::evaluations_and_commitment(
-        &r_a, &r_y, &z_mle, &mz_mles, &ccs_f, config,
-    )
-    .expect("Failed to commit to z_mle and prove its evaluation at v");
 
     let verifier = ZincVerifier::<N, _> {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(
-        &statement.map_to_field(config),
-        SpartanProof {
-            linearization_sumcheck: first_sumcheck,
-            second_sumcheck,
-            V_s,
-            v,
-            z_comm,
-            pcs_proof,
-        },
-        &mut verifier_transcript,
-        &ccs.map_to_field(config),
-    );
+    let res =
+        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
 
     assert!(res.is_ok())
 }
@@ -120,7 +103,7 @@ fn test_dummy_spartan_verifier() {
         ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (first_sumcheck, second_sumcheck, r_a, r_y, mz_mles) = SpartanProver::<N>::prove(
+    let (spartan_proof, _) = SpartanProver::<N>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -130,32 +113,16 @@ fn test_dummy_spartan_verifier() {
         config,
     )
     .expect("Failed to generate Spartan proof");
-    // Commit to z_mle and prove its evaluation at v
-    let (z_comm, v, pcs_proof, V_s) = ZincProver::<N, ZipSpec1>::evaluations_and_commitment(
-        &r_a, &r_y, &z_mle, &mz_mles, &ccs_f, config,
-    )
-    .expect("Failed to commit to z_mle and prove its evaluation at v");
 
     let verifier = ZincVerifier::<N, _> {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    verifier
-        .verify(
-            &statement.map_to_field(config),
-            SpartanProof {
-                linearization_sumcheck: first_sumcheck,
-                second_sumcheck,
-                V_s,
-                v,
-                z_comm,
-                pcs_proof,
-            },
-            &mut verifier_transcript,
-            &ccs.map_to_field(config),
-        )
-        .expect("Failed to verify Spartan proof");
+    let res =
+        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
+
+    assert!(res.is_ok())
 }
 
 #[test]
@@ -179,7 +146,7 @@ fn test_failing_spartan_verifier() {
         ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (first_sumcheck, second_sumcheck, r_a, r_y, mz_mles) = SpartanProver::<N>::prove(
+    let (spartan_proof, _) = SpartanProver::<N>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -189,30 +156,14 @@ fn test_failing_spartan_verifier() {
         config,
     )
     .expect("Failed to generate Spartan proof");
-    // Commit to z_mle and prove its evaluation at v
-    let (z_comm, v, pcs_proof, V_s) = ZincProver::<N, ZipSpec1>::evaluations_and_commitment(
-        &r_a, &r_y, &z_mle, &mz_mles, &ccs_f, config,
-    )
-    .expect("Failed to commit to z_mle and prove its evaluation at v");
 
     let verifier = ZincVerifier {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res = verifier.verify(
-        &statement.map_to_field(config),
-        SpartanProof {
-            linearization_sumcheck: first_sumcheck,
-            second_sumcheck,
-            V_s,
-            v,
-            z_comm,
-            pcs_proof,
-        },
-        &mut verifier_transcript,
-        &ccs.map_to_field(config),
-    );
+    let res =
+        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
 
     assert!(res.is_err())
 }

@@ -172,7 +172,7 @@ impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
 }
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
-    fn prepare_for_random_field_piop(
+    pub fn prepare_for_random_field_piop(
         statement: &Statement_Z,
         wit: &Witness_Z,
         ccs: &CCS_Z,
@@ -362,7 +362,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         Ok((sum_check_proof, prover_state.randomness))
     }
 
-    fn evaluations_and_commitment(
+    pub fn evaluations_and_commitment(
         r_a: &[RandomField<N>],
         r_y: &[RandomField<N>],
         z_mle: &DenseMultilinearExtensionZ,

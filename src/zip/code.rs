@@ -149,7 +149,7 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_proximity_testing(log2_q: usize, n: usize, _n_0: usize) -> usize {
-        2617
+        300
     }
 
     fn codeword_len(n: usize) -> usize {

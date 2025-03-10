@@ -109,6 +109,8 @@ where
                 let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
                 let combined_row = combine_rows_z(&coeffs, &poly.evaluations, row_len);
                 if i == 0 {
+                    println!("evaluations: {:?}", &poly.evaluations);
+                    println!("row: {:?}", row_len);
                     println!("coeffs: {:?}", coeffs);
                     println!("combined row: {:?}", combined_row);
                 }

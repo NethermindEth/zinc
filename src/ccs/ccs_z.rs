@@ -311,7 +311,9 @@ pub(crate) fn get_test_ccs_stuff_Z(input: i64) -> (CCS_Z, Statement_Z, Witness_Z
 #[cfg(test)]
 mod tests {
 
-    use crate::{ccs::test_utils::get_dummy_ccs_Z_from_z_length, sparse_matrix::SparseMatrix};
+    use std::str::FromStr;
+
+    use crate::{biginteger::BigInt, ccs::{ccs_f::{Arith, Instance_F}, test_utils::get_dummy_ccs_Z_from_z_length}, field::conversion::FieldMap, field_config::FieldConfig, sparse_matrix::SparseMatrix};
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
 
@@ -376,5 +378,49 @@ mod tests {
 
         let res = ccs.check_relation(&constraints, &z);
         assert!(res.is_ok())
+    }
+
+    #[test]
+    fn test_ccs_z_conversion() {
+        let mut rng = ark_std::test_rng();
+        let n = 1 << 13;
+        let (z, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+        let z = z.iter().map(|i| *i as i128).collect::<Vec<_>>();
+        let constraints = statement
+            .constraints
+            .iter()
+            .map(|m_i64| {
+                let mut m = SparseMatrix::empty();
+                m.n_rows = m_i64.n_rows;
+                m.n_cols = m_i64.n_cols;
+                m.coeffs = m_i64
+                    .coeffs
+                    .iter()
+                    .map(|vec| {
+                        vec.iter()
+                            .map(|(coeff, col)| (*coeff as i128, *col))
+                            .collect()
+                    })
+                    .collect();
+                m
+            })
+            .collect::<Vec<_>>();
+
+        ccs.check_relation(&constraints, &z)
+            .expect("Failed to check relation over Integer Ring");
+
+        const N: usize = 3;
+        let config: *const FieldConfig<N> = &FieldConfig::new(
+            BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
+        );
+
+        let ccs_f = ccs.map_to_field(config);
+        let statement_f = statement.map_to_field(config);
+        let witness_f = wit.map_to_field(config);
+        let z_f = statement_f.get_z_vector(&witness_f.w_ccs, config);
+
+        ccs_f
+            .check_relation(&statement_f.constraints, &z_f)
+            .expect("Failed to check relation over Random Field");
     }
 }

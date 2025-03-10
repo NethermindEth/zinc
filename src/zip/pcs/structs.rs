@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, slice};
 
 use ark_std::rand::RngCore;
-use i256::I256;
+use i256::{I256, I512};
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
@@ -43,7 +43,7 @@ impl<const N: usize> MultilinearZipParams<N> {
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment<const N: usize> {
     /// The encoded rows of the polynomial matrix representation
-    rows: Vec<I256>,
+    rows: Vec<I512>,
     /// Hashes of the merkle tree with the encoded columns as leaves
     intermediate_hashes: Vec<Output<Keccak256>>,
     /// Root of the merkle tree with the encoded columns as leaves
@@ -52,7 +52,7 @@ pub struct MultilinearZipCommitment<const N: usize> {
 
 impl<const N: usize> MultilinearZipCommitment<N> {
     pub fn new(
-        rows: Vec<I256>,
+        rows: Vec<I512>,
         intermediate_hashes: Vec<Output<Keccak256>>,
         root: Output<Keccak256>,
     ) -> MultilinearZipCommitment<N> {
@@ -69,7 +69,7 @@ impl<const N: usize> MultilinearZipCommitment<N> {
         }
     }
 
-    pub fn rows(&self) -> &[I256] {
+    pub fn rows(&self) -> &[I512] {
         &self.rows
     }
 

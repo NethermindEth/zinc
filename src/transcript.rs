@@ -124,8 +124,23 @@ impl KeccakTranscript {
         challenges.extend((0..n).map(|_| self.get_challenge(config)));
         challenges
     }
-}
 
+    pub fn get_integer_challenge(&mut self) -> i64 {
+        let challenge = self.hasher.clone().finalize();
+
+        let int = i64::from_be_bytes(challenge[0..8].try_into().unwrap());
+
+        self.hasher.update([0x12]);
+        self.hasher.update(challenge);
+        self.hasher.update([0x34]);
+
+        int
+    }
+
+    pub fn get_integer_challenges(&mut self, n: usize) -> Vec<i64> {
+        (0..n).map(|_| self.get_integer_challenge()).collect()
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

@@ -1,4 +1,5 @@
-use i256::I256;
+use i256::{I256, I512};
+
 use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
@@ -21,7 +22,7 @@ pub trait LinearCodes<const N: usize>: Sync + Send {
 
     fn num_proximity_testing(&self) -> usize;
 
-    fn encode(&self, input: &[i64]) -> Vec<I256>;
+    fn encode(&self, input: &[I256]) -> Vec<I512>;
 }
 
 #[derive(Clone, Debug)]
@@ -53,7 +54,7 @@ impl<const N: usize> Zip<N> {
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
 
-        let (a, b) = S::matrices(log2_q, row_len, row_len / 2, rng);
+        let (a, b) = S::matrices(codeword_len / 2, row_len, row_len / 2, rng);
         Self {
             row_len,
             codeword_len,
@@ -62,6 +63,10 @@ impl<const N: usize> Zip<N> {
             a,
             b,
         }
+    }
+    pub fn encode_i64(&self, row: &[i64]) -> Vec<I512> {
+        let wider_row: Vec<_> = row.iter().map(|i| I256::from(*i)).collect();
+        Self::encode(&self, &wider_row)
     }
 }
 
@@ -82,10 +87,11 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
         self.num_proximity_testing
     }
 
-    fn encode(&self, row: &[i64]) -> Vec<I256> {
+    fn encode(&self, row: &[I256]) -> Vec<I512> {
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(SparseMatrix::mat_vec_mul(&self.a, row));
         code.extend(SparseMatrix::mat_vec_mul(&self.b, row));
+
         code
     }
 }
@@ -143,7 +149,7 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_proximity_testing(log2_q: usize, n: usize, _n_0: usize) -> usize {
-        ceil(Self::LAMBDA / (log2_q as f64 - (Self::codeword_len(n) as f64).log2()))
+        2617
     }
 
     fn codeword_len(n: usize) -> usize {
@@ -156,7 +162,7 @@ pub trait ZipSpec: Debug {
         density: usize,
         mut rng: impl RngCore,
     ) -> (SparseMatrix, SparseMatrix) {
-        let dim = SparseMatrixDimension::new(rows, cols * INVERSE_RATE, density);
+        let dim = SparseMatrixDimension::new(rows, cols, density);
         (
             SparseMatrix::new(dim, &mut rng),
             SparseMatrix::new(dim, &mut rng),
@@ -232,19 +238,19 @@ impl SparseMatrix {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul(&self, vector: &[i64]) -> Vec<I256> {
+    fn mat_vec_mul(&self, vector: &[I256]) -> Vec<I512> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![I256::from(0); self.dimension.n];
+        let mut result = vec![I512::from(0); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = I256::from(0);
+            let mut sum = I512::from(0);
             for (column, coeff) in cells.iter() {
-                sum += I256::from(*coeff) * (I256::from(vector[*column]));
+                sum += I512::from(*coeff) * I256_to_I512(vector[*column]);
             }
             result[row_idx] = sum;
         });
@@ -270,4 +276,10 @@ fn h(p: f64) -> f64 {
 
 fn ceil(v: f64) -> usize {
     v.ceil() as usize
+}
+
+pub(super) fn I256_to_I512(i: I256) -> I512 {
+    let mut bytes = [0u8; 64];
+    bytes[32..].copy_from_slice(&i.to_be_bytes());
+    I512::from_be_bytes(bytes)
 }

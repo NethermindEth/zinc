@@ -1,5 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use i256::{I256, I512};
 
 use crate::{
     field::RandomField as F,
@@ -47,7 +48,8 @@ where
                 let mut combined_row = transcript.read_integers(row_len)?;
 
                 combined_row.resize(codeword_len, 0i64);
-                vp.zip().encode(&combined_row);
+
+                vp.zip().encode_i64(&combined_row);
                 let combined_row_f = combined_row
                     .iter()
                     .map(|i| F::from_i64(*i, field).unwrap())
@@ -72,11 +74,11 @@ where
         for _ in 0..vp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
 
-            let items = transcript.read_I256_vec(vp.num_rows())?;
+            let items = transcript.read_I512_vec(vp.num_rows())?;
 
             let merkle_path = transcript.read_commitments(depth)?;
 
-            Self::verify_proximity(&combined_rows, &items, column, vp.num_rows(), field)?;
+            Self::verify_proximity_f(&combined_rows, &items, column, vp.num_rows(), field)?;
 
             Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }
@@ -104,6 +106,28 @@ where
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify_f(vp, comm, &points[i], eval, transcript, field)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn verify_proximity_f(
+        combined_rows: &[(Vec<F<N>>, Vec<F<N>>)],
+        items: &[I512],
+        column: usize,
+        num_rows: usize,
+        field: *const FieldConfig<N>,
+    ) -> Result<(), Error> {
+        let items_f: Vec<_> = items.iter().map(|i| F::from_I512(*i, field)).collect();
+        for (coeff, encoded) in combined_rows.iter() {
+            let item = if num_rows > 1 {
+                inner_product(coeff, &items_f)
+            } else {
+                items_f[0]
+            };
+
+            if item != encoded[column] {
+                return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            }
         }
         Ok(())
     }

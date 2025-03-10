@@ -106,6 +106,7 @@ where
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect();
+
         if num_rows > 1 {
             // If we can take linear combinations evaluation.config_ptr(
             // perform the proximity test an arbitrary number of times

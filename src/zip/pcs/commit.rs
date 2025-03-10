@@ -1,5 +1,5 @@
 use ark_std::iterable::Iterable;
-use i256::I256;
+use i256::{I256, I512};
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
@@ -62,11 +62,11 @@ where
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-        rows: &mut [i64],
+        _rows: &mut [i64],
         poly: &Self::Polynomial,
-    ) -> Vec<I256> {
+    ) -> Vec<I512> {
         let chunk_size = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![I256::default(); rows.len()];
+        let mut encoded_rows = vec![I512::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -77,13 +77,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    let mut temp_row = vec![0i64; codeword_len];
-                    temp_row[..evals.len()].copy_from_slice(evals);
-                    pp.zip().encode(&temp_row);
-
-                    for (i, val) in temp_row.iter().enumerate() {
-                        row[i] = I256::from(*val);
-                    }
+                    row.copy_from_slice(pp.zip().encode_i64(evals).as_slice());
                 }
             },
         );
@@ -91,7 +85,7 @@ where
         encoded_rows
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I256]) {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I512]) {
         parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {

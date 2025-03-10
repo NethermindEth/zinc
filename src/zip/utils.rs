@@ -1,14 +1,16 @@
-use crate::field::RandomField as F;
-use itertools::Itertools;
+use std::ops::{Add, Mul};
+
 use num_integer::Integer;
 
-pub(crate) fn inner_product<'a, 'b, const N: usize>(
-    lhs: impl IntoIterator<Item = &'a F<N>>,
-    rhs: impl IntoIterator<Item = &'b F<N>>,
-) -> F<N> {
+pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
+where
+    T: Copy + Mul<Output = T> + Add<Output = T> + Default + 'a + 'b,
+    L: IntoIterator<Item = &'a T>,
+    R: IntoIterator<Item = &'b T>,
+{
     lhs.into_iter()
-        .zip_eq(rhs)
-        .map(|(lhs, rhs)| *lhs * rhs)
+        .zip(rhs)
+        .map(|(lhs, rhs)| *lhs * *rhs)
         .reduce(|acc, product| acc + product)
         .unwrap_or_default()
 }

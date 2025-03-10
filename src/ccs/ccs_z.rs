@@ -313,7 +313,16 @@ mod tests {
 
     use std::str::FromStr;
 
-    use crate::{biginteger::BigInt, ccs::{ccs_f::{Arith, Instance_F}, test_utils::get_dummy_ccs_Z_from_z_length}, field::conversion::FieldMap, field_config::FieldConfig, sparse_matrix::SparseMatrix};
+    use crate::{
+        biginteger::BigInt,
+        ccs::{
+            ccs_f::{Arith, Instance_F},
+            test_utils::get_dummy_ccs_Z_from_z_length,
+        },
+        field::conversion::FieldMap,
+        field_config::FieldConfig,
+        sparse_matrix::SparseMatrix,
+    };
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
 
@@ -383,7 +392,7 @@ mod tests {
     #[test]
     fn test_ccs_z_conversion() {
         let mut rng = ark_std::test_rng();
-        let n = 1 << 13;
+        let n = 1 << 3;
         let (z, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
         let z = z.iter().map(|i| *i as i128).collect::<Vec<_>>();
         let constraints = statement

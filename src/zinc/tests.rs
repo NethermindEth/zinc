@@ -141,19 +141,21 @@ fn test_dummy_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    verifier.verify(
-        &statement.map_to_field(config),
-        SpartanProof {
-            linearization_sumcheck: first_sumcheck,
-            second_sumcheck,
-            V_s,
-            v,
-            z_comm,
-            pcs_proof,
-        },
-        &mut verifier_transcript,
-        &ccs.map_to_field(config),
-    ).expect("Failed to verify Spartan proof");
+    verifier
+        .verify(
+            &statement.map_to_field(config),
+            SpartanProof {
+                linearization_sumcheck: first_sumcheck,
+                second_sumcheck,
+                V_s,
+                v,
+                z_comm,
+                pcs_proof,
+            },
+            &mut verifier_transcript,
+            &ccs.map_to_field(config),
+        )
+        .expect("Failed to verify Spartan proof");
 }
 
 #[test]

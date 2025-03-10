@@ -89,11 +89,11 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z(z: &[i64]) -> (CCS_Z, Statement_Z, Witness_Z) {
+fn get_dummy_ccs_Z_from_z(z: &[i64], pub_io_len: usize) -> (CCS_Z, Statement_Z, Witness_Z) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
-        l: 1,
+        l: pub_io_len,
         t: 3,
         q: 2,
         d: 2,
@@ -109,11 +109,11 @@ fn get_dummy_ccs_Z_from_z(z: &[i64]) -> (CCS_Z, Statement_Z, Witness_Z) {
 
     let statement = Statement_Z {
         constraints: vec![A, B, C],
-        public_input: Vec::new(),
+        public_input: z[..pub_io_len].to_vec(),
     };
 
     let wit = Witness_Z {
-        w_ccs: z[ccs.l..].to_vec(),
+        w_ccs: z[pub_io_len + 1..].to_vec(),
     };
 
     (ccs, statement, wit)
@@ -121,12 +121,13 @@ fn get_dummy_ccs_Z_from_z(z: &[i64]) -> (CCS_Z, Statement_Z, Witness_Z) {
 
 fn get_dummy_ccs_F_from_z<const N: usize>(
     z: &[RandomField<N>],
+    pub_io_len: usize,
     config: *const FieldConfig<N>,
 ) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
     let ccs = CCS_F::<N> {
         m: z.len(),
         n: z.len(),
-        l: 1,
+        l: pub_io_len,
         t: 3,
         q: 2,
         d: 2,
@@ -146,11 +147,11 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
 
     let statement = Statement_F::<N> {
         constraints: vec![A, B, C],
-        public_input: Vec::new(),
+        public_input: z[..pub_io_len].to_vec(),
     };
 
     let wit = Witness_F::<N> {
-        w_ccs: z[ccs.l..].to_vec(),
+        w_ccs: z[pub_io_len + 1..].to_vec(),
     };
 
     (ccs, statement, wit)
@@ -160,8 +161,10 @@ pub fn get_dummy_ccs_Z_from_z_length(
     n: usize,
     rng: &mut impl Rng,
 ) -> (Vec<i64>, CCS_Z, Statement_Z, Witness_Z) {
-    let z: Vec<_> = (0..n).map(|_| rng.gen_range(i64::MIN..=i64::MAX)).collect();
-    let (ccs, statement, wit) = get_dummy_ccs_Z_from_z(&z);
+    let mut z: Vec<_> = (0..n).map(|_| rng.gen_range(i64::MIN..=i64::MAX)).collect();
+    let pub_io_len = 1;
+    z[pub_io_len] = 1;
+    let (ccs, statement, wit) = get_dummy_ccs_Z_from_z(&z, pub_io_len);
 
     (z, ccs, statement, wit)
 }
@@ -171,8 +174,10 @@ pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
     rng: &mut impl Rng,
     config: *const FieldConfig<N>,
 ) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
-    let z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
-    let (ccs, statement, wit) = get_dummy_ccs_F_from_z(&z, config);
+    let mut z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
+    let pub_io_len = 1;
+    z[pub_io_len] = RandomField::from_bigint(config, 1u32.into()).unwrap();
+    let (ccs, statement, wit) = get_dummy_ccs_F_from_z(&z, pub_io_len, config);
 
     (z, ccs, statement, wit)
 }

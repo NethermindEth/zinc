@@ -1,5 +1,5 @@
 use ark_std::iterable::Iterable;
-use i256::{I256, I512};
+use i256::I512;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{

@@ -1,7 +1,7 @@
 use std::{marker::PhantomData, slice};
 
 use ark_std::rand::RngCore;
-use i256::{I256, I512};
+use i256::I512;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{

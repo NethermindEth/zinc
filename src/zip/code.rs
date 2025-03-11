@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 use i256::{I256, I512};
 
 use itertools::Itertools;
@@ -148,7 +149,7 @@ pub trait ZipSpec: Debug {
         300
     }
 
-    fn num_proximity_testing(log2_q: usize, n: usize, _n_0: usize) -> usize {
+    fn num_proximity_testing(_log2_q: usize, _n: usize, _n_0: usize) -> usize {
         1
     }
 

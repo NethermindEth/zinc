@@ -1,6 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
-use i256::{I256, I512};
+use i256::I512;
 
 use crate::{
     field::RandomField as F,

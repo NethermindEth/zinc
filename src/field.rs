@@ -349,6 +349,7 @@ impl<const N: usize> RandomField<N> {
             }
         }
     }
+    #[allow(dead_code)]
     // TODO This method is rather bad, needs to be improved
     /// Converts from an I256 integer into a field, but crucially takes a modulus as well
     pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> RandomField<N> {

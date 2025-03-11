@@ -1,4 +1,3 @@
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
 use i256::{I256, I512};
@@ -73,7 +72,7 @@ where
         }
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let mut t_0_combined_row = transcript.read_field_elements(row_len, field)?;
+        let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
 
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.zip().num_column_opening() {
@@ -89,17 +88,15 @@ where
         }
 
         // verify consistency
-        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
+        let (_, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
 
         let t_1_f = t_1
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect::<Vec<_>>();
-        println!("{:?}", t_0);
-        println!("{:?}", t_1);
-        println!("{:?}", t_0_combined_row);
+
         let eval_f = F::from_i64(*eval, field).unwrap();
-        println!("{:?}", eval_f);
+
         if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         }

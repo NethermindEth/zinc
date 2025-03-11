@@ -70,8 +70,6 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
     ) -> Result<(), Error> {
         let mut result = vec![RandomField::zero(); self.m];
         for m in M.iter() {
-            println!("This M rows: {:?}", m.n_rows);
-            println!("This self.m: {:?}", self.m);
             assert_eq!(
                 m.n_rows, self.n,
                 "Incorrect number of rows, expected {} and got {}.",

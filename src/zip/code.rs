@@ -4,7 +4,7 @@ use i256::{I256, I512};
 
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
-use crate::sparse_matrix;
+
 use ark_ff::UniformRand;
 use ark_std::fmt::Debug;
 use ark_std::rand::distributions::Uniform;

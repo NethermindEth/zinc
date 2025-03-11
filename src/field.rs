@@ -357,8 +357,8 @@ impl<const N: usize> RandomField<N> {
         unsafe {
             let modulus: [u64; N] = (*config).modulus.0;
             let val: [u64; 2] = [
-                (value.abs() as u128) as u64,
-                (value.abs() as u128 >> 64) as u64,
+                (value.unsigned_abs()) as u64,
+                (value.unsigned_abs() >> 64) as u64,
             ];
 
             let mut r: BigInt<N> = match N {

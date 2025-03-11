@@ -1,15 +1,18 @@
 #![allow(non_snake_case)]
+use ark_ff::Zero;
 use i256::{I256, I512};
 
-use itertools::Itertools;
-use std::collections::BTreeSet;
-use std::iter;
-
+use crate::field::RandomField as F;
+use crate::field_config::FieldConfig;
+use crate::sparse_matrix;
 use ark_ff::UniformRand;
 use ark_std::fmt::Debug;
 use ark_std::rand::distributions::Uniform;
 use ark_std::rand::Rng;
 use ark_std::rand::RngCore;
+use itertools::Itertools;
+use std::collections::BTreeSet;
+use std::iter;
 #[allow(dead_code)]
 const PROB_MULTIPLIER: usize = 18;
 #[allow(dead_code)]
@@ -32,8 +35,8 @@ pub struct Zip<const N: usize> {
     codeword_len: usize,
     num_column_opening: usize,
     num_proximity_testing: usize,
-    a: SparseMatrix,
-    b: SparseMatrix,
+    a: SparseMatrixZ,
+    b: SparseMatrixZ,
 }
 
 impl<const N: usize> Zip<N> {
@@ -69,6 +72,15 @@ impl<const N: usize> Zip<N> {
         let wider_row: Vec<_> = row.iter().map(|i| I256::from(*i)).collect();
         Self::encode(self, &wider_row)
     }
+    pub fn encode_f(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
+        let mut code = Vec::with_capacity(self.codeword_len);
+        let a_f = SparseMatrixF::new(&self.a, field);
+        let b_f = SparseMatrixF::new(&self.b, field);
+        code.extend(SparseMatrixF::mat_vec_mul(&a_f, row));
+        code.extend(SparseMatrixF::mat_vec_mul(&b_f, row));
+
+        code
+    }
 }
 
 impl<const N: usize> LinearCodes<N> for Zip<N> {
@@ -90,8 +102,8 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
 
     fn encode(&self, row: &[I256]) -> Vec<I512> {
         let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(SparseMatrix::mat_vec_mul(&self.a, row));
-        code.extend(SparseMatrix::mat_vec_mul(&self.b, row));
+        code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
+        code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
 
         code
     }
@@ -162,11 +174,11 @@ pub trait ZipSpec: Debug {
         cols: usize,
         density: usize,
         mut rng: impl RngCore,
-    ) -> (SparseMatrix, SparseMatrix) {
+    ) -> (SparseMatrixZ, SparseMatrixZ) {
         let dim = SparseMatrixDimension::new(rows, cols, density);
         (
-            SparseMatrix::new(dim, &mut rng),
-            SparseMatrix::new(dim, &mut rng),
+            SparseMatrixZ::new(dim, &mut rng),
+            SparseMatrixZ::new(dim, &mut rng),
         )
     }
 }
@@ -210,12 +222,12 @@ impl SparseMatrixDimension {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrix {
+pub struct SparseMatrixZ {
     dimension: SparseMatrixDimension,
     cells: Vec<(usize, i128)>,
 }
 
-impl SparseMatrix {
+impl SparseMatrixZ {
     fn new(dimension: SparseMatrixDimension, mut rng: impl RngCore) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
@@ -252,6 +264,50 @@ impl SparseMatrix {
             let mut sum = I512::from(0);
             for (column, coeff) in cells.iter() {
                 sum += I512::from(*coeff) * I256_to_I512(vector[*column]);
+            }
+            result[row_idx] = sum;
+        });
+
+        result
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct SparseMatrixF<const N: usize> {
+    dimension: SparseMatrixDimension,
+    cells: Vec<(usize, F<N>)>,
+}
+
+impl<const N: usize> SparseMatrixF<N> {
+    fn new(sparse_matrix: &SparseMatrixZ, config: *const FieldConfig<N>) -> Self {
+        let cells_f: Vec<(usize, F<N>)> = sparse_matrix
+            .cells
+            .iter()
+            .map(|(col_index, val)| (*col_index, F::from_i128(*val, config)))
+            .collect();
+        Self {
+            dimension: sparse_matrix.dimension,
+            cells: cells_f,
+        }
+    }
+
+    fn rows(&self) -> impl Iterator<Item = &[(usize, F<N>)]> {
+        self.cells.chunks(self.dimension.d)
+    }
+
+    fn mat_vec_mul(&self, vector: &[F<N>]) -> Vec<F<N>> {
+        assert_eq!(
+            self.dimension.m,
+            vector.len(),
+            "Vector length must match matrix column dimension"
+        );
+
+        let mut result = vec![F::zero(); self.dimension.n];
+
+        self.rows().enumerate().for_each(|(row_idx, cells)| {
+            let mut sum = F::zero();
+            for (column, coeff) in cells.iter() {
+                sum += &(*coeff * vector[*column]);
             }
             result[row_idx] = sum;
         });

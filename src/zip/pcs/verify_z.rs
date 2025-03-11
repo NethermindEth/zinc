@@ -73,7 +73,11 @@ where
 
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
         let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
-
+        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
+        let t_0_f = t_0
+            .iter()
+            .map(|i| F::from_i64(*i, field).unwrap())
+            .collect::<Vec<_>>();
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
@@ -83,12 +87,18 @@ where
             let merkle_path = transcript.read_commitments(depth)?;
 
             Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
-
+            Self::verify_proximity_t_0(
+                &t_0_f,
+                &vp.zip().encode_f(&t_0_combined_row, field),
+                &items,
+                column,
+                vp.num_rows(),
+                field,
+            )?;
             Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }
 
         // verify consistency
-        let (_, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
 
         let t_1_f = t_1
             .iter()
@@ -173,6 +183,30 @@ where
                 return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
             }
         }
+        Ok(())
+    }
+
+    fn verify_proximity_t_0(
+        t_0_f: &Vec<F<N>>,
+        t_0_combined_row: &[F<N>],
+        column_entries: &[I512],
+        column: usize,
+        num_rows: usize,
+        field: *const FieldConfig<N>,
+    ) -> Result<(), Error> {
+        let column_entries_comb = if num_rows > 1 {
+            let column_entries = column_entries
+                .iter()
+                .map(|i| F::from_I512(*i, field))
+                .collect::<Vec<_>>();
+            inner_product(t_0_f, &column_entries)
+        } else {
+            F::from_I512(column_entries[0], field)
+        };
+        if column_entries_comb != t_0_combined_row[column] {
+            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+        }
+
         Ok(())
     }
 }

@@ -349,6 +349,61 @@ impl<const N: usize> RandomField<N> {
             }
         }
     }
+
+    pub(crate) fn from_i128(value: i128, config: *const FieldConfig<N>) -> RandomField<N> {
+        if config.is_null() {
+            panic!("Cannot convert signed integer to prime field element without a modulus")
+        }
+        unsafe {
+            let modulus: [u64; N] = (*config).modulus.0;
+            let val: [u64; 2] = [
+                (value.abs() as u128) as u64,
+                (value.abs() as u128 >> 64) as u64,
+            ];
+
+            let mut r: BigInt<N> = match N {
+                n if n < 2 => {
+                    let mut wider_modulus: [u64; 2] = [0; 2];
+                    wider_modulus[..N].copy_from_slice(&modulus);
+                    let mut value = crypto_bigint::Uint::<2>::from_words(val);
+                    let modu = crypto_bigint::Uint::<2>::from_words(wider_modulus);
+
+                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[..N]);
+
+                    BigInt(result)
+                }
+                2 => {
+                    let mut value_N: [u64; N] = [0; N];
+                    value_N.copy_from_slice(&val);
+
+                    let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    BigInt(value.to_words())
+                }
+                _ => {
+                    let mut wider_value: [u64; N] = [0; N];
+                    wider_value[..2].copy_from_slice(&val);
+                    let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    wider %= crypto_bigint::NonZero::from_uint(modu);
+                    BigInt(wider.to_words())
+                }
+            };
+
+            (*config).mul_assign(&mut r, &(*config).r2);
+
+            let mut elem = Self::new_unchecked(config, r);
+            if value < 0 {
+                elem = -elem;
+            }
+
+            elem
+        }
+    }
+
     #[allow(dead_code)]
     // TODO This method is rather bad, needs to be improved
     /// Converts from an I256 integer into a field, but crucially takes a modulus as well

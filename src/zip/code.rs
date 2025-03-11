@@ -47,7 +47,7 @@ impl<const N: usize> Zip<N> {
 
         let log2_q = N;
 
-        let row_len = num_vars.pow(2).isqrt();
+        let row_len = num_vars.pow(2).isqrt().next_power_of_two();
 
         let codeword_len = S::codeword_len(row_len);
 
@@ -66,7 +66,7 @@ impl<const N: usize> Zip<N> {
     }
     pub fn encode_i64(&self, row: &[i64]) -> Vec<I512> {
         let wider_row: Vec<_> = row.iter().map(|i| I256::from(*i)).collect();
-        Self::encode(&self, &wider_row)
+        Self::encode(self, &wider_row)
     }
 }
 

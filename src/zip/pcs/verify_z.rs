@@ -90,18 +90,16 @@ where
 
         // verify consistency
         let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
-        let t_0_f = t_0
-            .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
-            .collect::<Vec<_>>();
+
         let t_1_f = t_1
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect::<Vec<_>>();
-
-        t_0_combined_row.resize(codeword_len, F::zero());
-
+        println!("{:?}", t_0);
+        println!("{:?}", t_1);
+        println!("{:?}", t_0_combined_row);
         let eval_f = F::from_i64(*eval, field).unwrap();
+        println!("{:?}", eval_f);
         if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         }

@@ -105,15 +105,10 @@ where
         if num_rows > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for i in 0..num_proximity_testing {
+            for _ in 0..num_proximity_testing {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
                 let combined_row = combine_rows_z(&coeffs, &poly.evaluations, row_len);
-                if i == 0 {
-                    println!("evaluations: {:?}", &poly.evaluations);
-                    println!("row: {:?}", row_len);
-                    println!("coeffs: {:?}", coeffs);
-                    println!("combined row: {:?}", combined_row);
-                }
+
                 transcript.write_I256_vec(&combined_row)?;
             }
         }
@@ -145,7 +140,7 @@ where
         comm: &Self::Commitment,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        for i in 0..num_col_opening {
+        for _ in 0..num_col_opening {
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
 
             //Write the elements in the squeezed column to the shared transcript
@@ -158,19 +153,6 @@ where
                     .step_by(codeword_len)
                     .collect::<Vec<_>>(),
             )?;
-
-            if i == 0 {
-                println!(
-                    "column entries 1: {:?}\n\n",
-                    &comm
-                        .rows()
-                        .iter()
-                        .copied()
-                        .skip(column)
-                        .step_by(codeword_len)
-                        .collect::<Vec<_>>(),
-                )
-            }
 
             //Write the neighbour hash path to the shared transcript
             let mut offset = 0;

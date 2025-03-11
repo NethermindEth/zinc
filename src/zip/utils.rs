@@ -65,3 +65,14 @@ where
     #[cfg(not(feature = "parallel"))]
     f((v, 0));
 }
+#[cfg(test)]
+mod test {
+    use crate::zip::utils::inner_product;
+
+    #[test]
+    fn test_inner_product_basic() {
+        let lhs = vec![1, 2, 3];
+        let rhs = vec![4, 5, 6];
+        assert_eq!(inner_product(lhs.iter(), rhs.iter()), 1 * 4 + 2 * 5 + 3 * 6);
+    }
+}

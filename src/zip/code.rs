@@ -145,11 +145,11 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_column_opening() -> usize {
-        2617
+        300
     }
 
     fn num_proximity_testing(log2_q: usize, n: usize, _n_0: usize) -> usize {
-        300
+        1
     }
 
     fn codeword_len(n: usize) -> usize {
@@ -280,6 +280,32 @@ fn ceil(v: f64) -> usize {
 
 pub(super) fn I256_to_I512(i: I256) -> I512 {
     let mut bytes = [0u8; 64];
+
+    // Preserve sign extension for negative values
+    let sign_byte = if i.is_negative() { 0xFF } else { 0x00 };
+    bytes[..32].fill(sign_byte); // Fill the upper bytes with the sign
     bytes[32..].copy_from_slice(&i.to_be_bytes());
+
     I512::from_be_bytes(bytes)
+}
+
+#[cfg(test)]
+mod tests {
+    use i256::{I256, I512};
+
+    use crate::zip::code::I256_to_I512;
+
+    #[test]
+    fn test_I256_to_I512_positive() {
+        let i = I256::from(123456);
+        let result = I256_to_I512(i);
+        assert_eq!(result, I512::from(123456));
+    }
+
+    #[test]
+    fn test_I256_to_I512_negative() {
+        let i = I256::from(-987654);
+        let result = I256_to_I512(i);
+        assert_eq!(result, I512::from(-987654));
+    }
 }

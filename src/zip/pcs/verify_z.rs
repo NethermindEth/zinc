@@ -53,10 +53,10 @@ where
 
         // Retrieve the row combinations from the transcript
         // Pair the combinations with the coefficients that generated them
-        let mut combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
+        let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
 
         if vp.num_rows() > 1 {
-            for i in 0..vp.zip().num_proximity_testing() {
+            for _ in 0..vp.zip().num_proximity_testing() {
                 let coeffs: Vec<_> = transcript
                     .fs_transcript
                     .get_integer_challenges(vp.num_rows())
@@ -68,7 +68,7 @@ where
 
                 let code = vp.zip().encode(&combined_row);
 
-                combined_rows.push((coeffs, code));
+                encoded_combined_rows.push((coeffs, code));
             }
         }
 
@@ -83,7 +83,7 @@ where
 
             let merkle_path = transcript.read_commitments(depth)?;
 
-            Self::verify_proximity_z(&combined_rows, &items, column, vp.num_rows())?;
+            Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
 
             Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         }

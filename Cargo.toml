@@ -34,3 +34,8 @@ harness = false
 name = "sumcheck_benches"
 harness = false
 
+[[bench]]
+name = "zip_benches"
+harness = false
+
+

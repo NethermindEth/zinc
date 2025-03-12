@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::point_to_tensor_f,
+    utils::{combine_rows_z, point_to_tensor_f},
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
@@ -35,7 +35,6 @@ where
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<Vec<Output<Keccak256>>, Error> {
-        // TODO put this back as when we have a function
         // validate_input("open", pp.num_vars(), [poly], [point])?;
 
         let row_len = pp.zip().row_len();
@@ -95,31 +94,29 @@ where
         transcript: &mut PcsTranscript<N>,
         num_proximity_testing: usize,
         point: &[F<N>],
-
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let (t_0, _) = point_to_tensor_f(num_rows, point, field).unwrap();
+        let (t_0_f, _) = point_to_tensor_f(num_rows, point, field).unwrap();
 
+        if num_rows > 1 {
+            // If we can take linear combinations
+            // perform the proximity test an arbitrary number of times
+            for _ in 0..num_proximity_testing {
+                let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
+                let combined_row = combine_rows_z(&coeffs, &poly.evaluations, row_len);
+
+                transcript.write_I256_vec(&combined_row)?;
+            }
+        }
         let evaluations: Vec<F<N>> = poly
             .evaluations
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect();
-
-        if num_rows > 1 {
-            // If we can take linear combinations evaluation.config_ptr(
-            // perform the proximity test an arbitrary number of times
-            for _ in 0..num_proximity_testing {
-                let coeffs = transcript.fs_transcript.get_challenges(num_rows, field);
-                let combined_row = combine_rows(&coeffs, &evaluations, row_len);
-                transcript.write_field_elements(&combined_row)?;
-            }
-        }
-
         let t_0_combined_row = if num_rows > 1 {
-            // Return the evalauation row combination
-            let combined_row = combine_rows(&t_0, &evaluations, row_len);
+            // Return the evaluation row combination
+            let combined_row = combine_rows(&t_0_f, &evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -130,7 +127,6 @@ where
         transcript.write_field_elements(&t_0_combined_row)
     }
 }
-
 // Define function that performs a row operation on the evaluation matrix
 // [t_0]^T * M]
 fn combine_rows<const N: usize>(
@@ -138,7 +134,7 @@ fn combine_rows<const N: usize>(
     evaluations: &[F<N>],
     row_len: usize,
 ) -> Vec<F<N>> {
-    let mut combined_row = Vec::with_capacity(row_len);
+    let mut combined_row = vec![F::zero(); row_len];
     parallelize(&mut combined_row, |(combined_row, offset)| {
         combined_row
             .iter_mut()

@@ -65,6 +65,44 @@ where
     #[cfg(not(feature = "parallel"))]
     f((v, 0));
 }
+
+// Define function that performs a row operation on the evaluation matrix
+// [t_0]^T * M]
+pub(super) fn combine_rows<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
+where
+    F: Copy
+        + Default
+        + Send
+        + Sync
+        + for<'b> std::ops::AddAssign<&'b F>
+        + for<'b> std::ops::Mul<&'b F, Output = F>,
+    C: IntoIterator<Item = F> + Sync,
+    E: IntoIterator<Item = F> + Sync,
+    C::IntoIter: Clone + Send + Sync,
+    E::IntoIter: Clone + Send + Sync,
+{
+    let coeffs_iter = coeffs.into_iter();
+    let evaluations_iter = evaluations.into_iter();
+
+    let mut combined_row = vec![F::default(); row_len];
+    parallelize(&mut combined_row, |(combined_row, offset)| {
+        combined_row
+            .iter_mut()
+            .zip(offset..)
+            .for_each(|(mut combined, column)| {
+                *combined = F::default();
+                coeffs_iter
+                    .clone()
+                    .zip(evaluations_iter.clone().skip(column).step_by(row_len))
+                    .for_each(|(coeff, eval)| {
+                        *combined += &(coeff * &eval);
+                    });
+            })
+    });
+
+    combined_row
+}
+
 #[cfg(test)]
 mod test {
     use crate::zip::utils::inner_product;

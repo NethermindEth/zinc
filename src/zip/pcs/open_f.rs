@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
+
 use std::borrow::Cow;
 
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use i256::I256;
 use itertools::izip;
 use sha3::{digest::Output, Keccak256};
 
@@ -13,14 +14,14 @@ use crate::{
     zip::{
         code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
-        utils::parallelize,
+        utils::combine_rows,
         Error,
     },
 };
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{combine_rows_z, point_to_tensor_f},
+    utils::point_to_tensor_f,
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
@@ -97,7 +98,9 @@ where
             // perform the proximity test an arbitrary number of times
             for _ in 0..num_proximity_testing {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
-                let combined_row = combine_rows_z(&coeffs, &poly.evaluations, row_len);
+                let coeffs = coeffs.iter().map(|x| I256::from(*x));
+                let evals = poly.evaluations.iter().map(|x| I256::from(*x));
+                let combined_row = combine_rows(coeffs, evals, row_len);
 
                 transcript.write_I256_vec(&combined_row)?;
             }
@@ -124,7 +127,7 @@ where
 
         let t_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
-            let combined_row = combine_rows(&t_0_f, &evaluations, row_len);
+            let combined_row = combine_rows(t_0_f, evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -134,30 +137,4 @@ where
 
         transcript.write_field_elements(&t_0_combined_row)
     }
-}
-
-// Define function that performs a row operation on the evaluation matrix
-// [t_0]^T * M]
-fn combine_rows<const N: usize>(
-    coeffs: &[F<N>],
-    evaluations: &[F<N>],
-    row_len: usize,
-) -> Vec<F<N>> {
-    let mut combined_row = vec![F::zero(); row_len];
-    parallelize(&mut combined_row, |(combined_row, offset)| {
-        combined_row
-            .iter_mut()
-            .zip(offset..)
-            .for_each(|(combined, column)| {
-                *combined = F::zero();
-                coeffs
-                    .iter()
-                    .zip(evaluations.iter().skip(column).step_by(row_len))
-                    .for_each(|(coeff, eval)| {
-                        *combined += &(*coeff * eval);
-                    });
-            })
-    });
-
-    combined_row
 }

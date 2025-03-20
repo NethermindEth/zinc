@@ -12,13 +12,14 @@ use crate::{
     zip::{
         code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
+        utils::combine_rows,
         Error,
     },
 };
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{combine_rows_f, point_to_tensor_z, validate_input},
+    utils::{point_to_tensor_z, validate_input},
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
@@ -105,7 +106,7 @@ where
 
         let t_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
-            let combined_row = combine_rows_f(&t_O_f, &evaluations, row_len);
+            let combined_row = combine_rows(t_O_f, evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations

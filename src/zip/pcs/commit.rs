@@ -30,10 +30,9 @@ where
         let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut rows = vec![0i64; pp.num_rows() * codeword_len];
         let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
 
         Self::merklize_column_hashes(merkle_depth, &mut hashes);
@@ -62,7 +61,7 @@ where
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-        _rows: &mut [i64],
+
         poly: &Self::Polynomial,
     ) -> Vec<I512> {
         let chunk_size = div_ceil(pp.num_rows(), num_threads());

@@ -158,7 +158,7 @@ pub trait ZipSpec: Debug {
     }
 
     fn num_column_opening() -> usize {
-        300
+        1000
     }
 
     fn num_proximity_testing(_log2_q: usize, _n: usize, _n_0: usize) -> usize {

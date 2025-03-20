@@ -107,7 +107,7 @@ where
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
             let (input, output) = hashes[offset..].split_at_mut(width);
-            //	    let num_threads = env::var("RAYON_NUM_THREADS").unwrap();
+
             let chunk_size = div_ceil(output.len(), num_threads());
             parallelize_iter(
                 input

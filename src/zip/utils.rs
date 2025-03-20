@@ -89,7 +89,7 @@ where
         combined_row
             .iter_mut()
             .zip(offset..)
-            .for_each(|(mut combined, column)| {
+            .for_each(|(combined, column)| {
                 *combined = F::default();
                 coeffs_iter
                     .clone()

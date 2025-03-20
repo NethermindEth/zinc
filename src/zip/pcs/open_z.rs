@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{combine_rows_f, combine_rows_z, point_to_tensor_z, validate_input},
+    utils::{combine_rows_f, point_to_tensor_z, validate_input},
 };
 
 impl<const N: usize, S> MultilinearZip<N, S>
@@ -38,16 +38,14 @@ where
         let row_len = pp.zip().row_len();
 
         let codeword_len = pp.zip().codeword_len();
-
-        Self::prove_proximity(
+        Self::prove_test(
             pp.num_rows(),
             row_len,
-            transcript,
             pp.zip().num_proximity_testing(),
-            point,
             poly,
-            field,
+            transcript,
         )?;
+        Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
 
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
@@ -74,10 +72,6 @@ where
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
-        //	use std::env;
-        //	let key = "RAYON_NUM_THREADS";
-        //	env::set_var(key, "8");
-
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
@@ -86,15 +80,16 @@ where
     }
 
     // Subprotocol functions
-    fn prove_proximity(
+    fn prove_evaluation_z(
         num_rows: usize,
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
-        num_proximity_testing: usize,
+
         point: &[i64],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
+        // We prove evaluations over the field,so integers need to be mapped to field elements first
         let (t_0, _) = point_to_tensor_z(num_rows, point).unwrap();
 
         let t_O_f: Vec<F<N>> = t_0
@@ -102,21 +97,12 @@ where
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect();
 
-        if num_rows > 1 {
-            // If we can take linear combinations
-            // perform the proximity test an arbitrary number of times
-            for _ in 0..num_proximity_testing {
-                let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
-                let combined_row = combine_rows_z(&coeffs, &poly.evaluations, row_len);
-
-                transcript.write_I256_vec(&combined_row)?;
-            }
-        }
         let evaluations: Vec<F<N>> = poly
             .evaluations
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect();
+
         let t_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
             let combined_row = combine_rows_f(&t_O_f, &evaluations, row_len);

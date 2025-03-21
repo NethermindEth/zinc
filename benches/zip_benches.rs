@@ -4,6 +4,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkGroup, Criterion};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
+use zinc::transcript::KeccakTranscript;
 
 use ark_std::test_rng;
 use criterion::measurement::WallTime;
@@ -21,8 +22,9 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
     spec: usize,
 ) {
     let mut rng = test_rng();
-
-    let params = MultilinearZip::<N, B>::setup(1 << P, &mut rng);
+    type T = KeccakTranscript;
+    let mut keccak_transcript = T::new();
+    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     group.bench_function(
         format!("Commit: RandomField<{N}>, poly_size = {P}, ZipSpec{spec}, modululus={modulus}"),
@@ -32,7 +34,7 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B>::commit(&params, &poly).unwrap();
+                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
                     total_duration += timer.elapsed()
                 }
 
@@ -51,10 +53,12 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
     let field_config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
-    let params = MultilinearZip::<N, B>::setup(1 << P, &mut rng);
+    type T = KeccakTranscript;
+    let mut keccak_transcript = T::new();
+    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let commitment = MultilinearZip::<N, B>::commit(&params, &poly).unwrap();
+    let commitment = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
@@ -65,7 +69,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B>::open_z(
+                    let _ = MultilinearZip::<N, B, T>::open_z(
                         &params,
                         &poly,
                         &commitment,
@@ -90,15 +94,17 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let field_config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
-    let params = MultilinearZip::<N, B>::setup(1 << P, &mut rng);
+    type T = KeccakTranscript;
+    let mut keccak_transcript = T::new();
+    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let commitment = MultilinearZip::<N, B>::commit(&params, &poly).unwrap();
+    let commitment = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
 
-    let _ = MultilinearZip::<N, B>::open_z(
+    let _ = MultilinearZip::<N, B, T>::open_z(
         &params,
         &poly,
         &commitment,
@@ -116,7 +122,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B>::verify_z(
+                    let _ = MultilinearZip::<N, B, T>::verify_z(
                         &params,
                         &commitment,
                         &point,

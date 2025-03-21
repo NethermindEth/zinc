@@ -14,13 +14,14 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
     utils::point_to_tensor_f,
 };
 
-impl<const N: usize, S> MultilinearZip<N, S>
+impl<const N: usize, S, T> MultilinearZip<N, S, T>
 where
     S: ZipSpec,
+    T: ZipTranscript,
 {
     pub fn verify_f(
         vp: &Self::VerifierParam,

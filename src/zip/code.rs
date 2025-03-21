@@ -5,14 +5,13 @@ use i256::{I256, I512};
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
 
-use ark_ff::UniformRand;
 use ark_std::fmt::Debug;
-use ark_std::rand::distributions::Uniform;
-use ark_std::rand::Rng;
-use ark_std::rand::RngCore;
+
 use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::iter;
+
+use super::pcs::structs::ZipTranscript;
 #[allow(dead_code)]
 const PROB_MULTIPLIER: usize = 18;
 #[allow(dead_code)]
@@ -46,7 +45,11 @@ impl<const N: usize> Zip<N> {
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    pub fn new_multilinear<S: ZipSpec>(num_vars: usize, n_0: usize, rng: impl RngCore) -> Self {
+    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript>(
+        num_vars: usize,
+        n_0: usize,
+        transcript: &mut T,
+    ) -> Self {
         assert!(1 << num_vars > n_0);
 
         let log2_q = N;
@@ -58,7 +61,7 @@ impl<const N: usize> Zip<N> {
         let num_column_opening = S::num_column_opening();
         let num_proximity_testing = S::num_proximity_testing(log2_q, row_len, n_0);
 
-        let (a, b) = S::matrices(codeword_len / 2, row_len, row_len / 2, rng);
+        let (a, b) = S::matrices(codeword_len / 2, row_len, row_len / 2, transcript);
         Self {
             row_len,
             codeword_len,
@@ -122,16 +125,16 @@ pub trait ZipSpec: Debug {
         n * INVERSE_RATE
     }
 
-    fn matrices(
+    fn matrices<T: ZipTranscript>(
         rows: usize,
         cols: usize,
         density: usize,
-        mut rng: impl RngCore,
+        transcript: &mut T,
     ) -> (SparseMatrixZ, SparseMatrixZ) {
         let dim = SparseMatrixDimension::new(rows, cols, density);
         (
-            SparseMatrixZ::new(dim, &mut rng),
-            SparseMatrixZ::new(dim, &mut rng),
+            SparseMatrixZ::new(dim, transcript),
+            SparseMatrixZ::new(dim, transcript),
         )
     }
 }
@@ -171,17 +174,13 @@ pub struct SparseMatrixZ {
 }
 
 impl SparseMatrixZ {
-    fn new(dimension: SparseMatrixDimension, mut rng: impl RngCore) -> Self {
+    fn new<T: ZipTranscript>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
-            (&mut rng)
-                .sample_iter(&Uniform::new(0, dimension.m))
-                .filter(|column| columns.insert(*column))
-                .take(dimension.d)
-                .count();
+            transcript.sample_unique_columns(0..dimension.m, &mut columns, dimension.d);
             columns
                 .into_iter()
-                .map(|column| (column, i128::rand(&mut rng)))
+                .map(|column| (column, transcript.get_encoding_element()))
                 .collect_vec()
         })
         .take(dimension.n)

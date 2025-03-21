@@ -123,13 +123,13 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         // Do first Sumcheck
         let (sumcheck_proof_1, r_a, mz_mles) =
-            Self::sumcheck_1(&z_ccs, transcript, &statement_f, &ccs_f, config)?;
+            Self::sumcheck_1(z_ccs, transcript, statement_f, ccs_f, config)?;
 
         // Do second sumcheck
         let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
             &r_a,
-            &ccs_f,
-            &statement_f,
+            ccs_f,
+            statement_f,
             config,
             &z_mle.to_random_field(config),
             transcript,

@@ -110,53 +110,6 @@ impl<const N: usize> LinearCodes<N> for Zip<N> {
 }
 
 pub trait ZipSpec: Debug {
-    const LAMBDA: f64;
-    const ALPHA: f64;
-    const BETA: f64;
-    const R: f64;
-
-    fn delta() -> f64 {
-        Self::BETA / Self::R
-    }
-
-    fn mu() -> f64 {
-        Self::R - 1f64 - Self::R * Self::ALPHA
-    }
-
-    fn nu() -> f64 {
-        Self::BETA + Self::ALPHA * Self::BETA + 0.03
-    }
-
-    fn c_n(n: usize) -> usize {
-        let alpha = Self::ALPHA;
-        let beta = Self::BETA;
-        let n = n as f64;
-        std::cmp::min(
-            std::cmp::max(ceil(1.28 * beta * n), ceil(beta * n) + 4),
-            ceil(
-                ((110.0 / n) + h(beta) + alpha * h(1.28 * beta / alpha))
-                    / (beta * (alpha / (1.28 * beta)).log2()),
-            ),
-        )
-    }
-
-    fn d_n(log2_q: usize, n: usize) -> usize {
-        let alpha = Self::ALPHA;
-        let beta = Self::BETA;
-        let r = Self::R;
-        let mu = Self::mu();
-        let nu = Self::nu();
-        let log2_q = log2_q as f64;
-        let n = n as f64;
-        std::cmp::min(
-            ceil((2.0 * beta + ((r - 1.0) + 110.0 / n) / log2_q) * n),
-            ceil(
-                (r * alpha * h(beta / r) + mu * h(nu / mu) + 110.0 / n)
-                    / (alpha * beta * (mu / nu).log2()),
-            ),
-        )
-    }
-
     fn num_column_opening() -> usize {
         1000
     }
@@ -184,29 +137,19 @@ pub trait ZipSpec: Debug {
 }
 
 macro_rules! impl_spec_128 {
-    ($(($name:ident, $alpha:literal, $beta:literal, $r:literal)),*) => {
+    ($(($name:ident,)),*) => {
         $(
             #[derive(Debug)]
             pub struct $name;
             impl ZipSpec for $name {
-                const LAMBDA: f64 = 128.0;
-                const ALPHA: f64 = $alpha;
-                const BETA: f64 = $beta;
-                const R: f64 = $r;
+
             }
         )*
     };
 }
 
 // Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
-impl_spec_128!(
-    (ZipSpec1, 0.1195, 0.0284, 1.420),
-    (ZipSpec2, 0.1380, 0.0444, 1.470),
-    (ZipSpec3, 0.1780, 0.0610, 1.521),
-    (ZipSpec4, 0.2000, 0.0820, 1.640),
-    (ZipSpec5, 0.2110, 0.0970, 1.616),
-    (ZipSpec6, 0.2380, 0.1205, 1.720)
-);
+impl_spec_128!((ZipSpec1,));
 
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMatrixDimension {
@@ -322,17 +265,6 @@ pub fn steps(start: i64) -> impl Iterator<Item = i64> {
 
 pub fn steps_by(start: i64, step: i64) -> impl Iterator<Item = i64> {
     iter::successors(Some(start), move |state| Some(step + *state))
-}
-
-// H(p) = -p \log_2(p) - (1 - p) \log_2(1 - p)
-fn h(p: f64) -> f64 {
-    assert!(0f64 < p && p < 1f64);
-    let one_minus_p = 1f64 - p;
-    -p * p.log2() - one_minus_p * one_minus_p.log2()
-}
-
-fn ceil(v: f64) -> usize {
-    v.ceil() as usize
 }
 
 pub(super) fn I256_to_I512(i: I256) -> I512 {

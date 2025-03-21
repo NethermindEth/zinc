@@ -105,13 +105,15 @@ fn test_zip_evaluation() {
     let n = 8;
     let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << n, &mut rng);
 
-    let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
+    let evaluations: Vec<_> = (0..(1 << n))
+        .map(|_| i64::from(i8::rand(&mut rng)))
+        .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point = (0..n).map(|_| 1i64).collect();
-    let eval = evaluations[(1 << n) - 1];
+    let point: Vec<_> = (0..n).map(|_| i64::from(i8::rand(&mut rng))).collect();
+    let eval = mle.evaluate(&point).unwrap();
 
     let mut transcript = PcsTranscript::new();
     let _ = MultilinearZip::<N, S>::open_z(&param, &mle, &comm, &point, config, &mut transcript);

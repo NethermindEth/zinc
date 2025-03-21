@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
+
 use std::borrow::Cow;
 
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use i256::I256;
 use itertools::izip;
 use sha3::{digest::Output, Keccak256};
 
@@ -13,7 +14,7 @@ use crate::{
     zip::{
         code::{LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
-        utils::parallelize,
+        utils::combine_rows,
         Error,
     },
 };
@@ -35,22 +36,19 @@ where
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<Vec<Output<Keccak256>>, Error> {
-        // TODO put this back as when we have a function
         // validate_input("open", pp.num_vars(), [poly], [point])?;
 
         let row_len = pp.zip().row_len();
 
         let codeword_len = pp.zip().codeword_len();
-
-        Self::prove_proximity_f(
+        Self::prove_test(
             pp.num_rows(),
             row_len,
-            transcript,
             pp.zip().num_proximity_testing(),
-            point,
             poly,
-            field,
+            transcript,
         )?;
+        Self::prove_evaluation_f(pp.num_rows(), row_len, transcript, point, poly, field)?;
 
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let mut proof: Vec<Output<Keccak256>> = vec![];
@@ -88,37 +86,48 @@ where
         Ok(proofs)
     }
 
+    pub(super) fn prove_test(
+        num_rows: usize,
+        row_len: usize,
+        num_proximity_testing: usize,
+        poly: &Self::Polynomial,
+        transcript: &mut PcsTranscript<N>,
+    ) -> Result<(), Error> {
+        if num_rows > 1 {
+            // If we can take linear combinations
+            // perform the proximity test an arbitrary number of times
+            for _ in 0..num_proximity_testing {
+                let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
+                let coeffs = coeffs.iter().map(|x| I256::from(*x));
+                let evals = poly.evaluations.iter().map(|x| I256::from(*x));
+                let combined_row = combine_rows(coeffs, evals, row_len);
+
+                transcript.write_I256_vec(&combined_row)?;
+            }
+        }
+        Ok(())
+    }
     // Subprotocol functions
-    fn prove_proximity_f(
+    fn prove_evaluation_f(
         num_rows: usize,
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
-        num_proximity_testing: usize,
-        point: &[F<N>],
 
+        point: &[F<N>],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let (t_0, _) = point_to_tensor_f(num_rows, point, field).unwrap();
+        let (t_0_f, _) = point_to_tensor_f(num_rows, point, field).unwrap();
 
         let evaluations: Vec<F<N>> = poly
             .evaluations
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect();
-        if num_rows > 1 {
-            // If we can take linear combinations evaluation.config_ptr(
-            // perform the proximity test an arbitrary number of times
-            for _ in 0..num_proximity_testing {
-                let coeffs = transcript.fs_transcript.get_challenges(num_rows, field);
-                let combined_row = combine_rows(&coeffs, &evaluations, row_len);
-                transcript.write_field_elements(&combined_row)?;
-            }
-        }
 
         let t_0_combined_row = if num_rows > 1 {
-            // Return the evalauation row combination
-            let combined_row = combine_rows(&t_0, &evaluations, row_len);
+            // Return the evaluation row combination
+            let combined_row = combine_rows(t_0_f, evaluations, row_len);
             Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -128,30 +137,4 @@ where
 
         transcript.write_field_elements(&t_0_combined_row)
     }
-}
-
-// Define function that performs a row operation on the evaluation matrix
-// [t_0]^T * M]
-fn combine_rows<const N: usize>(
-    coeffs: &[F<N>],
-    evaluations: &[F<N>],
-    row_len: usize,
-) -> Vec<F<N>> {
-    let mut combined_row = Vec::with_capacity(row_len);
-    parallelize(&mut combined_row, |(combined_row, offset)| {
-        combined_row
-            .iter_mut()
-            .zip(offset..)
-            .for_each(|(combined, column)| {
-                *combined = F::zero();
-                coeffs
-                    .iter()
-                    .zip(evaluations.iter().skip(column).step_by(row_len))
-                    .for_each(|(coeff, eval)| {
-                        *combined += &(*coeff * eval);
-                    });
-            })
-    });
-
-    combined_row
 }

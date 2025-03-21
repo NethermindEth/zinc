@@ -1,5 +1,6 @@
 use crate::{
     biginteger::BigInt,
+    field::RandomField,
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
@@ -101,17 +102,18 @@ fn test_zip_evaluation() {
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let mut rng = ark_std::test_rng();
     type S = ZipSpec1;
-    let n = 10;
+    let n = 8;
     let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << n, &mut rng);
 
-    let n = 10;
-    let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
+    let evaluations: Vec<_> = (0..(1 << n))
+        .map(|_| i64::from(i8::rand(&mut rng)))
+        .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
 
-    let point = (0..n).map(|_| 1i64).collect();
-    let eval = evaluations[(1 << n) - 1];
+    let point: Vec<_> = (0..n).map(|_| i64::from(i8::rand(&mut rng))).collect();
+    let eval = mle.evaluate(&point).unwrap();
 
     let mut transcript = PcsTranscript::new();
     let _ = MultilinearZip::<N, S>::open_z(&param, &mle, &comm, &point, config, &mut transcript);
@@ -121,6 +123,37 @@ fn test_zip_evaluation() {
 
     let res =
         MultilinearZip::<N, S>::verify_z(&param, &comm, &point, &eval, &mut transcript, config);
+
+    assert!(res.is_ok())
+}
+
+#[test]
+fn test_zip_evaluation_field() {
+    let config: *const FieldConfig<N> =
+        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let mut rng = ark_std::test_rng();
+    type S = ZipSpec1;
+    let n = 8;
+    let param: MultilinearZip<N, S>::Param = MultilinearZip::<N, S>::setup(1 << n, &mut rng);
+
+    let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
+    let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
+
+    let comm = MultilinearZip::<N, ZipSpec1>::commit(&param, &mle).unwrap();
+
+    let point: Vec<_> = (0..n)
+        .map(|_| RandomField::from_bigint(config, 1u32.into()).unwrap())
+        .collect();
+    let eval = RandomField::from_i64(evaluations[(1 << n) - 1], config).unwrap();
+
+    let mut transcript = PcsTranscript::new();
+    let _ = MultilinearZip::<N, S>::open_f(&param, &mle, &comm, &point, config, &mut transcript);
+
+    let proof = transcript.into_proof();
+    let mut transcript = PcsTranscript::from_proof(&proof);
+
+    let res =
+        MultilinearZip::<N, S>::verify_f(&param, &comm, &point, &eval, &mut transcript, config);
 
     assert!(res.is_ok())
 }

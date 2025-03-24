@@ -1,5 +1,5 @@
 use ark_std::iterable::Iterable;
-use i256::I256;
+use i256::I512;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
@@ -12,13 +12,14 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
     utils::validate_input,
 };
 
-impl<const N: usize, S> MultilinearZip<N, S>
+impl<const N: usize, S, T> MultilinearZip<N, S, T>
 where
     S: ZipSpec,
+    T: ZipTranscript,
 {
     pub fn commit(
         pp: &Self::ProverParam,
@@ -30,10 +31,9 @@ where
         let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut rows = vec![0i64; pp.num_rows() * codeword_len];
         let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, &mut rows, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
         Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
 
         Self::merklize_column_hashes(merkle_depth, &mut hashes);
@@ -62,11 +62,11 @@ where
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-        rows: &mut [i64],
+
         poly: &Self::Polynomial,
-    ) -> Vec<I256> {
+    ) -> Vec<I512> {
         let chunk_size = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![I256::default(); rows.len()];
+        let mut encoded_rows = vec![I512::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -77,13 +77,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    let mut temp_row = vec![0i64; codeword_len];
-                    temp_row[..evals.len()].copy_from_slice(evals);
-                    pp.zip().encode(&temp_row);
-
-                    for (i, val) in temp_row.iter().enumerate() {
-                        row[i] = I256::from(*val);
-                    }
+                    row.copy_from_slice(pp.zip().encode_i64(evals).as_slice());
                 }
             },
         );
@@ -91,7 +85,7 @@ where
         encoded_rows
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I256]) {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I512]) {
         parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {
@@ -113,7 +107,7 @@ where
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
             let (input, output) = hashes[offset..].split_at_mut(width);
-            //	    let num_threads = env::var("RAYON_NUM_THREADS").unwrap();
+
             let chunk_size = div_ceil(output.len(), num_threads());
             parallelize_iter(
                 input

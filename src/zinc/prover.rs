@@ -64,7 +64,7 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y)?;
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
 
         // Prove lookup argument
         let lookup_proof = LookupProver::<N>::prove(self, wit)?;
@@ -300,15 +300,22 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
         r_y: &[RandomField<N>],
+        transcript: &mut KeccakTranscript,
     ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
-        let rng = ark_std::test_rng();
-        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
-        let z_comm = MultilinearZip::<N, S>::commit(&param, z_mle)?;
+        let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
+        let z_comm = MultilinearZip::<N, S, KeccakTranscript>::commit(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<N, S>::open_f(&param, z_mle, &z_comm, r_y, config, &mut pcs_transcript)?;
+        MultilinearZip::<N, S, KeccakTranscript>::open_f(
+            &param,
+            z_mle,
+            &z_comm,
+            r_y,
+            config,
+            &mut pcs_transcript,
+        )?;
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok((z_comm, v, pcs_proof))

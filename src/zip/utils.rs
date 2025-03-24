@@ -1,14 +1,16 @@
-use crate::field::RandomField as F;
-use itertools::Itertools;
+use std::ops::{Add, Mul};
+
 use num_integer::Integer;
 
-pub(crate) fn inner_product<'a, 'b, const N: usize>(
-    lhs: impl IntoIterator<Item = &'a F<N>>,
-    rhs: impl IntoIterator<Item = &'b F<N>>,
-) -> F<N> {
+pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
+where
+    T: Copy + Mul<Output = T> + Add<Output = T> + Default + 'a + 'b,
+    L: IntoIterator<Item = &'a T>,
+    R: IntoIterator<Item = &'b T>,
+{
     lhs.into_iter()
-        .zip_eq(rhs)
-        .map(|(lhs, rhs)| *lhs * rhs)
+        .zip(rhs)
+        .map(|(lhs, rhs)| *lhs * *rhs)
         .reduce(|acc, product| acc + product)
         .unwrap_or_default()
 }
@@ -62,4 +64,53 @@ where
 
     #[cfg(not(feature = "parallel"))]
     f((v, 0));
+}
+
+// Define function that performs a row operation on the evaluation matrix
+// [t_0]^T * M]
+pub(super) fn combine_rows<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
+where
+    F: Copy
+        + Default
+        + Send
+        + Sync
+        + for<'b> std::ops::AddAssign<&'b F>
+        + for<'b> std::ops::Mul<&'b F, Output = F>,
+    C: IntoIterator<Item = F> + Sync,
+    E: IntoIterator<Item = F> + Sync,
+    C::IntoIter: Clone + Send + Sync,
+    E::IntoIter: Clone + Send + Sync,
+{
+    let coeffs_iter = coeffs.into_iter();
+    let evaluations_iter = evaluations.into_iter();
+
+    let mut combined_row = vec![F::default(); row_len];
+    parallelize(&mut combined_row, |(combined_row, offset)| {
+        combined_row
+            .iter_mut()
+            .zip(offset..)
+            .for_each(|(combined, column)| {
+                *combined = F::default();
+                coeffs_iter
+                    .clone()
+                    .zip(evaluations_iter.clone().skip(column).step_by(row_len))
+                    .for_each(|(coeff, eval)| {
+                        *combined += &(coeff * &eval);
+                    });
+            })
+    });
+
+    combined_row
+}
+
+#[cfg(test)]
+mod test {
+    use crate::zip::utils::inner_product;
+
+    #[test]
+    fn test_inner_product_basic() {
+        let lhs = [1, 2, 3];
+        let rhs = [4, 5, 6];
+        assert_eq!(inner_product(lhs.iter(), rhs.iter()), 4 + 2 * 5 + 3 * 6);
+    }
 }

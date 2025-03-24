@@ -45,7 +45,7 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F)
                 .map_err(ZincError::SpartanError)?;
 
-        self.verify_pcs_proof(&statement_f, &proof, &rx_ry, e_y, gamma, &ccs_F)?;
+        self.verify_pcs_proof(&statement_f, &proof, &rx_ry, e_y, gamma, &ccs_F, transcript)?;
 
         LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
 
@@ -212,13 +212,13 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         e_y: RandomField<N>,
         gamma: RandomField<N>,
         ccs: &CCS_F<N>,
+        transcript: &mut KeccakTranscript,
     ) -> Result<(), SpartanError<N>> {
-        let rng = ark_std::test_rng();
-        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
+        let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
         let r_y = &rx_ry[ccs.s..];
-        
-        MultilinearZip::<N, S>::verify_f(
+
+        MultilinearZip::<N, S, KeccakTranscript>::verify_f(
             &param,
             &proof.z_comm,
             r_y,

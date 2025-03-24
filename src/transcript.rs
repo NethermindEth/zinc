@@ -1,6 +1,9 @@
 use sha3::{Digest, Keccak256};
 
-use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
+use crate::{
+    biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+    zip::pcs::structs::ZipTranscript,
+};
 
 #[derive(Clone)]
 pub struct KeccakTranscript {
@@ -124,8 +127,62 @@ impl KeccakTranscript {
         challenges.extend((0..n).map(|_| self.get_challenge(config)));
         challenges
     }
-}
 
+    pub fn get_integer_challenge(&mut self) -> i64 {
+        let challenge = self.hasher.clone().finalize();
+
+        let int = i64::from_be_bytes(challenge[0..8].try_into().unwrap());
+
+        self.hasher.update([0x12]);
+        self.hasher.update(challenge);
+        self.hasher.update([0x34]);
+
+        int
+    }
+
+    pub fn get_integer_challenges(&mut self, n: usize) -> Vec<i64> {
+        (0..n).map(|_| self.get_integer_challenge()).collect()
+    }
+    fn get_usize_in_range(&mut self, range: &std::ops::Range<usize>) -> usize {
+        let challenge = self.hasher.clone().finalize();
+
+        self.hasher.update([0x88]);
+        self.hasher.update(challenge);
+        self.hasher.update([0x11]);
+
+        let num = usize::from_le_bytes(challenge[..8].try_into().unwrap());
+        range.start + (num % (range.end - range.start))
+    }
+}
+impl ZipTranscript for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> i128 {
+        let challenge = self.hasher.clone().finalize();
+
+        let int = i128::from_be_bytes(challenge[0..16].try_into().unwrap());
+
+        self.hasher.update([0x89]);
+        self.hasher.update(challenge);
+        self.hasher.update([0x11]);
+
+        int
+    }
+
+    fn sample_unique_columns(
+        &mut self,
+        range: std::ops::Range<usize>,
+        columns: &mut std::collections::BTreeSet<usize>,
+        count: usize,
+    ) -> usize {
+        let mut added = 0;
+        while added < count {
+            let candidate = self.get_usize_in_range(&range);
+            if columns.insert(candidate) {
+                added += 1;
+            }
+        }
+        added
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

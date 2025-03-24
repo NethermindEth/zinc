@@ -1,7 +1,6 @@
-use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
-use i256::I256;
+use i256::{I256, I512};
 use itertools::Itertools;
 use sha3::{digest::Output, Digest, Keccak256};
 
@@ -9,7 +8,7 @@ use crate::{
     field::RandomField as F,
     field_config::FieldConfig,
     zip::{
-        code::{LinearCodes, ZipSpec},
+        code::{I256_to_I512, LinearCodes, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::inner_product,
         Error,
@@ -17,13 +16,14 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment},
+    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
     utils::{point_to_tensor_z, validate_input},
 };
 
-impl<const N: usize, S> MultilinearZip<N, S>
+impl<const N: usize, S, T> MultilinearZip<N, S, T>
 where
     S: ZipSpec,
+    T: ZipTranscript,
 {
     pub fn read_commitments(
         _: &Self::VerifierParam,
@@ -53,66 +53,62 @@ where
 
         // Retrieve the row combinations from the transcript
         // Pair the combinations with the coefficients that generated them
-        let mut combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing() + 1);
+        let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
 
         if vp.num_rows() > 1 {
             for _ in 0..vp.zip().num_proximity_testing() {
-                let coeffs = transcript
+                let coeffs: Vec<_> = transcript
                     .fs_transcript
-                    .get_challenges(vp.num_rows(), field);
-                let mut combined_row = transcript.read_integers(row_len)?;
-
-                combined_row.resize(codeword_len, 0i64);
-                vp.zip().encode(&combined_row);
-                let combined_row_f = combined_row
+                    .get_integer_challenges(vp.num_rows())
                     .iter()
-                    .map(|i| F::from_i64(*i, field).unwrap())
-                    .collect::<Vec<_>>();
-                combined_rows.push((coeffs, combined_row_f));
+                    .map(|i| I256::from(*i))
+                    .collect();
+
+                let combined_row = transcript.read_I256_vec(row_len)?;
+
+                let code = vp.zip().encode(&combined_row);
+
+                encoded_combined_rows.push((coeffs, code));
             }
         }
 
+        let depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
         let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
         let t_0_f = t_0
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect::<Vec<_>>();
+        // Ensure that the test combinations are valid codewords
+        for _ in 0..vp.zip().num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, codeword_len);
+
+            let items = transcript.read_I512_vec(vp.num_rows())?;
+
+            let merkle_path = transcript.read_commitments(depth)?;
+
+            Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
+            Self::verify_proximity_t_0(
+                &t_0_f,
+                &vp.zip().encode_f(&t_0_combined_row, field),
+                &items,
+                column,
+                vp.num_rows(),
+                field,
+            )?;
+            Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
+        }
+
+        // verify consistency
+
         let t_1_f = t_1
             .iter()
             .map(|i| F::from_i64(*i, field).unwrap())
             .collect::<Vec<_>>();
 
-        combined_rows.push({
-            let mut t_0_combined_row = transcript.read_field_elements(row_len, field)?;
-
-            t_0_combined_row.resize(codeword_len, F::zero());
-
-            (t_0_f, t_0_combined_row)
-        });
-
-        let depth = codeword_len.next_power_of_two().ilog2() as usize;
-
-        // Ensure that the test combinations are valid codewords
-        for _ in 0..vp.zip().num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(field, codeword_len);
-
-            let items = transcript.read_I256_vec(vp.num_rows())?;
-
-            let merkle_path = transcript.read_commitments(depth)?;
-
-            Self::verify_proximity(&combined_rows, &items, column, vp.num_rows(), field)?;
-
-            Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
-        }
-
-        // verify consistency
-        let t_0_combined_row = combined_rows
-            .last()
-            .map(|(_, combined_row)| &combined_row[..row_len])
-            .unwrap();
-
         let eval_f = F::from_i64(*eval, field).unwrap();
-        if inner_product(t_0_combined_row, &t_1_f) != eval_f {
+
+        if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         }
 
@@ -134,7 +130,7 @@ where
     }
 
     pub(super) fn verify_merkle_path(
-        items: &[I256],
+        items: &[I512],
         path: &[Output<Keccak256>],
         column: usize,
         comm: &Self::Commitment,
@@ -169,25 +165,49 @@ where
         Ok(())
     }
 
-    pub(super) fn verify_proximity(
-        combined_rows: &[(Vec<F<N>>, Vec<F<N>>)],
-        items: &[I256],
+    pub(super) fn verify_proximity_z(
+        combined_rows: &[(Vec<I256>, Vec<I512>)],
+        column_entries: &[I512],
+        column: usize,
+        num_rows: usize,
+    ) -> Result<(), Error> {
+        for (coeff, encoded) in combined_rows.iter() {
+            let column_entries_comb = if num_rows > 1 {
+                let coeff: Vec<_> = coeff.iter().map(|i| I256_to_I512(*i)).collect();
+
+                inner_product(&coeff, column_entries)
+            } else {
+                column_entries[0]
+            };
+
+            if column_entries_comb != encoded[column] {
+                return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            }
+        }
+        Ok(())
+    }
+
+    fn verify_proximity_t_0(
+        t_0_f: &Vec<F<N>>,
+        t_0_combined_row: &[F<N>],
+        column_entries: &[I512],
         column: usize,
         num_rows: usize,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let items_f: Vec<_> = items.iter().map(|i| F::from_I256(*i, field)).collect();
-        for (coeff, encoded) in combined_rows.iter() {
-            let item = if num_rows > 1 {
-                inner_product(coeff, &items_f)
-            } else {
-                items_f[0]
-            };
-
-            if item != encoded[column] {
-                return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
-            }
+        let column_entries_comb = if num_rows > 1 {
+            let column_entries = column_entries
+                .iter()
+                .map(|i| F::from_I512(*i, field))
+                .collect::<Vec<_>>();
+            inner_product(t_0_f, &column_entries)
+        } else {
+            F::from_I512(column_entries[0], field)
+        };
+        if column_entries_comb != t_0_combined_row[column] {
+            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
         }
+
         Ok(())
     }
 }

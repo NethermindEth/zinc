@@ -23,13 +23,17 @@ pub struct SpartanProof<const N: usize> {
     pub V_s: Vec<RandomField<N>>,
 }
 
+pub struct ZipProof<const N: usize> {
+    pub z_comm: MultilinearZipCommitment<N>,
+    pub v: RandomField<N>,
+    pub pcs_proof: Vec<u8>,
+}
+
 pub struct LookupProof<const N: usize> {}
 
 pub struct ZincProof<const N: usize> {
     pub spartan_proof: SpartanProof<N>,
-    pub v: RandomField<N>,
-    pub z_comm: MultilinearZipCommitment<N>,
-    pub pcs_proof: Vec<u8>,
+    pub zip_proof: ZipProof<N>,
     pub lookup_proof: LookupProof<N>,
 }
 

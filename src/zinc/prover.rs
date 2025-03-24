@@ -21,7 +21,7 @@ use crate::{
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
-    structs::{LookupProof, SpartanProof, ZincProof, ZincProver},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincProver, ZipProof},
     utils::{
         calculate_Mz_mles, draw_random_field, prepare_lin_sumcheck_polynomial,
         sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
@@ -66,15 +66,19 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
         let (z_comm, v, pcs_proof) =
             Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
 
+        let zip_proof = ZipProof {
+            z_comm,
+            v,
+            pcs_proof,
+        };
+
         // Prove lookup argument
         let lookup_proof = LookupProver::<N>::prove(self, wit)?;
 
         // Return proof
         Ok(ZincProof {
             spartan_proof,
-            v,
-            z_comm,
-            pcs_proof,
+            zip_proof,
             lookup_proof,
         })
     }

@@ -14,7 +14,7 @@ use crate::{
 
 use super::{
     errors::{LookupError, MleEvaluationError, SpartanError, ZincError},
-    structs::{LookupProof, SpartanProof, ZincProof, ZincVerifier},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincVerifier, ZipProof},
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 
@@ -45,7 +45,13 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F)
                 .map_err(ZincError::SpartanError)?;
 
-        self.verify_pcs_proof(&statement_f, &proof, &rx_ry, e_y, gamma, &ccs_F, transcript)?;
+        self.verify_pcs_proof(
+            &statement_f,
+            &proof.zip_proof,
+            &VerificationPoints { rx_ry, e_y, gamma },
+            &ccs_F,
+            transcript,
+        )?;
 
         LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
 
@@ -207,36 +213,43 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_pcs_proof(
         &self,
         cm_i: &Statement_F<N>,
-        proof: &ZincProof<N>,
-        rx_ry: &[RandomField<N>],
-        e_y: RandomField<N>,
-        gamma: RandomField<N>,
+        zip_proof: &ZipProof<N>,
+        verification_points: &VerificationPoints<N>,
         ccs: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
     ) -> Result<(), SpartanError<N>> {
         let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
-        let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        let r_y = &rx_ry[ccs.s..];
+        let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
+        let r_y = &verification_points.rx_ry[ccs.s..];
 
         MultilinearZip::<N, S, KeccakTranscript>::verify_f(
             &param,
-            &proof.z_comm,
+            &zip_proof.z_comm,
             r_y,
-            &proof.v,
+            &zip_proof.v,
             &mut pcs_transcript,
             unsafe { *ccs.config.as_ptr() },
         )?;
 
         // Evaluate constraints at rx_ry point
-        let V_x = cm_i.constraints.iter().map(|M| {
-            let mle = DenseMultilinearExtension::from_matrix(M, unsafe { *ccs.config.as_ptr() });
-            mle.evaluate(rx_ry, unsafe { *ccs.config.as_ptr() })
-                .ok_or(MleEvaluationError::IncorrectLength(rx_ry.len(), mle.num_vars))
-        }).collect::<Result<Vec<_>, _>>()?;
+
+        let V_x = cm_i
+            .constraints
+            .iter()
+            .map(|M| {
+                let mle =
+                    DenseMultilinearExtension::from_matrix(M, unsafe { *ccs.config.as_ptr() });
+                mle.evaluate(&verification_points.rx_ry, unsafe { *ccs.config.as_ptr() })
+                    .ok_or(MleEvaluationError::IncorrectLength(
+                        verification_points.rx_ry.len(),
+                        mle.num_vars,
+                    ))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         // Check final verification equation
-        let V_x_gamma = Self::lin_comb_V_s(&gamma, &V_x) * proof.v;
-        if V_x_gamma != e_y {
+        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_x) * zip_proof.v;
+        if V_x_gamma != verification_points.e_y {
             return Err(SpartanError::VerificationError(
                 "linear combination of powers of gamma and V_x != e_y".to_string(),
             ));
@@ -244,4 +257,10 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
 
         Ok(())
     }
+}
+
+struct VerificationPoints<const N: usize> {
+    pub rx_ry: Vec<RandomField<N>>,
+    pub e_y: RandomField<N>,
+    pub gamma: RandomField<N>,
 }

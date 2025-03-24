@@ -1,6 +1,5 @@
-use std::{marker::PhantomData, slice};
+use std::{collections::BTreeSet, marker::PhantomData, slice};
 
-use ark_std::rand::RngCore;
 use i256::I512;
 use sha3::{digest::Output, Keccak256};
 
@@ -10,11 +9,14 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct MultilinearZip<const N: usize, S: ZipSpec>(PhantomData<S>);
+pub struct MultilinearZip<const N: usize, S: ZipSpec, T: ZipTranscript>(
+    PhantomData<S>,
+    PhantomData<T>,
+);
 
-impl<const N: usize, S: ZipSpec> Clone for MultilinearZip<N, S> {
+impl<const N: usize, S: ZipSpec, T: ZipTranscript> Clone for MultilinearZip<N, S, T> {
     fn clone(&self) -> Self {
-        Self(PhantomData)
+        Self(PhantomData, PhantomData)
     }
 }
 
@@ -88,9 +90,19 @@ impl<const N: usize> AsRef<[Output<Keccak256>]> for MultilinearZipCommitment<N> 
     }
 }
 
-impl<const N: usize, S> MultilinearZip<N, S>
+pub trait ZipTranscript {
+    fn get_encoding_element(&mut self) -> i128;
+    fn sample_unique_columns(
+        &mut self,
+        range: std::ops::Range<usize>,
+        columns: &mut BTreeSet<usize>,
+        count: usize,
+    ) -> usize;
+}
+impl<const N: usize, S, T> MultilinearZip<N, S, T>
 where
     S: ZipSpec,
+    T: ZipTranscript,
 {
     pub type Param = MultilinearZipParams<N>;
     pub type ProverParam = MultilinearZipParams<N>;
@@ -99,10 +111,10 @@ where
     pub type Commitment = MultilinearZipCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 
-    pub fn setup(poly_size: usize, rng: impl RngCore) -> Self::Param {
+    pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let zip = Zip::new_multilinear::<S>(num_vars, 20.min((1 << num_vars) - 1), rng);
+        let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
 
         MultilinearZipParams {
             num_vars,

@@ -80,8 +80,6 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(), SpartanError<N>> {
-        let rng = ark_std::test_rng();
-        let param = MultilinearZip::<N, S>::setup(ccs.m, rng);
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, unsafe { *ccs.config.as_ptr() });
 
@@ -102,9 +100,9 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
             ccs,
             second_sumcheck_claimed_sum,
         )?;
-
+        let param = MultilinearZip::<N, S, KeccakTranscript>::setup(ccs.m, transcript);
         let mut pcs_transcript = PcsTranscript::from_proof(&proof.pcs_proof);
-        MultilinearZip::<N, S>::verify_f(
+        MultilinearZip::<N, S, KeccakTranscript>::verify_f(
             &param,
             &proof.z_comm,
             &r_y,

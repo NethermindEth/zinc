@@ -13,23 +13,28 @@ use crate::{
 /// * `linearization_sumcheck` - A list of non-interactive sumcheck prover messages.
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
+#[derive(Debug, Clone)]
 pub struct SpartanProof<const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
     /// Sent in step 2 of linearization subprotocol.  
-    pub linearization_sumcheck: sumcheck::Proof<N>,
-    pub second_sumcheck: sumcheck::Proof<N>,
+    pub linearization_sumcheck: sumcheck::SumcheckProof<N>,
+    pub second_sumcheck: sumcheck::SumcheckProof<N>,
     pub V_s: Vec<RandomField<N>>,
-    pub v: RandomField<N>,
+}
+
+pub struct ZipProof<const N: usize> {
     pub z_comm: MultilinearZipCommitment<N>,
+    pub v: RandomField<N>,
     pub pcs_proof: Vec<u8>,
 }
 
 pub struct LookupProof<const N: usize> {}
 
 pub struct ZincProof<const N: usize> {
-    pub lookup_proof: LookupProof<N>,
     pub spartan_proof: SpartanProof<N>,
+    pub zip_proof: ZipProof<N>,
+    pub lookup_proof: LookupProof<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

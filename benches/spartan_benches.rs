@@ -39,7 +39,7 @@ fn benchmark_spartan_prover<const N: usize>(
 
         group.bench_function(format!("n={}", n), |b| {
             b.iter_batched(
-                || KeccakTranscript::new(),
+                KeccakTranscript::new,
                 |mut prover_transcript| {
                     black_box(
                         SpartanProver::<N>::prove(
@@ -101,7 +101,7 @@ fn benchmark_spartan_verifier<const N: usize>(
 
         group.bench_function(format!("n={}", n), |b| {
             b.iter_batched(
-                || KeccakTranscript::new(),
+                KeccakTranscript::new,
                 |mut verifier_transcript| {
                     black_box(
                         SpartanVerifier::<N>::verify(

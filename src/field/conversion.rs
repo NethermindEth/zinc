@@ -76,18 +76,73 @@ pub trait FieldMap {
 }
 
 macro_rules! impl_field_map_for_int {
-    ($type:ty) => {
+    ($type:ty, $bits:expr) => {
         impl FieldMap for $type {
             type Output<const N: usize> = RandomField<N>;
             fn map_to_field<const N: usize>(
                 &self,
                 config: *const FieldConfig<N>,
             ) -> Self::Output<N> {
-                let field = RandomField::from(self.unsigned_abs()).set_config_owned(config);
-                if self.is_negative() {
-                    -field
-                } else {
-                    field
+                if config.is_null() {
+                    panic!("Cannot convert signed integer to prime field element without a modulus")
+                }
+                unsafe {
+                    let modulus: [u64; N] = (*config).modulus.0;
+                    let abs_val = self.unsigned_abs();
+
+                    // Calculate how many u64 limbs we need based on bits
+                    const LIMBS: usize = ($bits + 63) / 64;
+                    let mut val = [0u64; LIMBS];
+
+                    // Fill val array based on size
+                    if LIMBS == 1 {
+                        val[0] = abs_val as u64;
+                    } else {
+                        for i in 0..LIMBS {
+                            val[i] = (abs_val >> (i * 64)) as u64;
+                        }
+                    }
+
+                    let mut r: BigInt<N> = match N {
+                        n if n < LIMBS => {
+                            let mut wider_modulus = [0u64; LIMBS];
+                            wider_modulus[..N].copy_from_slice(&modulus);
+                            let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
+                            let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
+
+                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            let mut result = [0u64; N];
+                            result.copy_from_slice(&value.to_words()[..N]);
+
+                            BigInt(result)
+                        }
+                        n if n == LIMBS => {
+                            let mut value_N = [0u64; N];
+                            value_N.copy_from_slice(&val);
+
+                            let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            BigInt(value.to_words())
+                        }
+                        _ => {
+                            let mut wider_value = [0u64; N];
+                            wider_value[..LIMBS].copy_from_slice(&val);
+                            let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                            wider %= crypto_bigint::NonZero::from_uint(modu);
+                            BigInt(wider.to_words())
+                        }
+                    };
+
+                    (*config).mul_assign(&mut r, &(*config).r2);
+
+                    let mut elem = RandomField::<N>::new_unchecked(config, r);
+                    if *self < 0 {
+                        elem = -elem;
+                    }
+
+                    elem
                 }
             }
         }
@@ -104,85 +159,28 @@ macro_rules! impl_field_map_for_int {
     };
 }
 
-impl_field_map_for_int!(i8);
-impl_field_map_for_int!(i16);
-impl_field_map_for_int!(i32);
-impl_field_map_for_int!(i64);
-impl_field_map_for_int!(i128);
+// Usage with bit sizes
+impl_field_map_for_int!(i8, 8);
+impl_field_map_for_int!(i16, 16);
+impl_field_map_for_int!(i32, 32);
+impl_field_map_for_int!(i64, 64);
+impl_field_map_for_int!(i128, 128);
 
-impl<const N: usize> RandomField<N> {
-    pub(crate) fn from_i128(value: i128, config: *const FieldConfig<N>) -> RandomField<N> {
+// Separate implementation for I256
+impl FieldMap for I256 {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
         if config.is_null() {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
         unsafe {
             let modulus: [u64; N] = (*config).modulus.0;
-            let val: [u64; 2] = [
-                (value.unsigned_abs()) as u64,
-                (value.unsigned_abs() >> 64) as u64,
-            ];
+            let val: [u64; 4] = self.abs().to_le_u64();
 
-            let mut r: BigInt<N> = match N {
-                n if n < 2 => {
-                    let mut wider_modulus: [u64; 2] = [0; 2];
-                    wider_modulus[..N].copy_from_slice(&modulus);
-                    let mut value = crypto_bigint::Uint::<2>::from_words(val);
-                    let modu = crypto_bigint::Uint::<2>::from_words(wider_modulus);
-
-                    value %= crypto_bigint::NonZero::from_uint(modu);
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
-
-                    BigInt(result)
-                }
-                2 => {
-                    let mut value_N: [u64; N] = [0; N];
-                    value_N.copy_from_slice(&val);
-
-                    let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    value %= crypto_bigint::NonZero::from_uint(modu);
-                    BigInt(value.to_words())
-                }
-                _ => {
-                    let mut wider_value: [u64; N] = [0; N];
-                    wider_value[..2].copy_from_slice(&val);
-                    let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    wider %= crypto_bigint::NonZero::from_uint(modu);
-                    BigInt(wider.to_words())
-                }
-            };
-
-            (*config).mul_assign(&mut r, &(*config).r2);
-
-            let mut elem = RandomField::<N>::new_unchecked(config, r);
-            if value < 0 {
-                elem = -elem;
-            }
-
-            elem
-        }
-    }
-
-    #[allow(dead_code)]
-    // TODO This method is rather bad, needs to be improved
-    /// Converts from an I256 integer into a field, but crucially takes a modulus as well
-    pub(crate) fn from_I256(value: I256, config: *const FieldConfig<N>) -> RandomField<N> {
-        if config.is_null() {
-            panic!("Cannot convert signed integer to prime field element without a modulus")
-        }
-        unsafe {
-            let modulus: [u64; N] = (*config).modulus.0;
-            let val: [u64; 4] = value.abs().to_le_u64();
-
-            // The next block makes the value and the modulus the same size
-            // then performs the modulus operation
-            // Then returns our local bigint type and stores it in r
             let mut r: BigInt<N> = match N {
                 n if n < 4 => {
                     let mut wider_modulus: [u64; 4] = [0; 4];
-                    wider_modulus[..(N)].copy_from_slice(&modulus);
+                    wider_modulus[..N].copy_from_slice(&modulus);
                     let mut value = crypto_bigint::Uint::<4>::from_words(val);
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
 
@@ -203,7 +201,7 @@ impl<const N: usize> RandomField<N> {
                 }
                 _ => {
                     let mut wider_value: [u64; N] = [0; N];
-                    wider_value[..(N - 4)].copy_from_slice(&val);
+                    wider_value[..4].copy_from_slice(&val);
                     let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                     wider %= crypto_bigint::NonZero::from_uint(modu);
@@ -214,30 +212,38 @@ impl<const N: usize> RandomField<N> {
             (*config).mul_assign(&mut r, &(*config).r2);
 
             let mut elem = RandomField::<N>::new_unchecked(config, r);
-            if value.is_negative() {
+            if self.is_negative() {
                 elem = -elem;
             }
 
             elem
         }
     }
+}
 
-    /// Converts from an I256 integer into a field, but crucially takes a modulus as well
-    pub(crate) fn from_I512(value: I512, config: *const FieldConfig<N>) -> RandomField<N> {
+// Reference implementation for I256
+impl FieldMap for &I256 {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        (*self).map_to_field(config)
+    }
+}
+
+// Implementation for I512
+impl FieldMap for I512 {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
         if config.is_null() {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
         unsafe {
             let modulus: [u64; N] = (*config).modulus.0;
-            let val: [u64; 8] = value.abs().to_le_u64();
+            let val: [u64; 8] = self.abs().to_le_u64();
 
-            // The next block makes the value and the modulus the same size
-            // then performs the modulus operation
-            // Then returns our local bigint type and stores it in r
             let mut r: BigInt<N> = match N {
                 n if n < 8 => {
                     let mut wider_modulus: [u64; 8] = [0; 8];
-                    wider_modulus[..(N)].copy_from_slice(&modulus);
+                    wider_modulus[..N].copy_from_slice(&modulus);
                     let mut value = crypto_bigint::Uint::<8>::from_words(val);
                     let modu = crypto_bigint::Uint::<8>::from_words(wider_modulus);
 
@@ -247,7 +253,7 @@ impl<const N: usize> RandomField<N> {
 
                     BigInt(result)
                 }
-                4 => {
+                8 => {
                     let mut value_N: [u64; N] = [0; N];
                     value_N.copy_from_slice(&val);
 
@@ -258,7 +264,7 @@ impl<const N: usize> RandomField<N> {
                 }
                 _ => {
                     let mut wider_value: [u64; N] = [0; N];
-                    wider_value[..(N - 8)].copy_from_slice(&val);
+                    wider_value[..8].copy_from_slice(&val);
                     let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                     wider %= crypto_bigint::NonZero::from_uint(modu);
@@ -269,7 +275,7 @@ impl<const N: usize> RandomField<N> {
             (*config).mul_assign(&mut r, &(*config).r2);
 
             let mut elem = RandomField::<N>::new_unchecked(config, r);
-            if value.is_negative() {
+            if self.is_negative() {
                 elem = -elem;
             }
 
@@ -277,6 +283,14 @@ impl<const N: usize> RandomField<N> {
         }
     }
 }
+
+impl FieldMap for &I512 {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        (*self).map_to_field(config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::field_config::FieldConfig;

@@ -3,7 +3,7 @@ use ark_std::iterable::Iterable;
 use i256::{I256, I512};
 
 use crate::{
-    field::RandomField as F,
+    field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     zip::{
         code::{I256_to_I512, LinearCodes, ZipSpec},
@@ -137,11 +137,11 @@ where
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries
                 .iter()
-                .map(|i| F::from_I512(*i, field))
+                .map(|i| i.map_to_field(field))
                 .collect::<Vec<_>>();
             inner_product(t_0_f, &column_entries)
         } else {
-            F::from_I512(column_entries[0], field)
+            column_entries[0].map_to_field(field)
         };
         if column_entries_comb != t_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));

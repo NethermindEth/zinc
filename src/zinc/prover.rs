@@ -307,7 +307,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         transcript: &mut KeccakTranscript,
     ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
         let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
-        let z_comm = MultilinearZip::<N, S, KeccakTranscript>::commit(&param, z_mle)?;
+        let (z_data, z_comm) = MultilinearZip::<N, S, KeccakTranscript>::commit(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
@@ -315,7 +315,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         MultilinearZip::<N, S, KeccakTranscript>::open_f(
             &param,
             z_mle,
-            &z_comm,
+            &z_data,
             r_y,
             config,
             &mut pcs_transcript,

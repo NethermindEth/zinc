@@ -64,12 +64,12 @@ fn test_zip_opening() {
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let comm = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, _) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
 
     let point = vec![0i64, 0i64, 0i64];
 
     let res =
-        MultilinearZip::<N, S, T>::open_z(&param, &mle, &comm, &point, config, &mut transcript);
+        MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
 
     assert!(res.is_ok())
 }
@@ -89,13 +89,13 @@ fn test_failing_zip_evaluation() {
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let comm = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, comm) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
 
     let point = vec![0i64, 0i64, 0i64];
     let eval = 7i64;
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &comm, &point, config, &mut transcript);
+    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
@@ -122,13 +122,13 @@ fn test_zip_evaluation() {
         .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let comm = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, comm) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
 
     let point: Vec<_> = (0..n).map(|_| i64::from(i8::rand(&mut rng))).collect();
     let eval = mle.evaluate(&point).unwrap();
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &comm, &point, config, &mut transcript);
+    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
@@ -153,7 +153,7 @@ fn test_zip_evaluation_field() {
     let evaluations: Vec<_> = (0..(1 << n)).map(|_| i64::rand(&mut rng)).collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let comm = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, comm) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
 
     let point: Vec<_> = (0..n)
         .map(|_| RandomField::from_bigint(config, 1u32.into()).unwrap())
@@ -161,7 +161,7 @@ fn test_zip_evaluation_field() {
     let eval = RandomField::from_i64(evaluations[(1 << n) - 1], config).unwrap();
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open_f(&param, &mle, &comm, &point, config, &mut transcript);
+    let _ = MultilinearZip::<N, S, T>::open_f(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);

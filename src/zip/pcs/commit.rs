@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
     utils::validate_input,
 };
 
@@ -24,7 +24,7 @@ where
     pub fn commit(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-    ) -> Result<Self::Commitment, Error> {
+    ) -> Result<(Self::Data, Self::Commitment), Error> {
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
@@ -44,17 +44,16 @@ where
             (intermediate_hashes, root)
         };
 
-        Ok(MultilinearZipCommitment::new(
-            rows,
-            intermediate_hashes,
-            root,
+        Ok((
+            MultilinearZipData::new(rows, intermediate_hashes, root),
+            MultilinearZipCommitment::new(root),
         ))
     }
-
+    #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
-    ) -> Result<Vec<Self::Commitment>, Error> {
+    ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
 

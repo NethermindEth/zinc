@@ -374,6 +374,28 @@ macro_rules! impl_field_map_for_uint {
 impl_field_map_for_uint!(u32, 32);
 impl_field_map_for_uint!(u64, 64);
 
+// Implementation for bool
+impl FieldMap for bool {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        if config.is_null() {
+            panic!("Cannot convert boolean to prime field element without a modulus")
+        }
+        unsafe {
+            let mut r = BigInt::from(*self as u64);
+            (*config).mul_assign(&mut r, &(*config).r2);
+            RandomField::<N>::new_unchecked(config, r)
+        }
+    }
+}
+
+impl FieldMap for &bool {
+    type Output<const N: usize> = RandomField<N>;
+    fn map_to_field<const N: usize>(&self, config: *const FieldConfig<N>) -> Self::Output<N> {
+        (*self).map_to_field(config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::field_config::FieldConfig;

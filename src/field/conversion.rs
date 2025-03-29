@@ -398,6 +398,9 @@ impl FieldMap for &bool {
 
 #[cfg(test)]
 mod tests {
+    use i256::{I256, I512};
+
+    use crate::field::conversion::FieldMap;
     use crate::field_config::FieldConfig;
     use crate::traits::FromBytes;
     use crate::{biginteger::BigInt, create_field_config, field::RandomField};
@@ -585,5 +588,124 @@ mod tests {
 
         let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes).unwrap();
         assert_eq!(result.into_bigint(), BigInt::one());
+    }
+
+    #[test]
+    fn test_signed_integers_field_map() {
+        let config = create_field_config!(23);
+        let config_ptr = &config as *const _;
+
+        // Test i8
+        let i8_val: i8 = 5;
+        let i8_result = i8_val.map_to_field(config_ptr);
+        assert_eq!(i8_result.into_bigint(), BigInt::from(5u64));
+
+        let i8_neg: i8 = -5;
+        let i8_neg_result = i8_neg.map_to_field(config_ptr);
+        assert_eq!(i8_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
+
+        // Test i16
+        let i16_val: i16 = 10;
+        let i16_result = i16_val.map_to_field(config_ptr);
+        assert_eq!(i16_result.into_bigint(), BigInt::from(10u64));
+
+        // Test i32
+        let i32_val: i32 = 15;
+        let i32_result = i32_val.map_to_field(config_ptr);
+        assert_eq!(i32_result.into_bigint(), BigInt::from(15u64));
+
+        // Test i64
+        let i64_val: i64 = 20;
+        let i64_result = i64_val.map_to_field(config_ptr);
+        assert_eq!(i64_result.into_bigint(), BigInt::from(20u64));
+
+        // Test i128
+        let i128_val: i128 = 22;
+        let i128_result = i128_val.map_to_field(config_ptr);
+        assert_eq!(i128_result.into_bigint(), BigInt::from(22u64));
+
+        // Test reference implementations
+        let i8_ref_result = (&i8_val).map_to_field(config_ptr);
+        assert_eq!(i8_ref_result.into_bigint(), BigInt::from(5u64));
+
+        let i32_ref_result = (&i32_val).map_to_field(config_ptr);
+        assert_eq!(i32_ref_result.into_bigint(), BigInt::from(15u64));
+    }
+
+    #[test]
+    fn test_unsigned_integers_field_map() {
+        let config = create_field_config!(23);
+        let config_ptr = &config as *const _;
+
+        // Test u32
+        let u32_val: u32 = 5;
+        let u32_result = u32_val.map_to_field(config_ptr);
+        assert_eq!(u32_result.into_bigint(), BigInt::from(5u64));
+
+        // Test u64
+        let u64_val: u64 = 10;
+        let u64_result = u64_val.map_to_field(config_ptr);
+        assert_eq!(u64_result.into_bigint(), BigInt::from(10u64));
+
+        // Test reference implementations
+        let u32_ref_result = (&u32_val).map_to_field(config_ptr);
+        assert_eq!(u32_ref_result.into_bigint(), BigInt::from(5u64));
+
+        let u64_ref_result = (&u64_val).map_to_field(config_ptr);
+        assert_eq!(u64_ref_result.into_bigint(), BigInt::from(10u64));
+    }
+
+    #[test]
+    fn test_i256_field_map() {
+        let config = create_field_config!(23);
+        let config_ptr = &config as *const _;
+
+        // Test positive I256
+        let i256_val = I256::from_str("5").unwrap();
+        let i256_result = i256_val.map_to_field(config_ptr);
+        assert_eq!(i256_result.into_bigint(), BigInt::from(5u64));
+
+        // Test negative I256
+        let i256_neg = I256::from_str("-5").unwrap();
+        let i256_neg_result = i256_neg.map_to_field(config_ptr);
+        assert_eq!(i256_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
+
+        // Test reference implementation
+        let i256_ref_result = (&i256_val).map_to_field(config_ptr);
+        assert_eq!(i256_ref_result.into_bigint(), BigInt::from(5u64));
+    }
+
+    #[test]
+    fn test_i512_field_map() {
+        let config = create_field_config!(23);
+        let config_ptr = &config as *const _;
+
+        // Test positive I512
+        let i512_val = I512::from_str("5").unwrap();
+        let i512_result = i512_val.map_to_field(config_ptr);
+        assert_eq!(i512_result.into_bigint(), BigInt::from(5u64));
+
+        // Test negative I512
+        let i512_neg = I512::from_str("-5").unwrap();
+        let i512_neg_result = i512_neg.map_to_field(config_ptr);
+        assert_eq!(i512_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
+
+        // Test reference implementation
+        let i512_ref_result = (&i512_val).map_to_field(config_ptr);
+        assert_eq!(i512_ref_result.into_bigint(), BigInt::from(5u64));
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot convert signed integer to prime field element without a modulus")]
+    fn test_signed_field_map_null_config() {
+        let i32_val: i32 = 5;
+        i32_val.map_to_field::<1>(std::ptr::null());
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot convert unsigned integer to prime field element without a modulus")]
+    fn test_unsigned_field_map_null_config() {
+        let u32_val: u32 = 5;
+        u32_val.map_to_field::<1>(std::ptr::null());
     }
 }

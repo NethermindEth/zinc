@@ -429,11 +429,15 @@ mod tests {
     #[macro_export]
     macro_rules! create_field_config {
         ($N:expr, $modulus:expr) => {{
-            FieldConfig::<$N>::new(BigInt::<$N>::from_str(stringify!($modulus)).unwrap())
+            let bigint = BigInt::<$N>::from_str(stringify!($modulus))
+                .expect("Failed to parse modulus into BigInt");
+            FieldConfig::<$N>::new(bigint)
         }};
 
         ($modulus:expr) => {{
-            FieldConfig::<1>::new(BigInt::<1>::from_str(stringify!($modulus)).unwrap())
+            let bigint = BigInt::<1>::from_str(&$modulus.to_string())
+                .expect("Failed to parse modulus into BigInt");
+            FieldConfig::<1>::new(bigint)
         }};
     }
 

@@ -406,6 +406,7 @@ mod tests {
     use crate::{biginteger::BigInt, create_field_config, field::RandomField};
     use std::str::FromStr;
 
+
     fn test_from<T: Clone, const N: usize>(value: T, value_str: &str)
     where
         RandomField<N>: From<T>,
@@ -590,52 +591,149 @@ mod tests {
         assert_eq!(result.into_bigint(), BigInt::one());
     }
 
+    macro_rules! test_signed_type {
+        ($type:ty, $field:expr, $config:expr, $test_full_range:expr) => {{
+            if $test_full_range && std::mem::size_of::<$type>() <= 8 {
+                // Test full range only for primitive types
+                for x in <$type>::MIN..=<$type>::MAX {
+                    let result = x.map_to_field($config);
+                    let ref_result = (&x).map_to_field($config);
+                    let expected = if x < 0 {
+                        BigInt::from(($field as i64 + x as i64) as u64)
+                    } else {
+                        BigInt::from(x as u64)
+                    };
+                    assert_eq!(
+                        result.into_bigint(),
+                        expected,
+                        "conversion failed for value: {}",
+                        x
+                    );
+                    assert_eq!(
+                        ref_result.into_bigint(),
+                        expected,
+                        "reference conversion failed for value: {}",
+                        x
+                    );
+                }
+            } else {
+                // Test specific values for all types
+                let zero = if std::mem::size_of::<$type>() <= 8 {
+                    0 as $type
+                } else {
+                    <$type>::from_str("0").unwrap()
+                };
+                let zero_result = zero.map_to_field($config);
+                assert_eq!(
+                    zero_result.into_bigint(),
+                    BigInt::zero(),
+                    "Zero value should map to field zero"
+                );
+
+                // Test maximum value
+                let max = if std::mem::size_of::<$type>() <= 8 {
+                    <$type>::MAX
+                } else {
+                    <$type>::from_str(&<$type>::MAX.to_string()).unwrap()
+                };
+                let max_result = max.map_to_field($config);
+                assert!(
+                    max_result.into_bigint() < BigInt::from($field),
+                    "Maximum value should be less than field modulus"
+                );
+
+                // Test minimum value
+                let min = if std::mem::size_of::<$type>() <= 8 {
+                    <$type>::MIN
+                } else {
+                    <$type>::from_str(&<$type>::MIN.to_string()).unwrap()
+                };
+                let min_result = min.map_to_field($config);
+                assert!(
+                    min_result.into_bigint() < BigInt::from($field),
+                    "Minimum value should wrap to valid field element"
+                );
+
+                // Test positive boundary
+                let pos = if std::mem::size_of::<$type>() <= 8 {
+                    5 as $type
+                } else {
+                    <$type>::from_str("5").unwrap()
+                };
+                let pos_result = pos.map_to_field($config);
+                assert_eq!(
+                    pos_result.into_bigint(),
+                    BigInt::from(5u64),
+                    "Positive value should map directly to field"
+                );
+
+                // Test negative boundary
+                let neg = if std::mem::size_of::<$type>() <= 8 {
+                    -5 as $type
+                } else {
+                    <$type>::from_str("-5").unwrap()
+                };
+                let neg_result = neg.map_to_field($config);
+                assert_eq!(
+                    neg_result.into_bigint(),
+                    BigInt::from(($field as i64 - 5) as u64),
+                    "Negative value should wrap around field modulus"
+                );
+
+                // Test reference conversions
+                let ref_zero = (&zero).map_to_field($config);
+                assert_eq!(
+                    ref_zero.into_bigint(),
+                    BigInt::zero(),
+                    "Reference to zero should map to field zero"
+                );
+
+                let ref_max = (&max).map_to_field($config);
+                assert!(
+                    ref_max.into_bigint() < BigInt::from($field),
+                    "Reference to maximum value should be less than field modulus"
+                );
+
+                let ref_min = (&min).map_to_field($config);
+                assert!(
+                    ref_min.into_bigint() < BigInt::from($field),
+                    "Reference to minimum value should wrap to valid field element"
+                );
+            }
+        }};
+    }
+
     #[test]
     fn test_signed_integers_field_map() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const _;
+        let field_1 = 18446744069414584321 as u128;
+        let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
 
-        // Test i8
-        let i8_val: i8 = 5;
-        let i8_result = i8_val.map_to_field(config_ptr);
-        assert_eq!(i8_result.into_bigint(), BigInt::from(5u64));
+        // Test primitive signed integer types
+        test_signed_type!(i8, field_1, config_1, true);
+        println!("i8 done");
+        test_signed_type!(i16, field_1, config_1, true);
+        println!("i16 done");
+        test_signed_type!(i32, field_1, config_1, false);
+        println!("i32 done");
+        test_signed_type!(i64, field_1, config_1, false);
+        println!("i64 done");
+        test_signed_type!(i128, field_1, config_1, false);
+        println!("i128 done");
 
-        let i8_neg: i8 = -5;
-        let i8_neg_result = i8_neg.map_to_field(config_ptr);
-        assert_eq!(i8_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
+        // Test I256 and I512 separately since they don't implement Step
+        let i256_val = I256::from_str("5").unwrap();
+        let i256_result = i256_val.map_to_field(config_1);
+        assert_eq!(i256_result.into_bigint(), BigInt::from(5u64));
 
-        // Test i16
-        let i16_val: i16 = 10;
-        let i16_result = i16_val.map_to_field(config_ptr);
-        assert_eq!(i16_result.into_bigint(), BigInt::from(10u64));
-
-        // Test i32
-        let i32_val: i32 = 15;
-        let i32_result = i32_val.map_to_field(config_ptr);
-        assert_eq!(i32_result.into_bigint(), BigInt::from(15u64));
-
-        // Test i64
-        let i64_val: i64 = 20;
-        let i64_result = i64_val.map_to_field(config_ptr);
-        assert_eq!(i64_result.into_bigint(), BigInt::from(20u64));
-
-        // Test i128
-        let i128_val: i128 = 22;
-        let i128_result = i128_val.map_to_field(config_ptr);
-        assert_eq!(i128_result.into_bigint(), BigInt::from(22u64));
-
-        // Test reference implementations
-        let i8_ref_result = (&i8_val).map_to_field(config_ptr);
-        assert_eq!(i8_ref_result.into_bigint(), BigInt::from(5u64));
-
-        let i32_ref_result = (&i32_val).map_to_field(config_ptr);
-        assert_eq!(i32_ref_result.into_bigint(), BigInt::from(15u64));
+        let i512_val = I512::from_str("5").unwrap();
+        let i512_result = i512_val.map_to_field(config_1);
+        assert_eq!(i512_result.into_bigint(), BigInt::from(5u64));
     }
 
     #[test]
     fn test_unsigned_integers_field_map() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const _;
+        let config_1 = create_field_config!(23);
+        let config_ptr = &config_1 as *const FieldConfig<1>;
 
         // Test u32
         let u32_val: u32 = 5;
@@ -696,14 +794,18 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Cannot convert signed integer to prime field element without a modulus")]
+    #[should_panic(
+        expected = "Cannot convert signed integer to prime field element without a modulus"
+    )]
     fn test_signed_field_map_null_config() {
         let i32_val: i32 = 5;
         i32_val.map_to_field::<1>(std::ptr::null());
     }
 
     #[test]
-    #[should_panic(expected = "Cannot convert unsigned integer to prime field element without a modulus")]
+    #[should_panic(
+        expected = "Cannot convert unsigned integer to prime field element without a modulus"
+    )]
     fn test_unsigned_field_map_null_config() {
         let u32_val: u32 = 5;
         u32_val.map_to_field::<1>(std::ptr::null());

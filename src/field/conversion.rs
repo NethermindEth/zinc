@@ -374,6 +374,8 @@ macro_rules! impl_field_map_for_uint {
 }
 
 // Usage with bit sizes
+impl_field_map_for_uint!(u8, 8);
+impl_field_map_for_uint!(u16, 16);
 impl_field_map_for_uint!(u32, 32);
 impl_field_map_for_uint!(u64, 64);
 
@@ -705,67 +707,85 @@ mod tests {
         test_signed_type_edge_cases!(I512, field_1, config_1, 1);
     }
 
+    macro_rules! test_unsigned_type_full_range {
+        ($type:ty, $field:expr, $config:expr, $N:expr) => {{
+            // Test full range for small unsigned types
+            for x in <$type>::MIN..=<$type>::MAX {
+                let result = x.map_to_field($config);
+                let ref_result = (&x).map_to_field($config);
+                let expected = BigInt::<$N>::from(x as u64);
+                assert_eq!(
+                    result.into_bigint(),
+                    expected,
+                    "conversion failed for value: {}",
+                    x
+                );
+                assert_eq!(
+                    ref_result.into_bigint(),
+                    expected,
+                    "reference conversion failed for value: {}",
+                    x
+                );
+            }
+        }};
+    }
+
+    macro_rules! test_unsigned_type_edge_cases {
+        ($type:ty, $field:expr, $config:expr, $N:expr) => {{
+            // Test zero
+            let zero = <$type>::MIN;
+            let zero_result = zero.map_to_field($config);
+            assert_eq!(
+                zero_result.into_bigint(),
+                BigInt::<$N>::zero(),
+                "Zero value should map to field zero"
+            );
+
+            // Test maximum value
+            let max = <$type>::MAX;
+            let max_result = max.map_to_field($config);
+            assert!(
+                max_result.into_bigint() < BigInt::<$N>::from($field),
+                "Maximum value should be less than field modulus"
+            );
+
+            // Test boundary value - using literal instead of From
+            let boundary: $type = 5;
+            let boundary_result = boundary.map_to_field($config);
+            assert_eq!(
+                boundary_result.into_bigint(),
+                BigInt::<$N>::from(5u64),
+                "Boundary value should map directly to field"
+            );
+
+            // Test reference conversions
+            let ref_zero = (&zero).map_to_field($config);
+            assert_eq!(
+                ref_zero.into_bigint(),
+                BigInt::<$N>::zero(),
+                "Reference to zero should map to field zero"
+            );
+
+            let ref_max = (&max).map_to_field($config);
+            assert!(
+                ref_max.into_bigint() < BigInt::<$N>::from($field),
+                "Reference to maximum value should be less than field modulus"
+            );
+        }};
+    }
+
     #[test]
     fn test_unsigned_integers_field_map() {
-        let config_1 = create_field_config!(23);
-        let config_ptr = &config_1 as *const FieldConfig<1>;
+        let field_1 = 18446744069414584321 as u64;
+        let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
 
-        // Test u32
-        let u32_val: u32 = 5;
-        let u32_result = u32_val.map_to_field(config_ptr);
-        assert_eq!(u32_result.into_bigint(), BigInt::from(5u64));
+        // Test small types with full range
+        test_unsigned_type_full_range!(u8, field_1, config_1, 1);
+        test_unsigned_type_full_range!(u16, field_1, config_1, 1);
 
-        // Test u64
-        let u64_val: u64 = 10;
-        let u64_result = u64_val.map_to_field(config_ptr);
-        assert_eq!(u64_result.into_bigint(), BigInt::from(10u64));
-
-        // Test reference implementations
-        let u32_ref_result = (&u32_val).map_to_field(config_ptr);
-        assert_eq!(u32_ref_result.into_bigint(), BigInt::from(5u64));
-
-        let u64_ref_result = (&u64_val).map_to_field(config_ptr);
-        assert_eq!(u64_ref_result.into_bigint(), BigInt::from(10u64));
-    }
-
-    #[test]
-    fn test_i256_field_map() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const _;
-
-        // Test positive I256
-        let i256_val = I256::from_str("5").unwrap();
-        let i256_result = i256_val.map_to_field(config_ptr);
-        assert_eq!(i256_result.into_bigint(), BigInt::from(5u64));
-
-        // Test negative I256
-        let i256_neg = I256::from_str("-5").unwrap();
-        let i256_neg_result = i256_neg.map_to_field(config_ptr);
-        assert_eq!(i256_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
-
-        // Test reference implementation
-        let i256_ref_result = (&i256_val).map_to_field(config_ptr);
-        assert_eq!(i256_ref_result.into_bigint(), BigInt::from(5u64));
-    }
-
-    #[test]
-    fn test_i512_field_map() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const _;
-
-        // Test positive I512
-        let i512_val = I512::from_str("5").unwrap();
-        let i512_result = i512_val.map_to_field(config_ptr);
-        assert_eq!(i512_result.into_bigint(), BigInt::from(5u64));
-
-        // Test negative I512
-        let i512_neg = I512::from_str("-5").unwrap();
-        let i512_neg_result = i512_neg.map_to_field(config_ptr);
-        assert_eq!(i512_neg_result.into_bigint(), BigInt::from(18u64)); // 23 - 5 = 18
-
-        // Test reference implementation
-        let i512_ref_result = (&i512_val).map_to_field(config_ptr);
-        assert_eq!(i512_ref_result.into_bigint(), BigInt::from(5u64));
+        // Test larger types with edge cases only
+        test_unsigned_type_edge_cases!(u32, field_1, config_1, 1);
+        test_unsigned_type_edge_cases!(u64, field_1, config_1, 1);
     }
 
     #[test]

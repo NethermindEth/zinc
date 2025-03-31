@@ -88,11 +88,9 @@ where
 mod tests {
     use std::str::FromStr;
 
-    use ark_ff::Zero;
-
     use super::*;
     use crate::biginteger::BigInt;
-    use crate::field::RandomField;
+    use crate::field::conversion::FieldMap;
     use crate::field_config::FieldConfig;
     use crate::sparse_matrix::dense_matrix_to_sparse;
 
@@ -106,20 +104,20 @@ mod tests {
         let config = get_config();
 
         let a = [
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
+            2u64.map_to_field(&config),
+            3u64.map_to_field(&config),
+            4u64.map_to_field(&config),
         ];
         let b = [
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 7u64.into()).unwrap(),
+            5u64.map_to_field(&config),
+            6u64.map_to_field(&config),
+            7u64.map_to_field(&config),
         ];
         let result = hadamard_vec(&a, &b);
         let expected = vec![
-            RandomField::from_bigint(&config, 10u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 18u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 28u64.into()).unwrap(),
+            10u64.map_to_field(&config),
+            18u64.map_to_field(&config),
+            28u64.map_to_field(&config),
         ];
         assert_eq!(result, expected);
     }
@@ -129,16 +127,16 @@ mod tests {
         let config = get_config();
 
         let a = [
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
+            2u64.map_to_field(&config),
+            3u64.map_to_field(&config),
+            4u64.map_to_field(&config),
         ];
-        let scalar = RandomField::from_bigint(&config, 2u64.into()).unwrap();
+        let scalar = 2u64.map_to_field(&config);
         let result = vec_value_mul(&a, &scalar);
         let expected = vec![
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 8u64.into()).unwrap(),
+            4u64.map_to_field(&config),
+            6u64.map_to_field(&config),
+            8u64.map_to_field(&config),
         ];
         assert_eq!(result, expected);
     }
@@ -148,20 +146,20 @@ mod tests {
         let config = get_config();
 
         let a = [
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
+            1u64.map_to_field(&config),
+            2u64.map_to_field(&config),
+            3u64.map_to_field(&config),
         ];
         let b = [
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
+            4u64.map_to_field(&config),
+            5u64.map_to_field(&config),
+            6u64.map_to_field(&config),
         ];
         let result = vec_add(&a, &b);
         let expected = vec![
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 7u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 9u64.into()).unwrap(),
+            5u64.map_to_field(&config),
+            7u64.map_to_field(&config),
+            9u64.map_to_field(&config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
@@ -170,14 +168,11 @@ mod tests {
     fn test_vec_add_error_case() {
         let config = get_config();
 
-        let a = [
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-        ];
+        let a = [1u64.map_to_field(&config), 2u64.map_to_field(&config)];
         let b = [
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
+            3u64.map_to_field(&config),
+            4u64.map_to_field(&config),
+            5u64.map_to_field(&config),
         ];
         let result = vec_add(&a, &b);
         assert!(result.is_err());
@@ -188,16 +183,16 @@ mod tests {
         let config = get_config();
 
         let vec = [
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
+            1u64.map_to_field(&config),
+            2u64.map_to_field(&config),
+            3u64.map_to_field(&config),
         ];
-        let c = RandomField::from_bigint(&config, 3u64.into()).unwrap();
+        let c = 3u64.map_to_field(&config);
         let result = vec_scalar_mul(&vec, &c);
         let expected = vec![
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 9u64.into()).unwrap(),
+            3u64.map_to_field(&config),
+            6u64.map_to_field(&config),
+            9u64.map_to_field(&config),
         ];
         assert_eq!(result, expected);
     }
@@ -207,20 +202,20 @@ mod tests {
         let config = get_config();
 
         let a = [
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 4u64.into()).unwrap(),
+            2u64.map_to_field(&config),
+            3u64.map_to_field(&config),
+            4u64.map_to_field(&config),
         ];
         let b = [
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 7u64.into()).unwrap(),
+            5u64.map_to_field(&config),
+            6u64.map_to_field(&config),
+            7u64.map_to_field(&config),
         ];
         let result = hadamard(&a, &b);
         let expected = vec![
-            RandomField::from_bigint(&config, 10u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 18u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 28u64.into()).unwrap(),
+            10u64.map_to_field(&config),
+            18u64.map_to_field(&config),
+            28u64.map_to_field(&config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
@@ -229,14 +224,11 @@ mod tests {
     fn test_hadamard_error_case() {
         let config = get_config();
 
-        let a = [
-            RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-        ];
+        let a = [2u64.map_to_field(&config), 3u64.map_to_field(&config)];
         let b = [
-            RandomField::from_bigint(&config, 5u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 6u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 7u64.into()).unwrap(),
+            5u64.map_to_field(&config),
+            6u64.map_to_field(&config),
+            7u64.map_to_field(&config),
         ];
         let result = hadamard(&a, &b);
         assert!(result.is_err());
@@ -248,33 +240,33 @@ mod tests {
 
         let dense_matrix = vec![
             vec![
-                RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-                RandomField::zero(),
-                RandomField::zero(),
+                1u64.map_to_field(&config),
+                0u64.map_to_field(&config),
+                0u64.map_to_field(&config),
             ],
             vec![
-                RandomField::zero(),
-                RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-                RandomField::from_bigint(&config, 1u64.into()).unwrap(),
+                0u64.map_to_field(&config),
+                2u64.map_to_field(&config),
+                1u64.map_to_field(&config),
             ],
             vec![
-                RandomField::zero(),
-                RandomField::zero(),
-                RandomField::from_bigint(&config, 3u64.into()).unwrap(),
+                0u64.map_to_field(&config),
+                0u64.map_to_field(&config),
+                3u64.map_to_field(&config),
             ],
         ];
         let M = dense_matrix_to_sparse(dense_matrix);
 
         let z = [
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
+            1u64.map_to_field(&config),
+            1u64.map_to_field(&config),
+            1u64.map_to_field(&config),
         ];
         let result = mat_vec_mul(&M, &z);
         let expected = vec![
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 3u64.into()).unwrap(),
+            1u64.map_to_field(&config),
+            3u64.map_to_field(&config),
+            3u64.map_to_field(&config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
@@ -285,27 +277,24 @@ mod tests {
 
         let dense_matrix = vec![
             vec![
-                RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-                RandomField::zero(),
-                RandomField::zero(),
+                1u64.map_to_field(&config),
+                0u64.map_to_field(&config),
+                0u64.map_to_field(&config),
             ],
             vec![
-                RandomField::zero(),
-                RandomField::from_bigint(&config, 2u64.into()).unwrap(),
-                RandomField::from_bigint(&config, 1u64.into()).unwrap(),
+                0u64.map_to_field(&config),
+                2u64.map_to_field(&config),
+                1u64.map_to_field(&config),
             ],
             vec![
-                RandomField::zero(),
-                RandomField::zero(),
-                RandomField::from_bigint(&config, 3u64.into()).unwrap(),
+                0u64.map_to_field(&config),
+                0u64.map_to_field(&config),
+                3u64.map_to_field(&config),
             ],
         ];
         let M = dense_matrix_to_sparse(dense_matrix);
 
-        let z = [
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-            RandomField::from_bigint(&config, 1u64.into()).unwrap(),
-        ];
+        let z = [1u32.map_to_field(&config), 1u32.map_to_field(&config)];
         let result = mat_vec_mul(&M, &z);
         assert!(result.is_err());
     }

@@ -402,6 +402,59 @@ impl FieldMap for &bool {
     }
 }
 
+// Implementation for BigInt<N>
+impl<const N: usize> FieldMap for BigInt<N> {
+    type Output<const M: usize> = RandomField<M>;
+
+    fn map_to_field<const M: usize>(&self, config: *const FieldConfig<M>) -> Self::Output<M> {
+        if config.is_null() {
+            panic!("Cannot convert BigInt to prime field element without a modulus")
+        }
+
+        unsafe {
+            let modulus: [u64; M] = (*config).modulus.0;
+
+            let mut r: BigInt<M> = match N.cmp(&M) {
+                std::cmp::Ordering::Less => {
+                    let mut wider_value = [0u64; M];
+                    wider_value[..N].copy_from_slice(&self.0);
+                    BigInt(wider_value)
+                }
+                std::cmp::Ordering::Equal => {
+                    let mut value = [0u64; M];
+                    value.copy_from_slice(&self.0);
+                    BigInt(value)
+                }
+                std::cmp::Ordering::Greater => {
+                    let mut value = crypto_bigint::Uint::<N>::from_words(self.0);
+                    let mut wider_modulus = [0u64; N];
+                    wider_modulus[..M].copy_from_slice(&modulus);
+                    let modu = crypto_bigint::Uint::<N>::from_words(wider_modulus);
+
+                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    let mut result = [0u64; M];
+                    result.copy_from_slice(&value.to_words()[..M]);
+
+                    BigInt(result)
+                }
+            };
+
+            // Apply Montgomery form transformation
+            (*config).mul_assign(&mut r, &(*config).r2);
+            RandomField::<M>::new_unchecked(config, r)
+        }
+    }
+}
+
+// Implementation for reference to BigInt<N>
+impl<const N: usize> FieldMap for &BigInt<N> {
+    type Output<const M: usize> = RandomField<M>;
+
+    fn map_to_field<const M: usize>(&self, config: *const FieldConfig<M>) -> Self::Output<M> {
+        (*self).map_to_field(config)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use i256::{I256, I512};
@@ -574,15 +627,15 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_leading_zeros() {
-        let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
+        let config: *const FieldConfig<1> = &create_field_config!(23);
 
         let bytes = [0b0000_0001]; // Value: 1 with leading zeros
-        let expected =
-            RandomField::from_bigint(config_ptr, BigInt::<1>::from_bytes_le(&bytes).unwrap());
+        let expected = BigInt::<1>::from_bytes_le(&bytes)
+            .unwrap()
+            .map_to_field(config);
 
-        let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes);
-        assert_eq!(result, expected);
+        let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
+        assert_eq!(result, Some(expected));
     }
 
     #[test]
@@ -806,5 +859,121 @@ mod tests {
     fn test_unsigned_field_map_null_config() {
         let u32_val: u32 = 5;
         u32_val.map_to_field::<1>(std::ptr::null());
+    }
+}
+
+#[cfg(test)]
+mod bigint_field_map_tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_bigint_smaller_than_field() {
+        // Using a 2-limb field config with 1-limb BigInt
+        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        let small_bigint = BigInt::<1>::from(12345u64);
+        let result = small_bigint.map_to_field(config_ptr);
+
+        assert_eq!(
+            result.into_bigint().0[0],
+            12345u64,
+            "Small BigInt should be preserved in larger field"
+        );
+    }
+
+    #[test]
+    fn test_bigint_equal_size() {
+        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        let value = BigInt::<2>::from_str("12345678901234567890").unwrap();
+        let result = value.map_to_field(config_ptr);
+
+        // The result should be the value modulo the field modulus
+        let expected = BigInt::<2>::from_str("12345678901234567890").unwrap();
+        assert_eq!(
+            result.into_bigint(),
+            expected,
+            "Equal size BigInt should be correctly converted"
+        );
+    }
+
+    #[test]
+    fn test_bigint_larger_than_field() {
+        // Using a 1-limb field config with 2-limb BigInt
+        let modulus = BigInt::<1>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        let large_value = BigInt::<2>::from_str("123456789012345678901").unwrap();
+        let result = large_value.map_to_field(config_ptr);
+
+        let expected = BigInt::<1>::from(12776324595858172975u64);
+        assert_eq!(
+            result.into_bigint(),
+            expected,
+            "Larger BigInt should be correctly reduced modulo field modulus"
+        );
+    }
+
+    #[test]
+    fn test_bigint_zero() {
+        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        let zero = BigInt::<2>::zero();
+        let result = zero.map_to_field(config_ptr);
+
+        assert!(
+            result.into_bigint().is_zero(),
+            "Zero BigInt should map to zero field element"
+        );
+    }
+
+    #[test]
+    fn test_bigint_reference() {
+        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        let value = BigInt::<2>::from_str("12345").unwrap();
+        let result = (&value).map_to_field(config_ptr);
+        let direct_result = value.map_to_field(config_ptr);
+
+        assert_eq!(
+            result.into_bigint(),
+            direct_result.into_bigint(),
+            "Reference implementation should match direct implementation"
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot convert BigInt to prime field element without a modulus")]
+    fn test_null_config() {
+        let value = BigInt::<2>::from(123u64);
+        let _result = value.map_to_field::<2>(std::ptr::null());
+    }
+
+    #[test]
+    fn test_bigint_max_value() {
+        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let config = FieldConfig::new(modulus);
+        let config_ptr = &config as *const _;
+
+        // Create a BigInt with all bits set to 1
+        let mut max_value = BigInt::<2>::zero();
+        max_value.0.iter_mut().for_each(|x| *x = u64::MAX);
+
+        let result = max_value.map_to_field(config_ptr);
+
+        assert!(
+            result.into_bigint() < modulus,
+            "Result should be properly reduced modulo field modulus"
+        );
     }
 }

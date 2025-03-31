@@ -4,7 +4,8 @@ use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    biginteger::BigInt, field::{conversion::FieldMap, RandomField}, field_config::FieldConfig,
+    field::{conversion::FieldMap, RandomField},
+    field_config::FieldConfig,
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -157,8 +158,8 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
     config: *const FieldConfig<N>,
 ) -> RandomField<N> {
     // We will need these a few times
-    let zero = RandomField::from_bigint(config, BigInt::zero()).unwrap();
-    let one = RandomField::from_bigint(config, BigInt::one()).unwrap();
+    let zero = 0u64.map_to_field(config);
+    let one = 1u64.map_to_field(config);
 
     let len = p_i.len();
 
@@ -212,7 +213,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
     //  - for len <= 33 with i128
     //  - for len >  33 with BigInt
     if p_i.len() <= 20 {
-        let mut last_denom = RandomField::from(u64_factorial(len - 1));
+        let mut last_denom = u64_factorial(len - 1).map_to_field(config);
 
         last_denom.set_config(config);
 
@@ -221,16 +222,16 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res = RandomField::from((-ratio_numerator) as u64);
+                let mut res = (-ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res = RandomField::from((ratio_numerator) as u64);
+                let mut res = (ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f = RandomField::from(ratio_enumerator);
+            let mut ratio_enumerator_f = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
             let x = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
@@ -244,22 +245,22 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
             }
         }
     } else if p_i.len() <= 33 {
-        let last_denom = RandomField::from(u128_factorial(len - 1));
+        let last_denom = u128_factorial(len - 1).map_to_field(config);
         let mut ratio_numerator = 1i128;
         let mut ratio_enumerator = 1u128;
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res = RandomField::from((-ratio_numerator) as u128);
+                let mut res = (-ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res = RandomField::from((ratio_numerator) as u128);
+                let mut res = (ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f = RandomField::from(ratio_enumerator);
+            let mut ratio_enumerator_f = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
             let x: RandomField<N> =
@@ -284,11 +285,11 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {
-                let mut denom_up_factor = RandomField::from((len - i) as u64);
+                let mut denom_up_factor = ((len - i) as u64).map_to_field(config);
                 denom_up_factor.set_config(config);
                 denom_up *= -denom_up_factor;
 
-                let mut denom_down_factor = RandomField::from(i as u64);
+                let mut denom_down_factor = (i as u64).map_to_field(config);
                 denom_down_factor.set_config(config);
                 denom_down *= denom_down_factor;
             }

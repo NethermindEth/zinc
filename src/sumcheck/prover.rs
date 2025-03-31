@@ -8,8 +8,7 @@ use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
 use rayon::iter::*;
 
 use crate::{
-    biginteger::BigInt,
-    field::RandomField,
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
 };
@@ -104,7 +103,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
             vals: Vec<R>,
             levals: Vec<R>,
         }
-        let zero = RandomField::from_bigint(config, BigInt::zero()).unwrap();
+        let zero = 0u64.map_to_field(config);
         let scratch = || Scratch {
             evals: vec![zero; degree + 1],
             steps: vec![zero; polys.len()],

@@ -158,7 +158,7 @@ pub fn compute_eval_table_sparse<const N: usize>(
 ) -> Vec<RandomField<N>> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(
-        vec![RandomField::from_bigint(config, 0u32.into()).unwrap(); num_cols],
+        vec![0u32.map_to_field(config); num_cols],
         |mut M_evals, (row, vals)| {
             for (val, col) in vals {
                 M_evals[*col] += &(rx[row] * val);

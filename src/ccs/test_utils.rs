@@ -1,10 +1,10 @@
 #![allow(dead_code, non_snake_case)]
-use std::{ops::Neg, sync::atomic::AtomicPtr, vec};
+use std::{sync::atomic::AtomicPtr, vec};
 
 use ark_std::{log2, rand::Rng};
 
 use crate::{
-    field::{rand_with_config, RandomField},
+    field::{conversion::FieldMap, rand_with_config, RandomField},
     field_config::FieldConfig,
     sparse_matrix::SparseMatrix,
 };
@@ -62,7 +62,7 @@ pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((RandomField::from_bigint(config, 1u32.into()).unwrap(), i));
+        row.push((1u64.map_to_field(config), i));
     }
     matrix
 }
@@ -134,10 +134,7 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
         s: log2(z.len()) as usize,
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
-        c: vec![
-            RandomField::from_bigint(config, 1u32.into()).unwrap(),
-            RandomField::from_bigint(config, 1u32.into()).unwrap().neg(),
-        ],
+        c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
         config: AtomicPtr::new(config as *mut FieldConfig<N>),
     };
 
@@ -176,7 +173,7 @@ pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
 ) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
     let mut z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
     let pub_io_len = 1;
-    z[pub_io_len] = RandomField::from_bigint(config, 1u32.into()).unwrap();
+    z[pub_io_len] = 1u64.map_to_field(config);
     let (ccs, statement, wit) = get_dummy_ccs_F_from_z(&z, pub_io_len, config);
 
     (z, ccs, statement, wit)

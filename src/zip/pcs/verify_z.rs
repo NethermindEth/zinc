@@ -5,7 +5,7 @@ use itertools::Itertools;
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
-    field::{conversion::FieldMap, RandomField as F},
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     zip::{
         code::{I256_to_I512, LinearCodes, ZipSpec},
@@ -77,7 +77,7 @@ where
         let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
         let t_0_f = t_0
             .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
+            .map(|i| i.map_to_field(field))
             .collect::<Vec<_>>();
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.zip().num_column_opening() {
@@ -103,10 +103,10 @@ where
 
         let t_1_f = t_1
             .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
+            .map(|i| i.map_to_field(field))
             .collect::<Vec<_>>();
 
-        let eval_f = F::from_i64(*eval, field).unwrap();
+        let eval_f = eval.map_to_field(field);
 
         if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
             return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
@@ -188,8 +188,8 @@ where
     }
 
     fn verify_proximity_t_0(
-        t_0_f: &Vec<F<N>>,
-        t_0_combined_row: &[F<N>],
+        t_0_f: &Vec<RandomField<N>>,
+        t_0_combined_row: &[RandomField<N>],
         column_entries: &[I512],
         column: usize,
         num_rows: usize,

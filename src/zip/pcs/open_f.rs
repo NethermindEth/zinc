@@ -8,7 +8,7 @@ use itertools::izip;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field::RandomField as F,
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
@@ -33,7 +33,7 @@ where
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         comm: &Self::Commitment,
-        point: &[F<N>],
+        point: &[RandomField<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<Vec<Output<Keccak256>>, Error> {
@@ -72,7 +72,7 @@ where
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<F<N>>],
+        points: &[Vec<RandomField<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
@@ -114,22 +114,22 @@ where
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
 
-        point: &[F<N>],
+        point: &[RandomField<N>],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let (t_0_f, _) = point_to_tensor_f(num_rows, point, field).unwrap();
 
-        let evaluations: Vec<F<N>> = poly
+        let evaluations: Vec<RandomField<N>> = poly
             .evaluations
             .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
+            .map(|i| i.map_to_field(field))
             .collect();
 
         let t_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
             let combined_row = combine_rows(t_0_f, evaluations, row_len);
-            Cow::<Vec<F<N>>>::Owned(combined_row)
+            Cow::<Vec<RandomField<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
             // We just return the evaluation row combination

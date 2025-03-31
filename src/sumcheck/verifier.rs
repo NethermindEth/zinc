@@ -1,13 +1,10 @@
 //! Verifier
-#![allow(dead_code)]
-use std::ops::MulAssign;
-
 use ark_ff::One;
 use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+    biginteger::BigInt, field::{conversion::FieldMap, RandomField}, field_config::FieldConfig,
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -278,8 +275,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
     } else {
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
-        let mut denom_up = field_factorial::<RandomField<N>>(len - 1);
-        denom_up.set_config(config);
+        let mut denom_up = field_factorial::<N>(len - 1, config);
         let mut denom_down = one;
 
         for i in (0..len).rev() {
@@ -304,10 +300,10 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<F: One + MulAssign<F> + From<u64>>(a: usize) -> F {
-    let mut res = F::one();
+fn field_factorial<const N: usize>(a: usize, config: *const FieldConfig<N>) -> RandomField<N> {
+    let mut res = RandomField::one();
     for i in 1..=a {
-        res *= F::from(i as u64);
+        res *= (i as u64).map_to_field(config);
     }
     res
 }

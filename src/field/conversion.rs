@@ -378,6 +378,7 @@ impl_field_map_for_uint!(u8, 8);
 impl_field_map_for_uint!(u16, 16);
 impl_field_map_for_uint!(u32, 32);
 impl_field_map_for_uint!(u64, 64);
+impl_field_map_for_uint!(u128, 128);
 
 // Implementation for bool
 impl FieldMap for bool {
@@ -786,6 +787,7 @@ mod tests {
         // Test larger types with edge cases only
         test_unsigned_type_edge_cases!(u32, field_1, config_1, 1);
         test_unsigned_type_edge_cases!(u64, field_1, config_1, 1);
+        test_unsigned_type_edge_cases!(u128, field_1, config_1, 1);
     }
 
     #[test]

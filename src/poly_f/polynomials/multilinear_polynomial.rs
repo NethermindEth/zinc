@@ -9,7 +9,7 @@ use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 use super::{util::get_batched_nv, ArithErrors, RefCounter};
 pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
-    field::{rand_with_config, RandomField},
+    field::{conversion::FieldMap, rand_with_config, RandomField},
     field_config::FieldConfig,
     poly_f::mle::MultilinearExtension,
 };
@@ -94,9 +94,10 @@ pub fn random_zero_mle_list<const N: usize, Rn: RngCore>(
 pub fn identity_permutation<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
+    config: *const FieldConfig<N>,
 ) -> Vec<RandomField<N>> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
-    (0..len).map(RandomField::from).collect()
+    (0..len).map(|i| i.map_to_field(config)).collect()
 }
 
 /// A list of MLEs that represents an identity permutation
@@ -109,7 +110,7 @@ pub fn identity_permutation_mles<const N: usize>(
     for i in 0..num_chunks {
         let shift = (i * (1 << num_vars)) as u64;
         let s_id_vec = (shift..shift + (1u64 << num_vars))
-            .map(RandomField::from)
+            .map(|i| i.map_to_field(config))
             .collect();
         res.push(RefCounter::new(
             DenseMultilinearExtension::from_evaluations_vec(num_vars, s_id_vec, config),
@@ -122,9 +123,10 @@ pub fn random_permutation<const N: usize, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
+    config: *const FieldConfig<N>,
 ) -> Vec<RandomField<N>> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
-    let mut s_id_vec: Vec<RandomField<N>> = (0..len).map(RandomField::from).collect();
+    let mut s_id_vec: Vec<RandomField<N>> = (0..len).map(|i| i.map_to_field(config)).collect();
     let mut s_perm_vec = vec![];
     for _ in 0..len {
         let index = (rng.next_u64() as usize) % s_id_vec.len();
@@ -140,7 +142,7 @@ pub fn random_permutation_mles<const N: usize, Rn: RngCore>(
     rng: &mut Rn,
     config: *const FieldConfig<N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
-    let s_perm_vec = random_permutation(num_vars, num_chunks, rng);
+    let s_perm_vec = random_permutation(num_vars, num_chunks, rng, config);
     let mut res = vec![];
     let n = 1 << num_vars;
     for i in 0..num_chunks {

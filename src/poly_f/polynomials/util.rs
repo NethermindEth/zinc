@@ -5,7 +5,10 @@
 
 use ark_std::{log2, vec::*};
 
-use crate::{field::{conversion::FieldMap, RandomField}, field_config::FieldConfig};
+use crate::{
+    field::{conversion::FieldMap, RandomField},
+    field_config::FieldConfig,
+};
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {

@@ -1,6 +1,6 @@
 use crate::{
     biginteger::BigInt,
-    field::RandomField,
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     transcript::KeccakTranscript,
@@ -158,7 +158,7 @@ fn test_zip_evaluation_field() {
     let point: Vec<_> = (0..n)
         .map(|_| RandomField::from_bigint(config, 1u32.into()).unwrap())
         .collect();
-    let eval = RandomField::from_i64(evaluations[(1 << n) - 1], config).unwrap();
+    let eval = evaluations[(1 << n) - 1].map_to_field(config);
 
     let mut transcript = PcsTranscript::new();
     let _ = MultilinearZip::<N, S, T>::open_f(&param, &mle, &comm, &point, config, &mut transcript);

@@ -5,7 +5,7 @@
 
 use ark_std::{log2, vec::*};
 
-use crate::field::RandomField;
+use crate::{field::{conversion::FieldMap, RandomField}, field_config::FieldConfig};
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -24,10 +24,11 @@ pub fn gen_eval_point<const N: usize>(
     index: usize,
     index_len: usize,
     point: &[RandomField<N>],
+    config: *const FieldConfig<N>,
 ) -> Vec<RandomField<N>> {
     let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
         .into_iter()
-        .map(RandomField::from)
+        .map(|i| i.map_to_field(config))
         .collect();
     [point, &index_vec].concat()
 }

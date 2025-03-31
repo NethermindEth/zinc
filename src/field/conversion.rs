@@ -705,20 +705,15 @@ mod tests {
 
     #[test]
     fn test_signed_integers_field_map() {
-        let field_1 = 18446744069414584321 as u128;
+        let field_1 = 18446744069414584321 as u64;
         let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
 
         // Test primitive signed integer types
         test_signed_type!(i8, field_1, config_1, true);
-        println!("i8 done");
         test_signed_type!(i16, field_1, config_1, true);
-        println!("i16 done");
         test_signed_type!(i32, field_1, config_1, false);
-        println!("i32 done");
         test_signed_type!(i64, field_1, config_1, false);
-        println!("i64 done");
         test_signed_type!(i128, field_1, config_1, false);
-        println!("i128 done");
 
         // Test I256 and I512 separately since they don't implement Step
         let i256_val = I256::from_str("5").unwrap();

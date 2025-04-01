@@ -43,7 +43,7 @@ impl<const N: usize> MultilinearZipParams<N> {
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipCommitment<const N: usize> {
+pub struct MultilinearZipData<const N: usize> {
     /// The encoded rows of the polynomial matrix representation
     rows: Vec<I512>,
     /// Hashes of the merkle tree with the encoded columns as leaves
@@ -51,14 +51,28 @@ pub struct MultilinearZipCommitment<const N: usize> {
     /// Root of the merkle tree with the encoded columns as leaves
     root: Output<Keccak256>,
 }
-
+/// Representantation of a zip commitment to a multilinear polynomial
+#[derive(Clone, Debug, Default)]
+pub struct MultilinearZipCommitment<const N: usize> {
+    /// Root of the merkle tree with the encoded columns as leaves
+    root: Output<Keccak256>,
+}
 impl<const N: usize> MultilinearZipCommitment<N> {
+    pub fn new(root: Output<Keccak256>) -> MultilinearZipCommitment<N> {
+        MultilinearZipCommitment { root }
+    }
+    pub fn root(&self) -> Output<Keccak256> {
+        self.root
+    }
+}
+
+impl<const N: usize> MultilinearZipData<N> {
     pub fn new(
         rows: Vec<I512>,
         intermediate_hashes: Vec<Output<Keccak256>>,
         root: Output<Keccak256>,
-    ) -> MultilinearZipCommitment<N> {
-        MultilinearZipCommitment {
+    ) -> MultilinearZipData<N> {
+        MultilinearZipData {
             rows,
             intermediate_hashes,
             root,
@@ -84,7 +98,7 @@ impl<const N: usize> MultilinearZipCommitment<N> {
     }
 }
 
-impl<const N: usize> AsRef<[Output<Keccak256>]> for MultilinearZipCommitment<N> {
+impl<const N: usize> AsRef<[Output<Keccak256>]> for MultilinearZipData<N> {
     fn as_ref(&self) -> &[Output<Keccak256>] {
         slice::from_ref(&self.root)
     }
@@ -108,6 +122,7 @@ where
     pub type ProverParam = MultilinearZipParams<N>;
     pub type VerifierParam = MultilinearZipParams<N>;
     pub type Polynomial = DenseMultilinearExtension;
+    pub type Data = MultilinearZipData<N>;
     pub type Commitment = MultilinearZipCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 

@@ -458,7 +458,7 @@ mod tests {
     #[macro_export]
     macro_rules! create_random_field {
         ($config:expr, $value:expr) => {{
-            use crate::field::conversion::FieldMap;
+            use $crate::field::conversion::FieldMap;
             create_bigint!($value).map_to_field($config)
         }};
     }

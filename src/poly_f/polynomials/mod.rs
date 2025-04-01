@@ -1,3 +1,4 @@
+pub(crate) mod dense_interleaved_polynomial;
 mod errors;
 mod multilinear_polynomial;
 mod util;

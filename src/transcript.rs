@@ -1,7 +1,9 @@
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+    biginteger::BigInt,
+    field::{conversion::FieldMap, RandomField},
+    field_config::FieldConfig,
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -80,7 +82,7 @@ impl KeccakTranscript {
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge = RandomField::from(truncated_lo);
+            let mut challenge = truncated_lo.map_to_field(config);
             challenge.set_config(config);
             return challenge;
         }
@@ -89,17 +91,15 @@ impl KeccakTranscript {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge = RandomField::from(truncated_lo);
+            let mut challenge = truncated_lo.map_to_field(config);
             challenge.set_config(config);
             challenge
         } else if challenge_num_bits >= 256 {
-            let two_to_128 = RandomField::from_bigint(
-                config,
-                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
-            )
-            .unwrap();
+            let two_to_128 =
+                BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+                    .map_to_field(config);
 
-            let mut challenge = RandomField::from(lo) + two_to_128 * RandomField::from(hi);
+            let mut challenge = lo.map_to_field(config) + two_to_128 * hi.map_to_field(config);
             challenge.set_config(config);
             challenge
         } else {
@@ -108,12 +108,11 @@ impl KeccakTranscript {
 
             let truncated_hi = hi & hi_mask;
 
-            let two_to_128 = RandomField::from_bigint(
-                config,
-                BigInt::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>()),
-            )
-            .unwrap();
-            let mut ret = RandomField::from(lo) + two_to_128 * RandomField::from(truncated_hi);
+            let two_to_128 =
+                BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+                    .map_to_field(config);
+
+            let mut ret = lo.map_to_field(config) + two_to_128 * truncated_hi.map_to_field(config);
             ret.set_config(config);
             ret
         }
@@ -187,7 +186,7 @@ impl ZipTranscript for KeccakTranscript {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
+    use crate::{biginteger::BigInt, field::conversion::FieldMap, field_config::FieldConfig};
 
     use super::KeccakTranscript;
 
@@ -204,16 +203,12 @@ mod tests {
         transcript.absorb(b"This is a test string!");
         let challenge = transcript.get_challenge(&field_config);
 
-        assert_eq!(
-            challenge,
-            RandomField::from_bigint(
-                &field_config,
-                BigInt::from_str(
-                    "693058076479703886486101269644733982722902192016595549603371045888466087870"
-                )
-                .unwrap()
-            )
-            .unwrap()
-        );
+        let expected_bigint = BigInt::<32>::from_str(
+            "693058076479703886486101269644733982722902192016595549603371045888466087870",
+        )
+        .unwrap();
+        let expected_field = expected_bigint.map_to_field(&field_config);
+
+        assert_eq!(challenge, expected_field);
     }
 }

@@ -8,6 +8,7 @@ use ark_ff::{One, UniformRand, Zero};
 use ark_std::{log2, rand};
 
 use crate::ccs::error::CSError as Error;
+use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
 use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
@@ -239,7 +240,7 @@ impl<const N: usize> Instance_F<N> for Statement_F<N> {
         let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
-        z.push(RandomField::from_bigint(config, 1u32.into()).unwrap());
+        z.push(1u32.map_to_field(config));
         z.extend_from_slice(w);
 
         z
@@ -253,11 +254,7 @@ pub fn to_F_matrix<const N: usize>(
 ) -> SparseMatrix<RandomField<N>> {
     dense_matrix_to_sparse(
         M.iter()
-            .map(|m| {
-                m.iter()
-                    .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
-                    .collect()
-            })
+            .map(|m| m.iter().map(|c| (*c as u64).map_to_field(config)).collect())
             .collect(),
     )
 }
@@ -268,24 +265,20 @@ pub fn to_F_dense_matrix<const N: usize>(
     M: Vec<Vec<usize>>,
 ) -> Vec<Vec<RandomField<N>>> {
     M.iter()
-        .map(|m| {
-            m.iter()
-                .map(|c| RandomField::from_bigint(config, (*c as u64).into()).unwrap())
-                .collect()
-        })
+        .map(|m| m.iter().map(|c| (*c as u64).map_to_field(config)).collect())
         .collect()
 }
 
 /// Returns a vector of field elements given a vector of unsigned ints
 pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
-    z.iter()
-        .map(|c| RandomField::from_bigint(config, (*c).into()).unwrap())
-        .collect()
+    z.iter().map(|c| (*c).map_to_field(config)).collect()
 }
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
     use std::ops::Neg;
+
+    use crate::field::conversion::FieldMap;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -301,10 +294,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
         s: log2(m) as usize,
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
-        c: vec![
-            RandomField::from_bigint(config, 1u32.into()).unwrap(),
-            RandomField::from_bigint(config, 1u32.into()).unwrap().neg(),
-        ],
+        c: vec![1u32.map_to_field(config), (1u32.map_to_field(config)).neg()],
         config: AtomicPtr::new(config as *mut FieldConfig<N>),
     }
 }

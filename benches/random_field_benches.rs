@@ -8,6 +8,7 @@ use criterion::{
 };
 use std::iter::{Product, Sum};
 use std::str::FromStr;
+use zinc::field::conversion::FieldMap;
 
 use zinc::{biginteger::BigInteger256, field::RandomField, field_config::FieldConfig};
 
@@ -17,7 +18,7 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
 
     let bigint = BigInteger256::from_str("695962179703").unwrap();
 
-    let field_elem = RandomField::from_bigint(&field_config, bigint).unwrap();
+    let field_elem = bigint.map_to_field(&field_config);
     group.bench_with_input(
         BenchmarkId::new("Multiply", "Random128BitFieldElement"),
         &field_elem,

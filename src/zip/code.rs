@@ -2,6 +2,7 @@
 use ark_ff::Zero;
 use i256::{I256, I512};
 
+use crate::field::conversion::FieldMap;
 use crate::field::RandomField as F;
 use crate::field_config::FieldConfig;
 
@@ -225,7 +226,7 @@ impl<const N: usize> SparseMatrixF<N> {
         let cells_f: Vec<(usize, F<N>)> = sparse_matrix
             .cells
             .iter()
-            .map(|(col_index, val)| (*col_index, F::from_i128(*val, config)))
+            .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
             .collect();
         Self {
             dimension: sparse_matrix.dimension,

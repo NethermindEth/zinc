@@ -1,5 +1,6 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref, non_snake_case)]
 
+use crate::field::conversion::FieldMap;
 use ark_ff::UniformRand;
 
 use crate::{
@@ -239,7 +240,7 @@ pub fn rand_with_config<const N: usize, R: ark_std::rand::Rng + ?Sized>(
         }
 
         if value < modulus {
-            return RandomField::from_bigint(config, value).unwrap();
+            return value.map_to_field(config);
         }
     }
 }
@@ -429,11 +430,15 @@ mod tests {
     #[macro_export]
     macro_rules! create_field_config {
         ($N:expr, $modulus:expr) => {{
-            FieldConfig::<$N>::new(BigInt::<$N>::from_str(stringify!($modulus)).unwrap())
+            let bigint = BigInt::<$N>::from_str(stringify!($modulus))
+                .expect("Failed to parse modulus into BigInt");
+            FieldConfig::<$N>::new(bigint)
         }};
 
         ($modulus:expr) => {{
-            FieldConfig::<1>::new(BigInt::<1>::from_str(stringify!($modulus)).unwrap())
+            let bigint = BigInt::<1>::from_str(&$modulus.to_string())
+                .expect("Failed to parse modulus into BigInt");
+            FieldConfig::<1>::new(bigint)
         }};
     }
 
@@ -445,7 +450,7 @@ mod tests {
         }};
 
         ($value:expr) => {{
-            BigInt::from_str(stringify!($value)).unwrap()
+            BigInt::<1>::from_str(stringify!($value)).unwrap()
         }};
     }
 
@@ -453,7 +458,8 @@ mod tests {
     #[macro_export]
     macro_rules! create_random_field {
         ($config:expr, $value:expr) => {{
-            RandomField::from_bigint($config, create_bigint!($value)).unwrap()
+            use $crate::field::conversion::FieldMap;
+            create_bigint!($value).map_to_field($config)
         }};
     }
 

@@ -19,8 +19,7 @@ use ark_std::{
 use rayon::iter::*;
 
 use crate::{
-    biginteger::BigInt,
-    field::{rand_with_config, RandomField},
+    field::{conversion::FieldMap, rand_with_config, RandomField},
     field_config::FieldConfig,
     poly_f::{
         mle::DenseMultilinearExtension,
@@ -42,7 +41,7 @@ pub fn rand_poly<const N: usize>(
     ),
     ArithErrors,
 > {
-    let mut sum = RandomField::from_bigint(config, BigInt::zero()).unwrap();
+    let mut sum = 0u64.map_to_field(config);
     let mut mles = vec![];
     let mut products = Vec::with_capacity(num_products);
     let mut degree = 0;
@@ -74,7 +73,7 @@ pub fn rand_poly_comb_fn<const N: usize>(
     products: &[(RandomField<N>, Vec<usize>)],
     config: &FieldConfig<N>,
 ) -> RandomField<N> {
-    let mut result = RandomField::from_bigint(config, BigInt::zero()).unwrap();
+    let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
         let mut term = *coef;
         for &i in indices {

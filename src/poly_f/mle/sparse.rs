@@ -1,6 +1,7 @@
 use ark_ff::{UniformRand, Zero};
 
 use crate::biginteger::BigInt;
+use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
 use crate::sparse_matrix::SparseMatrix;
 use ark_std::rand::Rng;
@@ -429,7 +430,7 @@ fn precompute_eq<const N: usize>(
 ) -> Vec<RandomField<N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
-    dp[0] = RandomField::from_bigint(config, BigInt::<N>::one()).unwrap() - g[0];
+    dp[0] = BigInt::<N>::one().map_to_field(config) - g[0];
     dp[1] = g[0];
     for i in 1..dim {
         for b in 0..1 << i {
@@ -444,8 +445,6 @@ fn precompute_eq<const N: usize>(
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use crate::biginteger::BigInt;
-
     use super::*;
 
     use ark_ff::Zero;
@@ -461,9 +460,9 @@ mod tests {
 
         for _ in 0..dimensions {
             if (current & 1) == 1 {
-                bits.push(RandomField::from_bigint(config, BigInt::<N>::one()).unwrap());
+                bits.push(1u64.map_to_field(config));
             } else {
-                bits.push(RandomField::from_bigint(config, BigInt::<N>::zero()).unwrap());
+                bits.push(0u64.map_to_field(config));
             }
             current >>= 1;
         }
@@ -482,12 +481,13 @@ mod tests {
     }
 
     fn vec_cast<const N: usize>(v: &[usize], config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
-        v.iter()
-            .map(|c| RandomField::<N>::from_bigint(config, BigInt::<N>::from(*c as u64)).unwrap())
-            .collect()
+        v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
     }
 
-    fn matrix_cast<const N: usize>(m: &[Vec<usize>]) -> SparseMatrix<RandomField<N>> {
+    fn matrix_cast<const N: usize>(
+        m: &[Vec<usize>],
+        config: *const FieldConfig<N>,
+    ) -> SparseMatrix<RandomField<N>> {
         let n_rows = m.len();
         let n_cols = m[0].len();
         let mut coeffs = Vec::with_capacity(n_rows);
@@ -495,7 +495,7 @@ mod tests {
             let mut row_coeffs = Vec::with_capacity(n_cols);
             for (col_i, &val) in row.iter().enumerate() {
                 if val != 0 {
-                    row_coeffs.push((RandomField::<N>::from(val as u64), col_i));
+                    row_coeffs.push(((val as u64).map_to_field(config), col_i));
                 }
             }
             coeffs.push(row_coeffs);
@@ -529,24 +529,30 @@ mod tests {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
         let config_ptr: *const FieldConfig<1> = &config;
-        let A = matrix_cast::<N>(&[
-            vec![2, 3, 4, 4],
-            vec![4, 11, 14, 14],
-            vec![2, 8, 17, 17],
-            vec![420, 4, 2, 0],
-        ]);
+        let A = matrix_cast::<N>(
+            &[
+                vec![2, 3, 4, 4],
+                vec![4, 11, 14, 14],
+                vec![2, 8, 17, 17],
+                vec![420, 4, 2, 0],
+            ],
+            config_ptr,
+        );
 
         let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
         assert_eq!(A_mle.evaluations.len(), 15); // 15 non-zero elements
         assert_eq!(A_mle.num_vars, 4); // 4x4 matrix, thus 2bit x 2bit, thus 2^4=16 evals
 
-        let A = matrix_cast::<N>(&[
-            vec![2, 3, 4, 4, 1],
-            vec![4, 11, 14, 14, 2],
-            vec![2, 8, 17, 17, 3],
-            vec![420, 4, 2, 0, 4],
-            vec![420, 4, 2, 0, 5],
-        ]);
+        let A = matrix_cast::<N>(
+            &[
+                vec![2, 3, 4, 4, 1],
+                vec![4, 11, 14, 14, 2],
+                vec![2, 8, 17, 17, 3],
+                vec![420, 4, 2, 0, 4],
+                vec![420, 4, 2, 0, 5],
+            ],
+            config_ptr,
+        );
         let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
         assert_eq!(A_mle.evaluations.len(), 23); // 23 non-zero elements
         assert_eq!(A_mle.num_vars, 6); // 5x5 matrix, thus 3bit x 3bit, thus 2^6=64 evals

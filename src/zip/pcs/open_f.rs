@@ -8,7 +8,7 @@ use itertools::izip;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field::RandomField as F,
+    field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
@@ -32,8 +32,10 @@ where
     pub fn open_f(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
+
         comm: &Self::Data,
         point: &[F<N>],
+
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<Vec<Output<Keccak256>>, Error> {
@@ -71,8 +73,10 @@ where
     pub fn batch_open_f<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
+
         comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
         points: &[Vec<F<N>>],
+
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
@@ -123,7 +127,7 @@ where
         let evaluations: Vec<F<N>> = poly
             .evaluations
             .iter()
-            .map(|i| F::from_i64(*i, field).unwrap())
+            .map(|i| i.map_to_field(field))
             .collect();
 
         let t_0_combined_row = if num_rows > 1 {

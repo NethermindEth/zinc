@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use self::verifier::SubClaim;
 use crate::{
-    field::RandomField,
+    field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
     poly_f::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
     transcript::KeccakTranscript as Transcript,
@@ -56,13 +56,19 @@ impl<const N: usize> MLSumcheck<N> {
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
         config: *const FieldConfig<N>,
     ) -> (SumcheckProof<N>, ProverState<N>) {
-        if N == 1 {
-            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u64));
-            transcript.absorb_random_field::<N>(&RandomField::from(degree as u64));
+        let (nvars_field, degree_field) = if N == 1 {
+            (
+                (nvars as u64).map_to_field(config),
+                (degree as u64).map_to_field(config),
+            )
         } else {
-            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
-            transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
-        }
+            (
+                (nvars as u128).map_to_field(config),
+                (degree as u128).map_to_field(config),
+            )
+        };
+        transcript.absorb_random_field::<N>(&nvars_field);
+        transcript.absorb_random_field::<N>(&degree_field);
         let mut prover_state = IPForMLSumcheck::prover_init(mles, nvars, degree);
         let mut verifier_msg = None;
         let mut prover_msgs = Vec::with_capacity(nvars);
@@ -94,13 +100,19 @@ impl<const N: usize> MLSumcheck<N> {
         proof: &SumcheckProof<N>,
         config: *const FieldConfig<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
-        if N == 1 {
-            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u64));
-            transcript.absorb_random_field::<N>(&RandomField::from(degree as u64));
+        let (nvars_field, degree_field) = if N == 1 {
+            (
+                (nvars as u64).map_to_field(config),
+                (degree as u64).map_to_field(config),
+            )
         } else {
-            transcript.absorb_random_field::<N>(&RandomField::from(nvars as u128));
-            transcript.absorb_random_field::<N>(&RandomField::from(degree as u128));
-        }
+            (
+                (nvars as u128).map_to_field(config),
+                (degree as u128).map_to_field(config),
+            )
+        };
+        transcript.absorb_random_field::<N>(&nvars_field);
+        transcript.absorb_random_field::<N>(&degree_field);
         let mut verifier_state = IPForMLSumcheck::verifier_init(nvars, degree, config);
         for i in 0..nvars {
             let prover_msg = proof.0.get(i).expect("proof is incomplete");

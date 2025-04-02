@@ -71,7 +71,7 @@ pub fn rand_poly<const N: usize>(
 pub fn rand_poly_comb_fn<const N: usize>(
     vals: &[RandomField<N>],
     products: &[(RandomField<N>, Vec<usize>)],
-    config: &FieldConfig<N>,
+    config: *const FieldConfig<N>,
 ) -> RandomField<N> {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {

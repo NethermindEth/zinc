@@ -744,7 +744,7 @@ mod tests {
 
     #[test]
     fn test_signed_integers_field_map() {
-        let field_1 = 18446744069414584321 as u64;
+        let field_1 = 18446744069414584321_u64;
         let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
 
         // Test primitive types with full range
@@ -830,7 +830,7 @@ mod tests {
 
     #[test]
     fn test_unsigned_integers_field_map() {
-        let field_1 = 18446744069414584321 as u64;
+        let field_1 = 18446744069414584321_u64;
         let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
 
         // Test small types with full range
@@ -942,7 +942,7 @@ mod bigint_field_map_tests {
         let config_ptr = &config as *const _;
 
         let value = BigInt::<2>::from_str("12345").unwrap();
-        let result = (&value).map_to_field(config_ptr);
+        let result = value.map_to_field(config_ptr);
         let direct_result = value.map_to_field(config_ptr);
 
         assert_eq!(

@@ -33,7 +33,7 @@ where
         transcript.read_commitments(num_polys).map(|roots| {
             roots
                 .into_iter()
-                .map(MultilinearZipCommitment::from_root)
+                .map(MultilinearZipCommitment::new)
                 .collect_vec()
         })
     }
@@ -157,7 +157,7 @@ where
             output = hasher.clone().finalize();
             hasher.reset();
         }
-        if &output != comm.root() {
+        if output != comm.root() {
             return Err(Error::InvalidPcsOpen(
                 "Invalid merkle tree opening".to_string(),
             ));

@@ -58,7 +58,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
     let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let commitment = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+    let (data, _) = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
@@ -72,7 +72,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                     let _ = MultilinearZip::<N, B, T>::open_z(
                         &params,
                         &poly,
-                        &commitment,
+                        &data,
                         &point,
                         field_config,
                         &mut transcript,
@@ -99,7 +99,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let commitment = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+    let (data, commitment) = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
@@ -107,7 +107,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let _ = MultilinearZip::<N, B, T>::open_z(
         &params,
         &poly,
-        &commitment,
+        &data,
         &point,
         field_config,
         &mut transcript,

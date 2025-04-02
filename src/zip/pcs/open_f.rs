@@ -20,7 +20,7 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
     utils::point_to_tensor_f,
 };
 
@@ -32,7 +32,7 @@ where
     pub fn open_f(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-        comm: &Self::Commitment,
+        comm: &Self::Data,
         point: &[RandomField<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
@@ -71,7 +71,7 @@ where
     pub fn batch_open_f<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
         points: &[Vec<RandomField<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,

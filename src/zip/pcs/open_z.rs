@@ -18,7 +18,7 @@ use crate::{
 };
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
     utils::{point_to_tensor_z, validate_input},
 };
 
@@ -30,7 +30,7 @@ where
     pub fn open_z(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-        comm: &Self::Commitment,
+        comm: &Self::Data,
         point: &Vec<i64>,
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
@@ -69,7 +69,7 @@ where
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
         points: &[Vec<i64>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
@@ -122,7 +122,7 @@ where
         transcript: &mut PcsTranscript<N>,
 
         codeword_len: usize,
-        comm: &Self::Commitment,
+        comm: &Self::Data,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         for _ in 0..num_col_opening {

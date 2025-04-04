@@ -95,4 +95,32 @@ impl<const N: usize> QuarkGrandProduct<N> {
     fn num_layers(&self) -> usize {
         self.base_layers.len()
     }
+
+    /// The claimed outputs of the grand products.
+    fn claimed_outputs(&self) -> Vec<F<N>> {
+        if let Some(quark_poly) = &self.quark_poly {
+            let chunk_size = quark_poly.len() / self.batch_size;
+            quark_poly
+                .chunks(chunk_size)
+                .map(|chunk| chunk.iter().product())
+                .collect()
+        } else {
+            let top_layer = &self.base_layers[self.base_layers.len() - 1];
+            top_layer
+                .chunks(2)
+                .map(|chunk| chunk[0] * chunk[1])
+                .collect()
+        }
+    }
+
+    /// Returns an iterator over the layers of this batched grand product circuit.
+    /// Each layer is mutable so that its polynomials can be bound over the course
+    /// of proving.
+    fn layers(&'_ mut self) -> impl Iterator<Item = &'_ mut DenseInterleavedPolynomial<N>> {
+        self.base_layers.iter_mut().map(|layer| layer).rev()
+    }
+
+    fn quark_poly(&self) -> Option<&[F<N>]> {
+        self.quark_poly.as_deref()
+    }
 }

@@ -3,9 +3,10 @@
 
 // Adapted for rings by Nethermind
 
+use ark_ff::Zero;
 use ark_std::{log2, vec::*};
 
-use crate::field::RandomField;
+use crate::field::RandomField as F;
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -20,16 +21,37 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<const N: usize>(
-    index: usize,
-    index_len: usize,
-    point: &[RandomField<N>],
-) -> Vec<RandomField<N>> {
-    let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
+pub fn gen_eval_point<const N: usize>(index: usize, index_len: usize, point: &[F<N>]) -> Vec<F<N>> {
+    let index_vec: Vec<F<N>> = bit_decompose(index as u64, index_len)
         .into_iter()
-        .map(RandomField::from)
+        .map(F::from)
         .collect();
     [point, &index_vec].concat()
+}
+pub fn unsafe_allocate_zero_vec<const N: usize>(size: usize) -> Vec<F<N>> {
+    // https://stackoverflow.com/questions/59314686/how-to-efficiently-create-a-large-vector-of-items-initialized-to-the-same-value
+
+    // Check for safety of 0 allocation
+    unsafe {
+        let value = &F::zero();
+        let ptr = value as *const F<N> as *const u8;
+        let bytes = std::slice::from_raw_parts(ptr, std::mem::size_of::<F<N>>());
+        assert!(bytes.iter().all(|&byte| byte == 0));
+    }
+
+    // Bulk allocate zeros, unsafely
+    let result: Vec<F<N>>;
+    unsafe {
+        let layout = std::alloc::Layout::array::<F<N>>(size).unwrap();
+        let ptr = std::alloc::alloc_zeroed(layout) as *mut F<N>;
+
+        if ptr.is_null() {
+            panic!("Zero vec allocation failed");
+        }
+
+        result = Vec::from_raw_parts(ptr, size, size);
+    }
+    result
 }
 
 /// Return the number of variables that one need for an MLE to

@@ -9,7 +9,7 @@ use crate::{
             MultilinearBrakedown, MultilinearBrakedownCommitment, MultilinearBrakedownParams,
         },
     },
-    field::RandomField  as F,
+    field::RandomField as F,
     field_config::FieldConfig,
     lookup::Math,
     poly_f::{
@@ -195,6 +195,9 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
         let v_length = v.len();
         let v_variables = v_length.log_2();
 
+        let v_polynomial =
+            DenseMultilinearExtension::from_evaluations_vec(v_variables, v.to_vec(), config);
+
         let (g_polynomial, f_x_0, f_x_1) = v_into_f_s(v, config);
         let mut sumcheck_polys = vec![g_polynomial.clone(), f_x_0, f_x_1];
 
@@ -266,6 +269,24 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
         );
         let r_sumcheck = prover_state.randomness;
 
+        let (r_1, r_prime) = r_sumcheck.split_at(1);
+
+        let ((reduce_opening_point_g, reduce_opening_g), (d_r_prime_0, d_r_prime_1)) =
+            line_reduce(r_prime, &g_polynomial, transcript, config);
+
+        let ((reduced_opening_point_v, reduced_opening_v), v_r_prime) =
+            line_reduce(r_prime, &v_polynomial, transcript, config);
+
+        let quark_proof = Self {
+            sumcheck_proof: sum_check_proof,
+            g_commitment: g_commitment,
+            g_r_sumcheck: r_sumcheck[0],
+            g_r_prime: (d_r_prime_0, d_r_prime_1),
+            v_r_prime: v_r_prime,
+            num_vars: v_variables,
+            _brakedown_marker: PhantomData,
+        };
+
         todo!()
     }
 }
@@ -313,11 +334,11 @@ fn v_into_f_s<const N: usize>(
     )
 }
 
-// This is a special case of the line reduction protocol fot the case where we are opening 
+// This is a special case of the line reduction protocol fot the case where we are opening
 // a random which is wither 0 or 1 in the last position.
 // In this case the interpolated line function is constant in all other points except the last one
 // By picking 0 and 1 as the points we interpolated at we can treat the evals of f(r, 0) and f(r, 1)
-// as implicitly defining the line t * f(r, 0) + (t-1) * f(r, 1) and so the evals data alone 
+// as implicitly defining the line t * f(r, 0) + (t-1) * f(r, 1) and so the evals data alone
 // is sufficient to calculate the claimed line, then we sample a random calue r_star and do an opening prood
 // on (r_star - 1) * f(r, 0) + r_star * f(r, 1) in the commitment to f.
 fn line_reduce<const N: usize>(
@@ -325,10 +346,7 @@ fn line_reduce<const N: usize>(
     polynomial: &DenseMultilinearExtension<N>,
     transcript: &mut KeccakTranscript,
     config: *const FieldConfig<N>,
-) -> (
-    (Vec<F<N>>, F<N>),
-    (F<N>, F<N>),
-) {
+) -> ((Vec<F<N>>, F<N>), (F<N>, F<N>)) {
     let mut r_0 = r.to_vec();
     let mut r_1 = r.to_vec();
     r_0.push(F::zero());

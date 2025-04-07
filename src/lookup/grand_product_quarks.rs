@@ -289,6 +289,33 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
 
         todo!()
     }
+
+    pub fn verify(
+        &self,
+        r_outputs: &[F<N>],
+        claim: F<N>,
+        params: &MultilinearBrakedownParams<N>,
+        transcript: &mut KeccakTranscript,
+        n_rounds: usize,
+        config: *const FieldConfig<N>,
+    ) -> (F<N>, Vec<F<N>>) {
+        transcript.absorb(self.g_commitment.root()); // TODO: add intermediate hashes?
+        let tau = transcript.get_challenges(n_rounds, config);
+
+        let sc_proof = MLSumcheck::verify_as_subprotocol(
+            transcript,
+            n_rounds,
+            3,
+            claim,
+            &self.sumcheck_proof,
+            config,
+        )
+        .expect("Sumcheck proof failed");
+
+        let r_1 = sc_proof.point[0];
+        let r_prime = sc_proof.point[1..].to_vec();
+        todo!()
+    }
 }
 
 /// Computes the polyynomials f(1, x) f(x, 0), and f(x, 1) from the v polynomial,

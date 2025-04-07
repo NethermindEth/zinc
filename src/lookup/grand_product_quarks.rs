@@ -9,7 +9,7 @@ use crate::{
             MultilinearBrakedown, MultilinearBrakedownCommitment, MultilinearBrakedownParams,
         },
     },
-    field::RandomField,
+    field::RandomField  as F,
     field_config::FieldConfig,
     lookup::Math,
     poly_f::{
@@ -25,15 +25,15 @@ use super::grand_product::GrandProductProof;
 pub struct QuarkGrandProductProof<const N: usize, S: BrakedownSpec> {
     sumcheck_proof: SumcheckProof<N>,
     g_commitment: MultilinearBrakedownCommitment<N>,
-    g_r_sumcheck: RandomField<N>,
-    g_r_prime: (RandomField<N>, RandomField<N>),
-    v_r_prime: (RandomField<N>, RandomField<N>),
+    g_r_sumcheck: F<N>,
+    g_r_prime: (F<N>, F<N>),
+    v_r_prime: (F<N>, F<N>),
     pub num_vars: usize,
     _brakedown_marker: PhantomData<S>,
 }
 pub struct QuarkGrandProduct<const N: usize, S: BrakedownSpec> {
     batch_size: usize,
-    quark_poly: Option<Vec<RandomField<N>>>,
+    quark_poly: Option<Vec<F<N>>>,
     base_layers: Vec<DenseInterleavedPolynomial<N>>,
     _brakedown_marker: PhantomData<S>,
 }
@@ -67,7 +67,7 @@ impl QuarkHybridLayerDepth {
 impl<const N: usize, S: BrakedownSpec> QuarkGrandProduct<N, S> {
     /// The bottom/input layer of the grand products
     // (leaf values, batch size)
-    type Leaves = (Vec<RandomField<N>>, usize);
+    type Leaves = (Vec<F<N>>, usize);
     type Config = QuarkGrandProductConfig;
 
     fn construct_with_config(leaves: Self::Leaves, config: Self::Config) -> Self {
@@ -119,7 +119,7 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProduct<N, S> {
     }
 
     /// The claimed outputs of the grand products.
-    fn claimed_outputs(&self) -> Vec<RandomField<N>> {
+    fn claimed_outputs(&self) -> Vec<F<N>> {
         if let Some(quark_poly) = &self.quark_poly {
             let chunk_size = quark_poly.len() / self.batch_size;
             quark_poly
@@ -142,19 +142,19 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProduct<N, S> {
         self.base_layers.iter_mut().map(|layer| layer).rev()
     }
 
-    fn quark_poly(&self) -> Option<&[RandomField<N>]> {
+    fn quark_poly(&self) -> Option<&[F<N>]> {
         self.quark_poly.as_deref()
     }
 
-    fn prove_grand_product(&mut self) -> (GrandProductProof<N, S>, Vec<RandomField<N>>) {
+    fn prove_grand_product(&mut self) -> (GrandProductProof<N, S>, Vec<F<N>>) {
         todo!()
     }
 
     fn verify_grand_product(
         &self,
         proof: &GrandProductProof<N, S>,
-        claimed_outputs: &[RandomField<N>],
-    ) -> (RandomField<N>, Vec<RandomField<N>>) {
+        claimed_outputs: &[F<N>],
+    ) -> (F<N>, Vec<F<N>>) {
         todo!()
     }
 }
@@ -166,14 +166,14 @@ pub struct QuarkGrandProductBase<const N: usize, S: BrakedownSpec> {
 impl<const N: usize, S: BrakedownSpec> QuarkGrandProductBase<N, S> {
     pub fn prove_quark_grand_product(
         grand_product: &QuarkGrandProduct<N, S>,
-    ) -> (GrandProductProof<N, S>, Vec<RandomField<N>>) {
+    ) -> (GrandProductProof<N, S>, Vec<F<N>>) {
         todo!()
     }
 
     pub fn verify_quark_grand_product(
         proof: &GrandProductProof<N, S>,
-        claimed_outputs: &[RandomField<N>],
-    ) -> (RandomField<N>, Vec<RandomField<N>>) {
+        claimed_outputs: &[F<N>],
+    ) -> (GrandProductProof<N, S>, Vec<F<N>>) {
         todo!()
     }
 }
@@ -185,13 +185,13 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
     /// Finally - computes opening proofs for a random sampled during sumcheck proof and returns
     /// Returns a random point and evaluation to be verified by the caller (which our hybrid prover does with GKR)
     fn prove(
-        v: &[RandomField<N>],
-        r_outputs: &[RandomField<N>],
-        claim: RandomField<N>,
+        v: &[F<N>],
+        r_outputs: &[F<N>],
+        claim: F<N>,
         transcript: &mut KeccakTranscript,
         params: &MultilinearBrakedownParams<N>,
         config: *const FieldConfig<N>,
-    ) -> (Self, Vec<RandomField<N>>, RandomField<N>) {
+    ) -> (Self, Vec<F<N>>, F<N>) {
         let v_length = v.len();
         let v_variables = v_length.log_2();
 
@@ -234,10 +234,10 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
         // product of its input values f(x, 0) and f(x, 1).
 
         // First we compute EQ(1, ..., 1, 0, r_outputs, x)
-        let mut one_padded_r_outputs = vec![RandomField::<N>::one(); v_variables];
+        let mut one_padded_r_outputs = vec![F::<N>::one(); v_variables];
         let slice_index = one_padded_r_outputs.len() - r_outputs.len();
         one_padded_r_outputs[slice_index..].copy_from_slice(r_outputs);
-        one_padded_r_outputs[slice_index - 1] = RandomField::<N>::zero();
+        one_padded_r_outputs[slice_index - 1] = F::<N>::zero();
         let eq_output = build_eq_x_r(&one_padded_r_outputs, config).unwrap(); // TODO: Check this
 
         // We add eq_output as the last polynomial in the sumcheck
@@ -245,7 +245,7 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
 
         // This is the sumcheck polynomial
         // EQ(\tau, x) * (f(1, x) - f(x, 0) * f(x, 1)) + EQ(1, ..., 1, 0, r_outputs, x) * f(1, x)
-        let output_check_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
+        let output_check_fn = |vals: &[F<N>]| -> F<N> {
             let f_1x = vals[0];
             let f_x0 = vals[1];
             let f_x1 = vals[2];
@@ -273,7 +273,7 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProductProof<N, S> {
 /// Computes the polyynomials f(1, x) f(x, 0), and f(x, 1) from the v polynomial,
 /// as described in Lemma 5.1 of the Quarks paper.
 fn v_into_f_s<const N: usize>(
-    v_evals: &[RandomField<N>],
+    v_evals: &[F<N>],
     config: *const FieldConfig<N>,
 ) -> (
     DenseMultilinearExtension<N>,
@@ -283,7 +283,7 @@ fn v_into_f_s<const N: usize>(
     let v_length = v_evals.len();
     assert!(v_length.is_power_of_two(), "Is this already assured?"); // TODO: Check this
     let v_variables = v_length.log_2();
-    let mut f_evals = vec![RandomField::<N>::zero(); 2 * v_length];
+    let mut f_evals = vec![F::<N>::zero(); 2 * v_length];
     f_evals[..v_length].copy_from_slice(v_evals);
 
     for i in v_length..2 * v_length {
@@ -296,8 +296,8 @@ fn v_into_f_s<const N: usize>(
     // We pull out the coefficient which instantiate the lower d polys for the sumcheck
     let f_1_x = f_evals[v_length..].to_vec();
 
-    let mut f_x_0: Vec<RandomField<N>> = Vec::new();
-    let mut f_x_1: Vec<RandomField<N>> = Vec::new();
+    let mut f_x_0: Vec<F<N>> = Vec::new();
+    let mut f_x_1: Vec<F<N>> = Vec::new();
     for (i, &x) in f_evals.iter().enumerate() {
         if i % 2 == 0 {
             f_x_0.push(x);

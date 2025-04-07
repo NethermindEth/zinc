@@ -312,3 +312,43 @@ fn v_into_f_s<const N: usize>(
         DenseMultilinearExtension::from_evaluations_vec(v_variables, f_1_x, config),
     )
 }
+
+// This is a special case of the line reduction protocol fot the case where we are opening 
+// a random which is wither 0 or 1 in the last position.
+// In this case the interpolated line function is constant in all other points except the last one
+// By picking 0 and 1 as the points we interpolated at we can treat the evals of f(r, 0) and f(r, 1)
+// as implicitly defining the line t * f(r, 0) + (t-1) * f(r, 1) and so the evals data alone 
+// is sufficient to calculate the claimed line, then we sample a random calue r_star and do an opening prood
+// on (r_star - 1) * f(r, 0) + r_star * f(r, 1) in the commitment to f.
+fn line_reduce<const N: usize>(
+    r: &[F<N>],
+    polynomial: &DenseMultilinearExtension<N>,
+    transcript: &mut KeccakTranscript,
+    config: *const FieldConfig<N>,
+) -> (
+    (Vec<F<N>>, F<N>),
+    (F<N>, F<N>),
+) {
+    let mut r_0 = r.to_vec();
+    let mut r_1 = r.to_vec();
+    r_0.push(F::zero());
+    r_1.push(F::one());
+
+    let opening_0 = polynomial.evaluate(&r_0, config).unwrap();
+    let opening_1 = polynomial.evaluate(&r_1, config).unwrap();
+
+    // We add these to the transcript then sample an r which depends on both
+    transcript.absorb_random_field(&opening_0);
+    transcript.absorb_random_field(&opening_1);
+    let rand = transcript.get_challenge(config);
+
+    // now calculate r* := r || rand
+    let mut r_star = r.to_vec();
+    r_star.push(rand);
+
+    // Now evaluate the polynomial at r_star
+    let opening_star: F<N> = polynomial.evaluate(&r_star, config).unwrap();
+    assert_eq!(opening_star, opening_0 + rand * (opening_1 - opening_0));
+
+    ((r_star, opening_star), (opening_0, opening_1))
+}

@@ -20,7 +20,7 @@ use crate::{
     transcript::KeccakTranscript,
 };
 
-use super::grand_product::GrandProductProof;
+use super::grand_product::BatchedGrandProductProof;
 
 pub struct QuarkGrandProductProof<const N: usize, S: BrakedownSpec> {
     sumcheck_proof: SumcheckProof<N>,
@@ -146,13 +146,13 @@ impl<const N: usize, S: BrakedownSpec> QuarkGrandProduct<N, S> {
         self.quark_poly.as_deref()
     }
 
-    fn prove_grand_product(&mut self) -> (GrandProductProof<N, S>, Vec<RandomField<N>>) {
+    fn prove_grand_product(&mut self) -> (BatchedGrandProductProof<N, S>, Vec<RandomField<N>>) {
         todo!()
     }
 
     fn verify_grand_product(
         &self,
-        proof: &GrandProductProof<N, S>,
+        proof: &BatchedGrandProductProof<N, S>,
         claimed_outputs: &[RandomField<N>],
     ) -> (RandomField<N>, Vec<RandomField<N>>) {
         todo!()
@@ -166,12 +166,12 @@ pub struct QuarkGrandProductBase<const N: usize, S: BrakedownSpec> {
 impl<const N: usize, S: BrakedownSpec> QuarkGrandProductBase<N, S> {
     pub fn prove_quark_grand_product(
         grand_product: &QuarkGrandProduct<N, S>,
-    ) -> (GrandProductProof<N, S>, Vec<RandomField<N>>) {
+    ) -> (BatchedGrandProductProof<N, S>, Vec<RandomField<N>>) {
         todo!()
     }
 
     pub fn verify_quark_grand_product(
-        proof: &GrandProductProof<N, S>,
+        proof: &BatchedGrandProductProof<N, S>,
         claimed_outputs: &[RandomField<N>],
     ) -> (RandomField<N>, Vec<RandomField<N>>) {
         todo!()

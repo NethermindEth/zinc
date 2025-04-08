@@ -234,6 +234,12 @@ impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<N> {
     }
 }
 
+impl<const N: usize> core::iter::Product<Self> for RandomField<N> {
+    fn product<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::one(), core::ops::Mul::mul)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{

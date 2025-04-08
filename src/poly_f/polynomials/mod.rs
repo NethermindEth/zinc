@@ -1,8 +1,9 @@
 pub(crate) mod dense_interleaved_polynomial;
+pub(crate) mod eq_poly;
 mod errors;
 mod multilinear_polynomial;
+pub(crate) mod split_eq_poly;
 mod util;
-
 //TODO add exports
 pub use errors::ArithErrors;
 pub use multilinear_polynomial::{

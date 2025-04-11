@@ -28,15 +28,40 @@ where
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
+        let num_rows = row_len; // since initially the coefficient matrix is square, row_len = num_rows
         let codeword_len = pp.zip().codeword_len();
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
+        // We deviate from the paper to merkleize each column instead of each row
+        let merkle_depth = num_rows.next_power_of_two().ilog2() as usize;
 
-        let mut hashes = vec![Output::<Keccak256>::default(); (2 << merkle_depth) - 1];
+        let mut hashes = vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
-        Self::compute_column_hashes(&mut hashes, codeword_len, &rows);
 
-        Self::merklize_column_hashes(merkle_depth, &mut hashes);
+
+        // Transpose rows into columns
+        let mut columns = vec![I512::default(); rows.len()];
+        for i in 0..pp.num_rows() {
+            for j in 0..codeword_len {
+                columns[j * pp.num_rows() + i] = rows[i * codeword_len + j];
+            }
+        }
+
+        // First compute all hashes
+        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows*codeword_len];
+        Self::compute_column_hashes(&mut temp_hashes, &columns);
+        
+        // Redistribute the hashes with proper spacing
+        for i in 0..num_rows {
+            let start_idx = i * ((2 << merkle_depth) - 1);
+            hashes[start_idx] = temp_hashes[i];
+        }
+
+        for i in 0..codeword_len {
+            let start_idx = i * ((2 << merkle_depth) - 1);
+            let end_idx = (i + 1) * ((2 << merkle_depth) - 1);
+            Self::merklize_column_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
+        }
+
 
         let (intermediate_hashes, root) = {
             let mut intermediate_hashes = hashes;
@@ -85,19 +110,16 @@ where
         encoded_rows
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], codeword_len: usize, rows: &[I512]) {
-        parallelize(&mut hashes[..codeword_len], |(hashes, start)| {
+    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], columns: &[I512]) {
+        // TODO:improve this without transposing the rows into columns
+        parallelize(hashes, |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, column) in hashes.iter_mut().zip(start..) {
-                rows.iter()
-                    .skip(column)
-                    .step_by(codeword_len)
-                    .for_each(|item| {
-                        <Keccak256 as sha3::digest::Update>::update(
-                            &mut hasher,
-                            &item.to_be_bytes(),
-                        )
-                    });
+                // For each column, iterate through all rows at that column position
+                <Keccak256 as sha3::digest::Update>::update(
+                    &mut hasher,
+                    &columns[column].to_be_bytes()
+                );
                 hasher.finalize_into_reset(hash);
             }
         });

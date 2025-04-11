@@ -61,16 +61,17 @@ where
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,
-
         poly: &Self::Polynomial,
     ) -> Vec<I512> {
-        let chunk_size = div_ceil(pp.num_rows(), num_threads());
+        assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
+        assert_eq!(codeword_len, row_len * 2);
+        let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
         let mut encoded_rows = vec![I512::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows
-                .chunks_exact_mut(chunk_size * codeword_len)
-                .zip(poly.evaluations.chunks_exact(chunk_size * row_len)),
+                .chunks_exact_mut(rows_per_thread * codeword_len)
+                .zip(poly.evaluations.chunks_exact(rows_per_thread * row_len)),
             |(encoded_chunk, evals)| {
                 for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)

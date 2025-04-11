@@ -55,7 +55,7 @@ impl<const N: usize> Zip<N> {
 
         let log2_q = N;
 
-        let row_len = num_vars.pow(2).isqrt().next_power_of_two();
+        let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
 
         let codeword_len = S::codeword_len(row_len);
 

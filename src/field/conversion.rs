@@ -166,6 +166,42 @@ impl_field_map_for_int!(i32, 32);
 impl_field_map_for_int!(i64, 64);
 impl_field_map_for_int!(i128, 128);
 
+macro_rules! impl_field_map_for_vec {
+    ($type:ty) => {
+        impl FieldMap for Vec<$type> {
+            type Output<const N: usize> = Vec<RandomField<N>>;
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
+                self.iter()
+                    .map(|x| x.map_to_field(config))
+                    .collect()
+            }
+        }
+
+        impl FieldMap for &Vec<$type> {
+            type Output<const N: usize> = Vec<RandomField<N>>;
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
+                self.iter()
+                    .map(|x| x.map_to_field(config))
+                    .collect()
+            }
+        }
+    };
+}
+
+impl_field_map_for_vec!(i8);
+impl_field_map_for_vec!(i16);
+impl_field_map_for_vec!(i32);
+impl_field_map_for_vec!(i64);
+impl_field_map_for_vec!(i128);
+impl_field_map_for_vec!(I256);
+
+
 // Separate implementation for I256
 impl FieldMap for I256 {
     type Output<const N: usize> = RandomField<N>;

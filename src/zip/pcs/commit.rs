@@ -33,10 +33,10 @@ where
         // We deviate from the paper to merkleize each column instead of each row
         let merkle_depth = num_rows.next_power_of_two().ilog2() as usize;
 
-        let mut hashes = vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
+        let mut hashes =
+            vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
-
 
         // Transpose rows into columns
         let mut columns = vec![I512::default(); rows.len()];
@@ -47,9 +47,9 @@ where
         }
 
         // First compute all hashes
-        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows*codeword_len];
+        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows * codeword_len];
         Self::compute_column_hashes(&mut temp_hashes, &columns);
-        
+
         // Redistribute the hashes with proper spacing
         for i in 0..num_rows {
             let start_idx = i * ((2 << merkle_depth) - 1);
@@ -61,7 +61,6 @@ where
             let end_idx = (i + 1) * ((2 << merkle_depth) - 1);
             Self::merklize_column_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
         }
-
 
         let (intermediate_hashes, root) = {
             let mut intermediate_hashes = hashes;
@@ -118,7 +117,7 @@ where
                 // For each column, iterate through all rows at that column position
                 <Keccak256 as sha3::digest::Update>::update(
                     &mut hasher,
-                    &columns[column].to_be_bytes()
+                    &columns[column].to_be_bytes(),
                 );
                 hasher.finalize_into_reset(hash);
             }

@@ -34,7 +34,8 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly)
+                        .expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -77,7 +78,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                         field_config,
                         &mut transcript,
                     )
-                    .unwrap();
+                    .expect("Failed to make opening");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32
@@ -129,7 +130,8 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                         eval,
                         &mut transcript,
                         field_config,
-                    );
+                    )
+                    .expect("Failed to verify");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32

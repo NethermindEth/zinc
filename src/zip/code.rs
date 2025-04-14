@@ -157,9 +157,19 @@ impl_spec_128!((ZipSpec1,));
 
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMatrixDimension {
-    n: usize,
-    m: usize,
-    d: usize,
+    n: usize, // number of rows
+    m: usize, // number of columns
+    d: usize, // number of non-zero elements per row
+}
+
+impl std::fmt::Display for SparseMatrixDimension {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}x{} matrix with {} non-zero elements per row",
+            self.n, self.m, self.d
+        )
+    }
 }
 
 impl SparseMatrixDimension {

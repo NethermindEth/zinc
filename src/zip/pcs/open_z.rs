@@ -86,7 +86,6 @@ where
         num_rows: usize,
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
-
         point: &[i64],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
@@ -116,7 +115,6 @@ where
         proof: &mut Vec<Output<Keccak256>>,
         num_col_opening: usize,
         transcript: &mut PcsTranscript<N>,
-
         codeword_len: usize,
         comm: &Self::Data,
         field: *const FieldConfig<N>,

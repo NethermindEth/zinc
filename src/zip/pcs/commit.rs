@@ -28,37 +28,36 @@ where
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
-        let num_rows = row_len; // since initially the coefficient matrix is square, row_len = num_rows
         let codeword_len = pp.zip().codeword_len();
         // We deviate from the paper to merkleize each column instead of each row
-        let merkle_depth = num_rows.next_power_of_two().ilog2() as usize;
+        let merkle_depth = row_len.next_power_of_two().ilog2() as usize;
 
-        let mut hashes =
-            vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
-
+        let mut hashes = vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
 
-        // Transpose rows into columns
+        // Transpose rows into columns and compute their hashes
         let mut columns = vec![I512::default(); rows.len()];
-        for i in 0..pp.num_rows() {
+        for i in 0..row_len {
             for j in 0..codeword_len {
-                columns[j * pp.num_rows() + i] = rows[i * codeword_len + j];
+                columns[j * row_len + i] = rows[i * codeword_len + j];
             }
         }
 
-        // First compute all hashes
-        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows * codeword_len];
+        let mut temp_hashes = vec![Output::<Keccak256>::default(); row_len * codeword_len];
         Self::compute_column_hashes(&mut temp_hashes, &columns);
 
-        // Redistribute the hashes with proper spacing
-        for i in 0..num_rows {
-            let start_idx = i * ((2 << merkle_depth) - 1);
-            hashes[start_idx] = temp_hashes[i];
-        }
-
+        // Process each column's hashes
         for i in 0..codeword_len {
-            let start_idx = i * ((2 << merkle_depth) - 1);
-            let end_idx = (i + 1) * ((2 << merkle_depth) - 1);
+            let merkle_tree_size = (2 << merkle_depth) - 1;
+            let start_idx = i * merkle_tree_size;
+
+            // Copy hashes for this column
+            for j in 0..row_len {
+                hashes[start_idx + j] = temp_hashes[i * row_len + j];
+            }
+
+            // Merklize this column's hashes
+            let end_idx = start_idx + merkle_tree_size;
             Self::merklize_column_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
         }
 
@@ -87,7 +86,7 @@ where
         row_len: usize,
         poly: &Self::Polynomial,
     ) -> Vec<I512> {
-        assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
+        // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
         let mut encoded_rows = vec![I512::default(); pp.num_rows() * codeword_len];

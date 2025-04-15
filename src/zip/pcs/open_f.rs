@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use ark_std::iterable::Iterable;
 use i256::I256;
 use itertools::izip;
-use sha3::{digest::Output, Keccak256};
 
 use crate::{
     field::{conversion::FieldMap, RandomField},
@@ -21,7 +20,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::point_to_tensor_f,
+    utils::{open_merkle_tree, point_to_tensor_f, MerkleProof},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -36,33 +35,19 @@ where
         point: &[RandomField<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<Output<Keccak256>>, Error> {
+    ) -> Result<Vec<MerkleProof>, Error> {
         // validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let row_len = pp.zip().row_len();
-
-        let codeword_len = pp.zip().codeword_len();
-        Self::prove_test(
-            pp.num_rows(),
-            row_len,
-            pp.zip().num_proximity_testing(),
+        let proof = Self::prove_test(
+            pp,
             poly,
-            transcript,
-        )?;
-        Self::prove_evaluation_f(pp.num_rows(), row_len, transcript, point, poly, field)?;
-
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let mut proof: Vec<Output<Keccak256>> = vec![];
-
-        Self::open_merkle_tree(
-            merkle_depth,
-            &mut proof,
-            pp.zip().num_column_opening(),
-            transcript,
-            codeword_len,
             comm,
+            transcript,
             field,
         )?;
+
+        let row_len = pp.zip().row_len();
+        Self::prove_evaluation_f(pp.num_rows(), row_len, transcript, point, poly, field)?;
 
         Ok(proof)
     }
@@ -75,7 +60,7 @@ where
         points: &[Vec<RandomField<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
+    ) -> Result<Vec<Vec<MerkleProof>>, Error> {
         //	use std::env;
         //	let key = "RAYON_NUM_THREADS";
         //	env::set_var(key, "8");
@@ -88,25 +73,40 @@ where
     }
 
     pub(super) fn prove_test(
-        num_rows: usize,
-        row_len: usize,
-        num_proximity_testing: usize,
+        pp: &Self::ProverParam,
         poly: &Self::Polynomial,
+        commitment_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<(), Error> {
-        if num_rows > 1 {
+        field: *const FieldConfig<N>, // This is only needed to called the trasncript but we are getting integers not fields
+    ) -> Result<Vec<MerkleProof>, Error> {
+        if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..num_proximity_testing {
-                let coeffs = transcript.fs_transcript.get_integer_challenges(num_rows);
+            for _ in 0..pp.zip().num_proximity_testing() {
+                let coeffs = transcript.fs_transcript.get_integer_challenges(pp.num_rows());
                 let coeffs = coeffs.iter().map(|x| I256::from(*x));
                 let evals = poly.evaluations.iter().map(|x| I256::from(*x));
-                let combined_row = combine_rows(coeffs, evals, row_len);
+                let combined_row = combine_rows(coeffs, evals, pp.zip().row_len());
 
                 transcript.write_I256_vec(&combined_row)?;
             }
         }
-        Ok(())
+
+        // Open merkle tree for each column drawn
+        let mut columns_proofs = vec![MerkleProof::new(); pp.zip().num_column_opening()];
+        let merkle_depth = pp.zip().row_len().next_power_of_two().ilog2() as usize;
+        for _ in 0..pp.zip().num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, pp.zip().codeword_len());
+            open_merkle_tree(
+                merkle_depth,
+                &mut columns_proofs[column],
+                commitment_data,
+                column,
+                transcript,
+                pp.zip().codeword_len(),
+            )?;
+        }
+        Ok(columns_proofs)
     }
     // Subprotocol functions
     fn prove_evaluation_f(

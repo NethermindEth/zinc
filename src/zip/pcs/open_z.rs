@@ -3,7 +3,6 @@ use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
 use itertools::izip;
-use sha3::{digest::Output, Keccak256};
 
 use crate::{
     field::{conversion::FieldMap, RandomField},
@@ -19,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input},
+    utils::{point_to_tensor_z, validate_input, MerkleProof},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -34,33 +33,20 @@ where
         point: &Vec<i64>,
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<Output<Keccak256>>, Error> {
+    ) -> Result<Vec<MerkleProof>, Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let row_len = pp.zip().row_len();
-
-        let codeword_len = pp.zip().codeword_len();
-        Self::prove_test(
-            pp.num_rows(),
-            row_len,
-            pp.zip().num_proximity_testing(),
+        let proof = Self::prove_test(
+            pp,
             poly,
-            transcript,
-        )?;
-        Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
-
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let mut proof: Vec<Output<Keccak256>> = vec![];
-
-        Self::open_merkle_tree(
-            merkle_depth,
-            &mut proof,
-            pp.zip().num_column_opening(),
-            transcript,
-            codeword_len,
             comm,
+            transcript,
             field,
         )?;
+
+        let row_len = pp.zip().row_len();
+        Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
+
 
         Ok(proof)
     }
@@ -73,7 +59,7 @@ where
         points: &[Vec<i64>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
+    ) -> Result<Vec<Vec<MerkleProof>>, Error> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
@@ -110,39 +96,4 @@ where
         transcript.write_field_elements(&t_0_combined_row)
     }
 
-    pub(crate) fn open_merkle_tree(
-        merkle_depth: usize,
-        proof: &mut Vec<Output<Keccak256>>,
-        num_col_opening: usize,
-        transcript: &mut PcsTranscript<N>,
-        codeword_len: usize,
-        comm: &Self::Data,
-        field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
-        for _ in 0..num_col_opening {
-            let column = transcript.squeeze_challenge_idx(field, codeword_len);
-
-            //Write the elements in the squeezed column to the shared transcript
-            transcript.write_I512_vec(
-                &comm
-                    .rows()
-                    .iter()
-                    .copied()
-                    .skip(column)
-                    .step_by(codeword_len)
-                    .collect::<Vec<_>>(),
-            )?;
-
-            //Write the neighbour hash path to the shared transcript
-            let mut offset = 0;
-            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
-                let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&comm.intermediate_hashes()[offset + neighbor_idx])?;
-
-                proof.push(comm.intermediate_hashes()[offset + neighbor_idx]);
-                offset += width;
-            }
-        }
-        Ok(())
-    }
 }

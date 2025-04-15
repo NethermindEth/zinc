@@ -133,10 +133,8 @@ fn test_zip_evaluation() {
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res =
-        MultilinearZip::<N, S, T>::verify_z(&param, &comm, &point, &eval, &mut transcript, config);
-
-    assert!(res.is_ok())
+    MultilinearZip::<N, S, T>::verify_z(&param, &comm, &point, &eval, &mut transcript, config)
+        .expect("Failed to verify");
 }
 
 #[test]

@@ -32,7 +32,8 @@ where
         // We deviate from the paper to merkleize each column instead of each row
         let merkle_depth = row_len.next_power_of_two().ilog2() as usize;
 
-        let mut hashes = vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
+        let mut hashes =
+            vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
 
         // Transpose rows into columns and compute their hashes
@@ -60,16 +61,21 @@ where
             let end_idx = start_idx + merkle_tree_size;
             Self::merklize_column_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
         }
+        // Split hashes into chunks of size (2 << merkle_depth) - 1
+        let mut split_hashes = Vec::with_capacity(codeword_len);
+        let chunk_size = (2 << merkle_depth) - 1;
+        let mut roots = Vec::with_capacity(codeword_len);
 
-        let (intermediate_hashes, root) = {
-            let mut intermediate_hashes = hashes;
-            let root = intermediate_hashes.pop().unwrap();
-            (intermediate_hashes, root)
-        };
+        for chunk in hashes.chunks(chunk_size) {
+            let mut chunk_vec = chunk.to_vec();
+            let root = chunk_vec.pop().unwrap();
+            roots.push(root);
+            split_hashes.push(chunk_vec);
+        }
 
         Ok((
-            MultilinearZipData::new(rows, intermediate_hashes, root),
-            MultilinearZipCommitment::new(root),
+            MultilinearZipData::new(rows, split_hashes, roots.clone()),
+            MultilinearZipCommitment::new(roots),
         ))
     }
     #[allow(clippy::type_complexity)]

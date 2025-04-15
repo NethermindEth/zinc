@@ -174,9 +174,7 @@ macro_rules! impl_field_map_for_vec {
                 &self,
                 config: *const FieldConfig<N>,
             ) -> Self::Output<N> {
-                self.iter()
-                    .map(|x| x.map_to_field(config))
-                    .collect()
+                self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
 
@@ -186,9 +184,7 @@ macro_rules! impl_field_map_for_vec {
                 &self,
                 config: *const FieldConfig<N>,
             ) -> Self::Output<N> {
-                self.iter()
-                    .map(|x| x.map_to_field(config))
-                    .collect()
+                self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
     };
@@ -200,7 +196,6 @@ impl_field_map_for_vec!(i32);
 impl_field_map_for_vec!(i64);
 impl_field_map_for_vec!(i128);
 impl_field_map_for_vec!(I256);
-
 
 // Separate implementation for I256
 impl FieldMap for I256 {

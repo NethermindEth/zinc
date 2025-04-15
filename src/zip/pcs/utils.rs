@@ -1,5 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use sha3::{digest::Output, Keccak256};
 
 use crate::{
     field::RandomField as F,
@@ -7,8 +8,10 @@ use crate::{
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::{build_eq_x_r as build_eq_x_r_z, DenseMultilinearExtension as MLE_Z},
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    zip::Error,
+    zip::{pcs_transcript::PcsTranscript, Error},
 };
+
+use super::structs::MultilinearZipData;
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
     Error::InvalidPcsParam(
@@ -52,6 +55,49 @@ pub(super) fn validate_input<'a>(
             )));
         }
     }
+    Ok(())
+}
+
+#[derive(Clone)]
+pub(super) struct MerkleProof {
+    proof: Vec<Output<Keccak256>>,
+}
+
+impl MerkleProof {
+    pub fn new() -> Self {
+        Self { proof: vec![] }
+    }
+}
+
+pub(super) fn open_merkle_tree<const N: usize>(
+    merkle_depth: usize,
+    proof: &mut MerkleProof,
+    comm: &MultilinearZipData<N>,
+    column: usize,
+    transcript: &mut PcsTranscript<N>,
+    codeword_len: usize,
+) -> Result<(), Error> {
+        //Write the elements in the squeezed column to the shared transcript
+        transcript.write_I512_vec(
+            &comm
+                .rows()
+                .iter()
+                .copied()
+                .skip(column)
+                .step_by(codeword_len)
+                .collect::<Vec<_>>(),
+        )?;
+
+        let column_hashes = comm.intermediate_hashes()[column].clone(); // TODO: remove clone
+        //Write the neighbour hash path to the shared transcript
+        let mut offset = 0;
+        for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
+            let neighbor_idx = (column >> idx) ^ 1;
+            transcript.write_commitment(&column_hashes[offset + neighbor_idx])?;
+
+            proof.proof.push(column_hashes[offset + neighbor_idx]);
+            offset += width;
+        }
     Ok(())
 }
 

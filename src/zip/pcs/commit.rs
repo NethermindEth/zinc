@@ -36,16 +36,8 @@ where
             vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
 
-        // Transpose rows into columns and compute their hashes
-        let mut columns = vec![I512::default(); rows.len()];
-        for i in 0..row_len {
-            for j in 0..codeword_len {
-                columns[j * row_len + i] = rows[i * codeword_len + j];
-            }
-        }
-
         let mut temp_hashes = vec![Output::<Keccak256>::default(); row_len * codeword_len];
-        Self::compute_column_hashes(&mut temp_hashes, &columns);
+        Self::compute_rows_hashes(&mut temp_hashes, &rows);
 
         // Process each column's hashes
         for i in 0..codeword_len {
@@ -59,7 +51,7 @@ where
 
             // Merklize this column's hashes
             let end_idx = start_idx + merkle_tree_size;
-            Self::merklize_column_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
+            Self::merklize_rows_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
         }
         // Split hashes into chunks of size (2 << merkle_depth) - 1
         let mut split_hashes = Vec::with_capacity(codeword_len);
@@ -114,22 +106,22 @@ where
         encoded_rows
     }
 
-    fn compute_column_hashes(hashes: &mut [Output<Keccak256>], columns: &[I512]) {
+    fn compute_rows_hashes(hashes: &mut [Output<Keccak256>], rows: &[I512]) {
         // TODO:improve this without transposing the rows into columns
         parallelize(hashes, |(hashes, start)| {
             let mut hasher = Keccak256::new();
-            for (hash, column) in hashes.iter_mut().zip(start..) {
-                // For each column, iterate through all rows at that column position
+            for (hash, row) in hashes.iter_mut().zip(start..) {
+                // For each row, iterate through all columns at that row position
                 <Keccak256 as sha3::digest::Update>::update(
                     &mut hasher,
-                    &columns[column].to_be_bytes(),
+                    &rows[row].to_be_bytes(),
                 );
                 hasher.finalize_into_reset(hash);
             }
         });
     }
 
-    fn merklize_column_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
+    fn merklize_rows_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
             let (input, output) = hashes[offset..].split_at_mut(width);

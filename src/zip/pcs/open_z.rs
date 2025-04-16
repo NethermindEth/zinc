@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input, MerkleProof},
+    utils::{point_to_tensor_z, validate_input, ColumnOpening},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -33,20 +33,13 @@ where
         point: &Vec<i64>,
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<MerkleProof>, Error> {
+    ) -> Result<Vec<ColumnOpening>, Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let proof = Self::prove_test(
-            pp,
-            poly,
-            comm,
-            transcript,
-            field,
-        )?;
+        let proof = Self::prove_test(pp, poly, comm, transcript, field)?;
 
         let row_len = pp.zip().row_len();
         Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
-
 
         Ok(proof)
     }
@@ -59,7 +52,7 @@ where
         points: &[Vec<i64>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<MerkleProof>>, Error> {
+    ) -> Result<Vec<Vec<ColumnOpening>>, Error> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
@@ -95,5 +88,4 @@ where
 
         transcript.write_field_elements(&t_0_combined_row)
     }
-
 }

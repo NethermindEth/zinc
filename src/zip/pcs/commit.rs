@@ -112,10 +112,7 @@ where
             let mut hasher = Keccak256::new();
             for (hash, row) in hashes.iter_mut().zip(start..) {
                 // For each row, iterate through all columns at that row position
-                <Keccak256 as sha3::digest::Update>::update(
-                    &mut hasher,
-                    &rows[row].to_be_bytes(),
-                );
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &rows[row].to_be_bytes());
                 hasher.finalize_into_reset(hash);
             }
         });

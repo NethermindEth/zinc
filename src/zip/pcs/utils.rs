@@ -69,15 +69,17 @@ impl MerkleProof {
     }
 }
 
+/// Opening a column `j` in an `n x m` matrix `u_hat` requires opening `m` Merkle trees,
+/// one for each row at position j
 #[derive(Clone)]
 pub(super) struct ColumnOpening {
-    pub column_opening: Vec<MerkleProof>,
+    pub rows_openings: Vec<MerkleProof>,
 }
 
 impl ColumnOpening {
     pub fn new() -> Self {
         Self {
-            column_opening: vec![],
+            rows_openings: vec![],
         }
     }
 }

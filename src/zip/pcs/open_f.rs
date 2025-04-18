@@ -123,17 +123,16 @@ where
 
         let mut offset = 0;
         let merkle_depth = pp.zip().row_len().next_power_of_two().ilog2() as usize;
-        for (merkle_proof, row_hashes) in column_proof
-            .column_opening
+        for (merkle_proof, rows_hashes) in column_proof
+            .rows_openings
             .iter_mut()
-            .zip(comm.intermediate_hashes())
+            .zip(comm.intermediate_rows_hashes().iter())
         {
             let mut merkle_path = vec![];
             for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
                 let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&row_hashes[offset + neighbor_idx])?;
-
-                merkle_path.push(row_hashes[offset + neighbor_idx]);
+                transcript.write_commitment(&rows_hashes[offset + neighbor_idx])?;
+                merkle_path.push(rows_hashes[offset + neighbor_idx]);
                 offset += width;
             }
             // TODO: double check the merkle path is correct

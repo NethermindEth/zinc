@@ -121,13 +121,13 @@ where
     fn merklize_rows_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
-            let (input, output) = hashes[offset..].split_at_mut(width);
+            let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
 
-            let chunk_size = div_ceil(output.len(), num_threads());
+            let chunk_size = div_ceil(next_layer.len(), num_threads());
             parallelize_iter(
-                input
+                current_layer
                     .chunks(2 * chunk_size)
-                    .zip(output.chunks_mut(chunk_size)),
+                    .zip(next_layer.chunks_mut(chunk_size)),
                 |(input, output)| {
                     let mut hasher = Keccak256::new();
 

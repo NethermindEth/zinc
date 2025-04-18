@@ -110,8 +110,7 @@ where
                 .step_by(pp.zip().codeword_len())
                 .collect::<Vec<_>>(),
         )?;
-
-        let merkle_depth = pp.zip().row_len().next_power_of_two().ilog2() as usize;
+        let merkle_depth = pp.zip().codeword_len().next_power_of_two().ilog2() as usize;
         ColumnOpening::open_at_column(merkle_depth, column, comm, transcript);
         Ok(())
     }

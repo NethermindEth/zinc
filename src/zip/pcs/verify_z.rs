@@ -209,7 +209,7 @@ where
                 )?;
             }
 
-            let _ =ColumnOpening::verify_column(roots, &column_values, transcript);
+            let _ = ColumnOpening::verify_column(roots, &column_values, transcript);
         }
         Ok(columns_opened)
     }

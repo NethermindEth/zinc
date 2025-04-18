@@ -76,7 +76,7 @@ impl MerkleProof {
     }
 
     pub fn create_proof(
-        row_hashes: &[Output<Keccak256>],
+        row_merkle_tree: &[Output<Keccak256>],
         leaf: usize,
         merkle_depth: usize,
     ) -> Self {
@@ -86,7 +86,7 @@ impl MerkleProof {
             .map(|depth| {
                 let width = 1 << depth;
                 let idx = (leaf >> (merkle_depth - depth)) ^ 1;
-                let hash = row_hashes[offset + idx];
+                let hash = row_merkle_tree[offset + idx];
                 offset += width;
                 hash
             })

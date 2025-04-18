@@ -48,31 +48,10 @@ where
     ) -> Result<(), Error> {
         validate_input("verify", vp.num_vars(), [], [point])?;
 
-        let row_len = vp.zip().row_len();
-        let codeword_len = vp.zip().codeword_len();
+        let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
+        println!("\nTodo bien");
 
-        let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, row_len, field)?;
-
-        // // Retrieve the row combinations from the transcript
-        // // Pair the combinations with the coefficients that generated them
-        // let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
-
-        // if vp.num_rows() > 1 {
-        //     for _ in 0..vp.zip().num_proximity_testing() {
-        //         let coeffs: Vec<_> = transcript
-        //             .fs_transcript
-        //             .get_integer_challenges(vp.num_rows())
-        //             .iter()
-        //             .map(|i| I256::from(*i))
-        //             .collect();
-
-        //         let combined_row = transcript.read_I256_vec(row_len)?;
-
-        //         let code = vp.zip().encode(&combined_row);
-
-        //         encoded_combined_rows.push((coeffs, code));
-        //     }
-        // }
+        Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
 
         // let depth = codeword_len.next_power_of_two().ilog2() as usize;
         // let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
@@ -88,7 +67,6 @@ where
 
         //     let merkle_path = transcript.read_commitments(depth)?;
 
-        //     Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
         //     Self::verify_proximity_t_0(
         //         &t_0_f,
         //         &vp.zip().encode_f(&t_0_combined_row, field),
@@ -97,7 +75,6 @@ where
         //         vp.num_rows(),
         //         field,
         //     )?;
-        //     Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
         // }
 
         // // verify consistency
@@ -113,8 +90,7 @@ where
         //     return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
         // }
 
-        // Ok(())
-        todo!()
+        Ok(())
     }
 
     pub fn batch_verify_z<'a>(
@@ -171,9 +147,8 @@ where
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
-        row_len: usize,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<usize>, Error> {
+    ) -> Result<Vec<(usize, Vec<I512>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
         if vp.num_rows() > 1 {
@@ -185,18 +160,18 @@ where
                     .map(|i| I256::from(*i))
                     .collect();
 
-                let combined_row = transcript.read_I256_vec(row_len)?;
+                let combined_row = transcript.read_I256_vec(vp.zip().row_len())?;
 
                 let encoded_combined_row = vp.zip().encode(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
-        let mut columns_opened = vec![0; vp.zip().num_column_opening()];
-        for i in 0..vp.zip().num_column_opening() {
-            let column_idx = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
-            columns_opened[i] = column_idx;
 
+        let mut columns_opened: Vec<(usize, Vec<I512>)> =
+            Vec::with_capacity(vp.zip().num_column_opening());
+        for _ in 0..vp.zip().num_column_opening() {
+            let column_idx = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
             let column_values = transcript.read_I512_vec(vp.num_rows())?;
 
             for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
@@ -210,6 +185,7 @@ where
             }
 
             let _ = ColumnOpening::verify_column(roots, &column_values, transcript);
+            columns_opened.push((column_idx, column_values));
         }
         Ok(columns_opened)
     }
@@ -235,6 +211,38 @@ where
         Ok(())
     }
 
+    fn verify_evaluation_z(
+        vp: &Self::VerifierParam,
+        point: &Vec<i64>,
+        eval: &i64,
+        columns_opened: &[(usize, Vec<I512>)],
+        transcript: &mut PcsTranscript<N>,
+        field: *const FieldConfig<N>,
+    ) -> Result<(), Error> {
+        let t_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
+        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
+        let t_0_f = t_0.map_to_field(field);
+        let t_1_f = t_1.map_to_field(field);
+        if inner_product(&t_0_combined_row, &t_1_f) != eval.map_to_field(field) {
+            return Err(Error::InvalidPcsOpen(
+                "Evaluation consistency failure".to_string(),
+            ));
+        }
+
+        for (column_idx, column_values) in columns_opened.iter() {
+            Self::verify_proximity_t_0(
+                &t_0_f,
+                &t_0_combined_row,
+                column_values,
+                *column_idx,
+                vp.num_rows(),
+                field,
+            )?;
+        }
+
+        Ok(())
+    }
+
     fn verify_proximity_t_0(
         t_0_f: &Vec<RandomField<N>>,
         t_0_combined_row: &[RandomField<N>],
@@ -244,13 +252,10 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let column_entries = column_entries
-                .iter()
-                .map(|i| i.map_to_field(field))
-                .collect::<Vec<_>>();
+            let column_entries = column_entries.map_to_field(field);
             inner_product(t_0_f, &column_entries)
         } else {
-            column_entries[0].map_to_field(field)
+            column_entries.first().unwrap().map_to_field(field)
         };
         if column_entries_comb != t_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));

@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_f, ColumnOpening},
+    utils::{point_to_tensor_f, ColumnOpening, MerkleProof},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -121,23 +121,8 @@ where
                 .collect::<Vec<_>>(),
         )?;
 
-        let mut offset = 0;
         let merkle_depth = pp.zip().row_len().next_power_of_two().ilog2() as usize;
-        for (merkle_proof, rows_hashes) in column_proof
-            .rows_openings
-            .iter_mut()
-            .zip(comm.intermediate_rows_hashes().iter())
-        {
-            let mut merkle_path = vec![];
-            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
-                let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&rows_hashes[offset + neighbor_idx])?;
-                merkle_path.push(rows_hashes[offset + neighbor_idx]);
-                offset += width;
-            }
-            // TODO: double check the merkle path is correct
-            merkle_proof.merkle_path = merkle_path;
-        }
+        column_proof.open_at_column(merkle_depth, column, comm, transcript);
         Ok(())
     }
     // Subprotocol functions

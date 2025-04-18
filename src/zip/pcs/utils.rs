@@ -1,6 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
-use sha3::{digest::Output, Keccak256};
+use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
     field::RandomField as F,
@@ -8,8 +8,10 @@ use crate::{
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::{build_eq_x_r as build_eq_x_r_z, DenseMultilinearExtension as MLE_Z},
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    zip::Error,
+    zip::{pcs_transcript::PcsTranscript, Error},
 };
+
+use super::structs::MultilinearZipData;
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
     Error::InvalidPcsParam(
@@ -67,6 +69,21 @@ impl MerkleProof {
             merkle_path: vec![],
         }
     }
+
+    pub fn from_vec(vec: Vec<Output<Keccak256>>) -> Self {
+        Self { merkle_path: vec }
+    }
+
+    pub fn verify(&self, root: Output<Keccak256>, leaf: Output<Keccak256>) -> bool {
+        let mut hasher = Keccak256::new();
+        let mut current = leaf;
+        for i in 0..self.merkle_path.len() {
+            <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
+            <Keccak256 as sha3::digest::Update>::update(&mut hasher, &self.merkle_path[i]);
+            hasher.finalize_into_reset(&mut current);
+        }
+        current == root
+    }
 }
 
 /// Opening a column `j` in an `n x m` matrix `u_hat` requires opening `m` Merkle trees,
@@ -81,6 +98,34 @@ impl ColumnOpening {
         Self {
             rows_openings: vec![],
         }
+    }
+
+    pub fn open_at_column<const N: usize>(
+        &mut self,
+        merkle_depth: usize,
+        column: usize,
+        comm: &MultilinearZipData<N>,
+        transcript: &mut PcsTranscript<N>,
+    ) -> () {
+        self.rows_openings = comm
+            .intermediate_rows_hashes()
+            .iter()
+            .map(|rows_hashes| {
+                let mut offset = 0;
+                let path = (1..=merkle_depth)
+                    .rev()
+                    .map(|depth| {
+                        let width = 1 << depth;
+                        let idx = (column >> (merkle_depth - depth)) ^ 1;
+                        let hash = rows_hashes[offset + idx];
+                        transcript.write_commitment(&hash).unwrap();
+                        offset += width;
+                        hash
+                    })
+                    .collect();
+                MerkleProof::from_vec(path)
+            })
+            .collect();
     }
 }
 

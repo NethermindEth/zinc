@@ -25,18 +25,18 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    pub fn read_commitments(
-        _: &Self::VerifierParam,
-        num_polys: usize,
-        transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<Self::Commitment>, Error> {
-        transcript.read_commitments(num_polys).map(|roots| {
-            roots
-                .into_iter()
-                .map(MultilinearZipCommitment::new)
-                .collect_vec()
-        })
-    }
+    // pub fn read_commitments(
+    //     _: &Self::VerifierParam,
+    //     num_polys: usize,
+    //     transcript: &mut PcsTranscript<N>,
+    // ) -> Result<Vec<Self::Commitment>, Error> {
+    //     transcript.read_commitments(num_polys).map(|roots| {
+    //         roots
+    //             .into_iter()
+    //             .map(MultilinearZipCommitment::new)
+    //             .collect_vec()
+    //     })
+    // }
 
     pub fn verify_z(
         vp: &Self::VerifierParam,
@@ -50,6 +50,8 @@ where
 
         let row_len = vp.zip().row_len();
         let codeword_len = vp.zip().codeword_len();
+
+        let columns_opened = Self::verify_testing(vp, transcript, row_len, field)?;
 
         // Retrieve the row combinations from the transcript
         // Pair the combinations with the coefficients that generated them
@@ -75,13 +77,12 @@ where
         let depth = codeword_len.next_power_of_two().ilog2() as usize;
         let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
         let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
-        let t_0_f = t_0
-            .iter()
-            .map(|i| i.map_to_field(field))
-            .collect::<Vec<_>>();
+        let t_0_f = t_0.map_to_field(field);
+        let mut columns_to_open = Vec::with_capacity(vp.zip().num_column_opening());
         // Ensure that the test combinations are valid codewords
         for _ in 0..vp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, codeword_len);
+            columns_to_open.push(column);
 
             let items = transcript.read_I512_vec(vp.num_rows())?;
 
@@ -165,24 +166,67 @@ where
         Ok(())
     }
 
+    pub(super) fn verify_testing(
+        vp: &Self::VerifierParam,
+        transcript: &mut PcsTranscript<N>,
+        row_len: usize,
+        field: *const FieldConfig<N>,
+    ) -> Result<Vec<usize>, Error> {
+        // Gather the coeffs and encoded combined rows per proximity test
+        let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
+        if vp.num_rows() > 1 {
+            for _ in 0..vp.zip().num_proximity_testing() {
+                let coeffs: Vec<_> = transcript
+                    .fs_transcript
+                    .get_integer_challenges(vp.num_rows())
+                    .iter()
+                    .map(|i| I256::from(*i))
+                    .collect();
+
+                let combined_row = transcript.read_I256_vec(row_len)?;
+
+                let encoded_combined_row = vp.zip().encode(&combined_row);
+                encoded_combined_rows.push((coeffs, encoded_combined_row));
+            }
+        }
+
+        let mut columns_opened = vec![0; vp.zip().num_column_opening()];
+        for i in 0..vp.zip().num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
+            columns_opened[i] = column;
+
+            let items = transcript.read_I512_vec(vp.num_rows())?;
+
+            for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
+                Self::verify_proximity_z(
+                    coeffs,
+                    encoded_combined_row,
+                    &items,
+                    column,
+                    vp.num_rows(),
+                )?;
+            }
+        }
+        Ok(columns_opened)
+    }
+
     pub(super) fn verify_proximity_z(
-        combined_rows: &[(Vec<I256>, Vec<I512>)],
+        coeffs: &[I256],
+        encoded_combined_row: &[I512],
         column_entries: &[I512],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
-        for (coeff, encoded) in combined_rows.iter() {
-            let column_entries_comb = if num_rows > 1 {
-                let coeff: Vec<_> = coeff.iter().map(|i| I256_to_I512(*i)).collect();
+        let column_entries_comb = if num_rows > 1 {
+            let coeff: Vec<_> = coeffs.iter().map(|i| I256_to_I512(*i)).collect();
 
-                inner_product(&coeff, column_entries)
-            } else {
-                column_entries[0]
-            };
+            inner_product(&coeff, column_entries)
+        } else {
+            column_entries[0]
+        };
 
-            if column_entries_comb != encoded[column] {
-                return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
-            }
+        if column_entries_comb != encoded_combined_row[column] {
+            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
         }
         Ok(())
     }

@@ -11,6 +11,7 @@ use crate::field_config::FieldConfig;
 use crate::traits::FromBytes;
 use crate::transcript::KeccakTranscript;
 
+use super::pcs::utils::MerkleProof;
 use super::Error;
 
 #[derive(Default)]
@@ -195,5 +196,37 @@ impl<const N: usize> PcsTranscript<N> {
         let mut bytes = [0; size_of::<u32>()];
         bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
         u32::from_le_bytes(bytes) as usize % cap
+    }
+
+    pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
+        // Read the length of the merkle_path first
+        let mut length_bytes = [0u8; 8];
+        self.stream
+            .read_exact(&mut length_bytes)
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+        let path_length = u64::from_be_bytes(length_bytes);
+
+        // Read each element of the merkle_path
+        let mut merkle_path = Vec::with_capacity(path_length as usize);
+        for _ in 0..path_length {
+            merkle_path.push(self.read_commitment()?);
+        }
+
+        Ok(MerkleProof { merkle_path })
+    }
+
+    pub fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
+        // Write the length of the merkle_path first
+        let path_length = proof.merkle_path.len() as u64;
+        self.stream
+            .write_all(&path_length.to_be_bytes())
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+
+        // Write each element of the merkle_path
+        for hash in &proof.merkle_path {
+            self.write_commitment(hash)?;
+        }
+
+        Ok(())
     }
 }

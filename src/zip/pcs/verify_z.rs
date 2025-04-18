@@ -17,7 +17,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input},
+    utils::{point_to_tensor_z, validate_input, ColumnOpening},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -51,69 +51,70 @@ where
         let row_len = vp.zip().row_len();
         let codeword_len = vp.zip().codeword_len();
 
-        let columns_opened = Self::verify_testing(vp, transcript, row_len, field)?;
+        let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, row_len, field)?;
 
-        // Retrieve the row combinations from the transcript
-        // Pair the combinations with the coefficients that generated them
-        let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
+        // // Retrieve the row combinations from the transcript
+        // // Pair the combinations with the coefficients that generated them
+        // let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
 
-        if vp.num_rows() > 1 {
-            for _ in 0..vp.zip().num_proximity_testing() {
-                let coeffs: Vec<_> = transcript
-                    .fs_transcript
-                    .get_integer_challenges(vp.num_rows())
-                    .iter()
-                    .map(|i| I256::from(*i))
-                    .collect();
+        // if vp.num_rows() > 1 {
+        //     for _ in 0..vp.zip().num_proximity_testing() {
+        //         let coeffs: Vec<_> = transcript
+        //             .fs_transcript
+        //             .get_integer_challenges(vp.num_rows())
+        //             .iter()
+        //             .map(|i| I256::from(*i))
+        //             .collect();
 
-                let combined_row = transcript.read_I256_vec(row_len)?;
+        //         let combined_row = transcript.read_I256_vec(row_len)?;
 
-                let code = vp.zip().encode(&combined_row);
+        //         let code = vp.zip().encode(&combined_row);
 
-                encoded_combined_rows.push((coeffs, code));
-            }
-        }
+        //         encoded_combined_rows.push((coeffs, code));
+        //     }
+        // }
 
-        let depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
-        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
-        let t_0_f = t_0.map_to_field(field);
-        let mut columns_to_open = Vec::with_capacity(vp.zip().num_column_opening());
-        // Ensure that the test combinations are valid codewords
-        for _ in 0..vp.zip().num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(field, codeword_len);
-            columns_to_open.push(column);
+        // let depth = codeword_len.next_power_of_two().ilog2() as usize;
+        // let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
+        // let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
+        // let t_0_f = t_0.map_to_field(field);
+        // let mut columns_to_open = Vec::with_capacity(vp.zip().num_column_opening());
+        // // Ensure that the test combinations are valid codewords
+        // for _ in 0..vp.zip().num_column_opening() {
+        //     let column = transcript.squeeze_challenge_idx(field, codeword_len);
+        //     columns_to_open.push(column);
 
-            let items = transcript.read_I512_vec(vp.num_rows())?;
+        //     let items = transcript.read_I512_vec(vp.num_rows())?;
 
-            let merkle_path = transcript.read_commitments(depth)?;
+        //     let merkle_path = transcript.read_commitments(depth)?;
 
-            Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
-            Self::verify_proximity_t_0(
-                &t_0_f,
-                &vp.zip().encode_f(&t_0_combined_row, field),
-                &items,
-                column,
-                vp.num_rows(),
-                field,
-            )?;
-            Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
-        }
+        //     Self::verify_proximity_z(&encoded_combined_rows, &items, column, vp.num_rows())?;
+        //     Self::verify_proximity_t_0(
+        //         &t_0_f,
+        //         &vp.zip().encode_f(&t_0_combined_row, field),
+        //         &items,
+        //         column,
+        //         vp.num_rows(),
+        //         field,
+        //     )?;
+        //     Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
+        // }
 
-        // verify consistency
+        // // verify consistency
 
-        let t_1_f = t_1
-            .iter()
-            .map(|i| i.map_to_field(field))
-            .collect::<Vec<_>>();
+        // let t_1_f = t_1
+        //     .iter()
+        //     .map(|i| i.map_to_field(field))
+        //     .collect::<Vec<_>>();
 
-        let eval_f = eval.map_to_field(field);
+        // let eval_f = eval.map_to_field(field);
 
-        if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
-            return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
-        }
+        // if inner_product(&t_0_combined_row, &t_1_f) != eval_f {
+        //     return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
+        // }
 
-        Ok(())
+        // Ok(())
+        todo!()
     }
 
     pub fn batch_verify_z<'a>(
@@ -130,44 +131,45 @@ where
         Ok(())
     }
 
-    pub(super) fn verify_merkle_path(
-        items: &[I512],
-        path: &[Output<Keccak256>],
-        column: usize,
-        comm: &Self::Commitment,
-    ) -> Result<(), Error> {
-        let mut hasher = Keccak256::default();
+    // pub(super) fn verify_merkle_path(
+    //     items: &[I512],
+    //     path: &[Output<Keccak256>],
+    //     column: usize,
+    //     comm: &Self::Commitment,
+    // ) -> Result<(), Error> {
+    //     let mut hasher = Keccak256::default();
 
-        let mut output = {
-            for item in items.iter() {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &item.to_be_bytes());
-            }
+    //     let mut output = {
+    //         for item in items.iter() {
+    //             <Keccak256 as sha3::digest::Update>::update(&mut hasher, &item.to_be_bytes());
+    //         }
 
-            hasher.clone().finalize()
-        };
+    //         hasher.clone().finalize()
+    //     };
 
-        hasher.reset();
-        for (idx, neighbor) in path.iter().enumerate() {
-            if (column >> idx) & 1 == 0 {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
-            } else {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
-            }
-            output = hasher.clone().finalize();
-            hasher.reset();
-        }
-        if output != comm.root() {
-            return Err(Error::InvalidPcsOpen(
-                "Invalid merkle tree opening".to_string(),
-            ));
-        }
-        Ok(())
-    }
+    //     hasher.reset();
+    //     for (idx, neighbor) in path.iter().enumerate() {
+    //         if (column >> idx) & 1 == 0 {
+    //             <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
+    //             <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
+    //         } else {
+    //             <Keccak256 as sha3::digest::Update>::update(&mut hasher, neighbor);
+    //             <Keccak256 as sha3::digest::Update>::update(&mut hasher, &output);
+    //         }
+    //         output = hasher.clone().finalize();
+    //         hasher.reset();
+    //     }
+    //     if output != comm.root() {
+    //         return Err(Error::InvalidPcsOpen(
+    //             "Invalid merkle tree opening".to_string(),
+    //         ));
+    //     }
+    //     Ok(())
+    // }
 
     pub(super) fn verify_testing(
         vp: &Self::VerifierParam,
+        roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
         row_len: usize,
         field: *const FieldConfig<N>,
@@ -192,20 +194,22 @@ where
 
         let mut columns_opened = vec![0; vp.zip().num_column_opening()];
         for i in 0..vp.zip().num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
-            columns_opened[i] = column;
+            let column_idx = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
+            columns_opened[i] = column_idx;
 
-            let items = transcript.read_I512_vec(vp.num_rows())?;
+            let column_values = transcript.read_I512_vec(vp.num_rows())?;
 
             for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
                 Self::verify_proximity_z(
                     coeffs,
                     encoded_combined_row,
-                    &items,
-                    column,
+                    &column_values,
+                    column_idx,
                     vp.num_rows(),
                 )?;
             }
+
+            let _ =ColumnOpening::verify_column(roots, &column_values, transcript);
         }
         Ok(columns_opened)
     }

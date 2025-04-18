@@ -35,15 +35,15 @@ where
         point: &[RandomField<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<ColumnOpening>, Error> {
+    ) -> Result<(), Error> {
         // validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let proof = Self::prove_test(pp, poly, comm, transcript, field)?;
+        Self::prove_test(pp, poly, comm, transcript, field)?;
 
         let row_len = pp.zip().row_len();
         Self::prove_evaluation_f(pp.num_rows(), row_len, transcript, point, poly, field)?;
 
-        Ok(proof)
+        Ok(())
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
@@ -54,16 +54,14 @@ where
         points: &[Vec<RandomField<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<ColumnOpening>>, Error> {
+    ) -> Result<(), Error> {
         //	use std::env;
         //	let key = "RAYON_NUM_THREADS";
         //	env::set_var(key, "8");
-
-        let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
-            proofs.push(Self::open_f(pp, poly, comm, point, field, transcript)?);
+            Self::open_f(pp, poly, comm, point, field, transcript)?;
         }
-        Ok(proofs)
+        Ok(())
     }
 
     pub(super) fn prove_test(
@@ -72,7 +70,7 @@ where
         commitment_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>, // This is only needed to called the trasncript but we are getting integers not fields
-    ) -> Result<Vec<ColumnOpening>, Error> {
+    ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
@@ -89,23 +87,15 @@ where
         }
 
         // Open merkle tree for each column drawn
-        let mut columns_proofs = vec![ColumnOpening::new(); pp.zip().num_column_opening()];
         for _ in 0..pp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, pp.zip().codeword_len());
-            Self::open_merkle_trees_for_column(
-                pp,
-                &mut columns_proofs[column],
-                commitment_data,
-                column,
-                transcript,
-            )?;
+            Self::open_merkle_trees_for_column(pp, commitment_data, column, transcript)?;
         }
-        Ok(columns_proofs)
+        Ok(())
     }
 
     pub(super) fn open_merkle_trees_for_column(
         pp: &Self::ProverParam,
-        column_proof: &mut ColumnOpening,
         comm: &MultilinearZipData<N>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
@@ -122,7 +112,7 @@ where
         )?;
 
         let merkle_depth = pp.zip().row_len().next_power_of_two().ilog2() as usize;
-        column_proof.open_at_column(merkle_depth, column, comm, transcript);
+        ColumnOpening::open_at_column(merkle_depth, column, comm, transcript);
         Ok(())
     }
     // Subprotocol functions

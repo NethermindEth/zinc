@@ -33,15 +33,15 @@ where
         point: &Vec<i64>,
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<ColumnOpening>, Error> {
+    ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let proof = Self::prove_test(pp, poly, comm, transcript, field)?;
+        Self::prove_test(pp, poly, comm, transcript, field)?;
 
         let row_len = pp.zip().row_len();
         Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
 
-        Ok(proof)
+        Ok(())
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
@@ -52,12 +52,12 @@ where
         points: &[Vec<i64>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<ColumnOpening>>, Error> {
+    ) -> Result<(), Error> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
         }
-        Ok(proofs)
+        Ok(())
     }
 
     // Subprotocol functions

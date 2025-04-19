@@ -81,7 +81,7 @@ impl MerkleProof {
         merkle_depth: usize,
     ) -> Self {
         let mut offset = 0;
-        let path = (1..=merkle_depth)
+        let path: Vec<Output<Keccak256>> = (1..=merkle_depth)
             .rev()
             .map(|depth| {
                 let width = 1 << depth;
@@ -94,15 +94,26 @@ impl MerkleProof {
         MerkleProof::from_vec(path)
     }
 
-    pub fn verify(&self, root: Output<Keccak256>, leaf_value: I512) -> bool {
+    pub fn verify(&self, root: Output<Keccak256>, leaf_value: I512, leaf_index: usize) -> bool {
         let mut hasher = Keccak256::new();
         hasher.update(&leaf_value.to_be_bytes());
         let mut current = hasher.finalize_reset();
 
-        for i in 0..self.merkle_path.len() {
-            <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
-            <Keccak256 as sha3::digest::Update>::update(&mut hasher, &self.merkle_path[i]);
+        let mut index = leaf_index;
+        for path_hash in &self.merkle_path {
+            // Determine if the current node is a left or right child
+            if (index & 1) == 0 {
+                // Current node is a left child
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
+            } else {
+                // Current node is a right child
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
+            }
+            
             hasher.finalize_into_reset(&mut current);
+            index /= 2; // Move up to the parent node
         }
         current == root
     }
@@ -131,12 +142,13 @@ impl ColumnOpening {
     pub fn verify_column<const N: usize>(
         rows_roots: &[Output<Keccak256>],
         column: &[I512],
+        column_index: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> bool {
         let mut valid = true;
         for (root, leaf) in rows_roots.iter().zip(column) {
             let proof = transcript.read_merkle_proof().unwrap();
-            valid &= proof.verify(*root, *leaf);
+            valid &= proof.verify(*root, *leaf, column_index);
         }
         valid
     }
@@ -231,12 +243,6 @@ mod tests {
         );
     }
 
-    fn hash_data(data: &[u8]) -> Output<Keccak256> {
-        let mut hasher = Keccak256::new();
-        hasher.update(data);
-        hasher.finalize()
-    }
-
     fn merklize_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
@@ -269,15 +275,19 @@ mod tests {
         let mut merkle_tree = vec![Output::<Keccak256>::default(); 2 * leaves_data.len() - 1];
         merkle_tree[..leaves_data.len()].copy_from_slice(&temp_hashes);
         merklize_hashes(2, &mut merkle_tree);
+        
+        // Print tree structure after merklizing
         let root = merkle_tree.pop().unwrap();
         // Create a proof for the first leaf
         let merkle_depth = 2; // Example depth for 4 leaves
-        let proof = MerkleProof::create_proof(&merkle_tree, 0, merkle_depth);
+        for i in 0..leaves_data.len() {
+            let proof = MerkleProof::create_proof(&merkle_tree, i, merkle_depth);
 
-        // Verify the proof
-        let is_valid = proof.verify(root, leaves_data[0]);
+            // Verify the proof
+            let is_valid = proof.verify(root, leaves_data[i], i);
 
-        // Assert the verification result
-        assert!(is_valid, "The Merkle proof verification failed");
+            // Assert the verification result
+            assert!(is_valid, "The Merkle proof verification failed for leaf {}", i);
+        }
     }
 }

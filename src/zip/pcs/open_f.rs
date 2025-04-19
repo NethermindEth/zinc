@@ -40,8 +40,7 @@ where
 
         Self::prove_test(pp, poly, comm, transcript, field)?;
 
-        let row_len = pp.zip().row_len();
-        Self::prove_evaluation_f(pp.num_rows(), row_len, transcript, point, poly, field)?;
+        Self::prove_evaluation_f(pp.num_rows(), pp.zip().row_len(), transcript, point, poly, field)?;
 
         Ok(())
     }

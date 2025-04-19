@@ -184,7 +184,7 @@ where
                 )?;
             }
 
-            let _ = ColumnOpening::verify_column(roots, &column_values, transcript);
+            let _ = ColumnOpening::verify_column(roots, &column_values, column_idx, transcript);
             columns_opened.push((column_idx, column_values));
         }
         Ok(columns_opened)

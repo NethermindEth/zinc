@@ -75,7 +75,7 @@ where
         poly: &Self::Polynomial,
         commitment_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>, // This is only needed to called the trasncript but we are getting integers not fields
+        field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

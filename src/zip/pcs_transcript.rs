@@ -14,7 +14,7 @@ use crate::transcript::KeccakTranscript;
 use super::pcs::utils::MerkleProof;
 use super::Error;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct PcsTranscript<const N: usize> {
     pub fs_transcript: KeccakTranscript,
     pub stream: Cursor<Vec<u8>>,
@@ -229,4 +229,70 @@ impl<const N: usize> PcsTranscript<N> {
 
         Ok(())
     }
+}
+
+macro_rules! test_read_write {
+    ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {
+        {
+            let mut transcript = PcsTranscript::<N>::new();
+            transcript.$write_fn(&$original_value).expect(&format!("Failed to write {}", $assert_msg));
+            let proof = transcript.into_proof();
+            let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+            let read_value = transcript.$read_fn().expect(&format!("Failed to read {}", $assert_msg));
+            assert_eq!($original_value, read_value, "{} read does not match original", $assert_msg);
+        }
+    };
+}
+
+macro_rules! test_read_write_vec {
+    ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {
+        {
+            let mut transcript = PcsTranscript::<N>::new();
+            transcript.$write_fn(&$original_values).expect(&format!("Failed to write {}", $assert_msg));
+            let proof = transcript.into_proof();
+            let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+            let read_values = transcript.$read_fn($original_values.len()).expect(&format!("Failed to read {}", $assert_msg));
+            assert_eq!($original_values, read_values, "{} read does not match original", $assert_msg);
+        }
+    };
+}
+
+const N: usize = 4;
+
+#[test]
+fn test_pcs_transcript_read_write() {
+    const N: usize = 4;
+
+    // Test integer
+    let original_int: i64 = 42;
+    test_read_write!(write_integer, read_integer, original_int, "integer");
+
+    // Test I256
+    let original_i256 = I256::from(340282366920938463463374607431768211455u128);
+    test_read_write!(write_I256, read_I256, original_i256, "I256");
+
+    // Test I512
+    let bytes_array = [42u8; 64];
+    let original_i512 = I512::from_be_bytes(bytes_array);
+    test_read_write!(write_I512, read_I512, original_i512, "I512");
+
+    // Test commitment
+    let original_commitment = Output::<Keccak256>::default();
+    test_read_write!(write_commitment, read_commitment, original_commitment, "commitment");
+
+    // Test vector of integers
+    let original_ints = vec![1i64; 1024];
+    test_read_write_vec!(write_integers, read_integers, original_ints, "integers");
+
+    // Test vector of I256
+    let original_i256_vec = vec![I256::from(1); 1024];
+    test_read_write_vec!(write_I256_vec, read_I256_vec, original_i256_vec, "I256 vector");
+
+    // Test vector of I512
+    let original_i512_vec = vec![I512::from(1); 1024];
+    test_read_write_vec!(write_I512_vec, read_I512_vec, original_i512_vec, "I512 vector");
+
+    // Test vector of commitments
+    let original_commitments = vec![Output::<Keccak256>::default(); 1024];
+    test_read_write_vec!(write_commitments, read_commitments, original_commitments, "commitments vector");
 }

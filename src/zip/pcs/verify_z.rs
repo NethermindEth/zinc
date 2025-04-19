@@ -97,6 +97,7 @@ where
             }
 
             let _ = ColumnOpening::verify_column(roots, &column_values, column_idx, transcript);
+            // TODO: Verify column opening is taking a long time.
             columns_opened.push((column_idx, column_values));
         }
         Ok(columns_opened)
@@ -166,6 +167,7 @@ where
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
             inner_product(t_0_f, &column_entries)
+            // TODO: this inner product is taking a long time.
         } else {
             column_entries.first().unwrap().map_to_field(field)
         };

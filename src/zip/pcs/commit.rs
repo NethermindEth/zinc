@@ -33,8 +33,7 @@ where
         // We deviate from the paper to merkleize each column instead of each row
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut hashes =
-            vec![Output::<Keccak256>::default(); num_rows * ((2 << merkle_depth) - 1)];
+        let mut hashes = vec![Output::<Keccak256>::default(); num_rows * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
         let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows * codeword_len];
         Self::compute_rows_hashes(&mut temp_hashes, &rows);
@@ -132,8 +131,8 @@ where
                 |(input, output)| {
                     let mut hasher = Keccak256::new();
                     for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
-                        hasher.update(&input[0]);
-                        hasher.update(&input[1]);
+                        hasher.update(input[0]);
+                        hasher.update(input[1]);
                         hasher.finalize_into_reset(output);
                     }
                 },

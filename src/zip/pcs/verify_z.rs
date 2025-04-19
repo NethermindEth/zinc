@@ -1,8 +1,7 @@
 use ark_std::iterable::Iterable;
 
 use i256::{I256, I512};
-use itertools::Itertools;
-use sha3::{digest::Output, Digest, Keccak256};
+use sha3::{digest::Output, Keccak256};
 
 use crate::{
     field::{conversion::FieldMap, RandomField},
@@ -125,7 +124,7 @@ where
 
     fn verify_evaluation_z(
         vp: &Self::VerifierParam,
-        point: &Vec<i64>,
+        point: &[i64],
         eval: &i64,
         columns_opened: &[(usize, Vec<I512>)],
         transcript: &mut PcsTranscript<N>,

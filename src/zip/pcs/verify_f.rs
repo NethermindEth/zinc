@@ -6,17 +6,14 @@ use crate::{
     field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     zip::{
-        code::{I256_to_I512, LinearCodes, ZipSpec},
+        code::{I256_to_I512, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::inner_product,
         Error,
     },
 };
 
-use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
-    utils::point_to_tensor_f,
-};
+use super::structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript};
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
 where
@@ -32,10 +29,6 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         // validate_input("verify", vp.num_vars(), [], [point])?;
-
-        let row_len = vp.zip().row_len();
-        let codeword_len = vp.zip().codeword_len();
-
         todo!()
     }
 

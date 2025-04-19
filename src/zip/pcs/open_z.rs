@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input, ColumnOpening},
+    utils::{point_to_tensor_z, validate_input},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>

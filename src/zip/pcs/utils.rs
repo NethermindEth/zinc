@@ -75,6 +75,12 @@ impl std::fmt::Display for MerkleProof {
     }
 }
 
+impl Default for MerkleProof {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MerkleProof {
     pub fn new() -> Self {
         Self {
@@ -112,7 +118,7 @@ impl MerkleProof {
         leaf_index: usize,
     ) -> Result<(), MerkleError> {
         let mut hasher = Keccak256::new();
-        hasher.update(&leaf_value.to_be_bytes());
+        hasher.update(leaf_value.to_be_bytes());
         let mut current = hasher.finalize_reset();
 
         let mut index = leaf_index;

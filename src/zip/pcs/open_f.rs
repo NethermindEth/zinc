@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_f, ColumnOpening, MerkleProof},
+    utils::{point_to_tensor_f, ColumnOpening},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -117,7 +117,8 @@ where
                 .collect::<Vec<_>>(),
         )?;
         let merkle_depth = pp.zip().codeword_len().next_power_of_two().ilog2() as usize;
-        ColumnOpening::open_at_column(merkle_depth, column, comm, transcript);
+        ColumnOpening::open_at_column(merkle_depth, column, comm, transcript)
+            .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
         Ok(())
     }
     // Subprotocol functions

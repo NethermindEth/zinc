@@ -269,8 +269,6 @@ macro_rules! test_read_write_vec {
     }};
 }
 
-const N: usize = 4;
-
 #[test]
 fn test_pcs_transcript_read_write() {
     const N: usize = 4;

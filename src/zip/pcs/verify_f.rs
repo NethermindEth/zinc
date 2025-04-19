@@ -36,58 +36,6 @@ where
         let row_len = vp.zip().row_len();
         let codeword_len = vp.zip().codeword_len();
 
-        // // Retrieve the row combinations from the transcript
-        // // Pair the combinations with the coefficients that generated them
-        // let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
-
-        // if vp.num_rows() > 1 {
-        //     for _ in 0..vp.zip().num_proximity_testing() {
-        //         let coeffs: Vec<_> = transcript
-        //             .fs_transcript
-        //             .get_integer_challenges(vp.num_rows())
-        //             .iter()
-        //             .map(|i| I256::from(*i))
-        //             .collect();
-
-        //         let combined_row = transcript.read_I256_vec(row_len)?;
-
-        //         let code = vp.zip().encode(&combined_row);
-
-        //         encoded_combined_rows.push((coeffs, code));
-        //     }
-        // }
-
-        // let depth = codeword_len.next_power_of_two().ilog2() as usize;
-        // let t_0_combined_row = transcript.read_field_elements(row_len, field)?;
-        // let (t_0_f, t_1_f) = point_to_tensor_f(vp.num_rows(), point, field)?;
-
-        // // Ensure that the test combinations are valid codewords
-        // for _ in 0..vp.zip().num_column_opening() {
-        //     let column = transcript.squeeze_challenge_idx(field, codeword_len);
-
-        //     let items = transcript.read_I512_vec(vp.num_rows())?;
-
-        //     let merkle_path = transcript.read_commitments(depth)?;
-
-        //     Self::verify_proximity_f(&encoded_combined_rows, &items, column, vp.num_rows())?;
-        //     Self::verify_proximity_t_0_f(
-        //         &t_0_f,
-        //         &vp.zip().encode_f(&t_0_combined_row, field),
-        //         &items,
-        //         column,
-        //         vp.num_rows(),
-        //         field,
-        //     )?;
-        //     Self::verify_merkle_path(&items, &merkle_path, column, comm)?;
-        // }
-
-        // // verify consistency
-
-        // if inner_product(&t_0_combined_row, &t_1_f) != *eval_f {
-        //     return Err(Error::InvalidPcsOpen("Consistency failure".to_string()));
-        // }
-
-        // Ok(())
         todo!()
     }
 

@@ -34,7 +34,6 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         validate_input("verify", vp.num_vars(), [], [point])?;
-        println!("Verifying z");
 
         let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
 
@@ -132,6 +131,7 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let t_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
+        let encoded_combined_row = vp.zip().encode_f(&t_0_combined_row, field);
         let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
         let t_0_f = t_0.map_to_field(field);
         let t_1_f = t_1.map_to_field(field);
@@ -144,7 +144,7 @@ where
         for (column_idx, column_values) in columns_opened.iter() {
             Self::verify_proximity_t_0(
                 &t_0_f,
-                &t_0_combined_row,
+                &encoded_combined_row,
                 column_values,
                 *column_idx,
                 vp.num_rows(),

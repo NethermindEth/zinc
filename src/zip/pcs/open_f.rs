@@ -40,7 +40,14 @@ where
 
         Self::prove_test(pp, poly, comm, transcript, field)?;
 
-        Self::prove_evaluation_f(pp.num_rows(), pp.zip().row_len(), transcript, point, poly, field)?;
+        Self::prove_evaluation_f(
+            pp.num_rows(),
+            pp.zip().row_len(),
+            transcript,
+            point,
+            poly,
+            field,
+        )?;
 
         Ok(())
     }
@@ -118,7 +125,6 @@ where
         num_rows: usize,
         row_len: usize,
         transcript: &mut PcsTranscript<N>,
-
         point: &[RandomField<N>],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,

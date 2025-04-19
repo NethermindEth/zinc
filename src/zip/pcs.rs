@@ -1,4 +1,5 @@
 mod commit;
+mod error;
 mod open_f;
 mod open_z;
 pub mod structs;

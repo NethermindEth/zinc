@@ -12,6 +12,7 @@ use crate::{
     zip::{pcs_transcript::PcsTranscript, Error},
 };
 
+use super::error::MerkleError;
 use super::structs::MultilinearZipData;
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
@@ -79,7 +80,7 @@ impl MerkleProof {
         row_merkle_tree: &[Output<Keccak256>],
         leaf: usize,
         merkle_depth: usize,
-    ) -> Self {
+    ) -> Result<Self, MerkleError> {
         let mut offset = 0;
         let path: Vec<Output<Keccak256>> = (1..=merkle_depth)
             .rev()
@@ -91,10 +92,15 @@ impl MerkleProof {
                 hash
             })
             .collect();
-        MerkleProof::from_vec(path)
+        Ok(MerkleProof::from_vec(path))
     }
 
-    pub fn verify(&self, root: Output<Keccak256>, leaf_value: I512, leaf_index: usize) -> bool {
+    pub fn verify(
+        &self,
+        root: Output<Keccak256>,
+        leaf_value: I512,
+        leaf_index: usize,
+    ) -> Result<(), MerkleError> {
         let mut hasher = Keccak256::new();
         hasher.update(&leaf_value.to_be_bytes());
         let mut current = hasher.finalize_reset();
@@ -111,11 +117,16 @@ impl MerkleProof {
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
             }
-            
+
             hasher.finalize_into_reset(&mut current);
             index /= 2; // Move up to the parent node
         }
-        current == root
+        if current != root {
+            return Err(MerkleError::InvalidMerkleProof(
+                "Merkle proof verification failed".to_string(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -132,11 +143,14 @@ impl ColumnOpening {
         column: usize,
         comm: &MultilinearZipData<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> () {
+    ) -> Result<(), MerkleError> {
         for row_hashes in comm.intermediate_rows_hashes() {
-            let merkle_path = MerkleProof::create_proof(row_hashes, column, merkle_depth);
-            transcript.write_merkle_proof(&merkle_path).unwrap();
+            let merkle_path = MerkleProof::create_proof(row_hashes, column, merkle_depth)?;
+            transcript
+                .write_merkle_proof(&merkle_path)
+                .map_err(|_| MerkleError::FailedMerkleProofWriting)?;
         }
+        Ok(())
     }
 
     pub fn verify_column<const N: usize>(
@@ -144,13 +158,14 @@ impl ColumnOpening {
         column: &[I512],
         column_index: usize,
         transcript: &mut PcsTranscript<N>,
-    ) -> bool {
-        let mut valid = true;
+    ) -> Result<(), MerkleError> {
         for (root, leaf) in rows_roots.iter().zip(column) {
-            let proof = transcript.read_merkle_proof().unwrap();
-            valid &= proof.verify(*root, *leaf, column_index);
+            let proof = transcript
+                .read_merkle_proof()
+                .map_err(|_| MerkleError::FailedMerkleProofReading)?;
+            proof.verify(*root, *leaf, column_index)?;
         }
-        valid
+        Ok(())
     }
 }
 
@@ -275,19 +290,19 @@ mod tests {
         let mut merkle_tree = vec![Output::<Keccak256>::default(); 2 * leaves_data.len() - 1];
         merkle_tree[..leaves_data.len()].copy_from_slice(&temp_hashes);
         merklize_hashes(2, &mut merkle_tree);
-        
+
         // Print tree structure after merklizing
         let root = merkle_tree.pop().unwrap();
         // Create a proof for the first leaf
         let merkle_depth = 2; // Example depth for 4 leaves
         for i in 0..leaves_data.len() {
-            let proof = MerkleProof::create_proof(&merkle_tree, i, merkle_depth);
+            let proof = MerkleProof::create_proof(&merkle_tree, i, merkle_depth)
+                .expect("Merkle proof creation failed");
 
             // Verify the proof
-            let is_valid = proof.verify(root, leaves_data[i], i);
-
-            // Assert the verification result
-            assert!(is_valid, "The Merkle proof verification failed for leaf {}", i);
+            proof
+                .verify(root, leaves_data[i], i)
+                .expect("Merkle proof verification failed");
         }
     }
 }

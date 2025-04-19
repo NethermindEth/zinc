@@ -25,19 +25,6 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    // pub fn read_commitments(
-    //     _: &Self::VerifierParam,
-    //     num_polys: usize,
-    //     transcript: &mut PcsTranscript<N>,
-    // ) -> Result<Vec<Self::Commitment>, Error> {
-    //     transcript.read_commitments(num_polys).map(|roots| {
-    //         roots
-    //             .into_iter()
-    //             .map(MultilinearZipCommitment::new)
-    //             .collect_vec()
-    //     })
-    // }
-
     pub fn verify_z(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,

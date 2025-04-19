@@ -28,35 +28,36 @@ where
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
+        let num_rows = pp.num_rows();
         let codeword_len = pp.zip().codeword_len();
         // We deviate from the paper to merkleize each column instead of each row
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         let mut hashes =
-            vec![Output::<Keccak256>::default(); codeword_len * ((2 << merkle_depth) - 1)];
+            vec![Output::<Keccak256>::default(); num_rows * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
-        let mut temp_hashes = vec![Output::<Keccak256>::default(); row_len * codeword_len];
+        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows * codeword_len];
         Self::compute_rows_hashes(&mut temp_hashes, &rows);
 
-        // Process each column's hashes
-        for i in 0..codeword_len {
+        // Process each row's hashes
+        for i in 0..num_rows {
             let merkle_tree_size = (2 << merkle_depth) - 1;
             let start_idx = i * merkle_tree_size;
 
-            // Copy hashes for this column
-            for j in 0..row_len {
-                hashes[start_idx + j] = temp_hashes[i * row_len + j];
+            // Copy the row from temp_hashes to the initial elements of this row in hashes
+            for j in 0..codeword_len {
+                hashes[start_idx + j] = temp_hashes[i * codeword_len + j];
             }
 
-            // Merklize this column's hashes
+            // Merklize this row's hashes
             let end_idx = start_idx + merkle_tree_size;
             Self::merklize_rows_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
         }
 
         // Split hashes into chunks of size (2 << merkle_depth) - 1
-        let mut split_hashes = Vec::with_capacity(codeword_len);
+        let mut split_hashes = Vec::with_capacity(num_rows);
         let chunk_size = (2 << merkle_depth) - 1;
-        let mut roots = Vec::with_capacity(codeword_len);
+        let mut roots = Vec::with_capacity(num_rows);
 
         for chunk in hashes.chunks(chunk_size) {
             let mut chunk_vec = chunk.to_vec();

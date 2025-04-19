@@ -232,29 +232,41 @@ impl<const N: usize> PcsTranscript<N> {
 }
 
 macro_rules! test_read_write {
-    ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {
-        {
-            let mut transcript = PcsTranscript::<N>::new();
-            transcript.$write_fn(&$original_value).expect(&format!("Failed to write {}", $assert_msg));
-            let proof = transcript.into_proof();
-            let mut transcript = PcsTranscript::<N>::from_proof(&proof);
-            let read_value = transcript.$read_fn().expect(&format!("Failed to read {}", $assert_msg));
-            assert_eq!($original_value, read_value, "{} read does not match original", $assert_msg);
-        }
-    };
+    ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {{
+        let mut transcript = PcsTranscript::<N>::new();
+        transcript
+            .$write_fn(&$original_value)
+            .expect(&format!("Failed to write {}", $assert_msg));
+        let proof = transcript.into_proof();
+        let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+        let read_value = transcript
+            .$read_fn()
+            .expect(&format!("Failed to read {}", $assert_msg));
+        assert_eq!(
+            $original_value, read_value,
+            "{} read does not match original",
+            $assert_msg
+        );
+    }};
 }
 
 macro_rules! test_read_write_vec {
-    ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {
-        {
-            let mut transcript = PcsTranscript::<N>::new();
-            transcript.$write_fn(&$original_values).expect(&format!("Failed to write {}", $assert_msg));
-            let proof = transcript.into_proof();
-            let mut transcript = PcsTranscript::<N>::from_proof(&proof);
-            let read_values = transcript.$read_fn($original_values.len()).expect(&format!("Failed to read {}", $assert_msg));
-            assert_eq!($original_values, read_values, "{} read does not match original", $assert_msg);
-        }
-    };
+    ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {{
+        let mut transcript = PcsTranscript::<N>::new();
+        transcript
+            .$write_fn(&$original_values)
+            .expect(&format!("Failed to write {}", $assert_msg));
+        let proof = transcript.into_proof();
+        let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+        let read_values = transcript
+            .$read_fn($original_values.len())
+            .expect(&format!("Failed to read {}", $assert_msg));
+        assert_eq!(
+            $original_values, read_values,
+            "{} read does not match original",
+            $assert_msg
+        );
+    }};
 }
 
 const N: usize = 4;
@@ -278,7 +290,12 @@ fn test_pcs_transcript_read_write() {
 
     // Test commitment
     let original_commitment = Output::<Keccak256>::default();
-    test_read_write!(write_commitment, read_commitment, original_commitment, "commitment");
+    test_read_write!(
+        write_commitment,
+        read_commitment,
+        original_commitment,
+        "commitment"
+    );
 
     // Test vector of integers
     let original_ints = vec![1i64; 1024];
@@ -286,13 +303,28 @@ fn test_pcs_transcript_read_write() {
 
     // Test vector of I256
     let original_i256_vec = vec![I256::from(1); 1024];
-    test_read_write_vec!(write_I256_vec, read_I256_vec, original_i256_vec, "I256 vector");
+    test_read_write_vec!(
+        write_I256_vec,
+        read_I256_vec,
+        original_i256_vec,
+        "I256 vector"
+    );
 
     // Test vector of I512
     let original_i512_vec = vec![I512::from(1); 1024];
-    test_read_write_vec!(write_I512_vec, read_I512_vec, original_i512_vec, "I512 vector");
+    test_read_write_vec!(
+        write_I512_vec,
+        read_I512_vec,
+        original_i512_vec,
+        "I512 vector"
+    );
 
     // Test vector of commitments
     let original_commitments = vec![Output::<Keccak256>::default(); 1024];
-    test_read_write_vec!(write_commitments, read_commitments, original_commitments, "commitments vector");
+    test_read_write_vec!(
+        write_commitments,
+        read_commitments,
+        original_commitments,
+        "commitments vector"
+    );
 }

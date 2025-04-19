@@ -60,9 +60,19 @@ pub(super) fn validate_input<'a>(
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MerkleProof {
     pub merkle_path: Vec<Output<Keccak256>>,
+}
+
+impl std::fmt::Display for MerkleProof {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Merkle Path:")?;
+        for (i, hash) in self.merkle_path.iter().enumerate() {
+            writeln!(f, "Level {}: {:?}", i, hash)?;
+        }
+        Ok(())
+    }
 }
 
 impl MerkleProof {

@@ -193,9 +193,9 @@ impl<const N: usize> PcsTranscript<N> {
 
     pub fn squeeze_challenge_idx(&mut self, config: *const FieldConfig<N>, cap: usize) -> usize {
         let challenge = self.fs_transcript.get_challenge(config);
-        let mut bytes = [0; size_of::<u32>()];
-        bytes.copy_from_slice(&challenge.value().to_bytes_be()[..size_of::<u32>()]);
-        u32::from_le_bytes(bytes) as usize % cap
+        let bytes = challenge.value().to_bytes_le();
+        let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
+        num % cap
     }
 
     pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {

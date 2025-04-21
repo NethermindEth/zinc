@@ -46,15 +46,15 @@ impl<const N: usize> MultilinearZipParams<N> {
 pub struct MultilinearZipData<const N: usize> {
     /// The encoded rows of the polynomial matrix representation
     rows: Vec<I512>,
-    /// Hashes of the merkle tree of each column
-    intermediate_rows_hashes: Vec<Vec<Output<Keccak256>>>,
-    /// Roots of the merkle tree of each column
+    /// Hashes of the merkle tree of each row
+    rows_merkle_trees: Vec<Vec<Output<Keccak256>>>,
+    /// Roots of the merkle tree of each row
     roots: Vec<Output<Keccak256>>,
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment<const N: usize> {
-    /// Root of the merkle tree of each column
+    /// Roots of the merkle tree of each row
     roots: Vec<Output<Keccak256>>,
 }
 impl<const N: usize> MultilinearZipCommitment<N> {
@@ -74,7 +74,7 @@ impl<const N: usize> MultilinearZipData<N> {
     ) -> MultilinearZipData<N> {
         MultilinearZipData {
             rows,
-            intermediate_rows_hashes,
+            rows_merkle_trees: intermediate_rows_hashes,
             roots,
         }
     }
@@ -90,7 +90,7 @@ impl<const N: usize> MultilinearZipData<N> {
     }
 
     pub fn intermediate_rows_hashes(&self) -> &[Vec<Output<Keccak256>>] {
-        &self.intermediate_rows_hashes
+        &self.rows_merkle_trees
     }
 
     pub fn roots(&self) -> &[Output<Keccak256>] {

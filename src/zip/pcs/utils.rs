@@ -157,10 +157,10 @@ impl ColumnOpening {
     pub fn open_at_column<const N: usize>(
         merkle_depth: usize,
         column: usize,
-        comm: &MultilinearZipData<N>,
+        commit_data: &MultilinearZipData<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
-        for row_hashes in comm.intermediate_rows_hashes() {
+        for row_hashes in commit_data.intermediate_rows_hashes() {
             let merkle_path = MerkleProof::create_proof(row_hashes, column, merkle_depth)?;
             transcript
                 .write_merkle_proof(&merkle_path)
@@ -185,6 +185,8 @@ impl ColumnOpening {
     }
 }
 
+/// For a polynomial arranged in matrix form, this splits the evluation point into
+/// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 pub(super) fn point_to_tensor_z(
     num_rows: usize,
     point: &[i64],
@@ -192,21 +194,36 @@ pub(super) fn point_to_tensor_z(
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
-    let t_0 = if !lo.is_empty() {
+    let q_0 = if !lo.is_empty() {
         build_eq_x_r_z(lo).unwrap()
     } else {
         MLE_Z::zero()
     };
 
-    let t_1 = if !hi.is_empty() {
+    let q_1 = if !hi.is_empty() {
         build_eq_x_r_z(hi).unwrap()
     } else {
         MLE_Z::zero()
     };
 
-    Ok((t_0.evaluations, t_1.evaluations))
+    Ok((q_0.evaluations, q_1.evaluations))
 }
 
+/// For a polynomial arranged in matrix form, this splits the evluation point into
+/// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
+/// and returns the left vector only
+pub(super) fn left_point_to_tensor_z(num_rows: usize, point: &[i64]) -> Result<Vec<i64>, Error> {
+    let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
+    let q_0 = if !lo.is_empty() {
+        build_eq_x_r_z(lo).unwrap()
+    } else {
+        MLE_Z::zero()
+    };
+    Ok(q_0.evaluations)
+}
+
+/// For a polynomial arranged in matrix form, this splits the evluation point into
+/// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 pub(super) fn point_to_tensor_f<const N: usize>(
     num_rows: usize,
     point: &[F<N>],
@@ -215,19 +232,19 @@ pub(super) fn point_to_tensor_f<const N: usize>(
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
-    let t_0 = if !lo.is_empty() {
+    let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
         MLE_F::<N>::zero()
     };
 
-    let t_1 = if !hi.is_empty() {
+    let q_1 = if !hi.is_empty() {
         build_eq_x_r_f(hi, config).unwrap()
     } else {
         MLE_F::<N>::zero()
     };
 
-    Ok((t_0.evaluations, t_1.evaluations))
+    Ok((q_0.evaluations, q_1.evaluations))
 }
 
 #[cfg(test)]

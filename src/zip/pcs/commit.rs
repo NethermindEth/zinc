@@ -30,7 +30,6 @@ where
         let row_len = pp.zip().row_len();
         let num_rows = pp.num_rows();
         let codeword_len = pp.zip().codeword_len();
-        // We deviate from the paper to merkleize each column instead of each row
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
         let mut hashes = vec![Output::<Keccak256>::default(); num_rows * ((2 << merkle_depth) - 1)];
@@ -78,6 +77,7 @@ where
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
 
+    /// Encodes the rows of the polynomial concatenating each encoded row
     fn encode_rows(
         pp: &Self::ProverParam,
         codeword_len: usize,

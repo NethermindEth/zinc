@@ -231,6 +231,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 }
 
+#[allow(unused_macros)]
 macro_rules! test_read_write {
     ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {{
         let mut transcript = PcsTranscript::<N>::new();
@@ -250,6 +251,7 @@ macro_rules! test_read_write {
     }};
 }
 
+#[allow(unused_macros)]
 macro_rules! test_read_write_vec {
     ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {{
         let mut transcript = PcsTranscript::<N>::new();

@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input},
+    utils::{left_point_to_tensor_z, validate_input},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -29,23 +29,16 @@ where
     pub fn open_z(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-        comm: &Self::Data,
+        commit_data: &Self::Data,
         point: &Vec<i64>,
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        Self::prove_test(pp, poly, comm, transcript, field)?;
+        Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
 
-        Self::prove_evaluation_z(
-            pp.num_rows(),
-            pp.zip().row_len(),
-            transcript,
-            point,
-            poly,
-            field,
-        )?;
+        Self::prove_evaluation_phase(pp, transcript, point, poly, field)?;
 
         Ok(())
     }
@@ -67,24 +60,26 @@ where
     }
 
     // Subprotocol functions
-    fn prove_evaluation_z(
-        num_rows: usize,
-        row_len: usize,
+    fn prove_evaluation_phase(
+        pp: &Self::ProverParam,
         transcript: &mut PcsTranscript<N>,
         point: &[i64],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        // We prove evaluations over the field,so integers need to be mapped to field elements first
-        let (t_0, _) = point_to_tensor_z(num_rows, point).unwrap();
+        let num_rows = pp.num_rows();
+        let row_len = pp.zip().row_len();
 
-        let t_O_f = t_0.map_to_field(field);
+        // We prove evaluations over the field,so integers need to be mapped to field elements first
+        let q_0 = left_point_to_tensor_z(num_rows, point).unwrap();
+
+        let q_0_f = q_0.map_to_field(field);
 
         let evaluations = poly.evaluations.map_to_field(field);
 
-        let t_0_combined_row = if num_rows > 1 {
+        let q_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
-            let combined_row = combine_rows(t_O_f, evaluations, row_len);
+            let combined_row = combine_rows(q_0_f, evaluations, row_len);
             Cow::<Vec<RandomField<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -92,6 +87,6 @@ where
             Cow::Borrowed(&evaluations)
         };
 
-        transcript.write_field_elements(&t_0_combined_row)
+        transcript.write_field_elements(&q_0_combined_row)
     }
 }

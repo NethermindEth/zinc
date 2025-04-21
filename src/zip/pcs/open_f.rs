@@ -38,7 +38,7 @@ where
     ) -> Result<(), Error> {
         // validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        Self::prove_test(pp, poly, comm, transcript, field)?;
+        Self::prove_testing_phase(pp, poly, comm, transcript, field)?;
 
         Self::prove_evaluation_f(
             pp.num_rows(),
@@ -70,10 +70,10 @@ where
         Ok(())
     }
 
-    pub(super) fn prove_test(
+    pub(super) fn prove_testing_phase(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-        commitment_data: &Self::Data,
+        commit_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
@@ -95,20 +95,20 @@ where
         // Open merkle tree for each column drawn
         for _ in 0..pp.zip().num_column_opening() {
             let column = transcript.squeeze_challenge_idx(field, pp.zip().codeword_len());
-            Self::open_merkle_trees_for_column(pp, commitment_data, column, transcript)?;
+            Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
     }
 
     pub(super) fn open_merkle_trees_for_column(
         pp: &Self::ProverParam,
-        comm: &MultilinearZipData<N>,
+        commit_data: &MultilinearZipData<N>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         //Write the elements in the squeezed column to the shared transcript
         transcript.write_I512_vec(
-            &comm
+            &commit_data
                 .rows()
                 .iter()
                 .copied()
@@ -117,7 +117,7 @@ where
                 .collect::<Vec<_>>(),
         )?;
         let merkle_depth = pp.zip().codeword_len().next_power_of_two().ilog2() as usize;
-        ColumnOpening::open_at_column(merkle_depth, column, comm, transcript)
+        ColumnOpening::open_at_column(merkle_depth, column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
         Ok(())
     }

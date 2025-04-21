@@ -1,6 +1,5 @@
 use crate::{
     biginteger::BigInt,
-    field::conversion::FieldMap,
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     transcript::KeccakTranscript,

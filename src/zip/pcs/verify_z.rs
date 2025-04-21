@@ -130,20 +130,22 @@ where
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let t_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
-        let encoded_combined_row = vp.zip().encode_f(&t_0_combined_row, field);
-        let (t_0, t_1) = point_to_tensor_z(vp.num_rows(), point)?;
-        let t_0_f = t_0.map_to_field(field);
-        let t_1_f = t_1.map_to_field(field);
-        if inner_product(&t_0_combined_row, &t_1_f) != eval.map_to_field(field) {
+        let q_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
+        let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
+
+        let (q_0, q_1) = point_to_tensor_z(vp.num_rows(), point)?;
+        let q_0_f = q_0.map_to_field(field);
+        let q_1_f = q_1.map_to_field(field);
+
+        if inner_product(&q_0_combined_row, &q_1_f) != eval.map_to_field(field) {
             return Err(Error::InvalidPcsOpen(
                 "Evaluation consistency failure".to_string(),
             ));
         }
 
         for (column_idx, column_values) in columns_opened.iter() {
-            Self::verify_proximity_t_0(
-                &t_0_f,
+            Self::verify_proximity_q_0(
+                &q_0_f,
                 &encoded_combined_row,
                 column_values,
                 *column_idx,
@@ -155,9 +157,9 @@ where
         Ok(())
     }
 
-    fn verify_proximity_t_0(
-        t_0_f: &Vec<RandomField<N>>,
-        t_0_combined_row: &[RandomField<N>],
+    fn verify_proximity_q_0(
+        q_0_f: &Vec<RandomField<N>>,
+        q_0_combined_row: &[RandomField<N>],
         column_entries: &[I512],
         column: usize,
         num_rows: usize,
@@ -165,12 +167,12 @@ where
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
-            inner_product(t_0_f, &column_entries)
+            inner_product(q_0_f, &column_entries)
             // TODO: this inner product is taking a long time.
         } else {
             column_entries.first().unwrap().map_to_field(field)
         };
-        if column_entries_comb != t_0_combined_row[column] {
+        if column_entries_comb != q_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
         }
 

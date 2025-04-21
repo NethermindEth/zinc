@@ -71,7 +71,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::open(
+                    MultilinearZip::<N, B, T>::open(
                         &params,
                         &poly,
                         &data,
@@ -106,7 +106,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
 
-    let _ = MultilinearZip::<N, B, T>::open(
+    MultilinearZip::<N, B, T>::open(
         &params,
         &poly,
         &data,
@@ -126,7 +126,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::verify(
+                    MultilinearZip::<N, B, T>::verify(
                         &params,
                         &commitment,
                         &point.map_to_field(field_config),

@@ -106,8 +106,6 @@ impl MerkleTree {
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
             let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
 
-            println!("width: {}", width);
-            println!("next_layer.len(): {}", next_layer.len());
             let chunk_size = div_ceil(next_layer.len(), num_threads());
             parallelize_iter(
                 current_layer
@@ -349,13 +347,13 @@ mod tests {
         // Print tree structure after merklizing
         let root = merkle_tree.root;
         // Create a proof for the first leaf
-        for i in 0..leaves_data.len() {
+        for (i, leaf) in leaves_data.iter().enumerate() {
             let proof =
                 MerkleProof::create_proof(&merkle_tree, i).expect("Merkle proof creation failed");
 
             // Verify the proof
             proof
-                .verify(root, leaves_data[i], i)
+                .verify(root, *leaf, i)
                 .expect("Merkle proof verification failed");
         }
     }

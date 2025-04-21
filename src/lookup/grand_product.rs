@@ -52,9 +52,36 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
     fn prove_grand_product() -> (BatchedGrandProductProof<N, S>, Vec<F<N>>) {
         todo!()
     }
+    fn verify_sumcheck_claim(
+        layer_proofs: &[BatchedGrandProductLayerProof<N>],
+        layer_index: usize,
+        sumcheck_claim: F<N>,
+        eq_eval: F<N>,
+        grand_product_claim: &mut F<N>,
+        r_grand_product: &mut Vec<F<N>>,
+        transcript: &mut KeccakTranscript,
+    ) {
+        todo!()
+    }
+
+    /// Function used for layer sumchecks in the generic batch verifier as well as the quark layered sumcheck hybrid
+    fn verify_layers(
+        proof_layers: &[BatchedGrandProductLayerProof<N>],
+        mut claim: F<N>,
+        transcript: &mut KeccakTranscript,
+        r_start: Vec<F<N>>,
+    ) -> (F<N>, Vec<F<N>>) {
+        todo!()
+    }
 }
 
 pub trait BatchedGrandProductLayer<const N: usize> {}
+
+pub struct BatchedGrandProductLayerProof<const N: usize> {
+    pub proof: SumcheckProof<N>,
+    pub left_claim: F<N>,
+    pub right_claim: F<N>,
+}
 
 impl<const N: usize> BatchedDenseGrandProduct<N> {
     /// The bottom/input layer of the grand products

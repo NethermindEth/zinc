@@ -9,7 +9,11 @@ use crate::{
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::{build_eq_x_r as build_eq_x_r_z, DenseMultilinearExtension as MLE_Z},
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    zip::{pcs_transcript::PcsTranscript, Error},
+    zip::{
+        pcs_transcript::PcsTranscript,
+        utils::{div_ceil, num_threads, parallelize, parallelize_iter},
+        Error,
+    },
 };
 
 use super::error::MerkleError;
@@ -60,6 +64,69 @@ pub(super) fn validate_input<'a>(
     Ok(())
 }
 
+/// A merkle tree in which its layers are concatenated together in a single vector
+#[derive(Clone, Debug, Default)]
+pub struct MerkleTree {
+    pub root: Output<Keccak256>,
+    pub depth: usize,
+    pub layers: Vec<Output<Keccak256>>,
+}
+
+impl MerkleTree {
+    pub fn new(depth: usize, leaves: &[I512]) -> Self {
+        assert!(leaves.len().is_power_of_two());
+        assert_eq!(leaves.len(), 1 << depth);
+        let mut layers = vec![Output::<Keccak256>::default(); (2 << depth) - 1];
+        Self::compute_leaves_hashes(&mut layers[..leaves.len()], leaves);
+        Self::merklize_leaves_hashes(depth, &mut layers);
+        Self {
+            root: layers.pop().unwrap(),
+            depth,
+            layers,
+        }
+    }
+
+    fn compute_leaves_hashes(hashes: &mut [Output<Keccak256>], leaves: &[I512]) {
+        parallelize(hashes, |(hashes, start)| {
+            let mut hasher = Keccak256::new();
+            for (hash, row) in hashes.iter_mut().zip(start..) {
+                // For each row, iterate through all columns at that row position
+                <Keccak256 as sha3::digest::Update>::update(
+                    &mut hasher,
+                    &leaves[row].to_be_bytes(),
+                );
+                hasher.finalize_into_reset(hash);
+            }
+        });
+    }
+
+    fn merklize_leaves_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
+        assert_eq!(hashes.len(), (2 << depth) - 1);
+        let mut offset = 0;
+        for width in (1..=depth).rev().map(|depth| 1 << depth) {
+            let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
+
+            println!("width: {}", width);
+            println!("next_layer.len(): {}", next_layer.len());
+            let chunk_size = div_ceil(next_layer.len(), num_threads());
+            parallelize_iter(
+                current_layer
+                    .chunks(2 * chunk_size)
+                    .zip(next_layer.chunks_mut(chunk_size)),
+                |(input, output)| {
+                    let mut hasher = Keccak256::new();
+                    for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
+                        hasher.update(input[0]);
+                        hasher.update(input[1]);
+                        hasher.finalize_into_reset(output);
+                    }
+                },
+            );
+            offset += width;
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
     pub merkle_path: Vec<Output<Keccak256>>,
@@ -92,18 +159,14 @@ impl MerkleProof {
         Self { merkle_path: vec }
     }
 
-    pub fn create_proof(
-        row_merkle_tree: &[Output<Keccak256>],
-        leaf: usize,
-        merkle_depth: usize,
-    ) -> Result<Self, MerkleError> {
+    pub fn create_proof(merkle_tree: &MerkleTree, leaf: usize) -> Result<Self, MerkleError> {
         let mut offset = 0;
-        let path: Vec<Output<Keccak256>> = (1..=merkle_depth)
+        let path: Vec<Output<Keccak256>> = (1..=merkle_tree.depth)
             .rev()
             .map(|depth| {
                 let width = 1 << depth;
-                let idx = (leaf >> (merkle_depth - depth)) ^ 1;
-                let hash = row_merkle_tree[offset + idx];
+                let idx = (leaf >> (merkle_tree.depth - depth)) ^ 1;
+                let hash = merkle_tree.layers[offset + idx];
                 offset += width;
                 hash
             })
@@ -155,13 +218,12 @@ pub struct ColumnOpening {}
 
 impl ColumnOpening {
     pub fn open_at_column<const N: usize>(
-        merkle_depth: usize,
         column: usize,
         commit_data: &MultilinearZipData<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
-        for row_hashes in commit_data.intermediate_rows_hashes() {
-            let merkle_path = MerkleProof::create_proof(row_hashes, column, merkle_depth)?;
+        for row_merkle_tree in commit_data.rows_merkle_trees() {
+            let merkle_path = MerkleProof::create_proof(row_merkle_tree, column)?;
             transcript
                 .write_merkle_proof(&merkle_path)
                 .map_err(|_| MerkleError::FailedMerkleProofWriting)?;
@@ -252,6 +314,7 @@ mod tests {
     use super::*;
     use crate::zip::utils::combine_rows;
     use i256::I512;
+    use rand::{rng, Rng};
 
     #[test]
     fn test_basic_combination() {
@@ -291,46 +354,23 @@ mod tests {
         );
     }
 
-    fn merklize_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
-        let mut offset = 0;
-        for width in (1..=depth).rev().map(|depth| 1 << depth) {
-            let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
-            let mut hasher = Keccak256::new();
-
-            for (input, output) in current_layer.chunks_exact(2).zip(next_layer.iter_mut()) {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &input[0]);
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &input[1]);
-                hasher.finalize_into_reset(output);
-            }
-            offset += width;
-        }
-    }
-
     #[test]
     fn test_merkle_proof() {
-        // Example data to create a Merkle tree
-        let leaves_data = vec![I512::from(1), I512::from(2), I512::from(3), I512::from(4)];
+        let leaves_len = 1024;
+        let mut rng = rng();
+        let leaves_data: Vec<I512> = (0..leaves_len)
+            .map(|_| I512::from_be_bytes(rng.random::<[u8; 64]>()))
+            .collect();
 
-        // Hash the leaves
-        let mut temp_hashes = vec![Output::<Keccak256>::default(); 4];
-        let mut hasher = Keccak256::new();
-        for (i, hash) in temp_hashes.iter_mut().enumerate() {
-            // For each row, iterate through all columns at that row position
-            <Keccak256 as sha3::digest::Update>::update(&mut hasher, &leaves_data[i].to_be_bytes());
-            hasher.finalize_into_reset(hash);
-        }
-
-        let mut merkle_tree = vec![Output::<Keccak256>::default(); 2 * leaves_data.len() - 1];
-        merkle_tree[..leaves_data.len()].copy_from_slice(&temp_hashes);
-        merklize_hashes(2, &mut merkle_tree);
+        let merkle_depth = leaves_data.len().next_power_of_two().ilog2() as usize;
+        let merkle_tree = MerkleTree::new(merkle_depth, &leaves_data);
 
         // Print tree structure after merklizing
-        let root = merkle_tree.pop().unwrap();
+        let root = merkle_tree.root;
         // Create a proof for the first leaf
-        let merkle_depth = 2; // Example depth for 4 leaves
         for i in 0..leaves_data.len() {
-            let proof = MerkleProof::create_proof(&merkle_tree, i, merkle_depth)
-                .expect("Merkle proof creation failed");
+            let proof =
+                MerkleProof::create_proof(&merkle_tree, i).expect("Merkle proof creation failed");
 
             // Verify the proof
             proof

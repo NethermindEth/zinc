@@ -1,19 +1,18 @@
 use ark_std::iterable::Iterable;
 use i256::I512;
-use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, ZipSpec},
-        utils::{div_ceil, num_threads, parallelize, parallelize_iter},
+        utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
 };
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
-    utils::validate_input,
+    utils::{validate_input, MerkleTree},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -28,44 +27,25 @@ where
         validate_input("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
-        let num_rows = pp.num_rows();
         let codeword_len = pp.zip().codeword_len();
         let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let mut hashes = vec![Output::<Keccak256>::default(); num_rows * ((2 << merkle_depth) - 1)];
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
-        let mut temp_hashes = vec![Output::<Keccak256>::default(); num_rows * codeword_len];
-        Self::compute_rows_hashes(&mut temp_hashes, &rows);
 
-        // Process each row's hashes
-        for i in 0..num_rows {
-            let merkle_tree_size = (2 << merkle_depth) - 1;
-            let start_idx = i * merkle_tree_size;
+        let rows_merkle_trees = rows
+            .chunks_exact(codeword_len)
+            .map(|row| MerkleTree::new(merkle_depth, row))
+            .collect::<Vec<_>>();
 
-            // Copy the row from temp_hashes to the initial elements of this row in hashes
-            for j in 0..codeword_len {
-                hashes[start_idx + j] = temp_hashes[i * codeword_len + j];
-            }
+        assert_eq!(rows_merkle_trees.len(), pp.num_rows());
 
-            // Merklize this row's hashes
-            let end_idx = start_idx + merkle_tree_size;
-            Self::merklize_rows_hashes(merkle_depth, &mut hashes[start_idx..end_idx]);
-        }
-
-        // Split hashes into chunks of size (2 << merkle_depth) - 1
-        let mut split_hashes = Vec::with_capacity(num_rows);
-        let chunk_size = (2 << merkle_depth) - 1;
-        let mut roots = Vec::with_capacity(num_rows);
-
-        for chunk in hashes.chunks(chunk_size) {
-            let mut chunk_vec = chunk.to_vec();
-            let root = chunk_vec.pop().unwrap();
-            roots.push(root);
-            split_hashes.push(chunk_vec);
-        }
+        let roots = rows_merkle_trees
+            .iter()
+            .map(|tree| tree.root)
+            .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::new(rows, split_hashes, roots.clone()),
+            MultilinearZipData::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }
@@ -104,40 +84,5 @@ where
         );
 
         encoded_rows
-    }
-
-    fn compute_rows_hashes(hashes: &mut [Output<Keccak256>], rows: &[I512]) {
-        // TODO:improve this without transposing the rows into columns
-        parallelize(hashes, |(hashes, start)| {
-            let mut hasher = Keccak256::new();
-            for (hash, row) in hashes.iter_mut().zip(start..) {
-                // For each row, iterate through all columns at that row position
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &rows[row].to_be_bytes());
-                hasher.finalize_into_reset(hash);
-            }
-        });
-    }
-
-    fn merklize_rows_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
-        let mut offset = 0;
-        for width in (1..=depth).rev().map(|depth| 1 << depth) {
-            let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
-
-            let chunk_size = div_ceil(next_layer.len(), num_threads());
-            parallelize_iter(
-                current_layer
-                    .chunks(2 * chunk_size)
-                    .zip(next_layer.chunks_mut(chunk_size)),
-                |(input, output)| {
-                    let mut hasher = Keccak256::new();
-                    for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
-                        hasher.update(input[0]);
-                        hasher.update(input[1]);
-                        hasher.finalize_into_reset(output);
-                    }
-                },
-            );
-            offset += width;
-        }
     }
 }

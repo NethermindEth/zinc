@@ -116,8 +116,7 @@ where
                 .step_by(pp.zip().codeword_len())
                 .collect::<Vec<_>>(),
         )?;
-        let merkle_depth = pp.zip().codeword_len().next_power_of_two().ilog2() as usize;
-        ColumnOpening::open_at_column(merkle_depth, column, commit_data, transcript)
+        ColumnOpening::open_at_column(column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
         Ok(())
     }

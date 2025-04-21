@@ -8,6 +8,8 @@ use crate::{
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
 
+use super::utils::MerkleTree;
+
 #[derive(Debug)]
 pub struct MultilinearZip<const N: usize, S: ZipSpec, T: ZipTranscript>(
     PhantomData<S>,
@@ -46,10 +48,8 @@ impl<const N: usize> MultilinearZipParams<N> {
 pub struct MultilinearZipData<const N: usize> {
     /// The encoded rows of the polynomial matrix representation
     rows: Vec<I512>,
-    /// Hashes of the merkle tree of each row
-    rows_merkle_trees: Vec<Vec<Output<Keccak256>>>,
-    /// Roots of the merkle tree of each row
-    roots: Vec<Output<Keccak256>>,
+    /// Merkle trees of each row
+    rows_merkle_trees: Vec<MerkleTree>,
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
@@ -67,21 +67,10 @@ impl<const N: usize> MultilinearZipCommitment<N> {
 }
 
 impl<const N: usize> MultilinearZipData<N> {
-    pub fn new(
-        rows: Vec<I512>,
-        intermediate_rows_hashes: Vec<Vec<Output<Keccak256>>>,
-        roots: Vec<Output<Keccak256>>,
-    ) -> MultilinearZipData<N> {
+    pub fn new(rows: Vec<I512>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<N> {
         MultilinearZipData {
             rows,
-            rows_merkle_trees: intermediate_rows_hashes,
-            roots,
-        }
-    }
-    pub fn from_roots(roots: Vec<Output<Keccak256>>) -> Self {
-        Self {
-            roots,
-            ..Default::default()
+            rows_merkle_trees,
         }
     }
 
@@ -89,18 +78,19 @@ impl<const N: usize> MultilinearZipData<N> {
         &self.rows
     }
 
-    pub fn intermediate_rows_hashes(&self) -> &[Vec<Output<Keccak256>>] {
+    pub fn rows_merkle_trees(&self) -> &[MerkleTree] {
         &self.rows_merkle_trees
     }
 
-    pub fn roots(&self) -> &[Output<Keccak256>] {
-        &self.roots
+    pub fn roots(&self) -> Vec<Output<Keccak256>> {
+        self.rows_merkle_trees
+            .iter()
+            .map(|tree| tree.root)
+            .collect::<Vec<_>>()
     }
-}
 
-impl<const N: usize> AsRef<[Output<Keccak256>]> for MultilinearZipData<N> {
-    fn as_ref(&self) -> &[Output<Keccak256>] {
-        &self.roots
+    pub fn root_at_index(&self, index: usize) -> Output<Keccak256> {
+        self.rows_merkle_trees[index].root
     }
 }
 

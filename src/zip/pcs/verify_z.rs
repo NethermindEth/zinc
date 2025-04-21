@@ -4,7 +4,7 @@ use i256::{I256, I512};
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     zip::{
         code::{I256_to_I512, LinearCodes, ZipSpec},
@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input, ColumnOpening},
+    utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -24,15 +24,15 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    pub fn verify_z(
+    pub fn verify(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
-        point: &Vec<i64>,
-        eval: &i64,
+        point: &[F<N>],
+        eval: F<N>,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        validate_input("verify", vp.num_vars(), [], [point])?;
+        validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
 
@@ -44,13 +44,13 @@ where
     pub fn batch_verify_z<'a>(
         vp: &Self::VerifierParam,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<i64>],
-        evals: &[i64],
+        points: &[Vec<F<N>>],
+        evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify_z(vp, comm, &points[i], eval, transcript, field)?;
+            Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
         }
         Ok(())
     }
@@ -124,8 +124,8 @@ where
 
     fn verify_evaluation_z(
         vp: &Self::VerifierParam,
-        point: &[i64],
-        eval: &i64,
+        point: &[F<N>],
+        eval: F<N>,
         columns_opened: &[(usize, Vec<I512>)],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
@@ -133,11 +133,9 @@ where
         let q_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
 
-        let (q_0, q_1) = point_to_tensor_z(vp.num_rows(), point)?;
-        let q_0_f = q_0.map_to_field(field);
-        let q_1_f = q_1.map_to_field(field);
+        let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, field)?;
 
-        if inner_product(&q_0_combined_row, &q_1_f) != eval.map_to_field(field) {
+        if inner_product(&q_0_combined_row, &q_1) != eval {
             return Err(Error::InvalidPcsOpen(
                 "Evaluation consistency failure".to_string(),
             ));
@@ -145,7 +143,7 @@ where
 
         for (column_idx, column_values) in columns_opened.iter() {
             Self::verify_proximity_q_0(
-                &q_0_f,
+                &q_0,
                 &encoded_combined_row,
                 column_values,
                 *column_idx,
@@ -158,8 +156,8 @@ where
     }
 
     fn verify_proximity_q_0(
-        q_0_f: &Vec<RandomField<N>>,
-        q_0_combined_row: &[RandomField<N>],
+        q_0: &Vec<F<N>>,
+        q_0_combined_row: &[F<N>],
         column_entries: &[I512],
         column: usize,
         num_rows: usize,
@@ -167,7 +165,7 @@ where
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
-            inner_product(q_0_f, &column_entries)
+            inner_product(q_0, &column_entries)
             // TODO: this inner product is taking a long time.
         } else {
             column_entries.first().unwrap().map_to_field(field)

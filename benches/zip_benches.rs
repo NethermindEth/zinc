@@ -125,7 +125,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::verify_z(
+                    let _ = MultilinearZip::<N, B, T>::verify(
                         &params,
                         &commitment,
                         &point,

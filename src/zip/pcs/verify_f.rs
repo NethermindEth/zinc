@@ -20,32 +20,6 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    pub fn verify_f(
-        vp: &Self::VerifierParam,
-        comm: &Self::Commitment,
-        point: &[F<N>],
-        eval_f: &F<N>,
-        transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
-        // validate_input("verify", vp.num_vars(), [], [point])?;
-        todo!()
-    }
-
-    pub fn batch_verify_f<'a>(
-        vp: &Self::VerifierParam,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<F<N>>],
-        evals: &[F<N>],
-        transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
-        for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify_f(vp, comm, &points[i], eval, transcript, field)?;
-        }
-        Ok(())
-    }
-
     pub(super) fn verify_proximity_f(
         combined_rows: &[(Vec<I256>, Vec<I512>)],
         column_entries: &[I512],

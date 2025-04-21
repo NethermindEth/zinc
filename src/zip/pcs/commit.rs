@@ -24,7 +24,7 @@ where
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<N>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = pp.zip().row_len();
         let codeword_len = pp.zip().codeword_len();

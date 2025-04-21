@@ -4,6 +4,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkGroup, Criterion};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
+use zinc::field::conversion::FieldMap;
 use zinc::transcript::KeccakTranscript;
 
 use ark_std::test_rng;
@@ -70,11 +71,11 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::open_z(
+                    let _ = MultilinearZip::<N, B, T>::open(
                         &params,
                         &poly,
                         &data,
-                        &point,
+                        &point.map_to_field(field_config),
                         field_config,
                         &mut transcript,
                     )
@@ -105,11 +106,11 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
 
-    let _ = MultilinearZip::<N, B, T>::open_z(
+    let _ = MultilinearZip::<N, B, T>::open(
         &params,
         &poly,
         &data,
-        &point,
+        &point.map_to_field(field_config),
         field_config,
         &mut transcript,
     )
@@ -128,8 +129,8 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                     let _ = MultilinearZip::<N, B, T>::verify(
                         &params,
                         &commitment,
-                        &point,
-                        eval,
+                        &point.map_to_field(field_config),
+                        eval.map_to_field(field_config),
                         &mut transcript,
                         field_config,
                     )

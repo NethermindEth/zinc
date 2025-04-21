@@ -27,7 +27,7 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    pub fn open_z(
+    pub fn open(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
@@ -55,7 +55,7 @@ where
     ) -> Result<(), Error> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
-            proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
+            proofs.push(Self::open(pp, poly, comm, point, field, transcript)?);
         }
         Ok(())
     }

@@ -68,8 +68,7 @@ fn test_zip_opening() {
 
     let point = vec![0i64, 0i64, 0i64].map_to_field(config);
 
-    let res =
-        MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
+    let res = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
 
     assert!(res.is_ok())
 }
@@ -95,7 +94,7 @@ fn test_failing_zip_evaluation() {
     let eval = 7i64.map_to_field(config);
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
+    let _ = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
@@ -129,7 +128,7 @@ fn test_zip_evaluation() {
 
     let point = point.map_to_field(config);
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open_z(&param, &mle, &data, &point, config, &mut transcript);
+    let _ = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);

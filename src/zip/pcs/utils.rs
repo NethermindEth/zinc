@@ -247,7 +247,7 @@ impl ColumnOpening {
     }
 }
 
-/// For a polynomial arranged in matrix form, this splits the evluation point into
+/// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 pub(super) fn point_to_tensor<const N: usize>(
     num_rows: usize,
@@ -272,7 +272,7 @@ pub(super) fn point_to_tensor<const N: usize>(
     Ok((q_0.evaluations, q_1.evaluations))
 }
 
-/// For a polynomial arranged in matrix form, this splits the evluation point into
+/// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
 pub(super) fn left_point_to_tensor<const N: usize>(

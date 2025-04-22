@@ -1,5 +1,6 @@
-use ark_ff::Zero;
+use ark_ff::{One, Zero};
 use ark_std::log2;
+use itertools::Itertools;
 
 use crate::{
     brakedown::code::BrakedownSpec,
@@ -132,8 +133,39 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
         mut claim: F<N>,
         transcript: &mut KeccakTranscript,
         r_start: Vec<F<N>>,
+        config: *const FieldConfig<N>,
     ) -> (F<N>, Vec<F<N>>) {
-        todo!()
+        let mut r_grand_product = r_start.clone();
+        let fixed_at_start = r_start.len();
+
+        for (layer_index, layer_proof) in proof_layers.iter().enumerate() {
+            let (sumcheck_claim, r_sumcheck) =
+                layer_proof.verify(claim, layer_index + fixed_at_start, 3, transcript);
+
+            transcript.absorb_random_field(&layer_proof.left_claim);
+            transcript.absorb_random_field(&layer_proof.right_claim);
+
+            let eq_eval: F<N> = r_grand_product
+                .iter()
+                .zip_eq(r_sumcheck.iter().rev())
+                .map(|(&r_gp, &r_sc)| r_gp * r_sc + (F::one() - r_gp) * (F::one() - r_sc))
+                .product();
+
+            r_grand_product = r_sumcheck.into_iter().rev().collect();
+
+            Self::verify_sumcheck_claim(
+                proof_layers,
+                layer_index,
+                sumcheck_claim,
+                eq_eval,
+                &mut claim,
+                &mut r_grand_product,
+                transcript,
+                config,
+            );
+        }
+
+        (claim, r_grand_product)
     }
 
     fn quark_poly(&self) -> Option<&[F<N>]> {

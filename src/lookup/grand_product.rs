@@ -1,9 +1,17 @@
+use ark_ff::Zero;
+use ark_std::log2;
+
 use crate::{
     brakedown::code::BrakedownSpec,
     field::RandomField as F,
+    field_config::FieldConfig,
     lookup::Math,
-    poly_f::polynomials::{
-        dense_interleaved_polynomial::DenseInterleavedPolynomial, split_eq_poly::SplitEqPolynomial,
+    poly_f::{
+        mle::DenseMultilinearExtension,
+        polynomials::{
+            dense_interleaved_polynomial::DenseInterleavedPolynomial,
+            split_eq_poly::SplitEqPolynomial,
+        },
     },
     sumcheck::SumcheckProof,
     transcript::KeccakTranscript,
@@ -12,14 +20,26 @@ use crate::{
 
 use super::grand_product_quarks::QuarkGrandProductProof;
 
-pub struct GrandProductLayerProof<const N: usize> {
+pub struct BatchedGrandProductLayerProof<const N: usize> {
     pub sumcheck_proof: SumcheckProof<N>,
     pub left_claim: F<N>,
     pub right_claim: F<N>,
 }
 
+impl<const N: usize> BatchedGrandProductLayerProof<N> {
+    pub fn verify(
+        &self,
+        claim: F<N>,
+        num_rounds: usize,
+        degree_bound: usize,
+        transcript: &mut KeccakTranscript,
+    ) -> (F<N>, Vec<F<N>>) {
+        todo!()
+    }
+}
+
 pub struct BatchedGrandProductProof<const N: usize, S: BrakedownSpec> {
-    pub gkr_layers: Vec<GrandProductLayerProof<N>>,
+    pub gkr_layers: Vec<BatchedGrandProductLayerProof<N>>,
     pub quark_proof: Option<QuarkGrandProductProof<N, S>>,
 }
 
@@ -49,8 +69,39 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
 
     /// Computes a batched grand product proof, layer by layer.
 
-    fn prove_grand_product() -> (BatchedGrandProductProof<N, S>, Vec<F<N>>) {
-        todo!()
+    fn prove_grand_product(
+        &mut self,
+        transcript: &mut KeccakTranscript,
+        config: *const FieldConfig<N>,
+    ) -> (BatchedGrandProductProof<N, S>, Vec<F<N>>) {
+        let mut proof_layers = Vec::with_capacity(self.num_layers());
+
+        // Evaluate the MLE of the output layer at a random point to reduce the outputs to
+        // a single claim.
+        let mut outputs = self.claimed_outputs();
+        transcript.absorb_slice(&outputs);
+        outputs.resize(outputs.len().next_power_of_two(), F::zero());
+        let output_mle = DenseMultilinearExtension::from_evaluations_slice(
+            log2(outputs.len()) as usize,
+            &outputs,
+            config,
+        );
+        let mut r: Vec<F<N>> = transcript.get_challenges(output_mle.num_vars, config);
+        let mut claim = output_mle
+            .evaluate(&r, config)
+            .expect("Evaluation of output has not worked!");
+
+        for layer in self.layers() {
+            proof_layers.push(layer.prove_layer(&mut claim, &mut r, transcript));
+        }
+
+        (
+            BatchedGrandProductProof {
+                gkr_layers: proof_layers,
+                quark_proof: None,
+            },
+            r,
+        )
     }
     fn verify_sumcheck_claim(
         layer_proofs: &[BatchedGrandProductLayerProof<N>],
@@ -73,17 +124,24 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
     ) -> (F<N>, Vec<F<N>>) {
         todo!()
     }
+
+    fn quark_poly(&self) -> Option<&[F<N>]> {
+        None
+    }
 }
 
-pub trait BatchedGrandProductLayer<const N: usize> {}
-
-pub struct BatchedGrandProductLayerProof<const N: usize> {
-    pub proof: SumcheckProof<N>,
-    pub left_claim: F<N>,
-    pub right_claim: F<N>,
+pub trait BatchedGrandProductLayer<const N: usize> {
+    fn prove_layer(
+        &mut self,
+        claim: &mut F<N>,
+        r_grand_product: &mut Vec<F<N>>,
+        transcript: &mut KeccakTranscript,
+    ) -> BatchedGrandProductLayerProof<N> {
+        todo!()
+    }
 }
 
-impl<const N: usize> BatchedDenseGrandProduct<N> {
+impl<const N: usize, S: BrakedownSpec> BatchedGrandProduct<N, S> for BatchedDenseGrandProduct<N> {
     /// The bottom/input layer of the grand products
     // (leaf values, batch size)
     type Leaves = (Vec<F<N>>, usize);
@@ -105,5 +163,21 @@ impl<const N: usize> BatchedDenseGrandProduct<N> {
         }
 
         Self { layers }
+    }
+
+    fn construct_with_config(leaves: Self::Leaves, config: Self::Config) -> Self {
+        todo!()
+    }
+
+    fn num_layers(&self) -> usize {
+        todo!()
+    }
+
+    fn claimed_outputs(&self) -> Vec<F<N>> {
+        todo!()
+    }
+
+    fn layers(&'_ mut self) -> impl Iterator<Item = &'_ mut dyn BatchedGrandProductLayer<N>> {
+        std::iter::empty()
     }
 }

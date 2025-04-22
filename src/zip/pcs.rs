@@ -1,7 +1,6 @@
 mod commit;
-mod open_f;
+mod error;
 mod open_z;
 pub mod structs;
-mod utils;
-mod verify_f;
+pub(crate) mod utils;
 mod verify_z;

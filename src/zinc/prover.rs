@@ -312,7 +312,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<N, S, KeccakTranscript>::open_f(
+        MultilinearZip::<N, S, KeccakTranscript>::open(
             &param,
             z_mle,
             &z_data,

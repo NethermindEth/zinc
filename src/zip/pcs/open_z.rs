@@ -2,11 +2,11 @@
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
+use i256::I256;
 use itertools::izip;
-use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{point_to_tensor_z, validate_input},
+    utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 
 impl<const N: usize, S, T> MultilinearZip<N, S, T>
@@ -27,42 +27,21 @@ where
     S: ZipSpec,
     T: ZipTranscript,
 {
-    pub fn open_z(
+    pub fn open(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
-        comm: &Self::Data,
-        point: &Vec<i64>,
+        commit_data: &Self::Data,
+        point: &[F<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<Vec<Output<Keccak256>>, Error> {
+    ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
-        let row_len = pp.zip().row_len();
+        Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
 
-        let codeword_len = pp.zip().codeword_len();
-        Self::prove_test(
-            pp.num_rows(),
-            row_len,
-            pp.zip().num_proximity_testing(),
-            poly,
-            transcript,
-        )?;
-        Self::prove_evaluation_z(pp.num_rows(), row_len, transcript, point, poly, field)?;
+        Self::prove_evaluation_phase(pp, transcript, point, poly, field)?;
 
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let mut proof: Vec<Output<Keccak256>> = vec![];
-
-        Self::open_merkle_tree(
-            merkle_depth,
-            &mut proof,
-            pp.zip().num_column_opening(),
-            transcript,
-            codeword_len,
-            comm,
-            field,
-        )?;
-
-        Ok(proof)
+        Ok(())
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
@@ -70,85 +49,94 @@ where
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
         comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
-        points: &[Vec<i64>],
+        points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<Vec<Output<Keccak256>>>, Error> {
+    ) -> Result<(), Error> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
-            proofs.push(Self::open_z(pp, poly, comm, point, field, transcript)?);
+            proofs.push(Self::open(pp, poly, comm, point, field, transcript)?);
         }
-        Ok(proofs)
+        Ok(())
     }
 
     // Subprotocol functions
-    fn prove_evaluation_z(
-        num_rows: usize,
-        row_len: usize,
+    fn prove_evaluation_phase(
+        pp: &Self::ProverParam,
         transcript: &mut PcsTranscript<N>,
-
-        point: &[i64],
+        point: &[F<N>],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
+        let num_rows = pp.num_rows();
+        let row_len = pp.zip().row_len();
+
         // We prove evaluations over the field,so integers need to be mapped to field elements first
-        let (t_0, _) = point_to_tensor_z(num_rows, point).unwrap();
+        let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
 
-        let t_O_f: Vec<RandomField<N>> = t_0.iter().map(|i| i.map_to_field(field)).collect();
+        let evaluations = poly.evaluations.map_to_field(field);
 
-        let evaluations: Vec<RandomField<N>> = poly
-            .evaluations
-            .iter()
-            .map(|i| i.map_to_field(field))
-            .collect();
-
-        let t_0_combined_row = if num_rows > 1 {
+        let q_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
-            let combined_row = combine_rows(t_O_f, evaluations, row_len);
-            Cow::<Vec<RandomField<N>>>::Owned(combined_row)
+            let combined_row = combine_rows(q_0, evaluations, row_len);
+            Cow::<Vec<F<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
             // We just return the evaluation row combination
             Cow::Borrowed(&evaluations)
         };
 
-        transcript.write_field_elements(&t_0_combined_row)
+        transcript.write_field_elements(&q_0_combined_row)
     }
 
-    pub(crate) fn open_merkle_tree(
-        merkle_depth: usize,
-        proof: &mut Vec<Output<Keccak256>>,
-        num_col_opening: usize,
+    pub(super) fn prove_testing_phase(
+        pp: &Self::ProverParam,
+        poly: &Self::Polynomial,
+        commit_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
-
-        codeword_len: usize,
-        comm: &Self::Data,
-        field: *const FieldConfig<N>,
+        field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
-        for _ in 0..num_col_opening {
-            let column = transcript.squeeze_challenge_idx(field, codeword_len);
+        if pp.num_rows() > 1 {
+            // If we can take linear combinations
+            // perform the proximity test an arbitrary number of times
+            for _ in 0..pp.zip().num_proximity_testing() {
+                let coeffs = transcript
+                    .fs_transcript
+                    .get_integer_challenges(pp.num_rows());
+                let coeffs = coeffs.iter().map(|x| I256::from(*x));
+                let evals = poly.evaluations.iter().map(|x| I256::from(*x));
+                let combined_row = combine_rows(coeffs, evals, pp.zip().row_len());
 
-            //Write the elements in the squeezed column to the shared transcript
-            transcript.write_I512_vec(
-                &comm
-                    .rows()
-                    .iter()
-                    .copied()
-                    .skip(column)
-                    .step_by(codeword_len)
-                    .collect::<Vec<_>>(),
-            )?;
-
-            //Write the neighbour hash path to the shared transcript
-            let mut offset = 0;
-            for (idx, width) in (1..=merkle_depth).rev().map(|depth| 1 << depth).enumerate() {
-                let neighbor_idx = (column >> idx) ^ 1;
-                transcript.write_commitment(&comm.intermediate_hashes()[offset + neighbor_idx])?;
-
-                proof.push(comm.intermediate_hashes()[offset + neighbor_idx]);
-                offset += width;
+                transcript.write_I256_vec(&combined_row)?;
             }
         }
+
+        // Open merkle tree for each column drawn
+        for _ in 0..pp.zip().num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, pp.zip().codeword_len());
+            Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn open_merkle_trees_for_column(
+        pp: &Self::ProverParam,
+        commit_data: &MultilinearZipData<N>,
+        column: usize,
+        transcript: &mut PcsTranscript<N>,
+    ) -> Result<(), Error> {
+        //Write the elements in the squeezed column to the shared transcript
+        transcript.write_I512_vec(
+            &commit_data
+                .rows()
+                .iter()
+                .copied()
+                .skip(column)
+                .step_by(pp.zip().codeword_len())
+                .collect::<Vec<_>>(),
+        )?;
+        ColumnOpening::open_at_column(column, commit_data, transcript)
+            .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
         Ok(())
     }
 }

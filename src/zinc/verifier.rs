@@ -222,11 +222,11 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<N, S, KeccakTranscript>::verify_f(
+        MultilinearZip::<N, S, KeccakTranscript>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,
-            &zip_proof.v,
+            zip_proof.v,
             &mut pcs_transcript,
             unsafe { *ccs.config.as_ptr() },
         )?;

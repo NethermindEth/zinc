@@ -4,6 +4,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkGroup, Criterion};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
+use zinc::field::conversion::FieldMap;
 use zinc::transcript::KeccakTranscript;
 
 use ark_std::test_rng;
@@ -27,14 +28,15 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
     let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
 
     group.bench_function(
-        format!("Commit: RandomField<{N}>, poly_size = {P}, ZipSpec{spec}, modululus={modulus}"),
+        format!("Commit: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly)
+                        .expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -62,22 +64,22 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
     let point = vec![1i64; P];
 
     group.bench_function(
-        format!("Open: RandomField<{N}>, poly_size = {P}, ZipSpec{spec}, modulus={modulus}"),
+        format!("Open: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::open_z(
+                    MultilinearZip::<N, B, T>::open(
                         &params,
                         &poly,
                         &data,
-                        &point,
+                        &point.map_to_field(field_config),
                         field_config,
                         &mut transcript,
                     )
-                    .unwrap();
+                    .expect("Failed to make opening");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32
@@ -104,32 +106,35 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
 
-    let _ = MultilinearZip::<N, B, T>::open_z(
+    MultilinearZip::<N, B, T>::open(
         &params,
         &poly,
         &data,
-        &point,
+        &point.map_to_field(field_config),
         field_config,
         &mut transcript,
     )
     .unwrap();
 
+    let proof = transcript.into_proof();
+
     group.bench_function(
-        format!("Verify: RandomField<{N}>, poly_size = {P}, ZipSpec{spec}, modulus={modulus}"),
+        format!("Verify: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::new();
+                    let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::verify_z(
+                    MultilinearZip::<N, B, T>::verify(
                         &params,
                         &commitment,
-                        &point,
-                        eval,
+                        &point.map_to_field(field_config),
+                        eval.map_to_field(field_config),
                         &mut transcript,
                         field_config,
-                    );
+                    )
+                    .expect("Failed to verify");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32

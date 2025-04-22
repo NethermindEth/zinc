@@ -184,10 +184,14 @@ impl FieldMap for I256 {
                 n if n < 4 => {
                     let mut wider_modulus: [u64; 4] = [0; 4];
                     wider_modulus[..N].copy_from_slice(&modulus);
-                    let mut value = crypto_bigint::Uint::<4>::from_words(val);
+                    let value = crypto_bigint::Uint::<4>::from_words(val);
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
 
-                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    let value = if value >= modu {
+                        value % crypto_bigint::NonZero::from_uint(modu)
+                    } else {
+                        value
+                    };
                     let mut result = [0u64; N];
                     result.copy_from_slice(&value.to_words()[..N]);
 
@@ -197,17 +201,25 @@ impl FieldMap for I256 {
                     let mut value_N: [u64; N] = [0; N];
                     value_N.copy_from_slice(&val);
 
-                    let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                    let value = crypto_bigint::Uint::<N>::from_words(value_N);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    let value = if value >= modu {
+                        value % crypto_bigint::NonZero::from_uint(modu)
+                    } else {
+                        value
+                    };
                     BigInt(value.to_words())
                 }
                 _ => {
                     let mut wider_value: [u64; N] = [0; N];
                     wider_value[..4].copy_from_slice(&val);
-                    let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                    let wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    wider %= crypto_bigint::NonZero::from_uint(modu);
+                    let wider = if wider >= modu {
+                        wider % crypto_bigint::NonZero::from_uint(modu)
+                    } else {
+                        wider
+                    };
                     BigInt(wider.to_words())
                 }
             };
@@ -293,6 +305,48 @@ impl FieldMap for &I512 {
         (*self).map_to_field(config)
     }
 }
+
+macro_rules! impl_field_map_for_vec {
+    ($type:ty) => {
+        impl FieldMap for Vec<$type> {
+            type Output<const N: usize> = Vec<RandomField<N>>;
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+
+        impl FieldMap for &Vec<$type> {
+            type Output<const N: usize> = Vec<RandomField<N>>;
+            fn map_to_field<const N: usize>(
+                &self,
+                config: *const FieldConfig<N>,
+            ) -> Self::Output<N> {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+
+        impl FieldMap for &[$type] {
+            type Output<const M: usize> = Vec<RandomField<M>>;
+            fn map_to_field<const M: usize>(
+                &self,
+                config: *const FieldConfig<M>,
+            ) -> Self::Output<M> {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+    };
+}
+
+impl_field_map_for_vec!(i8);
+impl_field_map_for_vec!(i16);
+impl_field_map_for_vec!(i32);
+impl_field_map_for_vec!(i64);
+impl_field_map_for_vec!(i128);
+impl_field_map_for_vec!(I256);
+impl_field_map_for_vec!(I512);
 
 macro_rules! impl_field_map_for_uint {
     ($type:ty, $bits:expr) => {

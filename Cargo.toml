@@ -15,6 +15,7 @@ i256 = {version="0.2.2", features=["i512"]}
 itertools = "0.14.0"
 num-bigint = "0.4.6"
 num-integer = "0.1.46"
+rand = "0.9.1"
 rayon = { version = "1.10.0", optional = true }
 sha3 = "0.10.8"
 thiserror = "2.0.11"

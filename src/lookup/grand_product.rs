@@ -167,6 +167,28 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
 
         (claim, r_grand_product)
     }
+    /// Verifies the given grand product proof.
+    fn verify_grand_product(
+        proof: &BatchedGrandProductProof<N, S>,
+        claimed_outputs: &[F<N>],
+        transcript: &mut KeccakTranscript,
+        config: *const FieldConfig<N>,
+    ) -> (F<N>, Vec<F<N>>) {
+        // Evaluate the MLE of the output layer at a random point to reduce the outputs to
+        // a single claim.
+        transcript.absorb_slice(claimed_outputs);
+        let r: Vec<F<N>> =
+            transcript.get_challenges(claimed_outputs.len().next_power_of_two().log_2(), config);
+        let claim = DenseMultilinearExtension::from_evaluations_vec(
+            r.len(),
+            claimed_outputs.to_vec(),
+            config,
+        )
+        .evaluate(&r, config)
+        .expect("Evalution has not worked!");
+
+        Self::verify_layers(&proof.gkr_layers, claim, transcript, r, config)
+    }
 
     fn quark_poly(&self) -> Option<&[F<N>]> {
         None

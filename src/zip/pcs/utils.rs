@@ -1,6 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
-use i256::I512;
+use i256::{I256, I512};
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
@@ -64,6 +64,26 @@ pub(super) fn validate_input<'a, const N: usize>(
     Ok(())
 }
 
+// Define a new trait for converting to bytes
+pub trait ToBytes {
+    fn to_bytes(&self) -> Vec<u8>;
+}
+
+// Macro to implement ToBytes for integer types
+macro_rules! impl_to_bytes {
+    ($($t:ty),*) => {
+        $(
+            impl ToBytes for $t {
+                fn to_bytes(&self) -> Vec<u8> {
+                    self.to_be_bytes().to_vec()
+                }
+            }
+        )*
+    }
+}
+
+// Implement ToBytes for various integer types
+impl_to_bytes!(i8, i32, i64, i128, I256, I512);
 /// A merkle tree in which its layers are concatenated together in a single vector
 #[derive(Clone, Debug, Default)]
 pub struct MerkleTree {
@@ -73,7 +93,7 @@ pub struct MerkleTree {
 }
 
 impl MerkleTree {
-    pub fn new(depth: usize, leaves: &[I512]) -> Self {
+    pub fn new<T: ToBytes + Send + Sync>(depth: usize, leaves: &[T]) -> Self {
         assert!(leaves.len().is_power_of_two());
         assert_eq!(leaves.len(), 1 << depth);
         let mut layers = vec![Output::<Keccak256>::default(); (2 << depth) - 1];
@@ -86,15 +106,15 @@ impl MerkleTree {
         }
     }
 
-    fn compute_leaves_hashes(hashes: &mut [Output<Keccak256>], leaves: &[I512]) {
+    fn compute_leaves_hashes<T: ToBytes + Send + Sync>(
+        hashes: &mut [Output<Keccak256>],
+        leaves: &[T],
+    ) {
         parallelize(hashes, |(hashes, start)| {
             let mut hasher = Keccak256::new();
             for (hash, row) in hashes.iter_mut().zip(start..) {
-                // For each row, iterate through all columns at that row position
-                <Keccak256 as sha3::digest::Update>::update(
-                    &mut hasher,
-                    &leaves[row].to_be_bytes(),
-                );
+                let bytes = leaves[row].to_bytes();
+                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &bytes);
                 hasher.finalize_into_reset(hash);
             }
         });
@@ -172,31 +192,29 @@ impl MerkleProof {
         Ok(MerkleProof::from_vec(path))
     }
 
-    pub fn verify(
+    pub fn verify<T: ToBytes>(
         &self,
         root: Output<Keccak256>,
-        leaf_value: I512,
+        leaf_value: &T,
         leaf_index: usize,
     ) -> Result<(), MerkleError> {
         let mut hasher = Keccak256::new();
-        hasher.update(leaf_value.to_be_bytes());
+        let bytes = leaf_value.to_bytes();
+        hasher.update(&bytes);
         let mut current = hasher.finalize_reset();
 
         let mut index = leaf_index;
         for path_hash in &self.merkle_path {
-            // Determine if the current node is a left or right child
             if (index & 1) == 0 {
-                // Current node is a left child
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
             } else {
-                // Current node is a right child
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
                 <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
             }
 
             hasher.finalize_into_reset(&mut current);
-            index /= 2; // Move up to the parent node
+            index /= 2;
         }
         if current != root {
             return Err(MerkleError::InvalidMerkleProof(
@@ -229,9 +247,9 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<const N: usize>(
+    pub fn verify_column<const N: usize, T: ToBytes>(
         rows_roots: &[Output<Keccak256>],
-        column: &[I512],
+        column: &[T],
         column_index: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
@@ -239,7 +257,7 @@ impl ColumnOpening {
             let proof = transcript
                 .read_merkle_proof()
                 .map_err(|_| MerkleError::FailedMerkleProofReading)?;
-            proof.verify(*root, *leaf, column_index)?;
+            proof.verify(*root, leaf, column_index)?;
         }
         Ok(())
     }
@@ -353,7 +371,7 @@ mod tests {
 
             // Verify the proof
             proof
-                .verify(root, *leaf, i)
+                .verify(root, leaf, i)
                 .expect("Merkle proof verification failed");
         }
     }

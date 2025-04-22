@@ -111,8 +111,19 @@ pub trait BatchedGrandProduct<const N: usize, S: BrakedownSpec>: Sized {
         grand_product_claim: &mut F<N>,
         r_grand_product: &mut Vec<F<N>>,
         transcript: &mut KeccakTranscript,
+        config: *const FieldConfig<N>,
     ) {
-        todo!()
+        let layer_proof = &layer_proofs[layer_index];
+        let expected_sumcheck_claim: F<N> =
+            layer_proof.left_claim * layer_proof.right_claim * eq_eval;
+        assert_eq!(expected_sumcheck_claim, sumcheck_claim);
+
+        // produce a random challenge to condense two claims into a single claim
+        let r_layer = transcript.get_challenge(config);
+        *grand_product_claim =
+            layer_proof.left_claim + r_layer * (layer_proof.right_claim - layer_proof.left_claim);
+
+        r_grand_product.push(r_layer);
     }
 
     /// Function used for layer sumchecks in the generic batch verifier as well as the quark layered sumcheck hybrid

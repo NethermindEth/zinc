@@ -29,6 +29,22 @@ impl KeccakTranscript {
         self.hasher.update(v);
     }
 
+    pub fn get_random_bytes(&mut self, length: usize) -> Vec<u8> {
+        let mut result = Vec::with_capacity(length);
+        let mut counter = 0;
+        while result.len() < length {
+            let mut temp_hasher = self.hasher.clone();
+            temp_hasher.update(i32::to_be_bytes(counter));
+            let hash = temp_hasher.finalize();
+            result.extend_from_slice(&hash);
+
+            counter += 1;
+        }
+
+        result.truncate(length);
+        result
+    }
+
     pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
         match v {
             RandomField::Raw { value } => {

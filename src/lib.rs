@@ -8,6 +8,7 @@ pub mod field;
 pub mod field_config;
 pub mod poly_f;
 pub mod poly_z;
+mod prime_gen;
 pub mod sparse_matrix;
 pub mod sumcheck;
 pub mod traits;

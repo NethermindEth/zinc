@@ -32,7 +32,6 @@ mod test {
     fn test_prime_generator() {
         let mut hasher = KeccakTranscript::new();
         const N: usize = 3;
-
-        println!("{:?}", get_prime::<N>(&mut hasher))
+        get_prime::<N>(&mut hasher);
     }
 }

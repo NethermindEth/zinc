@@ -44,4 +44,8 @@ harness = false
 name = "zip_benches"
 harness = false
 
+[[bench]]
+name = "prime_generation_benches"
+harness = false
+
 

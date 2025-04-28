@@ -494,9 +494,6 @@ impl<const N: usize> FieldMap for BigInt<N> {
                 }
             };
 
-            if r > (*config).modulus {
-                return RandomField::zero();
-            }
             // Apply Montgomery form transformation
             (*config).mul_assign(&mut r, &(*config).r2);
             RandomField::<M>::new_unchecked(config, r)

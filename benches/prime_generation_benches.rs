@@ -14,7 +14,7 @@ use zinc::transcript::KeccakTranscript;
 fn bench_prime_generation(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let hasher = KeccakTranscript::new();
     const N: usize = 3;
-    group.bench_with_input(BenchmarkId::new("PrimeGen", "186bits"), &hasher, |b, _| {
+    group.bench_with_input(BenchmarkId::new("PrimeGen", "196bits"), &hasher, |b, _| {
         b.iter(|| {
             let _: BigInt<N> = black_box(prime_gen::get_prime(&mut hasher.clone()));
         });

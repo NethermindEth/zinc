@@ -8,7 +8,8 @@ ark-ff = "0.5.0"
 ark-serialize = "0.5.0"
 ark-std = "0.5.0"
 criterion = "0.5.1"
-crypto-bigint = "0.5.5"
+crypto-bigint = "0.6.1"
+crypto-primes = "0.6.2"
 displaydoc = "0.2.5"
 hashbrown = "0.15.2"
 i256 = {version="0.2.2", features=["i512"]}
@@ -41,6 +42,10 @@ harness = false
 
 [[bench]]
 name = "zip_benches"
+harness = false
+
+[[bench]]
+name = "prime_generation_benches"
 harness = false
 
 

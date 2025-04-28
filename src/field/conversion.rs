@@ -1,4 +1,3 @@
-use ark_ff::Zero;
 use i256::{I256, I512};
 
 use crate::biginteger::BigInt;

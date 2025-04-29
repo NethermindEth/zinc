@@ -110,7 +110,7 @@ macro_rules! impl_field_map_for_int {
                             let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
                             let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
 
-                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            value %= crypto_bigint::NonZero::new(modu).unwrap();
                             let mut result = [0u64; N];
                             result.copy_from_slice(&value.to_words()[..N]);
 
@@ -122,7 +122,7 @@ macro_rules! impl_field_map_for_int {
 
                             let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            value %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(value.to_words())
                         }
                         _ => {
@@ -130,7 +130,7 @@ macro_rules! impl_field_map_for_int {
                             wider_value[..LIMBS].copy_from_slice(&val);
                             let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::from_uint(modu);
+                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(wider.to_words())
                         }
                     };
@@ -188,7 +188,7 @@ impl FieldMap for I256 {
                     let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
 
                     let value = if value >= modu {
-                        value % crypto_bigint::NonZero::from_uint(modu)
+                        value % crypto_bigint::NonZero::new(modu).unwrap()
                     } else {
                         value
                     };
@@ -204,7 +204,7 @@ impl FieldMap for I256 {
                     let value = crypto_bigint::Uint::<N>::from_words(value_N);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                     let value = if value >= modu {
-                        value % crypto_bigint::NonZero::from_uint(modu)
+                        value % crypto_bigint::NonZero::new(modu).unwrap()
                     } else {
                         value
                     };
@@ -216,7 +216,7 @@ impl FieldMap for I256 {
                     let wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                     let wider = if wider >= modu {
-                        wider % crypto_bigint::NonZero::from_uint(modu)
+                        wider % crypto_bigint::NonZero::new(modu).unwrap()
                     } else {
                         wider
                     };
@@ -262,7 +262,7 @@ impl FieldMap for I512 {
                     let mut value = crypto_bigint::Uint::<8>::from_words(val);
                     let modu = crypto_bigint::Uint::<8>::from_words(wider_modulus);
 
-                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    value %= crypto_bigint::NonZero::new(modu).unwrap();
                     let mut result = [0u64; N];
                     result.copy_from_slice(&value.to_words()[..N]);
 
@@ -274,7 +274,7 @@ impl FieldMap for I512 {
 
                     let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    value %= crypto_bigint::NonZero::new(modu).unwrap();
                     BigInt(value.to_words())
                 }
                 _ => {
@@ -282,7 +282,7 @@ impl FieldMap for I512 {
                     wider_value[..8].copy_from_slice(&val);
                     let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                     let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                    wider %= crypto_bigint::NonZero::from_uint(modu);
+                    wider %= crypto_bigint::NonZero::new(modu).unwrap();
                     BigInt(wider.to_words())
                 }
             };
@@ -383,8 +383,7 @@ macro_rules! impl_field_map_for_uint {
                             wider_modulus[..N].copy_from_slice(&modulus);
                             let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
                             let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
-
-                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            value %= crypto_bigint::NonZero::new(modu).unwrap();
                             let mut result = [0u64; N];
                             result.copy_from_slice(&value.to_words()[..N]);
 
@@ -396,7 +395,7 @@ macro_rules! impl_field_map_for_uint {
 
                             let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::from_uint(modu);
+                            value %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(value.to_words())
                         }
                         _ => {
@@ -404,7 +403,7 @@ macro_rules! impl_field_map_for_uint {
                             wider_value[..LIMBS].copy_from_slice(&val);
                             let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::from_uint(modu);
+                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(wider.to_words())
                         }
                     };
@@ -485,7 +484,7 @@ impl<const N: usize> FieldMap for BigInt<N> {
                     wider_modulus[..M].copy_from_slice(&modulus);
                     let modu = crypto_bigint::Uint::<N>::from_words(wider_modulus);
 
-                    value %= crypto_bigint::NonZero::from_uint(modu);
+                    value %= crypto_bigint::NonZero::new(modu).unwrap();
                     let mut result = [0u64; M];
                     result.copy_from_slice(&value.to_words()[..M]);
 

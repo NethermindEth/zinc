@@ -89,7 +89,10 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z(z: &[i64], pub_io_len: usize) -> (CCS_Z, Statement_Z, Witness_Z) {
+fn get_dummy_ccs_Z_from_z<const N: usize>(
+    z: &[i64],
+    pub_io_len: usize,
+) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),

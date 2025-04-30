@@ -1,4 +1,5 @@
 use ark_ff::Zero;
+use crypto_bigint::Int;
 
 use crate::{
     ccs::{
@@ -31,20 +32,20 @@ use super::{
 pub trait Prover<const N: usize> {
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_Z<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_Z<N>,
     ) -> Result<ZincProof<N>, ZincError<N>> {
         let config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
@@ -151,20 +152,20 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
 }
 
 pub trait LookupProver<const N: usize> {
-    fn prove(&self, wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>>;
+    fn prove(&self, wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
-    fn prove(&self, _wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>> {
+    fn prove(&self, _wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>> {
         todo!()
     }
 }
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     pub fn prepare_for_random_field_piop(
-        statement: &Statement_Z,
-        wit: &Witness_Z,
-        ccs: &CCS_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: *const FieldConfig<N>,
     ) -> Result<
         (
@@ -210,15 +211,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_Z,
-        wit: &Witness_Z,
-        ccs: &CCS_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: *const FieldConfig<N>,
     ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(ccs.m, 0i64);
+            z_ccs.resize(ccs.m, Int::<N>::ZERO);
         }
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 

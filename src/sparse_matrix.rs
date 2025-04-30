@@ -16,12 +16,9 @@ pub struct SparseMatrix<R1: Clone + Send + Sync> {
 // At the moment only using i128 for the sparse matrix, macro later if needed
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
-        impl FieldMap for SparseMatrix<$type> {
-            type Output<const N: usize> = SparseMatrix<RandomField<N>>;
-            fn map_to_field<const N: usize>(
-                &self,
-                config: *const FieldConfig<N>,
-            ) -> Self::Output<N> {
+        impl<const N: usize> FieldMap<N> for SparseMatrix<$type> {
+            type Output = SparseMatrix<RandomField<N>>;
+            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
                     n_cols: self.n_cols,
@@ -43,7 +40,7 @@ macro_rules! impl_field_map_sparse_matrix {
 impl_field_map_sparse_matrix!(i64);
 impl_field_map_sparse_matrix!(i128);
 
-impl<R: Copy + Send + Sync + Zero + UniformRand> SparseMatrix<R> {
+impl<R: Copy + Send + Sync + Zero> SparseMatrix<R> {
     pub fn empty() -> Self {
         Self {
             n_rows: 0,
@@ -101,9 +98,7 @@ impl<R: Copy + Send + Sync + Zero + UniformRand> SparseMatrix<R> {
     }
 }
 
-pub fn dense_matrix_to_sparse<R: Copy + Send + Sync + Zero + UniformRand>(
-    m: Vec<Vec<R>>,
-) -> SparseMatrix<R> {
+pub fn dense_matrix_to_sparse<R: Copy + Send + Sync + Zero>(m: Vec<Vec<R>>) -> SparseMatrix<R> {
     let mut r = SparseMatrix::<R> {
         n_rows: m.len(),
         n_cols: m[0].len(),

@@ -21,20 +21,20 @@ use super::{
 pub trait Verifier<const N: usize> {
     fn verify(
         &self,
-        cm_i: &Statement_Z,
+        cm_i: &Statement_Z<N>,
         proof: ZincProof<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_Z<N>,
     ) -> Result<(), ZincError<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement_Z,
+        cm_i: &Statement_Z<N>,
         proof: ZincProof<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
+        ccs: &CCS_Z<N>,
     ) -> Result<(), ZincError<N>> {
         let field_config = draw_random_field::<N>(&cm_i.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)

@@ -14,7 +14,7 @@ use crate::{
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
-        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
+        pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
@@ -63,17 +63,11 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
+        let zip_proof = Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
 
-        let zip_proof = ZipProof {
-            z_comm,
-            v,
-            pcs_proof,
-        };
 
         // Prove lookup argument
-        let lookup_proof = LookupProver::<N>::prove(self, wit)?;
+        let lookup_proof = LookupProver::<N>::prove(self, wit);
 
         // Return proof
         Ok(ZincProof {
@@ -142,8 +136,8 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
 
         let proof = SpartanProof {
-            linearization_sumcheck: sumcheck_proof_1,
-            second_sumcheck: sumcheck_proof_2,
+            sumcheck_proof_1,
+            sumcheck_proof_2,
             V_s,
         };
         Ok((proof, r_y))
@@ -151,12 +145,13 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
 }
 
 pub trait LookupProver<const N: usize> {
-    fn prove(&self, wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>>;
+    fn prove(&self, wit: &Witness_Z) -> Option<LookupProof<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
-    fn prove(&self, _wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>> {
-        todo!()
+    /// Returns None as lookup argument is not planned to be implemented
+    fn prove(&self, _wit: &Witness_Z) -> Option<LookupProof<N>> {
+        None
     }
 }
 
@@ -180,33 +175,6 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         let ccs_f = ccs.map_to_field(config);
         let statement_f = statement.map_to_field(config);
         Ok((z_ccs, z_mle, ccs_f, statement_f))
-    }
-    /// Step 2 of Fig 5: Construct polynomial $g$ and generate $\beta$ challenges.
-    fn construct_polynomial_g(
-        z_ccs: &[RandomField<N>],
-        transcript: &mut KeccakTranscript,
-        constraints: &[SparseMatrix<RandomField<N>>],
-        ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<
-        (
-            Vec<DenseMultilinearExtension<N>>,
-            usize,
-            Vec<DenseMultilinearExtension<N>>,
-        ),
-        SpartanError<N>,
-    > {
-        // Generate beta challenges from Step 1
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
-
-        // Prepare MLEs
-        let Mz_mles = calculate_Mz_mles::<SpartanError<N>, N>(constraints, ccs.s, z_ccs, config)?;
-
-        // Construct the sumcheck polynomial g
-        let (g_mles, g_degree) =
-            prepare_lin_sumcheck_polynomial(&ccs.c, &ccs.d, &Mz_mles, &ccs.S, &beta_s, config)?;
-
-        Ok((g_mles, g_degree, Mz_mles))
     }
 
     fn get_z_ccs_and_z_mle(
@@ -255,6 +223,43 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         Ok((sumcheck_proof_1, r_a, mz_mles))
     }
 
+    /// Construct the sumcheck polynomial g and generate $\beta$ challenges.
+    /// 
+    /// # Returns
+    /// 
+    /// On success, returns a tuple `(Vec<DenseMultilinearExtension<N>>, usize, Vec<DenseMultilinearExtension<N>>)` where:
+    ///   * `Vec<DenseMultilinearExtension<N>>` is a vector of MLEs of the sumcheck polynomial g.
+    ///   * `usize` is the degree of the sumcheck polynomial g.
+    ///   * `Vec<DenseMultilinearExtension<N>>` is a vector of MLEs of the Multiplication of matrices M and z vector.
+    /// 
+    fn construct_polynomial_g(
+        z_ccs: &[RandomField<N>],
+        transcript: &mut KeccakTranscript,
+        constraints: &[SparseMatrix<RandomField<N>>],
+        ccs: &CCS_F<N>,
+        config: *const FieldConfig<N>,
+    ) -> Result<
+        (
+            Vec<DenseMultilinearExtension<N>>,
+            usize,
+            Vec<DenseMultilinearExtension<N>>,
+        ),
+        SpartanError<N>,
+    > {
+        // Generate beta challenges from Step 1
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
+
+        // Prepare MLEs
+        let Mz_mles = calculate_Mz_mles::<SpartanError<N>, N>(constraints, ccs.s, z_ccs, config)?;
+
+        // Construct the sumcheck polynomial g
+        let (g_mles, g_degree) =
+            prepare_lin_sumcheck_polynomial(&ccs.c, &ccs.d, &Mz_mles, &ccs.S, &beta_s, config)?;
+
+        Ok((g_mles, g_degree, Mz_mles))
+    }
+
+    /// Perform the second sumcheck.
     fn sumcheck_2(
         r_a: &[RandomField<N>],
         ccs: &CCS_F<N>,
@@ -299,13 +304,14 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         Self::generate_sumcheck_proof(transcript, sumcheck_2_mles, ccs.s, 2, comb_fn_2, config)
     }
 
+    /// Commit to the z MLE and prove its evaluation at v using Zip.
     fn commit_z_mle_and_prove_evaluation(
         z_mle: &DenseMultilinearExtensionZ,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
         r_y: &[RandomField<N>],
         transcript: &mut KeccakTranscript,
-    ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
+    ) -> Result<ZipProof<N>, SpartanError<N>> {
         let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) = MultilinearZip::<N, S, KeccakTranscript>::commit(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
@@ -322,7 +328,11 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         )?;
 
         let pcs_proof = pcs_transcript.into_proof();
-        Ok((z_comm, v, pcs_proof))
+        Ok(ZipProof {
+            z_comm,
+            v,
+            pcs_proof,
+        })
     }
 
     fn calculate_V_s(

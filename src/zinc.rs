@@ -1,5 +1,4 @@
-#![allow(dead_code, non_snake_case)]
-
+#![allow(non_snake_case)]
 mod errors;
 pub mod prover;
 pub mod structs;

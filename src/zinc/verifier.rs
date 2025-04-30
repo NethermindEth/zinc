@@ -53,7 +53,9 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             transcript,
         )?;
 
-        LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
+        if let Some(lookup_proof) = proof.lookup_proof {
+            LookupVerifier::<N>::verify(self, lookup_proof).map_err(ZincError::LookupError)?;
+        }
 
         Ok(())
     }
@@ -95,7 +97,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
 
         //Step 2: The sumcheck.
         let (r_x, s) =
-            self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
+            self.verify_linearization_proof(&proof.sumcheck_proof_1, transcript, ccs)?;
 
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
@@ -105,7 +107,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
         let (r_y, e_y) = self.verify_second_sumcheck_proof(
-            &proof.second_sumcheck,
+            &proof.sumcheck_proof_2,
             transcript,
             ccs,
             second_sumcheck_claimed_sum,

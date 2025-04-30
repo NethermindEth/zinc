@@ -1,17 +1,15 @@
 #![allow(dead_code, non_snake_case)]
 
-use std::str::FromStr;
-
 use ark_ff::Zero;
 use bytemuck::cast_slice;
 use crypto_bigint::Int;
 
 use crate::{
-    biginteger::BigInt,
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
     field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension,
+    prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
     transcript::KeccakTranscript,
@@ -183,8 +181,6 @@ pub fn draw_random_field<const N: usize>(
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now
-    let config: *const FieldConfig<N> = &FieldConfig::new(
-        BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-    );
+    let config: *const FieldConfig<N> = &FieldConfig::new(get_prime(transcript));
     config
 }

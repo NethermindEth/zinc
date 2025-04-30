@@ -139,7 +139,7 @@ impl KeccakTranscript {
         int
     }
 
-    pub fn get_integer_challenges(&mut self, n: usize) -> Vec<i64> {
+    pub fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &std::ops::Range<usize>) -> usize {

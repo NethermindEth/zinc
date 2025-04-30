@@ -892,7 +892,7 @@ mod tests {
     )]
     fn test_signed_field_map_null_config() {
         let i32_val: i32 = 5;
-        i32_val.map_to_field(std::ptr::null());
+        i32_val.map_to_field(std::ptr::null::<FieldConfig<1>>());
     }
 
     #[test]
@@ -901,7 +901,7 @@ mod tests {
     )]
     fn test_unsigned_field_map_null_config() {
         let u32_val: u32 = 5;
-        u32_val.map_to_field(std::ptr::null());
+        u32_val.map_to_field(std::ptr::null::<FieldConfig<1>>());
     }
 }
 
@@ -999,7 +999,7 @@ mod bigint_field_map_tests {
     #[should_panic(expected = "Cannot convert BigInt to prime field element without a modulus")]
     fn test_null_config() {
         let value = BigInt::<2>::from(123u64);
-        let _result = value.map_to_field(std::ptr::null());
+        let _result: RandomField<2> = value.map_to_field(std::ptr::null());
     }
 
     #[test]

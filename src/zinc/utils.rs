@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use ark_ff::Zero;
+use bytemuck::cast_slice;
 use crypto_bigint::Int;
 
 use crate::{
@@ -178,7 +179,7 @@ pub fn draw_random_field<const N: usize>(
     transcript: &mut KeccakTranscript,
 ) -> *const FieldConfig<N> {
     for input in public_inputs {
-        transcript.absorb(&input);
+        transcript.absorb(cast_slice(input.as_words()));
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now

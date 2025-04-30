@@ -52,7 +52,7 @@ where
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
     ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }

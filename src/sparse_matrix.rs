@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
 
-use ark_ff::{vec::*, UniformRand, Zero};
-
+use ark_ff::vec::*;
+use ark_ff::Zero;
 use ark_std::rand::Rng;
+use crypto_bigint::Random;
 
 use crate::{field::conversion::FieldMap, field::RandomField, field_config::FieldConfig};
 
@@ -40,7 +41,7 @@ macro_rules! impl_field_map_sparse_matrix {
 impl_field_map_sparse_matrix!(i64);
 impl_field_map_sparse_matrix!(i128);
 
-impl<R: Copy + Send + Sync + Zero> SparseMatrix<R> {
+impl<R: Copy + Send + Sync + Zero + Random> SparseMatrix<R> {
     pub fn empty() -> Self {
         Self {
             n_rows: 0,
@@ -57,7 +58,7 @@ impl<R: Copy + Send + Sync + Zero> SparseMatrix<R> {
                 (0..n_cols)
                     .map(|_| {
                         if !rng.gen_bool(ZERO_VAL_PROBABILITY) {
-                            return R::rand(rng);
+                            return R::random(rng);
                         }
                         R::zero()
                     })

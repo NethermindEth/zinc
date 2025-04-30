@@ -312,11 +312,14 @@ mod tests {
 
     use std::str::FromStr;
 
+    use crypto_bigint::Int;
+
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
     use crate::{
         biginteger::BigInt,
         ccs::{
             ccs_f::{Arith, Instance_F},
+            ccs_z::CCS_Z,
             test_utils::get_dummy_ccs_Z_from_z_length,
         },
         field::conversion::FieldMap,
@@ -328,7 +331,7 @@ mod tests {
     fn test_ccs_z() {
         const N: usize = 3;
         let input = 3;
-        let ccs = get_test_ccs_Z();
+        let ccs: CCS_Z<N> = get_test_ccs_Z();
         let statement = get_test_ccs_Z_statement(input);
         let z = get_test_z_Z(input);
         let constraints = statement
@@ -341,7 +344,7 @@ mod tests {
                 m.coeffs = m_i64
                     .coeffs
                     .iter()
-                    .map(|vec| vec.iter().map(|(coeff, col)| (coeff, *col)).collect())
+                    .map(|vec| vec.iter().map(|(coeff, col)| (*coeff, *col)).collect())
                     .collect();
                 m
             })
@@ -354,24 +357,21 @@ mod tests {
     #[test]
     fn test_dummy_ccs_z() {
         let mut rng = ark_std::test_rng();
+        const N: usize = 3;
         let n = 1 << 13;
         let (z, ccs, statement, _) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
-        let z = z.iter().map(|i| *i as i128).collect::<Vec<_>>();
+
         let constraints = statement
             .constraints
             .iter()
-            .map(|m_i64| {
+            .map(|m_i64: &SparseMatrix<Int<N>>| {
                 let mut m = SparseMatrix::empty();
                 m.n_rows = m_i64.n_rows;
                 m.n_cols = m_i64.n_cols;
                 m.coeffs = m_i64
                     .coeffs
                     .iter()
-                    .map(|vec| {
-                        vec.iter()
-                            .map(|(coeff, col)| (*coeff as i128, *col))
-                            .collect()
-                    })
+                    .map(|vec| vec.iter().map(|(coeff, col)| (*coeff, *col)).collect())
                     .collect();
                 m
             })
@@ -386,7 +386,7 @@ mod tests {
         let mut rng = ark_std::test_rng();
         let n = 1 << 3;
         let (z, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
-        let z = z.iter().map(|i| *i as i128).collect::<Vec<_>>();
+
         let constraints = statement
             .constraints
             .iter()
@@ -397,11 +397,7 @@ mod tests {
                 m.coeffs = m_i64
                     .coeffs
                     .iter()
-                    .map(|vec| {
-                        vec.iter()
-                            .map(|(coeff, col)| (*coeff as i128, *col))
-                            .collect()
-                    })
+                    .map(|vec| vec.iter().map(|(coeff, col)| (*coeff, *col)).collect())
                     .collect();
                 m
             })

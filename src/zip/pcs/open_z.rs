@@ -2,6 +2,7 @@
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
+use crypto_bigint::Int;
 use i256::I256;
 use itertools::izip;
 
@@ -47,7 +48,7 @@ where
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
@@ -104,7 +105,7 @@ where
                     .fs_transcript
                     .get_integer_challenges(pp.num_rows());
                 let coeffs = coeffs.iter().map(|x| I256::from(*x));
-                let evals = poly.evaluations.iter().map(|x| I256::from(*x));
+                let evals = poly.evaluations.iter().map(|x| Int::<N>::from(*x));
                 let combined_row = combine_rows(coeffs, evals, pp.zip().row_len());
 
                 transcript.write_I256_vec(&combined_row)?;

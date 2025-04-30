@@ -1,6 +1,6 @@
 use core::ops::IndexMut;
 
-use ark_ff::{UniformRand, Zero};
+use ark_ff::Zero;
 
 use ark_std::{
     borrow::ToOwned,
@@ -9,6 +9,7 @@ use ark_std::{
     rand,
     vec::*,
 };
+use crypto_bigint::{Int, Random};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
@@ -20,19 +21,19 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DenseMultilinearExtension {
+pub struct DenseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
-    pub evaluations: Vec<i64>,
+    pub evaluations: Vec<Int<N>>,
     /// Number of variables
     pub num_vars: usize,
 }
 
-impl DenseMultilinearExtension {
-    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[i64]) -> Self {
+impl<const N: usize> DenseMultilinearExtension<N> {
+    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[Int<N>]) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec())
     }
 
-    pub fn evaluate(&self, point: &[i64]) -> Option<i64> {
+    pub fn evaluate(&self, point: &[Int<N>]) -> Option<Int<N>> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point)[0])
         } else {
@@ -40,10 +41,7 @@ impl DenseMultilinearExtension {
         }
     }
 
-    pub fn to_random_field<const N: usize>(
-        &self,
-        config: *const FieldConfig<N>,
-    ) -> DenseMultilinearExtensionF<N> {
+    pub fn to_random_field(&self, config: *const FieldConfig<N>) -> DenseMultilinearExtensionF<N> {
         let evaluations = self
             .evaluations
             .iter()
@@ -52,7 +50,7 @@ impl DenseMultilinearExtension {
         DenseMultilinearExtensionF::from_evaluations_vec(self.num_vars, evaluations, config)
     }
 
-    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<i64>) -> Self {
+    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<N>>) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
             evaluations.len() <= 1 << num_vars,
@@ -61,7 +59,7 @@ impl DenseMultilinearExtension {
 
         if evaluations.len() != 1 << num_vars {
             let mut evaluations = evaluations;
-            evaluations.resize(1 << num_vars, 0i64);
+            evaluations.resize(1 << num_vars, Int::<N>::zero());
             return Self {
                 num_vars,
                 evaluations,
@@ -75,7 +73,7 @@ impl DenseMultilinearExtension {
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(matrix: &SparseMatrix<i64>) -> Self {
+    pub fn from_matrix(matrix: &SparseMatrix<Int<N>>) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -83,7 +81,7 @@ impl DenseMultilinearExtension {
         let padded_cols = matrix.n_cols.next_power_of_two();
 
         // build dense vector representing the sparse padded matrix
-        let mut v = vec![0i64; padded_rows * padded_cols];
+        let mut v = vec![Int::<N>::ZERO; padded_rows * padded_cols];
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -96,12 +94,12 @@ impl DenseMultilinearExtension {
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[i64]) -> Self {
-        let v_padded: Vec<i64> = if v.len() != (1 << n_vars) {
+    pub fn from_slice(n_vars: usize, v: &[Int<N>]) -> Self {
+        let v_padded: Vec<Int<N>> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
                 v.to_owned(),
-                ark_std::iter::repeat(0i64)
+                ark_std::iter::repeat(Int::<N>::zero())
                     .take((1 << n_vars) - v.len())
                     .collect(),
             ]
@@ -131,7 +129,7 @@ impl DenseMultilinearExtension {
     }
 }
 
-impl MultilinearExtension for DenseMultilinearExtension {
+impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -139,7 +137,7 @@ impl MultilinearExtension for DenseMultilinearExtension {
     fn rand<Rn: rand::Rng>(num_vars: usize, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
-            (0..1 << num_vars).map(|_| i64::rand(rng)).collect(),
+            (0..1 << num_vars).map(|_| Int::<N>::random(rng)).collect(),
         )
     }
 
@@ -149,7 +147,7 @@ impl MultilinearExtension for DenseMultilinearExtension {
         copy
     }
 
-    fn fix_variables(&mut self, partial_point: &[i64]) {
+    fn fix_variables(&mut self, partial_point: &[Int<N>]) {
         assert!(
             partial_point.len() <= self.num_vars,
             "too many partial points"
@@ -177,22 +175,22 @@ impl MultilinearExtension for DenseMultilinearExtension {
         self.num_vars = nv - dim;
     }
 
-    fn fixed_variables(&self, partial_point: &[i64]) -> Self {
+    fn fixed_variables(&self, partial_point: &[Int<N>]) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<i64> {
+    fn to_evaluations(&self) -> Vec<Int<N>> {
         self.evaluations.to_vec()
     }
 }
 
-impl Zero for DenseMultilinearExtension {
+impl<const N: usize> Zero for DenseMultilinearExtension<N> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
-            evaluations: vec![0i64],
+            evaluations: vec![Int::<N>::zero()],
         }
     }
 
@@ -201,18 +199,18 @@ impl Zero for DenseMultilinearExtension {
     }
 }
 
-impl Add for DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<const N: usize> Add for DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn add(self, other: DenseMultilinearExtension) -> Self {
+    fn add(self, other: DenseMultilinearExtension<N>) -> Self {
         &self + &other
     }
 }
 
-impl<'a> Add<&'a DenseMultilinearExtension> for &DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn add(self, rhs: &'a DenseMultilinearExtension) -> Self::Output {
+    fn add(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -235,14 +233,16 @@ impl<'a> Add<&'a DenseMultilinearExtension> for &DenseMultilinearExtension {
     }
 }
 
-impl AddAssign for DenseMultilinearExtension {
-    fn add_assign(&mut self, rhs: DenseMultilinearExtension) {
+impl<const N: usize> AddAssign for DenseMultilinearExtension<N> {
+    fn add_assign(&mut self, rhs: DenseMultilinearExtension<N>) {
         self.add_assign(&rhs);
     }
 }
 
-impl<'a> AddAssign<&'a DenseMultilinearExtension> for DenseMultilinearExtension {
-    fn add_assign(&mut self, other: &'a DenseMultilinearExtension) {
+impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
+    for DenseMultilinearExtension<N>
+{
+    fn add_assign(&mut self, other: &'a DenseMultilinearExtension<N>) {
         if self.is_zero() {
             *self = other.clone();
             return;
@@ -263,12 +263,14 @@ impl<'a> AddAssign<&'a DenseMultilinearExtension> for DenseMultilinearExtension 
     }
 }
 
-impl AddAssign<(i64, &DenseMultilinearExtension)> for DenseMultilinearExtension {
-    fn add_assign(&mut self, (r, other): (i64, &DenseMultilinearExtension)) {
+impl<const N: usize> AddAssign<(Int<N>, &DenseMultilinearExtension<N>)>
+    for DenseMultilinearExtension<N>
+{
+    fn add_assign(&mut self, (r, other): (Int<N>, &DenseMultilinearExtension<N>)) {
         if self.is_zero() {
             *self = other.clone();
 
-            cfg_iter_mut!(self.evaluations).for_each(|a| a.mul_assign(&r));
+            cfg_iter_mut!(self.evaluations).for_each(|a| *a = *a * (r));
 
             return;
         }
@@ -288,28 +290,28 @@ impl AddAssign<(i64, &DenseMultilinearExtension)> for DenseMultilinearExtension 
     }
 }
 
-impl Neg for DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<const N: usize> Neg for DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
     fn neg(mut self) -> Self {
-        cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.neg());
+        cfg_iter_mut!(self.evaluations).for_each(|a| *a = Int::<N>::zero() - *a);
 
         self
     }
 }
 
-impl Sub for DenseMultilinearExtension {
+impl<const N: usize> Sub for DenseMultilinearExtension<N> {
     type Output = Self;
 
-    fn sub(self, other: DenseMultilinearExtension) -> Self {
+    fn sub(self, other: DenseMultilinearExtension<N>) -> Self {
         &self - &other
     }
 }
 
-impl<'a> Sub<&'a DenseMultilinearExtension> for &DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn sub(self, rhs: &'a DenseMultilinearExtension) -> Self::Output {
+    fn sub(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -332,14 +334,16 @@ impl<'a> Sub<&'a DenseMultilinearExtension> for &DenseMultilinearExtension {
     }
 }
 
-impl SubAssign for DenseMultilinearExtension {
-    fn sub_assign(&mut self, other: DenseMultilinearExtension) {
+impl<const N: usize> SubAssign for DenseMultilinearExtension<N> {
+    fn sub_assign(&mut self, other: DenseMultilinearExtension<N>) {
         self.sub_assign(&other);
     }
 }
 
-impl<'a> SubAssign<&'a DenseMultilinearExtension> for DenseMultilinearExtension {
-    fn sub_assign(&mut self, rhs: &'a DenseMultilinearExtension) {
+impl<'a, const N: usize> SubAssign<&'a DenseMultilinearExtension<N>>
+    for DenseMultilinearExtension<N>
+{
+    fn sub_assign(&mut self, rhs: &'a DenseMultilinearExtension<N>) {
         if self.is_zero() {
             *self = rhs.clone().neg();
             return;
@@ -356,63 +360,63 @@ impl<'a> SubAssign<&'a DenseMultilinearExtension> for DenseMultilinearExtension 
 
         cfg_iter_mut!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .for_each(|(a, b)| a.sub_assign(b));
+            .for_each(|(a, b)| *a = *a - *b);
     }
 }
 
-impl Mul<i64> for DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<const N: usize> Mul<Int<N>> for DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn mul(mut self, rhs: i64) -> DenseMultilinearExtension {
-        self.evaluations.iter_mut().for_each(|x| *x *= rhs);
+    fn mul(mut self, rhs: Int<N>) -> DenseMultilinearExtension<N> {
+        self.evaluations.iter_mut().for_each(|x| *x = *x * rhs);
 
         self
     }
 }
 
-impl MulAssign<i64> for DenseMultilinearExtension {
-    fn mul_assign(&mut self, rhs: i64) {
-        self.evaluations.iter_mut().for_each(|x| *x *= rhs);
+impl<const N: usize> MulAssign<Int<N>> for DenseMultilinearExtension<N> {
+    fn mul_assign(&mut self, rhs: Int<N>) {
+        self.evaluations.iter_mut().for_each(|x| *x = *x * rhs);
     }
 }
 
-impl Sub<i64> for DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<const N: usize> Sub<Int<N>> for DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn sub(mut self, rhs: i64) -> DenseMultilinearExtension {
-        self.evaluations.iter_mut().for_each(|x| *x -= rhs);
+    fn sub(mut self, rhs: Int<N>) -> DenseMultilinearExtension<N> {
+        self.evaluations.iter_mut().for_each(|x| *x = *x - rhs);
 
         self
     }
 }
 
-impl Add<i64> for DenseMultilinearExtension {
-    type Output = DenseMultilinearExtension;
+impl<const N: usize> Add<Int<N>> for DenseMultilinearExtension<N> {
+    type Output = DenseMultilinearExtension<N>;
 
-    fn add(mut self, rhs: i64) -> DenseMultilinearExtension {
+    fn add(mut self, rhs: Int<N>) -> DenseMultilinearExtension<N> {
         self.evaluations.iter_mut().for_each(|x| *x += &rhs);
 
         self
     }
 }
 
-impl Index<usize> for DenseMultilinearExtension {
-    type Output = i64;
+impl<const N: usize> Index<usize> for DenseMultilinearExtension<N> {
+    type Output = Int<N>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.evaluations[index]
     }
 }
 
-impl IndexMut<usize> for DenseMultilinearExtension {
+impl<const N: usize> IndexMut<usize> for DenseMultilinearExtension<N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.evaluations[index]
     }
 }
 
-unsafe impl Send for DenseMultilinearExtension {}
+unsafe impl<const N: usize> Send for DenseMultilinearExtension<N> {}
 
-unsafe impl Sync for DenseMultilinearExtension {}
+unsafe impl<const N: usize> Sync for DenseMultilinearExtension<N> {}
 
 /// This function build the eq(x, r) polynomial for any given r.
 ///
@@ -420,7 +424,9 @@ unsafe impl Sync for DenseMultilinearExtension {}
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r(r: &[i64]) -> Result<DenseMultilinearExtension, ArithErrors> {
+pub fn build_eq_x_r<const N: usize>(
+    r: &[Int<N>],
+) -> Result<DenseMultilinearExtension<N>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals);
 
@@ -434,7 +440,7 @@ pub fn build_eq_x_r(r: &[i64]) -> Result<DenseMultilinearExtension, ArithErrors>
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r_vec(r: &[i64]) -> Result<Vec<i64>, ArithErrors> {
+pub fn build_eq_x_r_vec<const N: usize>(r: &[Int<N>]) -> Result<Vec<Int<N>>, ArithErrors> {
     // we build eq(x,r) from its evaluations
     // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
     // for example, with num_vars = 4, x is a binary vector of 4, then
@@ -455,12 +461,15 @@ pub fn build_eq_x_r_vec(r: &[i64]) -> Result<Vec<i64>, ArithErrors> {
 /// A helper function to build eq(x, r) recursively.
 /// This function takes `r.len()` steps, and for each step it requires a maximum
 /// `r.len()-1` multiplications.
-fn build_eq_x_r_helper(r: &[i64], buf: &mut Vec<i64>) -> Result<(), ArithErrors> {
+fn build_eq_x_r_helper<const N: usize>(
+    r: &[Int<N>],
+    buf: &mut Vec<Int<N>>,
+) -> Result<(), ArithErrors> {
     if r.is_empty() {
         return Err(ArithErrors::InvalidParameters("r length is 0".to_string()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
-        buf.push(1i64 - r[0]);
+        buf.push(Int::<N>::ONE - r[0]);
         buf.push(r[0]);
     } else {
         build_eq_x_r_helper(&r[1..], buf)?;
@@ -477,7 +486,7 @@ fn build_eq_x_r_helper(r: &[i64], buf: &mut Vec<i64>) -> Result<(), ArithErrors>
         // }
         // *buf = res;
 
-        let mut res = vec![0i64; buf.len() << 1];
+        let mut res = vec![Int::<N>::zero(); buf.len() << 1];
         cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
             let bi = buf[i >> 1];
             let tmp = r[0] * bi;

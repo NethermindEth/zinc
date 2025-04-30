@@ -2,6 +2,7 @@
 
 use crate::field::conversion::FieldMap;
 use ark_ff::UniformRand;
+use crypto_bigint::Random;
 
 use crate::{
     biginteger::BigInt,
@@ -301,7 +302,13 @@ impl<const N: usize> RandomField<N> {
         }
     }
 }
+impl<const N: usize> Random for RandomField<N> {
+    fn random(rng: &mut (impl ark_std::rand::RngCore + ?Sized)) -> Self {
+        let value = BigInt::rand(rng);
 
+        Self::Raw { value }
+    }
+}
 impl<const N: usize> RandomField<N> {
     pub fn new_unchecked(config: *const FieldConfig<N>, value: BigInt<N>) -> Self {
         Initialized { config, value }

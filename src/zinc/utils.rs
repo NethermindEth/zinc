@@ -170,6 +170,8 @@ where
         .collect::<Result<_, E>>()
 }
 
+/// Draw a random field from the public inputs using the transcript using the 
+/// millie-rabin primality test as a rejection sampling method.
 pub fn draw_random_field<const N: usize>(
     public_inputs: &[i64],
     transcript: &mut KeccakTranscript,

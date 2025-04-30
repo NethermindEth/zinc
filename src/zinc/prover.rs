@@ -83,21 +83,23 @@ pub trait SpartanProver<const N: usize> {
     ///
     /// # Arguments
     ///
-    /// * `cm_i` - A reference to a committed CCS statement to be linearized, i.e. a CCCS<C, NTT>.
-    /// * `wit` - A reference to a CCS witness for the statement cm_i.
+    /// * `statement_f` - A reference to a committed CCS statement converted to field elements.
+    /// * `z_ccs` - A reference to a vector of to be checked by the CCS relation in field elements.
+    /// * `z_mle` - A reference to a MLE of the z_ccs vector.
+    /// * `ccs_f` - A reference to a Customizable Constraint System circuit representation.
     /// * `transcript` - A mutable reference to a sponge for generating NI challenges.
-    /// * `ccs` - A reference to a Customizable Constraint System circuit representation.
+    /// * `config` - A pointer to the field configuration.
     ///
     /// # Returns
     ///
-    /// On success, returns a tuple `(LCCCS<C, NTT>, LinearizationProof<NTT>)` where:
-    ///   * `LCCCS<C, NTT>` is a linearized version of the CCS witness commitment.
-    ///   * `LinearizationProof<NTT>` is a proof that the linearization subprotocol was executed correctly.
+    /// On success, returns a tuple `(SpartanProof<N>, Vec<RandomField<N>>)` where:
+    ///   * `SpartanProof<N>` is a proof that the Spartan protocol was executed correctly.
+    ///   * `Vec<RandomField<N>>` is a challenge point for the second sumcheck.
     ///
     /// # Errors
     ///
     /// Returns an error if asked to evaluate MLEs with incorrect number of variables
-    ///
+    /// or failed sumcheck.
     fn prove(
         &self,
         statement_f: &Statement_F<N>,
@@ -156,6 +158,7 @@ impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
 }
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
+    /// Convert the CCS statement and witness to the random field representation.
     pub fn prepare_for_random_field_piop(
         statement: &Statement_Z,
         wit: &Witness_Z,
@@ -177,6 +180,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         Ok((z_ccs, z_mle, ccs_f, statement_f))
     }
 
+    /// Converts the z vector from the CCS relation to a vector of field elements and a MLE of the z vector.
     fn get_z_ccs_and_z_mle(
         statement: &Statement_Z,
         wit: &Witness_Z,
@@ -191,11 +195,12 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 
         (
-            z_ccs.into_iter().map(|x| x.map_to_field(config)).collect(),
+            z_ccs.map_to_field(config),
             z_mle,
         )
     }
 
+    /// Perform the first sumcheck.
     fn sumcheck_1(
         z_ccs: &[RandomField<N>],
         transcript: &mut KeccakTranscript,

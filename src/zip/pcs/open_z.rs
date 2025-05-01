@@ -71,7 +71,7 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
-        let row_len = pp.zip().row_len();
+        let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();

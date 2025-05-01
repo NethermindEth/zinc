@@ -3,6 +3,7 @@
 use ark_ff::vec::*;
 use ark_ff::Zero;
 use ark_std::rand::Rng;
+use crypto_bigint::Int;
 use crypto_bigint::Random;
 
 use crate::{field::conversion::FieldMap, field::RandomField, field_config::FieldConfig};
@@ -37,7 +38,24 @@ macro_rules! impl_field_map_sparse_matrix {
         }
     };
 }
-
+impl<const N: usize, const M: usize> FieldMap<N> for SparseMatrix<Int<M>> {
+    type Output = SparseMatrix<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        let mut matrix = SparseMatrix::<RandomField<N>> {
+            n_rows: self.n_rows,
+            n_cols: self.n_cols,
+            coeffs: Vec::new(),
+        };
+        for row in self.coeffs.iter() {
+            let mut new_row = Vec::new();
+            for (value, col) in row.iter() {
+                new_row.push((value.map_to_field(config), *col));
+            }
+            matrix.coeffs.push(new_row);
+        }
+        matrix
+    }
+}
 impl_field_map_sparse_matrix!(i64);
 impl_field_map_sparse_matrix!(i128);
 

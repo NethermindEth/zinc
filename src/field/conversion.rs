@@ -437,13 +437,41 @@ impl<const N: usize> FieldMap<N> for &bool {
     }
 }
 
-// Implementation for BigInt<N>
+// Implementation for Int<N>
 impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
     type Output = RandomField<N>;
 
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
         let local_type_bigint = BigInt::new(*self.as_words());
         local_type_bigint.map_to_field(config)
+    }
+}
+
+impl<const M: usize, const N: usize> FieldMap<N> for &Int<M> {
+    type Output = RandomField<N>;
+
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        (*self).map_to_field(config)
+    }
+}
+impl<const N: usize, const M: usize> FieldMap<N> for Vec<Int<M>> {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
+    }
+}
+
+impl<const N: usize, const M: usize> FieldMap<N> for &Vec<Int<M>> {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
+    }
+}
+
+impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 

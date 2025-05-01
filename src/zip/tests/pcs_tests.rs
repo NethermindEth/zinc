@@ -7,22 +7,26 @@ use crate::{
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 use ark_ff::UniformRand;
+use crypto_bigint::Int;
 use std::str::FromStr;
 
 const N: usize = 2;
+
+type TestZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
+
 #[test]
 fn test_zip_commitment() {
     type S = ZipSpec1;
     type T = KeccakTranscript;
     let mut transcript = KeccakTranscript::new();
-    let param: MultilinearZip<N, S, T>::Param =
-        MultilinearZip::<N, S, T>::setup(8, &mut transcript);
+    let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
+    let evaluations: Vec<_> = (0..8).map(Int::<N>::from_i32).collect();
+
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let res = MultilinearZip::<N, S, T>::commit(&param, &mle);
+    let res = TestZip::commit(&param, &mle);
 
     assert!(res.is_ok())
 }
@@ -32,17 +36,13 @@ fn test_failing_zip_commitment() {
     type S = ZipSpec1;
     type T = KeccakTranscript;
     let mut transcript = KeccakTranscript::new();
-    let param: MultilinearZip<N, S, T>::Param =
-        MultilinearZip::<N, S, T>::setup(8, &mut transcript);
+    let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations = [
-        0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64, 0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64,
-        7i64,
-    ];
+    let evaluations: Vec<_> = (0..16).map(Int::<N>::from_i32).collect();
     let n = 4;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let res = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle);
+    let res = TestZip::commit(&param, &mle);
 
     assert!(res.is_err())
 }
@@ -55,20 +55,19 @@ fn test_zip_opening() {
     type S = ZipSpec1;
     type T = KeccakTranscript;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: MultilinearZip<N, S, T>::Param =
-        MultilinearZip::<N, S, T>::setup(8, &mut keccak_transcript);
+    let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
     let mut transcript = PcsTranscript::new();
 
-    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
+    let evaluations: Vec<_> = (0..8).map(Int::<N>::from_i32).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let (data, _) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, _) = TestZip::commit(&param, &mle).unwrap();
 
     let point = vec![0i64, 0i64, 0i64].map_to_field(config);
 
-    let res = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
+    let res = TestZip::open(&param, &mle, &data, &point, config, &mut transcript);
 
     assert!(res.is_ok())
 }
@@ -81,26 +80,24 @@ fn test_failing_zip_evaluation() {
     type S = ZipSpec1;
     type T = KeccakTranscript;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: MultilinearZip<N, S, T>::Param =
-        MultilinearZip::<N, S, T>::setup(8, &mut keccak_transcript);
+    let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
-    let evaluations = [0i64, 1i64, 2i64, 3i64, 4i64, 5i64, 6i64, 7i64];
+    let evaluations: Vec<_> = (0..8).map(Int::<N>::from_i32).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let (data, comm) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, comm) = TestZip::commit(&param, &mle).unwrap();
 
     let point = vec![0i64, 0i64, 0i64].map_to_field(config);
     let eval = 7i64.map_to_field(config);
 
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
+    let _ = TestZip::open(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res =
-        MultilinearZip::<N, S, T>::verify(&param, &comm, &point, eval, &mut transcript, config);
+    let res = TestZip::verify(&param, &comm, &point, eval, &mut transcript, config);
 
     assert!(res.is_err())
 }
@@ -114,25 +111,24 @@ fn test_zip_evaluation() {
     type T = KeccakTranscript;
     let n = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: MultilinearZip<N, S, T>::Param =
-        MultilinearZip::<N, S, T>::setup(1 << n, &mut keccak_transcript);
+    let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
     let evaluations: Vec<_> = (0..(1 << n))
-        .map(|_| i64::from(i8::rand(&mut rng)))
+        .map(|_| Int::<N>::from_i8(i8::rand(&mut rng)))
         .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-    let (data, comm) = MultilinearZip::<N, ZipSpec1, T>::commit(&param, &mle).unwrap();
+    let (data, comm) = TestZip::commit(&param, &mle).unwrap();
 
-    let point: Vec<_> = (0..n).map(|_| i64::from(i8::rand(&mut rng))).collect();
+    let point: Vec<_> = (0..n).map(|_| Int::<N>::from(i8::rand(&mut rng))).collect();
     let eval = mle.evaluate(&point).unwrap().map_to_field(config);
 
     let point = point.map_to_field(config);
     let mut transcript = PcsTranscript::new();
-    let _ = MultilinearZip::<N, S, T>::open(&param, &mle, &data, &point, config, &mut transcript);
+    let _ = TestZip::open(&param, &mle, &data, &point, config, &mut transcript);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    MultilinearZip::<N, S, T>::verify(&param, &comm, &point, eval, &mut transcript, config)
+    TestZip::verify(&param, &comm, &point, eval, &mut transcript, config)
         .expect("Failed to verify");
 }

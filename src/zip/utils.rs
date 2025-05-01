@@ -1,5 +1,6 @@
 use std::ops::{Add, Mul};
 
+use crypto_bigint::Int;
 use num_integer::Integer;
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
@@ -101,6 +102,15 @@ where
     });
 
     combined_row
+}
+pub(super) fn expand<const N: usize, const M: usize>(narrow_int: Int<N>) -> Int<M> {
+    assert!(
+        N <= M,
+        "Cannot squeeze a wide integer into a narrow integer."
+    );
+    let mut words: [u64; M] = [0; M];
+    words[..N].copy_from_slice(&narrow_int.to_words());
+    Int::<M>::from_words(words)
 }
 
 #[cfg(test)]

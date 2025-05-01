@@ -1,7 +1,7 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+
 use crypto_bigint::Int;
-use i256::{I256, I512};
 use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
@@ -84,7 +84,16 @@ macro_rules! impl_to_bytes {
 }
 
 // Implement ToBytes for various integer types
-impl_to_bytes!(i8, i32, i64, i128, I256, I512);
+impl_to_bytes!(i8, i32, i64, i128);
+// Manual impl for generic type
+impl<const N: usize> ToBytes for Int<N> {
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_words()
+            .iter()
+            .flat_map(|word| word.to_be_bytes())
+            .collect()
+    }
+}
 /// A merkle tree in which its layers are concatenated together in a single vector
 #[derive(Clone, Debug, Default)]
 pub struct MerkleTree {
@@ -234,9 +243,9 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<const N: usize>(
+    pub fn open_at_column<const N: usize, const M: usize>(
         column: usize,
-        commit_data: &MultilinearZipData<N>,
+        commit_data: &MultilinearZipData<N, M>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {
@@ -289,15 +298,6 @@ pub(super) fn point_to_tensor<const N: usize>(
     Ok((q_0.evaluations, q_1.evaluations))
 }
 
-pub(super) fn expand<const N: usize, const M: usize>(narrow_int: Int<N>) -> Int<M> {
-    assert!(
-        N <= M,
-        "Cannot squeeze a wide integer into a narrow integer."
-    );
-    let mut words: [u64; M] = [0; M];
-    words[..N].copy_from_slice(&narrow_int.to_words());
-    Int::<M>::from_words(words)
-}
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
@@ -320,8 +320,7 @@ pub(super) fn left_point_to_tensor<const N: usize>(
 mod tests {
     use super::*;
     use crate::zip::utils::combine_rows;
-    use i256::I512;
-    use rand::{rng, Rng};
+    use crypto_bigint::Random;
 
     #[test]
     fn test_basic_combination() {
@@ -363,11 +362,10 @@ mod tests {
 
     #[test]
     fn test_merkle_proof() {
+        const N: usize = 3;
         let leaves_len = 1024;
-        let mut rng = rng();
-        let leaves_data: Vec<I512> = (0..leaves_len)
-            .map(|_| I512::from_be_bytes(rng.random::<[u8; 64]>()))
-            .collect();
+        let mut rng = ark_std::test_rng();
+        let leaves_data: Vec<Int<N>> = (0..leaves_len).map(|_| Int::random(&mut rng)).collect();
 
         let merkle_depth = leaves_data.len().next_power_of_two().ilog2() as usize;
         let merkle_tree = MerkleTree::new(merkle_depth, &leaves_data);

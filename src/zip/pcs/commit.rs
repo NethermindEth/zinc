@@ -1,5 +1,5 @@
 use ark_std::iterable::Iterable;
-use i256::I512;
+use crypto_bigint::Int;
 
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
@@ -15,10 +15,11 @@ use super::{
     utils::{validate_input, MerkleTree},
 };
 
-impl<const N: usize, S, T> MultilinearZip<N, S, T>
+impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<N, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript,
+    T: ZipTranscript<L>,
 {
     pub fn commit(
         pp: &Self::ProverParam,
@@ -28,7 +29,7 @@ where
 
         let row_len = pp.zip().row_len();
         let codeword_len = pp.zip().codeword_len();
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
 
@@ -63,11 +64,11 @@ where
         codeword_len: usize,
         row_len: usize,
         poly: &Self::Polynomial,
-    ) -> Vec<I512> {
+    ) -> Vec<Int<M>> {
         // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![I512::default(); pp.num_rows() * codeword_len];
+        let mut encoded_rows = vec![Int::<M>::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -78,7 +79,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row.copy_from_slice(pp.zip().encode_i64(evals).as_slice());
+                    row.copy_from_slice(pp.zip().encode(evals).as_slice());
                 }
             },
         );

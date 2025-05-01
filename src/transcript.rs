@@ -1,3 +1,4 @@
+use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
@@ -143,7 +144,7 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge(&mut self) -> i64 {
+    pub fn get_integer_challenge<const N: usize>(&mut self) -> Int<N> {
         let challenge = self.hasher.clone().finalize();
 
         let int = i64::from_be_bytes(challenge[0..8].try_into().unwrap());

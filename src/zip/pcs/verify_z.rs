@@ -1,13 +1,14 @@
 use ark_std::iterable::Iterable;
 
-use i256::{I256, I512};
+use crypto_bigint::Int;
+
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
     field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
     zip::{
-        code::{I256_to_I512, LinearCodes, ZipSpec},
+        code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::inner_product,
         Error,
@@ -19,10 +20,11 @@ use super::{
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 
-impl<const N: usize, S, T> MultilinearZip<N, S, T>
+impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<N, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript,
+    T: ZipTranscript<L>,
 {
     pub fn verify(
         vp: &Self::VerifierParam,
@@ -60,30 +62,34 @@ where
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<(usize, Vec<I512>)>, Error> {
+    ) -> Result<Vec<(usize, Vec<Int<M>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows = Vec::with_capacity(vp.zip().num_proximity_testing());
+        let mut encoded_combined_rows = Vec::with_capacity(
+            <Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()),
+        );
         if vp.num_rows() > 1 {
-            for _ in 0..vp.zip().num_proximity_testing() {
+            for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()) {
                 let coeffs: Vec<_> = transcript
                     .fs_transcript
-                    .get_integer_challenges(vp.num_rows())
-                    .iter()
-                    .map(|i| I256::from(*i))
-                    .collect();
+                    .get_integer_challenges(vp.num_rows());
 
-                let combined_row = transcript.read_I256_vec(vp.zip().row_len())?;
+                let combined_row = transcript
+                    .read_integers(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()))?;
 
                 let encoded_combined_row = vp.zip().encode(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
-        let mut columns_opened: Vec<(usize, Vec<I512>)> =
-            Vec::with_capacity(vp.zip().num_column_opening());
-        for _ in 0..vp.zip().num_column_opening() {
-            let column_idx = transcript.squeeze_challenge_idx(field, vp.zip().codeword_len());
-            let column_values = transcript.read_I512_vec(vp.num_rows())?;
+        let mut columns_opened: Vec<(usize, Vec<Int<M>>)> = Vec::with_capacity(
+            <Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()),
+        );
+        for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()) {
+            let column_idx = transcript.squeeze_challenge_idx(
+                field,
+                <Zip<N, L> as LinearCodes<N, L>>::codeword_len(vp.zip()),
+            );
+            let column_values = transcript.read_integers(vp.num_rows())?;
 
             for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
                 Self::verify_column_testing(
@@ -103,15 +109,14 @@ where
     }
 
     pub(super) fn verify_column_testing(
-        coeffs: &[I256],
-        encoded_combined_row: &[I512],
-        column_entries: &[I512],
+        coeffs: &[Int<M>],
+        encoded_combined_row: &[Int<M>],
+        column_entries: &[Int<M>],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let coeff: Vec<_> = coeffs.iter().map(|i| I256_to_I512(*i)).collect();
-            inner_product(&coeff, column_entries)
+            inner_product(coeffs, column_entries)
         } else {
             column_entries[0]
         };
@@ -126,11 +131,12 @@ where
         vp: &Self::VerifierParam,
         point: &[F<N>],
         eval: F<N>,
-        columns_opened: &[(usize, Vec<I512>)],
+        columns_opened: &[(usize, Vec<Int<M>>)],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
-        let q_0_combined_row = transcript.read_field_elements(vp.zip().row_len(), field)?;
+        let q_0_combined_row = transcript
+            .read_field_elements(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()), field)?;
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
 
         let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, field)?;
@@ -158,7 +164,7 @@ where
     fn verify_proximity_q_0(
         q_0: &Vec<F<N>>,
         q_0_combined_row: &[F<N>],
-        column_entries: &[I512],
+        column_entries: &[Int<M>],
         column: usize,
         num_rows: usize,
         field: *const FieldConfig<N>,

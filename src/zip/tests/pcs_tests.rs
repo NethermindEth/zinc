@@ -16,8 +16,6 @@ type TestZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, Kecc
 
 #[test]
 fn test_zip_commitment() {
-    type S = ZipSpec1;
-    type T = KeccakTranscript;
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
@@ -33,8 +31,6 @@ fn test_zip_commitment() {
 
 #[test]
 fn test_failing_zip_commitment() {
-    type S = ZipSpec1;
-    type T = KeccakTranscript;
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
@@ -52,8 +48,6 @@ fn test_zip_opening() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
-    type S = ZipSpec1;
-    type T = KeccakTranscript;
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
@@ -77,8 +71,6 @@ fn test_failing_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
-    type S = ZipSpec1;
-    type T = KeccakTranscript;
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
@@ -107,8 +99,7 @@ fn test_zip_evaluation() {
     let config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let mut rng = ark_std::test_rng();
-    type S = ZipSpec1;
-    type T = KeccakTranscript;
+
     let n = 8;
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);

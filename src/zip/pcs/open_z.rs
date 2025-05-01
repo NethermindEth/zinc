@@ -2,7 +2,6 @@
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
-use crypto_bigint::Int;
 
 use itertools::izip;
 
@@ -50,7 +49,7 @@ where
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<N, L>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
@@ -106,7 +105,7 @@ where
                     .fs_transcript
                     .get_integer_challenges(pp.num_rows());
 
-                let evals = poly.evaluations.iter().map(|x| Int::<N>::from(*x));
+                let evals = poly.evaluations.iter().copied();
                 let combined_row = combine_rows(
                     coeffs,
                     evals,
@@ -130,7 +129,7 @@ where
 
     pub(super) fn open_merkle_trees_for_column(
         pp: &Self::ProverParam,
-        commit_data: &MultilinearZipData<N, L>,
+        commit_data: &MultilinearZipData<N, K>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {

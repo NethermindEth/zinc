@@ -4,7 +4,7 @@ use crypto_bigint::Int;
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     zip::{
-        code::{LinearCodes, ZipSpec},
+        code::{LinearCodes, Zip, ZipSpec},
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
@@ -27,8 +27,8 @@ where
     ) -> Result<(Self::Data, Self::Commitment), Error> {
         validate_input::<N>("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = pp.zip().row_len();
-        let codeword_len = pp.zip().codeword_len();
+        let row_len = <Zip<N, L> as LinearCodes<N, M>>::row_len(pp.zip());
+        let codeword_len = <Zip<N, L> as LinearCodes<N, M>>::codeword_len(pp.zip());
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -46,7 +46,7 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::new(rows, rows_merkle_trees),
+            MultilinearZipData::<N, K>::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }
@@ -64,11 +64,11 @@ where
         codeword_len: usize,
         row_len: usize,
         poly: &Self::Polynomial,
-    ) -> Vec<Int<M>> {
+    ) -> Vec<Int<K>> {
         // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![Int::<M>::default(); pp.num_rows() * codeword_len];
+        let mut encoded_rows = vec![Int::<K>::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows

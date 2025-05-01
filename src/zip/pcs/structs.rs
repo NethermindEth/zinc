@@ -58,9 +58,9 @@ impl<const N: usize, const L: usize> MultilinearZipParams<N, L> {
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipData<const N: usize, const M: usize> {
+pub struct MultilinearZipData<const N: usize, const K: usize> {
     /// The encoded rows of the polynomial matrix representation
-    rows: Vec<Int<M>>,
+    rows: Vec<Int<K>>,
     /// Merkle trees of each row
     rows_merkle_trees: Vec<MerkleTree>,
 }
@@ -126,7 +126,7 @@ where
     pub type ProverParam = MultilinearZipParams<N, L>;
     pub type VerifierParam = MultilinearZipParams<N, L>;
     pub type Polynomial = DenseMultilinearExtension<N>;
-    pub type Data = MultilinearZipData<N, L>;
+    pub type Data = MultilinearZipData<N, K>;
     pub type Commitment = MultilinearZipCommitment<N>;
     pub type CommitmentChunk = Output<Keccak256>;
 

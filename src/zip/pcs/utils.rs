@@ -1,5 +1,6 @@
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
+use crypto_bigint::Int;
 use i256::{I256, I512};
 use sha3::{digest::Output, Digest, Keccak256};
 
@@ -288,6 +289,15 @@ pub(super) fn point_to_tensor<const N: usize>(
     Ok((q_0.evaluations, q_1.evaluations))
 }
 
+pub(super) fn expand<const N: usize, const M: usize>(narrow_int: Int<N>) -> Int<M> {
+    assert!(
+        N <= M,
+        "Cannot squeeze a wide integer into a narrow integer."
+    );
+    let mut words: [u64; M] = [0; M];
+    words[..N].copy_from_slice(&narrow_int.to_words());
+    Int::<M>::from_words(words)
+}
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only

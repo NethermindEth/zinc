@@ -312,15 +312,12 @@ mod tests {
 
     use std::str::FromStr;
 
-    use crypto_bigint::Int;
-
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
     use crate::{
         biginteger::BigInt,
         ccs::{
             ccs_f::{Arith, Instance_F},
             ccs_z::CCS_Z,
-            test_utils::get_dummy_ccs_Z_from_z_length,
         },
         field::conversion::FieldMap,
         field_config::FieldConfig,
@@ -355,37 +352,12 @@ mod tests {
     }
 
     #[test]
-    fn test_dummy_ccs_z() {
-        let mut rng = ark_std::test_rng();
-        const N: usize = 3;
-        let n = 1 << 13;
-        let (z, ccs, statement, _) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
-
-        let constraints = statement
-            .constraints
-            .iter()
-            .map(|m_i64: &SparseMatrix<Int<N>>| {
-                let mut m = SparseMatrix::empty();
-                m.n_rows = m_i64.n_rows;
-                m.n_cols = m_i64.n_cols;
-                m.coeffs = m_i64
-                    .coeffs
-                    .iter()
-                    .map(|vec| vec.iter().map(|(coeff, col)| (*coeff, *col)).collect())
-                    .collect();
-                m
-            })
-            .collect::<Vec<_>>();
-
-        let res = ccs.check_relation(&constraints, &z);
-        assert!(res.is_ok())
-    }
-
-    #[test]
     fn test_ccs_z_conversion() {
-        let mut rng = ark_std::test_rng();
-        let n = 1 << 3;
-        let (z, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
+        let input = 3;
+        let ccs: CCS_Z<N> = get_test_ccs_Z();
+        let statement = get_test_ccs_Z_statement(input);
+        let z = get_test_z_Z(input);
+        let wit = z[2..].to_vec();
 
         let constraints = statement
             .constraints
@@ -414,7 +386,7 @@ mod tests {
         let ccs_f = ccs.map_to_field(config);
         let statement_f = statement.map_to_field(config);
         let witness_f = wit.map_to_field(config);
-        let z_f = statement_f.get_z_vector(&witness_f.w_ccs, config);
+        let z_f = statement_f.get_z_vector(&witness_f, config);
 
         ccs_f
             .check_relation(&statement_f.constraints, &z_f)

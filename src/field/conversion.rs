@@ -490,7 +490,7 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
             let mut r: BigInt<N> = match M.cmp(&N) {
                 std::cmp::Ordering::Less => {
                     let mut wider_value = [0u64; N];
-                    wider_value[..N].copy_from_slice(&self.0);
+                    wider_value[..M].copy_from_slice(&self.0);
                     BigInt(wider_value)
                 }
                 std::cmp::Ordering::Equal => {
@@ -501,7 +501,7 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
                 std::cmp::Ordering::Greater => {
                     let mut value = crypto_bigint::Uint::<M>::from_words(self.0);
                     let mut wider_modulus = [0u64; M];
-                    wider_modulus[..M].copy_from_slice(&modulus);
+                    wider_modulus[..N].copy_from_slice(&modulus);
                     let modu = crypto_bigint::Uint::<M>::from_words(wider_modulus);
 
                     value %= crypto_bigint::NonZero::new(modu).unwrap();

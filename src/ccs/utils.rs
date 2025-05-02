@@ -1,7 +1,6 @@
 //! Provides operations used for working with constraint systems
 #![allow(non_snake_case)]
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
+
 use std::ops::{Add, Mul};
 
 use crate::sparse_matrix::SparseMatrix;

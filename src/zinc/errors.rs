@@ -8,8 +8,6 @@ use crate::{
 
 #[derive(Debug, Error)]
 pub enum ZincError<const N: usize> {
-    #[error("lookup error: {0}")]
-    LookupError(#[from] LookupError),
     #[error("spartan error: {0}")]
     SpartanError(#[from] SpartanError<N>),
 }
@@ -30,12 +28,6 @@ pub enum SpartanError<const N: usize> {
     VerificationError(String),
     #[error("")]
     ZipError(#[from] ZipError),
-}
-
-#[derive(Debug, Error)]
-pub enum LookupError {
-    #[error("lookup failed")]
-    LookupFailed,
 }
 
 #[derive(Debug, Error)]

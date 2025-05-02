@@ -1,4 +1,4 @@
-use crypto_bigint::Int;
+use crypto_bigint::{Int, NonZero, Uint};
 use i256::{I256, I512};
 
 use crate::biginteger::BigInt;
@@ -442,8 +442,12 @@ impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
     type Output = RandomField<N>;
 
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        let local_type_bigint = BigInt::new(*self.as_words());
-        local_type_bigint.map_to_field(config)
+        let local_type_bigint = BigInt::from(self);
+        let res = local_type_bigint.map_to_field(config);
+        if self < &Int::ZERO {
+            return -res;
+        }
+        res
     }
 }
 
@@ -491,20 +495,34 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
                 std::cmp::Ordering::Less => {
                     let mut wider_value = [0u64; N];
                     wider_value[..M].copy_from_slice(&self.0);
-                    BigInt(wider_value)
+                    let mut value = Uint::from_words(wider_value);
+                    let modu = Uint::<N>::from_words(modulus);
+
+                    value %= NonZero::new(modu).unwrap();
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[..N]);
+
+                    BigInt(result)
                 }
                 std::cmp::Ordering::Equal => {
-                    let mut value = [0u64; N];
-                    value.copy_from_slice(&self.0);
-                    BigInt(value)
-                }
-                std::cmp::Ordering::Greater => {
-                    let mut value = crypto_bigint::Uint::<M>::from_words(self.0);
+                    let mut value = Uint::<M>::from_words(self.0);
                     let mut wider_modulus = [0u64; M];
                     wider_modulus[..N].copy_from_slice(&modulus);
-                    let modu = crypto_bigint::Uint::<M>::from_words(wider_modulus);
+                    let modu = Uint::<M>::from_words(wider_modulus);
 
-                    value %= crypto_bigint::NonZero::new(modu).unwrap();
+                    value %= NonZero::new(modu).unwrap();
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[..N]);
+
+                    BigInt(result)
+                }
+                std::cmp::Ordering::Greater => {
+                    let mut value = Uint::<M>::from_words(self.0);
+                    let mut wider_modulus = [0u64; M];
+                    wider_modulus[..N].copy_from_slice(&modulus);
+                    let modu = Uint::<M>::from_words(wider_modulus);
+
+                    value %= NonZero::new(modu).unwrap();
                     let mut result = [0u64; N];
                     result.copy_from_slice(&value.to_words()[..N]);
 

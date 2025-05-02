@@ -13,8 +13,8 @@ use crate::{
 };
 
 use super::{
-    errors::{LookupError, MleEvaluationError, SpartanError, ZincError},
-    structs::{LookupProof, SpartanProof, ZincProof, ZincVerifier, ZipProof},
+    errors::{MleEvaluationError, SpartanError, ZincError},
+    structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 
@@ -35,7 +35,7 @@ pub trait Verifier<const N: usize> {
 impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement_Z<N>,
+        statement: &Statement_Z<N>,
         proof: ZincProof<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
@@ -45,10 +45,10 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         [(); 4 * N]:,
         [(); 8 * N]:,
     {
-        let field_config = draw_random_field::<N>(&cm_i.public_input, transcript);
+        let field_config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let ccs_F = ccs.map_to_field(field_config);
-        let statement_f = cm_i.map_to_field(field_config);
+        let statement_f = statement.map_to_field(field_config);
 
         let (rx_ry, e_y, gamma) =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F)
@@ -61,8 +61,6 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             &ccs_F,
             transcript,
         )?;
-
-        LookupVerifier::<N>::verify(self, proof.lookup_proof).map_err(ZincError::LookupError)?;
 
         Ok(())
     }
@@ -121,16 +119,6 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         )?;
 
         Ok(([r_x, r_y].concat(), e_y, gamma))
-    }
-}
-
-pub trait LookupVerifier<const N: usize> {
-    fn verify(&self, proof: LookupProof<N>) -> Result<(), LookupError>;
-}
-
-impl<const N: usize, S: ZipSpec> LookupVerifier<N> for ZincVerifier<N, S> {
-    fn verify(&self, _proof: LookupProof<N>) -> Result<(), LookupError> {
-        todo!()
     }
 }
 

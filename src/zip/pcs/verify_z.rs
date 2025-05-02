@@ -10,7 +10,7 @@ use crate::{
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
-        utils::inner_product,
+        utils::{expand, inner_product},
         Error,
     },
 };
@@ -62,26 +62,26 @@ where
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<(usize, Vec<Int<M>>)>, Error> {
+    ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
             <Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()),
         );
         if vp.num_rows() > 1 {
             for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()) {
-                let coeffs: Vec<_> = transcript
+                let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges(vp.num_rows());
+                    .get_integer_challenges::<N>(vp.num_rows());
 
-                let combined_row = transcript
+                let combined_row: Vec<Int<M>> = transcript
                     .read_integers(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()))?;
 
-                let encoded_combined_row = vp.zip().encode(&combined_row);
+                let encoded_combined_row: Vec<Int<M>> = vp.zip().encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
-        let mut columns_opened: Vec<(usize, Vec<Int<M>>)> = Vec::with_capacity(
+        let mut columns_opened: Vec<(usize, Vec<Int<K>>)> = Vec::with_capacity(
             <Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()),
         );
         for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()) {
@@ -109,16 +109,18 @@ where
     }
 
     pub(super) fn verify_column_testing(
-        coeffs: &[Int<M>],
+        coeffs: &[Int<N>],
         encoded_combined_row: &[Int<M>],
-        column_entries: &[Int<M>],
+        column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            inner_product(coeffs, column_entries)
+            let coeffs: Vec<_> = coeffs.iter().map(expand::<N, M>).collect();
+            let column_entries: Vec<_> = column_entries.iter().map(expand::<K, M>).collect();
+            inner_product(coeffs.iter(), column_entries.iter())
         } else {
-            column_entries[0]
+            expand::<K, M>(&column_entries[0])
         };
 
         if column_entries_comb != encoded_combined_row[column] {
@@ -131,7 +133,7 @@ where
         vp: &Self::VerifierParam,
         point: &[F<N>],
         eval: F<N>,
-        columns_opened: &[(usize, Vec<Int<M>>)],
+        columns_opened: &[(usize, Vec<Int<K>>)],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
@@ -164,7 +166,7 @@ where
     fn verify_proximity_q_0(
         q_0: &Vec<F<N>>,
         q_0_combined_row: &[F<N>],
-        column_entries: &[Int<M>],
+        column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
         field: *const FieldConfig<N>,

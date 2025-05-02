@@ -103,7 +103,7 @@ where
 
     combined_row
 }
-pub(super) fn expand<const N: usize, const M: usize>(narrow_int: Int<N>) -> Int<M> {
+pub(super) fn expand<const N: usize, const M: usize>(narrow_int: &Int<N>) -> Int<M> {
     assert!(
         N <= M,
         "Cannot squeeze a wide integer into a narrow integer."

@@ -12,7 +12,7 @@ use crate::{
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
-        utils::combine_rows,
+        utils::{combine_rows, expand},
         Error,
     },
 };
@@ -103,9 +103,10 @@ where
             for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(pp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges(pp.num_rows());
+                    .get_integer_challenges::<N>(pp.num_rows());
+                let coeffs = coeffs.iter().map(expand::<N, M>);
 
-                let evals = poly.evaluations.iter().copied();
+                let evals = poly.evaluations.iter().map(expand::<N, M>);
                 let combined_row = combine_rows(
                     coeffs,
                     evals,

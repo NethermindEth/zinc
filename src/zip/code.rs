@@ -83,6 +83,14 @@ impl<const N: usize, const L: usize> Zip<N, L> {
 
         code
     }
+
+    pub(crate) fn encode_wide<const M: usize>(&self, row: &[Int<M>]) -> Vec<Int<M>> {
+        let mut code = Vec::with_capacity(self.codeword_len);
+        code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
+        code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
+
+        code
+    }
 }
 
 impl<const N: usize, const M: usize, const L: usize> LinearCodes<N, M> for Zip<N, L> {
@@ -214,7 +222,7 @@ impl<const L: usize> SparseMatrixZ<L> {
         self.rows().enumerate().for_each(|(row_idx, cells)| {
             let mut sum = Int::<M>::zero();
             for (column, coeff) in cells.iter() {
-                sum += expand::<L, M>(*coeff) * expand::<N, M>(vector[*column]);
+                sum += expand::<L, M>(coeff) * expand::<N, M>(&vector[*column]);
             }
             result[row_idx] = sum;
         });

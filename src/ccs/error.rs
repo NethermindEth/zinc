@@ -1,5 +1,4 @@
 //! Provides error functionality for constraint systems.
-#![allow(dead_code)]
 use thiserror::Error;
 
 /// Errors that can arise in constraint system calculations

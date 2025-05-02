@@ -5,19 +5,6 @@ pub struct BitIteratorBE<Slice: AsRef<[u64]>> {
     n: usize,
 }
 
-impl<Slice: AsRef<[u64]>> BitIteratorBE<Slice> {
-    pub fn new(s: Slice) -> Self {
-        let n = s.as_ref().len() * 64;
-        Self { s, n }
-    }
-
-    /// Construct an iterator that automatically skips any leading zeros.
-    /// That is, it skips all zeros before the most-significant one.
-    pub fn without_leading_zeros(s: Slice) -> impl Iterator<Item = bool> {
-        Self::new(s).skip_while(|b| !b)
-    }
-}
-
 impl<Slice: AsRef<[u64]>> Iterator for BitIteratorBE<Slice> {
     type Item = bool;
 
@@ -42,6 +29,37 @@ pub struct BitIteratorLE<Slice: AsRef<[u64]>> {
     max_len: usize,
 }
 
+impl<Slice: AsRef<[u64]>> Iterator for BitIteratorLE<Slice> {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<bool> {
+        if self.n == self.max_len {
+            None
+        } else {
+            let part = self.n / 64;
+            let bit = self.n - (64 * part);
+            self.n += 1;
+
+            Some(self.s.as_ref()[part] & (1 << bit) > 0)
+        }
+    }
+}
+
+#[cfg(test)]
+impl<Slice: AsRef<[u64]>> BitIteratorBE<Slice> {
+    pub fn new(s: Slice) -> Self {
+        let n = s.as_ref().len() * 64;
+        Self { s, n }
+    }
+
+    /// Construct an iterator that automatically skips any leading zeros.
+    /// That is, it skips all zeros before the most-significant one.
+    pub fn without_leading_zeros(s: Slice) -> impl Iterator<Item = bool> {
+        Self::new(s).skip_while(|b| !b)
+    }
+}
+
+#[cfg(test)]
 impl<Slice: AsRef<[u64]>> BitIteratorLE<Slice> {
     pub fn new(s: Slice) -> Self {
         let n = 0;
@@ -62,22 +80,6 @@ impl<Slice: AsRef<[u64]>> BitIteratorLE<Slice> {
         let mut iter = Self::new(s);
         iter.max_len = first_trailing_zero;
         iter
-    }
-}
-
-impl<Slice: AsRef<[u64]>> Iterator for BitIteratorLE<Slice> {
-    type Item = bool;
-
-    fn next(&mut self) -> Option<bool> {
-        if self.n == self.max_len {
-            None
-        } else {
-            let part = self.n / 64;
-            let bit = self.n - (64 * part);
-            self.n += 1;
-
-            Some(self.s.as_ref()[part] & (1 << bit) > 0)
-        }
     }
 }
 

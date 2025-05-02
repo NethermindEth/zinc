@@ -246,6 +246,7 @@ impl<const N: usize> BigInt<N> {
         (self, borrow != 0)
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub(crate) const fn const_add_with_carry(mut self, other: &Self) -> (Self, bool) {
         let mut carry = 0;
@@ -293,8 +294,6 @@ impl<const N: usize> BigInt<N> {
 }
 
 impl<const N: usize> BigInt<N> {
-    const NUM_LIMBS: usize = N;
-
     #[unroll_for_loops(6)]
     #[inline]
     pub fn add_with_carry(&mut self, other: &Self) -> bool {

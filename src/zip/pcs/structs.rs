@@ -11,6 +11,10 @@ use crate::{
 
 use super::utils::MerkleTree;
 
+// N is the width of elements in witness/ polynomial evaluations on hypercube
+// L is the width of elements in the encoding matrices
+// K is the width of elements in the code
+// M is the width of elements in linear combination of code rows
 #[derive(Debug)]
 pub struct MultilinearZip<
     const N: usize,

@@ -13,19 +13,17 @@ use zinc::biginteger::BigInt;
 
 use zinc::field_config::FieldConfig;
 use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
-use zinc::zip::code::{ZipSpec, ZipSpec1};
+use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
 use zinc::zip::pcs_transcript::PcsTranscript;
+const N: usize = 2;
+type BenchZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
 
-fn commit<const N: usize, B: ZipSpec, const P: usize>(
-    group: &mut BenchmarkGroup<WallTime>,
-    modulus: &str,
-    spec: usize,
-) {
+fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
+    let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     group.bench_function(
         format!("Commit: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
@@ -35,8 +33,7 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = MultilinearZip::<N, B, T>::commit(&params, &poly)
-                        .expect("Failed to commit");
+                    let _ = BenchZip::commit(&params, &poly).expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -46,21 +43,17 @@ fn commit<const N: usize, B: ZipSpec, const P: usize>(
     );
 }
 
-fn open<const N: usize, B: ZipSpec, const P: usize>(
-    group: &mut BenchmarkGroup<WallTime>,
-    modulus: &str,
-    spec: usize,
-) {
+fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     let field_config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
+    let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, _) = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+    let (data, _) = BenchZip::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
@@ -71,7 +64,7 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::new();
                     let timer = Instant::now();
-                    MultilinearZip::<N, B, T>::open(
+                    BenchZip::open(
                         &params,
                         &poly,
                         &data,
@@ -87,26 +80,22 @@ fn open<const N: usize, B: ZipSpec, const P: usize>(
         },
     );
 }
-fn verify<const N: usize, B: ZipSpec, const P: usize>(
-    group: &mut BenchmarkGroup<WallTime>,
-    modulus: &str,
-    spec: usize,
-) {
+fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     let field_config: *const FieldConfig<N> =
         &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = MultilinearZip::<N, B, T>::setup(1 << P, &mut keccak_transcript);
+    let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, commitment) = MultilinearZip::<N, B, T>::commit(&params, &poly).unwrap();
+    let (data, commitment) = BenchZip::commit(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
 
-    MultilinearZip::<N, B, T>::open(
+    BenchZip::open(
         &params,
         &poly,
         &data,
@@ -126,7 +115,7 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
                 for _ in 0..iters {
                     let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
-                    MultilinearZip::<N, B, T>::verify(
+                    BenchZip::verify(
                         &params,
                         &commitment,
                         &point.map_to_field(field_config),
@@ -146,34 +135,34 @@ fn verify<const N: usize, B: ZipSpec, const P: usize>(
 fn zip_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Zip");
 
-    commit::<4, ZipSpec1, 12>(
+    commit::<12>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
-    commit::<4, ZipSpec1, 16>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-
-    open::<4, ZipSpec1, 12>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-    open::<4, ZipSpec1, 16>(
+    commit::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
 
-    verify::<4, ZipSpec1, 12>(
+    open::<12>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
-    verify::<4, ZipSpec1, 16>(
+    open::<16>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+
+    verify::<12>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    verify::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,

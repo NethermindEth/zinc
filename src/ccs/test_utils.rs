@@ -1,7 +1,9 @@
 #![allow(dead_code, non_snake_case)]
 use std::{sync::atomic::AtomicPtr, vec};
 
+use ark_ff::One;
 use ark_std::{log2, rand::Rng};
+use crypto_bigint::{Int, Random};
 
 use crate::{
     field::{conversion::FieldMap, rand_with_config, RandomField},
@@ -14,27 +16,27 @@ use super::{
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
 
-pub(crate) fn create_dummy_identity_sparse_matrix_Z(
+pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(
     rows: usize,
     columns: usize,
-) -> SparseMatrix<i64> {
+) -> SparseMatrix<Int<N>> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
         n_cols: columns,
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((1i64, i));
+        row.push((Int::one(), i));
     }
     matrix
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix_Z(
+pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
     rows: usize,
     columns: usize,
-    witness: &[i64],
-) -> SparseMatrix<i64> {
+    witness: &[Int<N>],
+) -> SparseMatrix<Int<N>> {
     assert_eq!(
         rows,
         witness.len(),
@@ -89,7 +91,10 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z(z: &[i64], pub_io_len: usize) -> (CCS_Z, Statement_Z, Witness_Z) {
+fn get_dummy_ccs_Z_from_z<const N: usize>(
+    z: &[Int<N>],
+    pub_io_len: usize,
+) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
@@ -154,13 +159,13 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
     (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_Z_from_z_length(
+pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
-) -> (Vec<i64>, CCS_Z, Statement_Z, Witness_Z) {
-    let mut z: Vec<_> = (0..n).map(|_| rng.gen_range(i64::MIN..=i64::MAX)).collect();
+) -> (Vec<Int<N>>, CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+    let mut z: Vec<_> = (0..n).map(|_| Int::<N>::random(rng)).collect();
     let pub_io_len = 1;
-    z[pub_io_len] = 1;
+    z[pub_io_len] = Int::<N>::one();
     let (ccs, statement, wit) = get_dummy_ccs_Z_from_z(&z, pub_io_len);
 
     (z, ccs, statement, wit)

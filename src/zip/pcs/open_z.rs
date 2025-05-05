@@ -2,7 +2,7 @@
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
-use i256::I256;
+
 use itertools::izip;
 
 use crate::{
@@ -10,9 +10,9 @@ use crate::{
     field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
-        code::{LinearCodes, ZipSpec},
+        code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
-        utils::combine_rows,
+        utils::{combine_rows, expand},
         Error,
     },
 };
@@ -22,10 +22,11 @@ use super::{
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 
-impl<const N: usize, S, T> MultilinearZip<N, S, T>
+impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<N, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript,
+    T: ZipTranscript<L>,
 {
     pub fn open(
         pp: &Self::ProverParam,
@@ -47,8 +48,8 @@ where
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
@@ -69,7 +70,7 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
-        let row_len = pp.zip().row_len();
+        let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
@@ -99,21 +100,29 @@ where
         if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..pp.zip().num_proximity_testing() {
+            for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(pp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges(pp.num_rows());
-                let coeffs = coeffs.iter().map(|x| I256::from(*x));
-                let evals = poly.evaluations.iter().map(|x| I256::from(*x));
-                let combined_row = combine_rows(coeffs, evals, pp.zip().row_len());
+                    .get_integer_challenges::<N>(pp.num_rows());
+                let coeffs = coeffs.iter().map(expand::<N, M>);
 
-                transcript.write_I256_vec(&combined_row)?;
+                let evals = poly.evaluations.iter().map(expand::<N, M>);
+                let combined_row = combine_rows(
+                    coeffs,
+                    evals,
+                    <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip()),
+                );
+
+                transcript.write_integers(&combined_row)?;
             }
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..pp.zip().num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(field, pp.zip().codeword_len());
+        for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_column_opening(pp.zip()) {
+            let column = transcript.squeeze_challenge_idx(
+                field,
+                <Zip<N, L> as LinearCodes<N, L>>::codeword_len(pp.zip()),
+            );
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
@@ -121,18 +130,18 @@ where
 
     pub(super) fn open_merkle_trees_for_column(
         pp: &Self::ProverParam,
-        commit_data: &MultilinearZipData<N>,
+        commit_data: &MultilinearZipData<N, K>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         //Write the elements in the squeezed column to the shared transcript
-        transcript.write_I512_vec(
+        transcript.write_integers(
             &commit_data
                 .rows()
                 .iter()
                 .copied()
                 .skip(column)
-                .step_by(pp.zip().codeword_len())
+                .step_by(<Zip<N, L> as LinearCodes<N, L>>::codeword_len(pp.zip()))
                 .collect::<Vec<_>>(),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)

@@ -1,3 +1,4 @@
+use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
@@ -143,19 +144,22 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge(&mut self) -> i64 {
-        let challenge = self.hasher.clone().finalize();
+    pub fn get_integer_challenge<const N: usize>(&mut self) -> Int<N> {
+        let mut words = [0u64; N];
 
-        let int = i64::from_be_bytes(challenge[0..8].try_into().unwrap());
+        for word in &mut words {
+            let mut challenge = [0u8; 8];
+            challenge.copy_from_slice(self.get_random_bytes(8).as_slice());
+            self.hasher.update([0x12]);
+            self.hasher.update(challenge);
+            self.hasher.update([0x34]);
+            *word = u64::from_le_bytes(challenge);
+        }
 
-        self.hasher.update([0x12]);
-        self.hasher.update(challenge);
-        self.hasher.update([0x34]);
-
-        int
+        Int::<N>::from_words(words)
     }
 
-    pub fn get_integer_challenges(&mut self, n: usize) -> Vec<i64> {
+    pub fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &std::ops::Range<usize>) -> usize {
@@ -169,17 +173,9 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl ZipTranscript for KeccakTranscript {
-    fn get_encoding_element(&mut self) -> i128 {
-        let challenge = self.hasher.clone().finalize();
-
-        let int = i128::from_be_bytes(challenge[0..16].try_into().unwrap());
-
-        self.hasher.update([0x89]);
-        self.hasher.update(challenge);
-        self.hasher.update([0x11]);
-
-        int
+impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> Int<L> {
+        self.get_integer_challenge::<L>()
     }
 
     fn sample_unique_columns(

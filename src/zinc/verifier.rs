@@ -21,21 +21,30 @@ use super::{
 pub trait Verifier<const N: usize> {
     fn verify(
         &self,
-        cm_i: &Statement_Z,
+        cm_i: &Statement_Z<N>,
         proof: ZincProof<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
-    ) -> Result<(), ZincError<N>>;
+        ccs: &CCS_Z<N>,
+    ) -> Result<(), ZincError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:;
 }
 
 impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     fn verify(
         &self,
-        cm_i: &Statement_Z,
+        cm_i: &Statement_Z<N>,
         proof: ZincProof<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
-    ) -> Result<(), ZincError<N>> {
+        ccs: &CCS_Z<N>,
+    ) -> Result<(), ZincError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:,
+    {
         let field_config = draw_random_field::<N>(&cm_i.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let ccs_F = ccs.map_to_field(field_config);
@@ -217,12 +226,20 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         verification_points: &VerificationPoints<N>,
         ccs: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
-    ) -> Result<(), SpartanError<N>> {
-        let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
+    ) -> Result<(), SpartanError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:,
+    {
+        let param =
+            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::setup(
+                ccs.m, transcript,
+            );
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<N, S, KeccakTranscript>::verify(
+        MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,

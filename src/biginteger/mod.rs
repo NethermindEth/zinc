@@ -21,6 +21,7 @@ use ark_std::{
     vec::*,
     Zero,
 };
+use crypto_bigint::Int;
 
 use crate::traits::FromBytes;
 use num_bigint::BigUint;
@@ -680,6 +681,20 @@ impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
             Sign::Plus
         };
         num_bigint::BigInt::from_bytes_le(sign, &val.to_bytes_le())
+    }
+}
+
+// Only returns the absolute value for the integer
+impl<const N: usize> From<Int<N>> for BigInt<N> {
+    fn from(value: Int<N>) -> Self {
+        let abs = value.abs();
+        BigInt(*abs.as_words())
+    }
+}
+impl<const N: usize> From<&Int<N>> for BigInt<N> {
+    fn from(value: &Int<N>) -> Self {
+        let abs = value.abs();
+        BigInt(*abs.as_words())
     }
 }
 

@@ -1,4 +1,5 @@
 use ark_ff::Zero;
+use crypto_bigint::Int;
 
 use crate::{
     ccs::{
@@ -31,21 +32,30 @@ use super::{
 pub trait Prover<const N: usize> {
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
-    ) -> Result<ZincProof<N>, ZincError<N>>;
+        ccs: &CCS_Z<N>,
+    ) -> Result<ZincProof<N>, ZincError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:;
 }
 
 impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z,
-        wit: &Witness_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z,
-    ) -> Result<ZincProof<N>, ZincError<N>> {
+        ccs: &CCS_Z<N>,
+    ) -> Result<ZincProof<N>, ZincError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:,
+    {
         let config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -108,7 +118,7 @@ pub trait SpartanProver<const N: usize> {
         &self,
         statement_f: &Statement_F<N>,
         z_ccs: &[RandomField<N>],
-        z_mle: &DenseMultilinearExtensionZ,
+        z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
         config: *const FieldConfig<N>,
@@ -120,7 +130,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         &self,
         statement_f: &Statement_F<N>,
         z_ccs: &[RandomField<N>],
-        z_mle: &DenseMultilinearExtensionZ,
+        z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
         config: *const FieldConfig<N>,
@@ -151,25 +161,25 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
 }
 
 pub trait LookupProver<const N: usize> {
-    fn prove(&self, wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>>;
+    fn prove(&self, wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
-    fn prove(&self, _wit: &Witness_Z) -> Result<LookupProof<N>, SpartanError<N>> {
+    fn prove(&self, _wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>> {
         todo!()
     }
 }
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     pub fn prepare_for_random_field_piop(
-        statement: &Statement_Z,
-        wit: &Witness_Z,
-        ccs: &CCS_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: *const FieldConfig<N>,
     ) -> Result<
         (
             Vec<RandomField<N>>,
-            DenseMultilinearExtensionZ,
+            DenseMultilinearExtensionZ<N>,
             CCS_F<N>,
             Statement_F<N>,
         ),
@@ -210,15 +220,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_Z,
-        wit: &Witness_Z,
-        ccs: &CCS_Z,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: *const FieldConfig<N>,
-    ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ) {
+    ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ<N>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(ccs.m, 0i64);
+            z_ccs.resize(ccs.m, Int::<N>::ZERO);
         }
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 
@@ -300,19 +310,28 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn commit_z_mle_and_prove_evaluation(
-        z_mle: &DenseMultilinearExtensionZ,
+        z_mle: &DenseMultilinearExtensionZ<N>,
         ccs: &CCS_F<N>,
         config: *const FieldConfig<N>,
         r_y: &[RandomField<N>],
         transcript: &mut KeccakTranscript,
-    ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>> {
-        let param = MultilinearZip::<N, S, _>::setup(ccs.m, transcript);
-        let (z_data, z_comm) = MultilinearZip::<N, S, KeccakTranscript>::commit(&param, z_mle)?;
+    ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>>
+    where
+        [(); 2 * N]:,
+        [(); 4 * N]:,
+        [(); 8 * N]:,
+    {
+        let param =
+            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, _>::setup(ccs.m, transcript);
+        let (z_data, z_comm) =
+            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::commit(
+                &param, z_mle,
+            )?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<N, S, KeccakTranscript>::open(
+        MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::open(
             &param,
             z_mle,
             &z_data,

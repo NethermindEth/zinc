@@ -1,6 +1,8 @@
 #![allow(dead_code, non_snake_case)]
 
 use ark_ff::Zero;
+use bytemuck::cast_slice;
+use crypto_bigint::Int;
 
 use crate::{
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
@@ -171,11 +173,11 @@ where
 }
 
 pub fn draw_random_field<const N: usize>(
-    public_inputs: &[i64],
+    public_inputs: &[Int<N>],
     transcript: &mut KeccakTranscript,
 ) -> *const FieldConfig<N> {
     for input in public_inputs {
-        transcript.absorb(&input.to_be_bytes());
+        transcript.absorb(cast_slice(input.as_words()));
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now

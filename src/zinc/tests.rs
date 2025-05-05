@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use crypto_bigint::{Int, Zero};
+
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
@@ -134,8 +136,8 @@ fn test_failing_spartan_verifier() {
     );
     let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
     // Change the witness such that it is no longer valid
-    assert!(wit.w_ccs[3] != 0);
-    wit.w_ccs[3] = 0i64;
+    assert!(wit.w_ccs[3] != Int::<N>::zero());
+    wit.w_ccs[3] = Int::<N>::zero();
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<N, _> {

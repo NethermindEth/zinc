@@ -3,8 +3,8 @@
 
 // Adapted for rings by Nethermind
 
-use ark_ff::UniformRand;
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
+use crypto_bigint::{Int, Random};
 
 use super::{util::get_batched_nv, ArithErrors, RefCounter};
 
@@ -14,25 +14,25 @@ pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 /// Returns
 /// - the list of polynomials,
 /// - its sum of polynomial evaluations over the boolean hypercube.
-pub fn random_mle_list<Rn: RngCore>(
+pub fn random_mle_list<Rn: RngCore, const N: usize>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-) -> (Vec<RefCounter<DenseMultilinearExtension>>, i64) {
+) -> (Vec<RefCounter<DenseMultilinearExtension<N>>>, Int<N>) {
     let start = start_timer!(|| "sample random mle list");
     let mut multiplicands = Vec::with_capacity(degree);
     for _ in 0..degree {
         multiplicands.push(Vec::with_capacity(1 << nv));
     }
-    let mut sum = 0i64;
+    let mut sum = Int::<N>::ZERO;
 
     for _ in 0..1 << nv {
-        let mut product = 1i64;
+        let mut product = Int::<N>::ONE;
 
         for e in multiplicands.iter_mut() {
-            let val = i64::rand(rng);
+            let val = Int::<N>::random(rng);
             e.push(val);
-            product *= val;
+            product = product * val;
         }
         sum += &product;
     }
@@ -51,7 +51,7 @@ pub fn random_zero_mle_list<const N: usize, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-) -> Vec<RefCounter<DenseMultilinearExtension>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let start = start_timer!(|| "sample random zero mle list");
 
     let mut multiplicands = Vec::with_capacity(degree);
@@ -59,9 +59,9 @@ pub fn random_zero_mle_list<const N: usize, Rn: RngCore>(
         multiplicands.push(Vec::with_capacity(1 << nv));
     }
     for _ in 0..1 << nv {
-        multiplicands[0].push(0i64);
+        multiplicands[0].push(Int::<N>::ZERO);
         for e in multiplicands.iter_mut().skip(1) {
-            e.push(i64::rand(rng));
+            e.push(Int::<N>::random(rng));
         }
     }
 
@@ -80,14 +80,16 @@ pub fn identity_permutation(num_vars: usize, num_chunks: usize) -> Vec<i64> {
 }
 
 /// A list of MLEs that represents an identity permutation
-pub fn identity_permutation_mles(
+pub fn identity_permutation_mles<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
-) -> Vec<RefCounter<DenseMultilinearExtension>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let mut res = vec![];
     for i in 0..num_chunks {
         let shift = (i * (1 << num_vars)) as u32;
-        let s_id_vec = (shift..shift + (1u32 << num_vars)).map(i64::from).collect();
+        let s_id_vec = (shift..shift + (1u32 << num_vars))
+            .map(|i| Int::<N>::from(i64::from(i)))
+            .collect();
         res.push(RefCounter::new(
             DenseMultilinearExtension::from_evaluations_vec(num_vars, s_id_vec),
         ));
@@ -95,13 +97,13 @@ pub fn identity_permutation_mles(
     res
 }
 
-pub fn random_permutation<Rn: RngCore>(
+pub fn random_permutation<Rn: RngCore, const N: usize>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-) -> Vec<i64> {
+) -> Vec<Int<N>> {
     let len = (num_chunks as u32) * (1u32 << num_vars);
-    let mut s_id_vec: Vec<i64> = (0..len).map(i64::from).collect();
+    let mut s_id_vec: Vec<Int<N>> = (0..len).map(|i| Int::<N>::from(i64::from(i))).collect();
     let mut s_perm_vec = vec![];
     for _ in 0..len {
         let index = (rng.next_u64() as usize) % s_id_vec.len();
@@ -111,11 +113,11 @@ pub fn random_permutation<Rn: RngCore>(
 }
 
 /// A list of MLEs that represent a random permutation
-pub fn random_permutation_mles<Rn: RngCore>(
+pub fn random_permutation_mles<Rn: RngCore, const N: usize>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-) -> Vec<RefCounter<DenseMultilinearExtension>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let s_perm_vec = random_permutation(num_vars, num_chunks, rng);
     let mut res = vec![];
     let n = 1 << num_vars;
@@ -130,15 +132,18 @@ pub fn random_permutation_mles<Rn: RngCore>(
     res
 }
 
-pub fn evaluate_opt(poly: &DenseMultilinearExtension, point: &[i64]) -> i64 {
+pub fn evaluate_opt<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    point: &[Int<N>],
+) -> Int<N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables(poly, point).evaluations[0]
 }
 
-pub fn fix_variables(
-    poly: &DenseMultilinearExtension,
-    partial_point: &[i64],
-) -> DenseMultilinearExtension {
+pub fn fix_variables<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    partial_point: &[Int<N>],
+) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"
@@ -154,8 +159,12 @@ pub fn fix_variables(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_one_variable_helper(data: &[i64], nv: usize, point: &i64) -> Vec<i64> {
-    let mut res = vec![0i64; 1 << (nv - 1)];
+fn fix_one_variable_helper<const N: usize>(
+    data: &[Int<N>],
+    nv: usize,
+    point: &Int<N>,
+) -> Vec<Int<N>> {
+    let mut res = vec![Int::<N>::ZERO; 1 << (nv - 1)];
 
     // evaluate single variable of partial point from left to right
 
@@ -166,15 +175,18 @@ fn fix_one_variable_helper(data: &[i64], nv: usize, point: &i64) -> Vec<i64> {
     res
 }
 
-pub fn evaluate_no_par(poly: &DenseMultilinearExtension, point: &[i64]) -> i64 {
+pub fn evaluate_no_par<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    point: &[Int<N>],
+) -> Int<N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables_no_par(poly, point).evaluations[0]
 }
 
-fn fix_variables_no_par(
-    poly: &DenseMultilinearExtension,
-    partial_point: &[i64],
-) -> DenseMultilinearExtension {
+fn fix_variables_no_par<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    partial_point: &[Int<N>],
+) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"
@@ -195,8 +207,8 @@ fn fix_variables_no_par(
 /// merge a set of polynomials. Returns an error if the
 /// polynomials do not share a same number of nvs.
 pub fn merge_polynomials<const N: usize>(
-    polynomials: &[RefCounter<DenseMultilinearExtension>],
-) -> Result<RefCounter<DenseMultilinearExtension>, ArithErrors> {
+    polynomials: &[RefCounter<DenseMultilinearExtension<N>>],
+) -> Result<RefCounter<DenseMultilinearExtension<N>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
     for poly in polynomials.iter() {
         if nv != poly.num_vars() {
@@ -211,16 +223,16 @@ pub fn merge_polynomials<const N: usize>(
     for poly in polynomials.iter() {
         scalars.extend_from_slice(poly.to_evaluations().as_slice());
     }
-    scalars.extend_from_slice(vec![0i64; (1 << merged_nv) - scalars.len()].as_ref());
+    scalars.extend_from_slice(vec![Int::<N>::ZERO; (1 << merged_nv) - scalars.len()].as_ref());
     Ok(RefCounter::new(
         DenseMultilinearExtension::from_evaluations_vec(merged_nv, scalars),
     ))
 }
 
-pub fn fix_last_variables_no_par(
-    poly: &DenseMultilinearExtension,
-    partial_point: &[i64],
-) -> DenseMultilinearExtension {
+pub fn fix_last_variables_no_par<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    partial_point: &[Int<N>],
+) -> DenseMultilinearExtension<N> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap());
     for p in partial_point.iter().rev().skip(1) {
         res = fix_last_variable_no_par(&res, p);
@@ -228,23 +240,23 @@ pub fn fix_last_variables_no_par(
     res
 }
 
-fn fix_last_variable_no_par(
-    poly: &DenseMultilinearExtension,
-    partial_point: &i64,
-) -> DenseMultilinearExtension {
+fn fix_last_variable_no_par<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    partial_point: &Int<N>,
+) -> DenseMultilinearExtension<N> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
-    let mut res = vec![0i64; half_len];
+    let mut res = vec![Int::<N>::ZERO; half_len];
     for (i, e) in res.iter_mut().enumerate().take(half_len) {
         *e = poly.evaluations[i]
             + *partial_point * (poly.evaluations[i + half_len] - poly.evaluations[i]);
     }
     DenseMultilinearExtension::from_evaluations_vec(nv - 1, res)
 }
-pub fn fix_last_variables(
-    poly: &DenseMultilinearExtension,
-    partial_point: &[i64],
-) -> DenseMultilinearExtension {
+pub fn fix_last_variables<const N: usize>(
+    poly: &DenseMultilinearExtension<N>,
+    partial_point: &[Int<N>],
+) -> DenseMultilinearExtension<N> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"
@@ -260,9 +272,13 @@ pub fn fix_last_variables(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_last_variable_helper(data: &[i64], nv: usize, point: &i64) -> Vec<i64> {
+fn fix_last_variable_helper<const N: usize>(
+    data: &[Int<N>],
+    nv: usize,
+    point: &Int<N>,
+) -> Vec<Int<N>> {
     let half_len = 1 << (nv - 1);
-    let mut res = vec![0i64; half_len];
+    let mut res = vec![Int::<N>::ZERO; half_len];
 
     // evaluate single variable of partial point from left to right
 

@@ -56,12 +56,12 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
         let mut result = vec![Int::<N>::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
-                m.n_rows, self.n,
+                m.n_rows, self.m,
                 "Incorrect number of rows, expected {} and got {}.",
                 self.m, m.n_rows
             );
             assert_eq!(
-                m.n_cols, self.m,
+                m.n_cols, self.n,
                 "Incorrect number of rows, expected {} and got {}.",
                 self.n, m.n_cols
             );
@@ -219,8 +219,8 @@ pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
-    let m = 6;
-    let n = 4;
+    let m = 4;
+    let n = 6;
     CCS_Z {
         m,
         n,

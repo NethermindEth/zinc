@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use ark_std::log2;
 use crypto_bigint::Int;
 use zinc::{
-    ccs::ccs_z::{to_Z_matrix, Statement_Z, Witness_Z, CCS_Z},
+    ccs::ccs_z::*,
     transcript::KeccakTranscript,
     zinc::{
         prover::Prover,
@@ -19,7 +19,6 @@ fn main() {
     // Example code goes here
     const N: usize = 4;
     let prover = ZincProver::<N, _> {
-        // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
         data: PhantomData::<ZipSpec1>,
     };
     let mut prover_transcript = KeccakTranscript::new();
@@ -30,7 +29,6 @@ fn main() {
         .expect("Proof generation failed");
 
     let verifier = ZincVerifier::<N, _> {
-        // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
         data: PhantomData::<ZipSpec1>,
     };
 
@@ -41,8 +39,8 @@ fn main() {
 }
 
 fn get_ccs<const N: usize>() -> CCS_Z<N> {
-    let m = 6;
-    let n = 4;
+    let m = 4;
+    let n = 6;
     CCS_Z {
         m,
         n,
@@ -97,7 +95,11 @@ fn get_witness<const N: usize>(input: i64) -> Witness_Z<N> {
 fn get_ccs_stuff<const N: usize>(input: i64) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
     let mut ccs = get_ccs();
     let mut statement = get_ccs_statement(input);
+    let matrices = statement.constraints.clone();
     let witness = get_witness(input);
+    let z = statement.get_z_vector(&witness.w_ccs);
+    ccs.check_relation(&matrices, &z)
+        .expect("Failed to check relation over Integer Ring");
     let len = usize::max(ccs.m.next_power_of_two(), ccs.n.next_power_of_two());
     ccs.pad(&mut statement, len);
     (ccs, statement, witness)

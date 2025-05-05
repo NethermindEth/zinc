@@ -1,5 +1,4 @@
 //! Prover
-#![allow(dead_code)]
 
 use std::sync::atomic::{self, AtomicPtr};
 

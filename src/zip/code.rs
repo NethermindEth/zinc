@@ -14,9 +14,7 @@ use std::collections::BTreeSet;
 use std::iter;
 
 use super::pcs::structs::ZipTranscript;
-#[allow(dead_code)]
-const PROB_MULTIPLIER: usize = 18;
-#[allow(dead_code)]
+
 const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
     fn row_len(&self) -> usize;

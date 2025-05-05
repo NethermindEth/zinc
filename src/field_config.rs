@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::biginteger::BigInt;
 
 macro_rules! mac {
@@ -85,29 +84,6 @@ impl<const N: usize> FieldConfig<N> {
             a.add_with_carry(&self.modulus);
         }
         a.sub_with_borrow(b);
-    }
-
-    fn double_in_place(&self, a: &mut BigInt<N>) {
-        // This cannot exceed the backing capacity.
-        let carry = a.mul2();
-        // However, it may need to be reduced.
-        if self.modulus_has_spare_bit {
-            if *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        } else if carry || *a >= self.modulus {
-            a.sub_with_borrow(&self.modulus);
-        }
-    }
-
-    /// Sets `a = -a`.
-    #[inline(always)]
-    fn neg_in_place(&self, a: &mut BigInt<N>) {
-        if !a.is_zero() {
-            let mut tmp = self.modulus;
-            tmp.sub_with_borrow(a);
-            *a = tmp;
-        }
     }
 
     pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {

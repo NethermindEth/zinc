@@ -1,3 +1,4 @@
+//! Defines behaviour for a cryptographic sponge to be used in Non-interactive protocols
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 

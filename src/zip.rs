@@ -1,3 +1,4 @@
+//! Defines behaviour for Zip, a PCS over the integers
 pub mod code;
 pub mod pcs;
 pub mod pcs_transcript;

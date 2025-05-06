@@ -1,3 +1,6 @@
+//! Defines behaviour for a Random Field
+//!
+//! A Random Field is a field that can be generated at runtime.
 #![allow(clippy::not_unsafe_ptr_arg_deref, non_snake_case)]
 
 use crate::field::conversion::FieldMap;

@@ -1,3 +1,4 @@
+//! Defines behavioudr for the sumcheck protocol over a RandomField
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 

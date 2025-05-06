@@ -1,3 +1,4 @@
+//! Defines behaviour to randomly generate a prime that can be used  in the zinc protocol
 use crate::{biginteger::BigInt, transcript::KeccakTranscript};
 use crypto_bigint::{Integer, Odd, Uint};
 use crypto_primes::hazmat::MillerRabin;

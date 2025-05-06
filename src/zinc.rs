@@ -1,3 +1,4 @@
+//! The core SNARK over the integers
 #![allow(non_snake_case)]
 
 mod errors;

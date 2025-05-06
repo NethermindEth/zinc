@@ -49,6 +49,7 @@ pub fn adc_no_carry(a: u64, b: u64, carry: &u64) -> u64 {
 }
 
 #[macro_export]
+#[doc(hidden)]
 macro_rules! sbb {
     ($a:expr, $b:expr, &mut $borrow:expr$(,)?) => {{
         let tmp = (1u128 << 64) + ($a as u128) - ($b as u128) - ($borrow as u128);

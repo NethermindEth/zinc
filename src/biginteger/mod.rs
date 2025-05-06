@@ -28,9 +28,12 @@ use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 #[macro_use]
-pub mod arithmetic;
+pub(crate) mod arithmetic;
 mod bits;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Zeroize)]
+// TODO This should not be a public interface
+// Let's try to ammend benches not to use this directly
 pub struct BigInt<const N: usize>(pub [u64; N]);
 
 impl<const N: usize> Default for BigInt<N> {
@@ -128,15 +131,15 @@ macro_rules! const_modulo {
 }
 
 impl<const N: usize> BigInt<N> {
-    pub const fn new(value: [u64; N]) -> Self {
+    pub(crate) const fn new(value: [u64; N]) -> Self {
         Self(value)
     }
 
-    pub const fn zero() -> Self {
+    pub(crate) const fn zero() -> Self {
         Self([0u64; N])
     }
 
-    pub const fn one() -> Self {
+    pub(crate) const fn one() -> Self {
         let mut one = Self::zero();
         one.0[0] = 1;
         one
@@ -284,7 +287,7 @@ impl<const N: usize> BigInt<N> {
 impl<const N: usize> BigInt<N> {
     #[unroll_for_loops(6)]
     #[inline]
-    pub fn add_with_carry(&mut self, other: &Self) -> bool {
+    pub(super) fn add_with_carry(&mut self, other: &Self) -> bool {
         let mut carry = 0;
 
         for i in 0..N {
@@ -296,7 +299,7 @@ impl<const N: usize> BigInt<N> {
 
     #[unroll_for_loops(6)]
     #[inline]
-    pub fn sub_with_borrow(&mut self, other: &Self) -> bool {
+    pub(super) fn sub_with_borrow(&mut self, other: &Self) -> bool {
         let mut borrow = 0;
 
         for i in 0..N {
@@ -308,7 +311,7 @@ impl<const N: usize> BigInt<N> {
 
     #[inline]
     #[allow(unused)]
-    pub fn mul2(&mut self) -> bool {
+    pub(super) fn mul2(&mut self) -> bool {
         #[cfg(all(target_arch = "x86_64", feature = "asm"))]
         #[allow(unsafe_code)]
         {
@@ -339,35 +342,7 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn muln(&mut self, mut n: u32) {
-        if n >= (64 * N) as u32 {
-            *self = Self::from(0u64);
-            return;
-        }
-
-        while n >= 64 {
-            let mut t = 0;
-            for i in 0..N {
-                core::mem::swap(&mut t, &mut self.0[i]);
-            }
-            n -= 64;
-        }
-
-        if n > 0 {
-            let mut t = 0;
-            #[allow(unused)]
-            for i in 0..N {
-                let a = &mut self.0[i];
-                let t2 = *a >> (64 - n);
-                *a <<= n;
-                *a |= t;
-                t = t2;
-            }
-        }
-    }
-
-    #[inline]
-    pub fn mul(&self, other: &Self) -> (Self, Self) {
+    pub(crate) fn mul(&self, other: &Self) -> (Self, Self) {
         if self.is_zero() || other.is_zero() {
             let zero = Self::zero();
             return (zero, zero);
@@ -389,31 +364,7 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn mul_low(&self, other: &Self) -> Self {
-        if self.is_zero() || other.is_zero() {
-            return Self::zero();
-        }
-
-        let mut res = Self::zero();
-        let mut carry = 0;
-
-        for i in 0..N {
-            for j in 0..(N - i) {
-                res.0[i + j] = mac_with_carry!(res.0[i + j], self.0[i], other.0[j], &mut carry);
-            }
-            carry = 0;
-        }
-
-        res
-    }
-
-    #[inline]
-    pub fn mul_high(&self, other: &Self) -> Self {
-        self.mul(other).1
-    }
-
-    #[inline]
-    pub fn div2(&mut self) {
+    pub(crate) fn div2(&mut self) {
         let mut t = 0;
         for a in self.0.iter_mut().rev() {
             let t2 = *a << 63;
@@ -424,50 +375,22 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn divn(&mut self, mut n: u32) {
-        if n >= (64 * N) as u32 {
-            *self = Self::from(0u64);
-            return;
-        }
-
-        while n >= 64 {
-            let mut t = 0;
-            for i in 0..N {
-                core::mem::swap(&mut t, &mut self.0[N - i - 1]);
-            }
-            n -= 64;
-        }
-
-        if n > 0 {
-            let mut t = 0;
-            #[allow(unused)]
-            for i in 0..N {
-                let a = &mut self.0[N - i - 1];
-                let t2 = *a << (64 - n);
-                *a >>= n;
-                *a |= t;
-                t = t2;
-            }
-        }
-    }
-
-    #[inline]
-    pub fn is_odd(&self) -> bool {
+    pub(crate) fn is_odd(&self) -> bool {
         self.0[0] & 1 == 1
     }
 
     #[inline]
-    pub fn is_even(&self) -> bool {
+    pub(crate) fn is_even(&self) -> bool {
         !self.is_odd()
     }
 
     #[inline]
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.0.iter().all(Zero::is_zero)
     }
 
     #[inline]
-    pub fn num_bits(&self) -> u32 {
+    pub(crate) fn num_bits(&self) -> u32 {
         let mut ret = N as u32 * 64;
         for i in self.0.iter().rev() {
             let leading = i.leading_zeros();
@@ -480,25 +403,7 @@ impl<const N: usize> BigInt<N> {
         ret
     }
 
-    #[inline]
-    pub fn get_bit(&self, i: usize) -> bool {
-        if i >= 64 * N {
-            false
-        } else {
-            let limb = i / 64;
-            let bit = i - (64 * limb);
-            (self.0[limb] & (1 << bit)) != 0
-        }
-    }
-
-    #[inline]
-    pub fn from_bits_be(bits: &[bool]) -> Self {
-        let mut bits = bits.to_vec();
-        bits.reverse();
-        Self::from_bits_le(&bits)
-    }
-
-    pub fn from_bits_le(bits: &[bool]) -> Self {
+    pub(crate) fn from_bits_le(bits: &[bool]) -> Self {
         let mut res = Self::zero();
         for (bits64, res_i) in bits.chunks(64).zip(&mut res.0) {
             for (i, bit) in bits64.iter().enumerate() {
@@ -509,14 +414,14 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn to_bytes_be(self) -> Vec<u8> {
+    pub(crate) fn to_bytes_be(self) -> Vec<u8> {
         let mut le_bytes = self.to_bytes_le();
         le_bytes.reverse();
         le_bytes
     }
 
     #[inline]
-    pub fn to_bytes_le(self) -> Vec<u8> {
+    pub(crate) fn to_bytes_le(self) -> Vec<u8> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
 }

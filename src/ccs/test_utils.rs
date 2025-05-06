@@ -1,20 +1,21 @@
 #![allow(non_snake_case)]
-use std::{sync::atomic::AtomicPtr, vec};
+use std::vec;
 
 use ark_ff::One;
 use ark_std::{log2, rand::Rng};
 use crypto_bigint::{Int, Random};
 
-use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
-    field_config::FieldConfig,
-    sparse_matrix::SparseMatrix,
-};
+use crate::sparse_matrix::SparseMatrix;
 
-use super::{
-    ccs_f::{Statement_F, Witness_F, CCS_F},
-    ccs_z::{Statement_Z, Witness_Z, CCS_Z},
-};
+#[cfg(test)]
+use super::ccs_f::{Statement_F, Witness_F, CCS_F};
+use super::ccs_z::{Statement_Z, Witness_Z, CCS_Z};
+#[cfg(test)]
+use crate::field::{conversion::FieldMap, rand_with_config, RandomField};
+#[cfg(test)]
+use crate::field_config::FieldConfig;
+#[cfg(test)]
+use ark_std::sync::atomic::AtomicPtr;
 
 pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(
     rows: usize,
@@ -52,7 +53,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
     }
     matrix
 }
-
+#[cfg(test)]
 pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
     rows: usize,
     columns: usize,
@@ -70,6 +71,7 @@ pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
 }
 
 // Takes a vector and returns a matrix that will square the vector
+#[cfg(test)]
 pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
     rows: usize,
     columns: usize,
@@ -123,7 +125,7 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
 
     (ccs, statement, wit)
 }
-
+#[cfg(test)]
 fn get_dummy_ccs_F_from_z<const N: usize>(
     z: &[RandomField<N>],
     pub_io_len: usize,
@@ -159,6 +161,7 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
     (ccs, statement, wit)
 }
 
+/// Get a CCS_Z instance and witness of arbitrary size
 pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
@@ -171,7 +174,8 @@ pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
     (z, ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
+#[cfg(test)]
+pub(super) fn get_dummy_ccs_F_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
     config: *const FieldConfig<N>,

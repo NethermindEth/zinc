@@ -4,14 +4,12 @@
 
 use std::sync::atomic::AtomicPtr;
 
-use ark_std::log2;
-
 use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
-use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
+use crate::sparse_matrix::SparseMatrix;
 use crypto_bigint::{Int, Zero};
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
@@ -106,11 +104,12 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
     }
 }
 
+#[cfg(test)]
 impl<const N: usize> CCS_Z<N> {
-    pub fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
+    pub(super) fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
-            let log_m = log2(size) as usize;
+            let log_m = ark_std::log2(size) as usize;
             self.m = size;
             self.s = log_m;
             self.n = size;
@@ -146,9 +145,18 @@ impl<const N: usize> FieldMap<N> for CCS_Z<N> {
         }
     }
 }
-
+/// Represents a CCS (Customisable Constains System) statement over integers.
+///
+/// A `Statement_Z` encapsulates a CCS statement whose constraints and public input
+/// are expressed using integer values rather than field elements. This structure is
+/// parameterized by a compile-time constant `N`, representing the bit width
+/// of the integer type.
 pub struct Statement_Z<const N: usize> {
+    /// : A vector of sparse matrices over [`Int<N>`], representing the CCS
+    ///   constraints using integers.
     pub constraints: Vec<SparseMatrix<Int<N>>>,
+    ///A vector of [`Int<N>`] values, representing the integer-based public input
+    ///   to the CCS statement.
     pub public_input: Vec<Int<N>>,
 }
 
@@ -216,6 +224,7 @@ impl<const N: usize> Instance_Z<N> for Statement_Z<N> {
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
+    use ark_std::log2;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -234,9 +243,9 @@ pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
         c: vec![1, -1],
     }
 }
-
-pub fn to_Z_matrix<const N: usize>(M: Vec<Vec<usize>>) -> SparseMatrix<Int<N>> {
-    dense_matrix_to_sparse(
+#[cfg(test)]
+pub(super) fn to_Z_matrix<const N: usize>(M: Vec<Vec<usize>>) -> SparseMatrix<Int<N>> {
+    crate::sparse_matrix::dense_matrix_to_sparse(
         M.iter()
             .map(|m| m.iter().map(|c| Int::<N>::from_i64(*c as i64)).collect())
             .collect(),

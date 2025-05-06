@@ -135,34 +135,6 @@ pub fn dense_matrix_to_sparse<R: Copy + Send + Sync + Zero>(m: Vec<Vec<R>>) -> S
     r
 }
 
-pub fn dense_matrix_u64_to_sparse<R>(m: Vec<Vec<u64>>) -> SparseMatrix<R>
-where
-    R: Copy
-        + Send
-        + Sync
-        + Zero
-        + From<u64>
-        + ark_serialize::Valid
-        + ark_serialize::CanonicalSerialize
-        + ark_serialize::CanonicalDeserialize,
-{
-    let mut r = SparseMatrix::<R> {
-        n_rows: m.len(),
-        n_cols: m[0].len(),
-        coeffs: Vec::new(),
-    };
-    for m_row in m.iter() {
-        let mut row: Vec<(R, usize)> = Vec::new();
-        for (col_i, &value) in m_row.iter().enumerate() {
-            if value != 0 {
-                row.push((R::from(value), col_i));
-            }
-        }
-        r.coeffs.push(row);
-    }
-    r
-}
-
 pub fn compute_eval_table_sparse<const N: usize>(
     M: &SparseMatrix<RandomField<N>>,
     rx: &[RandomField<N>],

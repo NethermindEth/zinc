@@ -9,6 +9,10 @@ use crate::{
     zip::pcs::structs::ZipTranscript,
 };
 
+// A cryptographic transcript based on the Keccak-256 sponge construction.
+///
+/// `KeccakTranscript` maintains an internal state using the Keccak-256 hash function,
+/// enabling incremental absorption of data and later extraction of challenges.
 #[derive(Clone)]
 pub struct KeccakTranscript {
     hasher: Keccak256,
@@ -21,17 +25,18 @@ impl Default for KeccakTranscript {
 }
 
 impl KeccakTranscript {
+    /// Creates a new sponge
     pub fn new() -> Self {
         Self {
             hasher: Keccak256::new(),
         }
     }
 
-    pub fn absorb(&mut self, v: &[u8]) {
+    pub(crate) fn absorb(&mut self, v: &[u8]) {
         self.hasher.update(v);
     }
 
-    pub fn get_random_bytes(&mut self, length: usize) -> Vec<u8> {
+    pub(crate) fn get_random_bytes(&mut self, length: usize) -> Vec<u8> {
         let mut result = Vec::with_capacity(length);
         let mut counter = 0;
         while result.len() < length {
@@ -47,7 +52,7 @@ impl KeccakTranscript {
         result
     }
 
-    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
+    pub(crate) fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
         match v {
             RandomField::Raw { value } => {
                 self.absorb(&[0x1]);
@@ -68,7 +73,7 @@ impl KeccakTranscript {
         }
     }
 
-    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
+    pub(crate) fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -88,7 +93,7 @@ impl KeccakTranscript {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<const N: usize>(
+    pub(crate) fn get_challenge<const N: usize>(
         &mut self,
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {
@@ -135,7 +140,7 @@ impl KeccakTranscript {
             ret
         }
     }
-    pub fn get_challenges<const N: usize>(
+    pub(crate) fn get_challenges<const N: usize>(
         &mut self,
         n: usize,
         config: *const FieldConfig<N>,
@@ -145,7 +150,7 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge<const N: usize>(&mut self) -> Int<N> {
+    pub(crate) fn get_integer_challenge<const N: usize>(&mut self) -> Int<N> {
         let mut words = [0u64; N];
 
         for word in &mut words {
@@ -160,7 +165,7 @@ impl KeccakTranscript {
         Int::<N>::from_words(words)
     }
 
-    pub fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
+    pub(crate) fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &std::ops::Range<usize>) -> usize {

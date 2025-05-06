@@ -126,12 +126,16 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct Statement_F<const N: usize> {
+    ///  A vector of sparse matrices over [`RandomField<N>`], representing
+    ///   the CCS constraints that define the relation to be proven or verified.
     pub constraints: Vec<SparseMatrix<RandomField<N>>>,
+    ///  A vector of [`RandomField<N>`] elements, representing the public
+    ///   input to the CCS statement.
     pub public_input: Vec<RandomField<N>>,
 }
 
 impl<const N: usize> Statement_F<N> {
-    pub fn compute_eval_table_sparse(
+    pub(crate) fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
         num_cols: usize,

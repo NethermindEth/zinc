@@ -22,10 +22,11 @@ use crate::{
     field::{conversion::FieldMap, rand_with_config, RandomField},
     field_config::FieldConfig,
     poly_f::{
-        mle::DenseMultilinearExtension,
+        mle::dense::DenseMultilinearExtension,
         polynomials::{random_mle_list, ArithErrors, RefCounter},
     },
 };
+
 #[allow(clippy::type_complexity)]
 pub fn rand_poly<const N: usize>(
     nv: usize,

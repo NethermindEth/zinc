@@ -16,24 +16,41 @@ use rayon::iter::*;
 use super::{swap_bits, MultilinearExtension};
 use crate::{
     field::conversion::FieldMap, field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
+    poly_f::mle::dense::DenseMultilinearExtension as DenseMultilinearExtensionF,
     poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
 };
 
+/// A dense multilinear extension over the Boolean hypercube {0,1}^n.
+///
+/// This structure represents a multilinear extension of a function defined over
+/// all points in the Boolean hypercube of dimension `num_vars`. The function's
+/// evaluations are stored explicitly for all 2^`num_vars` points.
+///
+/// # Type Parameters
+///
+/// * `N` - The number of bits (or limbs) used internally to represent the integers.
+///
+/// # Fields
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMultilinearExtension<const N: usize> {
-    /// The evaluation over {0,1}^`num_vars`
+    /// The function evaluations at all points in the Boolean hypercube `{0,1}^num_vars`.
+    ///
+    /// The length of this vector must be exactly `1 << num_vars` (i.e., 2^`num_vars`).
+    /// Each evaluation is an `Int<N>`, representing an integer with `N` limbs or bits.
     pub evaluations: Vec<Int<N>>,
-    /// Number of variables
+
+    /// The number of variables (the dimension `n` of the hypercube `{0,1}^n`).
+    ///
+    /// This must satisfy `evaluations.len() == 1 << num_vars`.
     pub num_vars: usize,
 }
 
 impl<const N: usize> DenseMultilinearExtension<N> {
-    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[Int<N>]) -> Self {
+    pub(crate) fn from_evaluations_slice(num_vars: usize, evaluations: &[Int<N>]) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec())
     }
 
-    pub fn evaluate(&self, point: &[Int<N>]) -> Option<Int<N>> {
+    pub(crate) fn evaluate(&self, point: &[Int<N>]) -> Option<Int<N>> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point)[0])
         } else {
@@ -41,7 +58,10 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn to_random_field(&self, config: *const FieldConfig<N>) -> DenseMultilinearExtensionF<N> {
+    pub(crate) fn to_random_field(
+        &self,
+        config: *const FieldConfig<N>,
+    ) -> DenseMultilinearExtensionF<N> {
         let evaluations = self
             .evaluations
             .iter()
@@ -50,7 +70,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         DenseMultilinearExtensionF::from_evaluations_vec(self.num_vars, evaluations, config)
     }
 
-    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<N>>) -> Self {
+    pub(crate) fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<N>>) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
             evaluations.len() <= 1 << num_vars,
@@ -110,7 +130,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         DenseMultilinearExtension::from_evaluations_vec(n_vars, v_padded)
     }
 
-    pub fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
+    pub(crate) fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
         // enforce order of a and b
         if a > b {
             ark_std::mem::swap(&mut a, &mut b);

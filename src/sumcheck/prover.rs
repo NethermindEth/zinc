@@ -9,7 +9,7 @@ use rayon::iter::*;
 use crate::{
     field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
-    poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
+    poly_f::mle::{dense::DenseMultilinearExtension, MultilinearExtension},
 };
 
 use super::{verifier::VerifierMsg, IPForMLSumcheck};

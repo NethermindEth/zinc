@@ -22,7 +22,7 @@ use super::{swap_bits, MultilinearExtension};
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SparseMultilinearExtension<const N: usize> {
+pub(crate) struct SparseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
     pub evaluations: BTreeMap<usize, RandomField<N>>,
     /// Number of variables
@@ -32,7 +32,7 @@ pub struct SparseMultilinearExtension<const N: usize> {
     pub config: *const FieldConfig<N>,
 }
 impl<const N: usize> SparseMultilinearExtension<N> {
-    pub fn from_evaluations<'a>(
+    pub(crate) fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
         config: *const FieldConfig<N>,
@@ -53,7 +53,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             config,
         }
     }
-    pub fn evaluate(
+    pub(crate) fn evaluate(
         &self,
         point: &[RandomField<N>],
         config: *const FieldConfig<N>,

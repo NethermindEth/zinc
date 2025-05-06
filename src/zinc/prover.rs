@@ -8,7 +8,7 @@ use crate::{
     },
     field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension,
+    poly_f::mle::dense::DenseMultilinearExtension,
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
@@ -210,7 +210,8 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
         // Prepare MLEs
-        let Mz_mles = calculate_Mz_mles::<SpartanError<N>, N>(constraints, ccs.s, z_ccs, config)?;
+        let Mz_mles: Vec<DenseMultilinearExtension<N>> =
+            calculate_Mz_mles::<SpartanError<N>, N>(constraints, ccs.s, z_ccs, config)?;
 
         // Construct the sumcheck polynomial g
         let (g_mles, g_degree) =

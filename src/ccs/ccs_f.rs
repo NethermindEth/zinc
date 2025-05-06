@@ -10,7 +10,7 @@ use ark_std::rand;
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
-use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
+use crate::poly_f::mle::{dense::DenseMultilinearExtension, sparse::SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
 use crate::{field::RandomField, sparse_matrix::SparseMatrix};
 

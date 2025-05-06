@@ -1,5 +1,5 @@
-mod dense;
-mod sparse;
+pub(crate) mod dense;
+pub(crate) mod sparse;
 
 use ark_std::rand::Rng;
 use ark_std::{
@@ -69,10 +69,6 @@ pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {
     let global_xor_mask = (local_xor_mask << a) | (local_xor_mask << b);
     x ^ global_xor_mask
 }
-
-/// Exports
-pub use dense::DenseMultilinearExtension;
-pub use sparse::SparseMultilinearExtension;
 
 use crate::field::RandomField;
 use crate::field_config::FieldConfig;

@@ -5,7 +5,7 @@ use self::verifier::SubClaim;
 use crate::{
     field::{conversion::FieldMap, RandomField},
     field_config::FieldConfig,
-    poly_f::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
+    poly_f::{mle::dense::DenseMultilinearExtension, polynomials::ArithErrors},
     transcript::KeccakTranscript as Transcript,
 };
 

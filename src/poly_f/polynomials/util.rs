@@ -51,7 +51,7 @@ pub fn get_batched_nv(num_var: usize, polynomials_len: usize) -> usize {
 // - `x1 := (i_1, ..., i_{n-1}, 1)`
 // - `sign := i_0`
 #[inline]
-pub fn get_index(i: usize, num_vars: usize) -> (usize, usize, bool) {
+pub(crate) fn get_index(i: usize, num_vars: usize) -> (usize, usize, bool) {
     let bit_sequence = bit_decompose(i as u64, num_vars);
 
     // the last bit comes first here because of LE encoding

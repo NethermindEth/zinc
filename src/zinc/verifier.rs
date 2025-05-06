@@ -6,7 +6,7 @@ use crate::{
         ccs_z::{Statement_Z, CCS_Z},
     },
     field::{conversion::FieldMap, RandomField},
-    poly_f::mle::DenseMultilinearExtension,
+    poly_f::mle::dense::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},

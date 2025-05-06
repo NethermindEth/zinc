@@ -7,7 +7,7 @@ use sha3::{digest::Output, Digest, Keccak256};
 use crate::{
     field::RandomField as F,
     field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension as MLE_F,
+    poly_f::mle::dense::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
     zip::{

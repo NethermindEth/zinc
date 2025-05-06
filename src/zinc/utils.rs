@@ -8,7 +8,7 @@ use crate::{
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
     field_config::FieldConfig,
-    poly_f::mle::DenseMultilinearExtension,
+    poly_f::mle::dense::DenseMultilinearExtension,
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,

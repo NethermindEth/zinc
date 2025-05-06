@@ -1,3 +1,12 @@
+//! Finite field arithmetic using Montgomery reduction.
+//!
+//! This module defines the [`FieldConfig`] struct, which stores precomputed
+//! constants for performing modular arithmetic efficiently in a finite field
+//! modulo a given integer.
+//!
+//! Montgomery reduction is a method for accelerating modular multiplication by
+//! avoiding costly division operations. This module precomputes constants
+//! such as `R`, `R^2`, and `INV` to enable fast reductions for a fixed modulus.
 use crate::biginteger::BigInt;
 
 macro_rules! mac {
@@ -8,6 +17,7 @@ macro_rules! mac {
     }};
 }
 #[macro_export]
+#[doc(hidden)]
 macro_rules! mac_with_carry {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
         let tmp = ($a as u128) + widening_mul($b, $c) + ($carry as u128);
@@ -23,13 +33,18 @@ macro_rules! adc {
         tmp as u64
     }};
 }
-pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
+pub(super) fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
     let tmp = (a as u128) + widening_mul(b, c) + (*carry as u128);
     *carry = (tmp >> 64) as u64;
     tmp as u64
 }
-
+/// Defines a prime fie
 #[derive(Clone, Copy, Default)]
+/// Configuration parameters for a finite prime field.
+///
+/// This struct contains precomputed constants used for modular arithmetic
+/// operations in Montgomery form. It is parameterized by `N`, the number
+/// of 64-bit limbs representing the modulus.
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
     pub modulus: BigInt<N>,
@@ -53,6 +68,23 @@ pub struct FieldConfig<const N: usize> {
 }
 
 impl<const N: usize> FieldConfig<N> {
+    /// Creates a new [`FieldConfig`] instance for the given modulus.
+    ///
+    /// Precomputes the constants required for Montgomery arithmetic:
+    /// - `r`: the Montgomery constant `R = 2^M mod modulus`
+    /// - `r2`: the Montgomery constant `R^2 mod modulus`
+    /// - `inv`: the modular inverse `INV = -modulus^{-1} mod 2^64`
+    ///
+    /// Also computes whether the modulus has a spare high bit.
+    ///
+    /// # Arguments
+    /// - `modulus`: The modulus defining the field. Must be a prime number.
+    ///
+    /// # Example
+    /// ```
+    /// let modulus = BigInt::<2>::from(23u32);
+    /// let config = FieldConfig::new(modulus);
+    /// ```
     pub fn new(modulus: BigInt<N>) -> Self {
         let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
         Self {
@@ -65,7 +97,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    pub fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub(crate) fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
         // However, it may need to be reduced
@@ -78,7 +110,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    pub fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub(crate) fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // If `other` is larger than `self`, add the modulus to self first.
         if b > a {
             a.add_with_carry(&self.modulus);
@@ -86,7 +118,7 @@ impl<const N: usize> FieldConfig<N> {
         a.sub_with_borrow(b);
     }
 
-    pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    pub(crate) fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         let (mut lo, mut hi) = ([0u64; N], [0u64; N]);
         crate::const_for!((i in 0..N) {
             let mut carry = 0;
@@ -133,7 +165,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    pub fn inverse(&self, a: &BigInt<N>) -> Option<BigInt<N>> {
+    pub(crate) fn inverse(&self, a: &BigInt<N>) -> Option<BigInt<N>> {
         if a.is_zero() {
             return None;
         }

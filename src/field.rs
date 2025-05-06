@@ -9,9 +9,9 @@ use crate::{
     field_config::{self, FieldConfig},
 };
 
-pub mod arithmetic;
-pub mod comparison;
-pub mod constant;
+pub(super) mod arithmetic;
+pub(super) mod comparison;
+pub(super) mod constant;
 pub mod conversion;
 
 #[derive(Copy, Clone)]

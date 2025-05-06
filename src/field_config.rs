@@ -7,6 +7,7 @@
 //! Montgomery reduction is a method for accelerating modular multiplication by
 //! avoiding costly division operations. This module precomputes constants
 //! such as `R`, `R^2`, and `INV` to enable fast reductions for a fixed modulus.
+
 use crate::biginteger::BigInt;
 
 macro_rules! mac {
@@ -82,6 +83,9 @@ impl<const N: usize> FieldConfig<N> {
     ///
     /// # Example
     /// ```
+    /// use zinc::biginteger::BigInt;
+    /// use zinc::field_config::FieldConfig;
+    ///
     /// let modulus = BigInt::<2>::from(23u32);
     /// let config = FieldConfig::new(modulus);
     /// ```

@@ -1,3 +1,5 @@
+//! Conversion from different types into RandomField elements
+
 use crypto_bigint::{Int, NonZero, Uint};
 use i256::{I256, I512};
 
@@ -56,23 +58,43 @@ impl<const N: usize> FromBytes for RandomField<N> {
         })
     }
 }
-
+//TODO decide whethere to keep this or not
 impl<const N: usize> RandomField<N> {
-    pub fn from_bytes_le_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
+    pub(crate) fn from_bytes_le_with_config(
+        config: *const FieldConfig<N>,
+        bytes: &[u8],
+    ) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_le(bytes);
 
         Self::from_bigint(config, value?)
     }
 
-    pub fn from_bytes_be_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
+    pub(crate) fn from_bytes_be_with_config(
+        config: *const FieldConfig<N>,
+        bytes: &[u8],
+    ) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_be(bytes);
 
         Self::from_bigint(config, value?)
     }
 }
 
+/// A trait for mapping an object to a field element, parameterized by a compile-time constant.
+///
+/// The `FieldMap` trait defines a mapping operation that transforms `Self` into an output type,
+/// using a pointer to a [`FieldConfig`] for configuration.
+///
+/// # Type Parameters
+///
+/// - `N`: The compile-time constant used by the [`FieldConfig`] and potentially the output.
+/// # Safety
+///
+/// The `config` pointer must be valid and point to a properly initialized [`FieldConfig<N>`].
+///
 pub trait FieldMap<const N: usize> {
+    /// The result type after mapping `Self` with the provided configuration.
     type Output;
+    /// Maps `self` to an output type, using the provided configuration pointer.
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output;
 }
 

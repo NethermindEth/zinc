@@ -1,3 +1,4 @@
+//! The underlying type of the RandomField Struct
 #[allow(unused)]
 use ark_ff::ark_ff_macros::unroll_for_loops;
 use ark_ff::const_for;

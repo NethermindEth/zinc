@@ -1,4 +1,4 @@
-#![allow(dead_code, non_snake_case)]
+#![allow(non_snake_case)]
 
 use ark_ff::Zero;
 use bytemuck::cast_slice;

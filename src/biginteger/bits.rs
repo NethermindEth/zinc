@@ -4,7 +4,7 @@ pub struct BitIteratorBE<Slice: AsRef<[u64]>> {
     s: Slice,
     n: usize,
 }
-
+#[cfg(test)]
 impl<Slice: AsRef<[u64]>> BitIteratorBE<Slice> {
     pub fn new(s: Slice) -> Self {
         let n = s.as_ref().len() * 64;
@@ -41,7 +41,7 @@ pub struct BitIteratorLE<Slice: AsRef<[u64]>> {
     n: usize,
     max_len: usize,
 }
-
+#[cfg(test)]
 impl<Slice: AsRef<[u64]>> BitIteratorLE<Slice> {
     pub fn new(s: Slice) -> Self {
         let n = 0;

@@ -7,23 +7,6 @@ use crate::sparse_matrix::SparseMatrix;
 
 use super::error::CSError as Error;
 
-//  Computes the hadamard product of two ring
-#[allow(dead_code)]
-pub(crate) fn hadamard_vec<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &[R]) -> Vec<R> {
-    lhs.iter()
-        .zip(rhs)
-        .map(|(lhs, rhs)| lhs.clone() * rhs.clone())
-        .collect()
-}
-
-// Multiplies Vector of rings by another ring
-#[allow(dead_code)]
-pub(crate) fn vec_value_mul<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &R) -> Vec<R> {
-    lhs.iter()
-        .map(|lhs_i| lhs_i.clone() * rhs.clone())
-        .collect()
-}
-
 // Adds two ring vectors
 pub(crate) fn vec_add<R: Clone + Add<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
     if a.len() != b.len() {
@@ -99,48 +82,6 @@ mod tests {
     const N: usize = 3;
     fn get_config() -> FieldConfig<N> {
         FieldConfig::new(BigInt::<N>::from_str("695962179703626800597079116051991347").unwrap())
-    }
-
-    #[test]
-    fn test_hadamard_vec() {
-        let config = get_config();
-
-        let a = [
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
-        ];
-        let b = [
-            5u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            7u64.map_to_field(&config),
-        ];
-        let result = hadamard_vec(&a, &b);
-        let expected = vec![
-            10u64.map_to_field(&config),
-            18u64.map_to_field(&config),
-            28u64.map_to_field(&config),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_vec_value_mul() {
-        let config = get_config();
-
-        let a = [
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
-        ];
-        let scalar = 2u64.map_to_field(&config);
-        let result = vec_value_mul(&a, &scalar);
-        let expected = vec![
-            4u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            8u64.map_to_field(&config),
-        ];
-        assert_eq!(result, expected);
     }
 
     #[test]

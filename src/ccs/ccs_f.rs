@@ -1,11 +1,11 @@
 //! The arith module provides utility for operating with arithmetic constraint systems.
 
-#![allow(non_snake_case, dead_code, non_camel_case_types)]
+#![allow(non_snake_case, non_camel_case_types)]
 
 use std::sync::atomic::AtomicPtr;
 
 use ark_ff::{One, UniformRand, Zero};
-use ark_std::{log2, rand};
+use ark_std::rand;
 
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
@@ -120,28 +120,6 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
             self.d.to_le_bytes(),
         ]
         .concat()
-    }
-}
-
-impl<const N: usize> CCS_F<N> {
-    fn pad(&mut self, statement: &mut Statement_F<N>, size: usize) {
-        let size = size.next_power_of_two();
-        if size > self.m {
-            let log_m = log2(size) as usize;
-            self.m = size;
-            self.s = log_m;
-            self.n = size;
-            self.s_prime = log_m;
-
-            // Update matrices
-            statement
-                .constraints
-                .iter_mut()
-                .for_each(|mat: &mut SparseMatrix<RandomField<N>>| {
-                    mat.pad_cols(size);
-                    mat.pad_rows(size);
-                });
-        }
     }
 }
 
@@ -276,9 +254,9 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> V
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
-    use std::ops::Neg;
-
     use crate::field::conversion::FieldMap;
+    use ark_std::log2;
+    use std::ops::Neg;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -356,36 +334,6 @@ pub(crate) fn get_test_z_F<const N: usize>(
         ],
         config,
     )
-}
-
-#[cfg(test)]
-pub(crate) fn get_test_wit_F<const N: usize>(
-    input: u64,
-    config: *const FieldConfig<N>,
-) -> Witness_F<N> {
-    Witness_F::new(to_F_vec(
-        vec![
-            input * input * input + input + 5, // x^3 + x + 5
-            input * input,                     // x^2
-            input * input * input,             // x^2 * x
-            input * input * input + input,     // x^3 + x
-        ],
-        config,
-    ))
-}
-
-#[cfg(test)]
-pub(crate) fn get_test_ccs_stuff_F<const N: usize>(
-    input: u64,
-    config: *const FieldConfig<N>,
-) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>, Vec<RandomField<N>>) {
-    let mut ccs = get_test_ccs_F::<N>(config);
-    let mut statement = get_test_ccs_F_statement::<N>(input, config);
-    let witness = get_test_wit_F(input, config);
-    let z = get_test_z_F(input, config);
-    let len = usize::max(ccs.m.next_power_of_two(), ccs.n.next_power_of_two());
-    ccs.pad(&mut statement, len);
-    (ccs, statement, witness, z)
 }
 
 #[cfg(test)]

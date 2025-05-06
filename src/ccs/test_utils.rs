@@ -1,4 +1,4 @@
-#![allow(dead_code, non_snake_case)]
+#![allow(non_snake_case)]
 use std::{sync::atomic::AtomicPtr, vec};
 
 use ark_ff::One;

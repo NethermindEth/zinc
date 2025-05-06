@@ -1,4 +1,4 @@
-#![allow(clippy::enum_variant_names, dead_code)]
+#![allow(clippy::enum_variant_names)]
 use thiserror::Error;
 
 use crate::{

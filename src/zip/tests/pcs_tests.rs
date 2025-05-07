@@ -159,10 +159,7 @@ fn test_zip_batch_evaluation() {
     let point = point.map_to_field(config);
     let points: Vec<_> = (0..m).map(|_| point.clone()).collect();
     let mut transcript = PcsTranscript::new();
-    let _ = data
-        .iter()
-        .zip(mles.iter())
-        .map(|(data, mle)| TestZip::open(&param, mle, data, &point, config, &mut transcript));
+    let _ = TestZip::batch_open(&param, &mles, &data, &points, &mut transcript, config);
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);

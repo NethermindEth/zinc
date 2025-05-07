@@ -17,11 +17,17 @@ pub mod verifier;
 /// Interactive Proof for Multilinear Sumcheck
 pub struct IPForMLSumcheck<const N: usize>;
 #[derive(Error, Debug)]
+/// An error type representing failures that can occur during the sum-check protocol.
 pub enum SumCheckError<const N: usize> {
+    /// Occurs when there is an error while evaluating a univariate polynomial,
     #[error("univariate polynomial evaluation error")]
     EvaluationError(ArithErrors),
+    /// Occurs when the computed sum in the sum-check protocol does not match
+    /// the expected value. T
     #[error("incorrect sumcheck sum. Expected `{0}`. Received `{1}`")]
     SumCheckFailed(RandomField<N>, RandomField<N>),
+    /// Occurs when the degree of the polynomial exceeds the maximum
+    /// allowed degree in the protocol.
     #[error("max degree exceeded")]
     MaxDegreeExceeded,
 }

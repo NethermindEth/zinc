@@ -47,8 +47,8 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     {
         let field_config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(field_config);
-        let statement_f = statement.map_to_field(field_config);
+        let ccs_F = ccs.map_to_field(&field_config);
+        let statement_f = statement.map_to_field(&field_config);
 
         let (rx_ry, e_y, gamma) =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F)

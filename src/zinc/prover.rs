@@ -56,10 +56,10 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
         [(); 4 * N]:,
         [(); 8 * N]:,
     {
-        let config = draw_random_field::<N>(&statement.public_input, transcript);
+        let field_config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
+            Self::prepare_for_random_field_piop(statement, wit, ccs, &field_config)?;
 
         // Prove Spartan protocol over random field
         let (spartan_proof, r_y) = SpartanProver::<N>::prove(
@@ -69,12 +69,12 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
             &z_mle,
             &ccs_f,
             transcript,
-            config,
+            &field_config,
         )?;
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, &field_config, &r_y, transcript)?;
 
         let zip_proof = ZipProof {
             z_comm,

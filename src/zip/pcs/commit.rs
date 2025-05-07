@@ -21,6 +21,21 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
+    /// Commits to a polynomial over integers using the Zip, polynomial commitment scheme.
+    ///
+    /// # Arguments
+    ///
+    /// * `pp` - A reference to the prover parameters. i.e. number of variables in polynomial,
+    ///     and the number of rows we split them into
+    /// * `poly` - A reference to the polynomial that is to be committed.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a tuple `(data, commitment)`:
+    /// * `data` - The encoding matrix, merkle tree and merkle root
+    /// * `commitment` - The public commitment to the polynomial.
+    ///     i.e just the merkle root.
+    ///
     pub fn commit(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
@@ -50,6 +65,7 @@ where
             MultilinearZipCommitment::new(roots),
         ))
     }
+    /// Allows for comitting to multiple polynomials at the same time
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a>(
         pp: &Self::ProverParam,

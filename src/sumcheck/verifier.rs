@@ -9,8 +9,6 @@ use crate::{
     transcript::KeccakTranscript as Transcript,
 };
 
-pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
-
 /// Verifier Message
 #[derive(Clone)]
 pub struct VerifierMsg<const N: usize> {

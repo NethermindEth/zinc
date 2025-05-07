@@ -10,11 +10,11 @@ use crate::{
 };
 
 use super::utils::MerkleTree;
-
-// N is the width of elements in witness/ polynomial evaluations on hypercube
-// L is the width of elements in the encoding matrices
-// K is the width of elements in the code
-// M is the width of elements in linear combination of code rows
+/// The Zip PCS struct
+/// N is the width of elements in witness/ polynomial evaluations on hypercube
+/// L is the width of elements in the encoding matrices
+/// K is the width of elements in the code
+/// M is the width of elements in linear combination of code rows
 #[derive(Debug)]
 pub struct MultilinearZip<
     const N: usize,
@@ -47,15 +47,15 @@ pub struct MultilinearZipParams<const N: usize, const L: usize> {
 }
 
 impl<const N: usize, const L: usize> MultilinearZipParams<N, L> {
-    pub fn num_vars(&self) -> usize {
+    pub(crate) fn num_vars(&self) -> usize {
         self.num_vars
     }
 
-    pub fn num_rows(&self) -> usize {
+    pub(crate) fn num_rows(&self) -> usize {
         self.num_rows
     }
 
-    pub fn zip(&self) -> &Zip<N, L> {
+    pub(crate) fn zip(&self) -> &Zip<N, L> {
         &self.zip
     }
 }
@@ -75,38 +75,41 @@ pub struct MultilinearZipCommitment<const N: usize> {
     roots: Vec<Output<Keccak256>>,
 }
 impl<const N: usize> MultilinearZipCommitment<N> {
-    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<N> {
+    pub(crate) fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<N> {
         MultilinearZipCommitment { roots }
     }
-    pub fn roots(&self) -> &[Output<Keccak256>] {
+    pub(crate) fn roots(&self) -> &[Output<Keccak256>] {
         &self.roots
     }
 }
 
 impl<const N: usize, const K: usize> MultilinearZipData<N, K> {
-    pub fn new(rows: Vec<Int<K>>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<N, K> {
+    pub(crate) fn new(
+        rows: Vec<Int<K>>,
+        rows_merkle_trees: Vec<MerkleTree>,
+    ) -> MultilinearZipData<N, K> {
         MultilinearZipData {
             rows,
             rows_merkle_trees,
         }
     }
 
-    pub fn rows(&self) -> &[Int<K>] {
+    pub(crate) fn rows(&self) -> &[Int<K>] {
         &self.rows
     }
 
-    pub fn rows_merkle_trees(&self) -> &[MerkleTree] {
+    pub(crate) fn rows_merkle_trees(&self) -> &[MerkleTree] {
         &self.rows_merkle_trees
     }
 
-    pub fn roots(&self) -> Vec<Output<Keccak256>> {
+    pub(crate) fn roots(&self) -> Vec<Output<Keccak256>> {
         self.rows_merkle_trees
             .iter()
             .map(|tree| tree.root)
             .collect::<Vec<_>>()
     }
 
-    pub fn root_at_index(&self, index: usize) -> Output<Keccak256> {
+    pub(crate) fn root_at_index(&self, index: usize) -> Output<Keccak256> {
         self.rows_merkle_trees[index].root
     }
 }

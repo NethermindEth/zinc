@@ -28,6 +28,31 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
+    /// Proves an evaluation of the polynomial at a given point.
+    ///
+    /// This function generates a proof that a polynomial has a specific value
+    /// at a given evaluation point. The proof can later be used to verify
+    /// the evaluation without revealing the entire polynomial.
+    ///
+    /// # Arguments
+    ///
+    /// * `pp` - A reference to the prover parameters. e.g. the number of variables expected
+    /// * `poly` - A reference to the polynomial for which the evaluation proof
+    ///            is being generated.
+    /// * `commit_data` - The data generated during the commitment phase.
+    ///                   i.e. The EA code matrix and the merkle tree(s) with the rows of th
+    ///                   matrix as leaves.  
+    /// * `point` - A slice representing the point at which the polynomial is evaluated.
+    ///            
+    /// * `field` - A raw pointer to the random field in which we will prove the final evaluation.
+    /// * `transcript` - A mutable reference to the transcript used for recording the proof.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<(), Error>`. If the proof is generated successfully,
+    /// the function returns `Ok(())`. Otherwise, it returns an `Error`
+    /// describing the failure reason.
+    ///
     pub fn open(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
@@ -45,7 +70,8 @@ where
         Ok(())
     }
 
-    // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
+    // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30ynomal
+    /// Open multiple polynomials at (possibly) different point
     pub fn batch_open<'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,

@@ -24,7 +24,7 @@ use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincProver, ZipProof},
     utils::{
-        calculate_Mz_mles, draw_random_field, prepare_lin_sumcheck_polynomial,
+        calculate_Mz_mles, prepare_lin_sumcheck_polynomial,
         sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
     },
 };
@@ -36,6 +36,7 @@ pub trait Prover<const N: usize> {
         wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
+        config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
         [(); 2 * N]:,
@@ -50,16 +51,16 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
         wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
+        config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
         [(); 2 * N]:,
         [(); 4 * N]:,
         [(); 8 * N]:,
     {
-        let field_config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            Self::prepare_for_random_field_piop(statement, wit, ccs, &field_config)?;
+            Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
         let (spartan_proof, r_y) = SpartanProver::<N>::prove(
@@ -69,12 +70,12 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
             &z_mle,
             &ccs_f,
             transcript,
-            &field_config,
+            config,
         )?;
 
         // Commit to z_mle and prove its evaluation at v
         let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, &field_config, &r_y, transcript)?;
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
 
         let zip_proof = ZipProof {
             z_comm,

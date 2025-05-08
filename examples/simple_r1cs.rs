@@ -13,6 +13,8 @@ use zinc::{
     zip::code::ZipSpec1,
 };
 
+use zinc::zinc::utils::draw_random_field;
+
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
 fn main() {
@@ -24,8 +26,15 @@ fn main() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
+    let field_config = draw_random_field::<N>(&statement.public_input, &mut prover_transcript);
     let proof = prover
-        .prove(&statement, &witness, &mut prover_transcript, &ccs)
+        .prove(
+            &statement,
+            &witness,
+            &mut prover_transcript,
+            &ccs,
+            &field_config,
+        )
         .expect("Proof generation failed");
 
     let verifier = ZincVerifier::<N, _> {
@@ -34,7 +43,13 @@ fn main() {
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier
-        .verify(&statement, proof, &mut verifier_transcript, &ccs)
+        .verify(
+            &statement,
+            proof,
+            &mut verifier_transcript,
+            &ccs,
+            &field_config,
+        )
         .expect("Proof verification failed");
 }
 

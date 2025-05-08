@@ -10,6 +10,8 @@ use crate::{
 pub enum ZincError<const N: usize> {
     #[error("spartan error: {0}")]
     SpartanError(#[from] SpartanError<N>),
+    #[error("field config error")]
+    FieldConfigError,
 }
 
 #[derive(Debug, Error)]
@@ -25,7 +27,7 @@ pub enum SpartanError<const N: usize> {
     #[error("mle evaluation failed: {0}")]
     EvaluationError(#[from] MleEvaluationError),
     #[error("Verification Failed {0}")]
-    VerificationError(String),
+    PCSVerificationError(String),
     #[error("")]
     ZipError(#[from] ZipError),
 }

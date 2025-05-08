@@ -24,8 +24,8 @@ use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincProver, ZipProof},
     utils::{
-        calculate_Mz_mles, prepare_lin_sumcheck_polynomial,
-        sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
+        calculate_Mz_mles, prepare_lin_sumcheck_polynomial, sumcheck_polynomial_comb_fn_1,
+        SqueezeBeta, SqueezeGamma,
     },
 };
 
@@ -133,12 +133,12 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         config: *const FieldConfig<N>,
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         // Do first Sumcheck
-        let (sumcheck_proof_1, r_a, mz_mles) =
+        let (sumcheck_proof_1, r_x, mz_mles) =
             Self::sumcheck_1(z_ccs, transcript, statement_f, ccs_f, config)?;
 
         // Do second sumcheck
         let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
-            &r_a,
+            &r_x,
             ccs_f,
             statement_f,
             config,
@@ -146,7 +146,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
             transcript,
         )?;
 
-        let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
+        let V_s = Self::calculate_V_s(&mz_mles, &r_x, config)?;
 
         let proof = SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
@@ -247,9 +247,9 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         };
 
         // Run sumcheck protocol.
-        let (sumcheck_proof_1, r_a) =
+        let (sumcheck_proof_1, r_x) =
             Self::generate_sumcheck_proof(transcript, g_mles, ccs.s, g_degree, comb_fn, config)?;
-        Ok((sumcheck_proof_1, r_a, mz_mles))
+        Ok((sumcheck_proof_1, r_x, mz_mles))
     }
 
     fn sumcheck_2(
@@ -333,15 +333,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
 
     fn calculate_V_s(
         mz_mles: &[DenseMultilinearExtension<N>],
-        r_a: &[RandomField<N>],
+        r_x: &[RandomField<N>],
         config: *const FieldConfig<N>,
     ) -> Result<Vec<RandomField<N>>, SpartanError<N>> {
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
                 |mle: &DenseMultilinearExtension<N>| -> Result<RandomField<N>, MleEvaluationError> {
-                    mle.evaluate(r_a, config)
-                        .ok_or(MleEvaluationError::IncorrectLength(r_a.len(), mle.num_vars))
+                    mle.evaluate(r_x, config)
+                        .ok_or(MleEvaluationError::IncorrectLength(r_x.len(), mle.num_vars))
                 },
             )
             .collect();

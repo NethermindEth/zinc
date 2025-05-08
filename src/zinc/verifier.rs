@@ -55,14 +55,14 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         let ccs_F = ccs.map_to_field(config);
         let statement_f = statement.map_to_field(config);
 
-        let (rx_ry, e_y, gamma) =
+        let verification_points =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F, config)
                 .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
             &statement_f,
             &proof.zip_proof,
-            &VerificationPoints { rx_ry, e_y, gamma },
+            &verification_points,
             &ccs_F,
             transcript,
             config,
@@ -94,7 +94,7 @@ pub trait SpartanVerifier<const N: usize> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
         config: &FieldConfig<N>,
-    ) -> Result<(Vec<RandomField<N>>, RandomField<N>, RandomField<N>), SpartanError<N>>;
+    ) -> Result<VerificationPoints<N>, SpartanError<N>>;
 }
 
 impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
@@ -104,7 +104,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
         config: &FieldConfig<N>,
-    ) -> Result<(Vec<RandomField<N>>, RandomField<N>, RandomField<N>), SpartanError<N>> {
+    ) -> Result<VerificationPoints<N>, SpartanError<N>> {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
@@ -126,7 +126,11 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
             second_sumcheck_claimed_sum,
         )?;
 
-        Ok(([r_x, r_y].concat(), e_y, gamma))
+        Ok(VerificationPoints {
+            rx_ry: [r_x, r_y].concat(),
+            e_y,
+            gamma,
+        })
     }
 }
 
@@ -246,22 +250,25 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         )?;
 
         // Evaluate constraints at rx_ry point
-        let V_x = cm_i
+        let rx_ry = &verification_points.rx_ry;
+        let r_x = &rx_ry[..ccs.s];
+        let r_y = &rx_ry[ccs.s..];
+        let rx_ry = [r_y, r_x].concat();
+        let V_xy = cm_i
             .constraints
             .iter()
             .map(|M| {
                 let mle = DenseMultilinearExtension::from_matrix(M, config);
-                mle.evaluate(&verification_points.rx_ry, config).ok_or(
-                    MleEvaluationError::IncorrectLength(
-                        verification_points.rx_ry.len(),
+                mle.evaluate(&rx_ry, config)
+                    .ok_or(MleEvaluationError::IncorrectLength(
+                        rx_ry.len(),
                         mle.num_vars,
-                    ),
-                )
+                    ))
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         // Check final verification equation
-        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_x) * zip_proof.v;
+        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * zip_proof.v;
         if V_x_gamma != verification_points.e_y {
             return Err(SpartanError::PCSVerificationError(
                 "linear combination of powers of gamma and V_x != e_y".to_string(),
@@ -272,7 +279,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     }
 }
 
-struct VerificationPoints<const N: usize> {
+pub struct VerificationPoints<const N: usize> {
     pub rx_ry: Vec<RandomField<N>>,
     pub e_y: RandomField<N>,
     pub gamma: RandomField<N>,

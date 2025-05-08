@@ -68,8 +68,7 @@ fn test_zip_opening() {
 
 #[test]
 fn test_failing_zip_evaluation() {
-    let config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -96,8 +95,7 @@ fn test_failing_zip_evaluation() {
 
 #[test]
 fn test_zip_evaluation() {
-    let config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
     let mut rng = ark_std::test_rng();
 
     let n = 8;

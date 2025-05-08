@@ -32,7 +32,7 @@ where
         point: &[F<N>],
         eval: F<N>,
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), Error> {
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
@@ -49,7 +49,7 @@ where
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
@@ -135,7 +135,7 @@ where
         eval: F<N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), Error> {
         let q_0_combined_row = transcript
             .read_field_elements(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()), field)?;
@@ -168,7 +168,7 @@ where
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);

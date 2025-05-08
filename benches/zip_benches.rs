@@ -82,8 +82,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 }
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let field_config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let field_config = &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();

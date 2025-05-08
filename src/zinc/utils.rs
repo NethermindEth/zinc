@@ -181,6 +181,5 @@ pub fn draw_random_field<const N: usize>(
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now
-    let config = FieldConfig::new(get_prime(transcript));
-    config
+    FieldConfig::new(get_prime(transcript))
 }

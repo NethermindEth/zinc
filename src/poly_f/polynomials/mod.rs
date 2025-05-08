@@ -5,7 +5,6 @@ mod util;
 //TODO add exports
 pub use errors::ArithErrors;
 pub(crate) use multilinear_polynomial::random_mle_list;
-pub use util::{bit_decompose, gen_eval_point, get_batched_nv};
 
 extern crate alloc;
 

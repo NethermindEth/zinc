@@ -50,6 +50,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec())
     }
 
+    #[cfg(test)]
     pub(crate) fn evaluate(&self, point: &[Int<N>]) -> Option<Int<N>> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point)[0])

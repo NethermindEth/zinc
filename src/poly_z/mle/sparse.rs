@@ -17,6 +17,7 @@ use super::{swap_bits, MultilinearExtension};
 
 use hashbrown::HashMap;
 
+/// An MLE with most of the evluations being zero
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseMultilinearExtension<const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
@@ -25,6 +26,7 @@ pub struct SparseMultilinearExtension<const N: usize> {
     pub num_vars: usize,
 }
 impl<const N: usize> SparseMultilinearExtension<N> {
+    /// Takes indexed evaluations and returns an MLE over those evaluations
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, Int<N>)>,
@@ -43,6 +45,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             num_vars,
         }
     }
+    /// Evaluate the MLE at a point
     pub fn evaluate(&self, point: &[Int<N>]) -> Int<N> {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point)[0]

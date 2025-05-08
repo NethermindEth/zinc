@@ -105,15 +105,12 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     )
     .unwrap();
 
-    let proof = transcript.into_proof();
-
     group.bench_function(
         format!("Verify: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
                     BenchZip::verify(
                         &params,

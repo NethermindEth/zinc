@@ -15,33 +15,39 @@ use crate::transcript::KeccakTranscript;
 use super::pcs::utils::MerkleProof;
 use super::Error;
 
+/// A PCS transcipt is a queue that allows prover to push elements on as part
+/// of proving an opening.
+/// The verifier then reads the elements sequentially to verify the proof.
 #[derive(Default, Clone)]
 pub struct PcsTranscript<const N: usize> {
+    /// Cryptographic sponge for when pseudorandom challenges are needed
     pub fs_transcript: KeccakTranscript,
+    /// The core queue of the transcript
     pub stream: Cursor<Vec<u8>>,
 }
 
 impl<const N: usize> PcsTranscript<N> {
+    /// Create a new transcript
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn into_proof(self) -> Vec<u8> {
+    pub(crate) fn into_proof(self) -> Vec<u8> {
         self.stream.into_inner()
     }
 
-    pub fn from_proof(proof: &[u8]) -> Self {
+    pub(crate) fn from_proof(proof: &[u8]) -> Self {
         Self {
             fs_transcript: KeccakTranscript::default(),
             stream: Cursor::new(proof.to_vec()),
         }
     }
 
-    pub fn common_field_element(&mut self, fe: &F<N>) {
+    pub(super) fn common_field_element(&mut self, fe: &F<N>) {
         self.fs_transcript.absorb_random_field(fe);
     }
 
-    pub fn read_commitment(&mut self) -> Result<Output<Keccak256>, Error> {
+    pub(super) fn read_commitment(&mut self) -> Result<Output<Keccak256>, Error> {
         let mut buf = Output::<Keccak256>::default();
         self.stream
             .read_exact(&mut buf)
@@ -49,7 +55,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(*Output::<Keccak256>::from_slice(&buf))
     }
 
-    pub fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), Error> {
+    pub(super) fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), Error> {
         self.stream
             .write_all(comm)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
@@ -57,7 +63,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     // TODO if we change this to an iterator we may be able to save some memory
-    pub fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
+    pub(super) fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;
         }
@@ -65,7 +71,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn read_field_elements(
+    pub(super) fn read_field_elements(
         &mut self,
         n: usize,
         config: *const FieldConfig<N>,
@@ -75,7 +81,10 @@ impl<const N: usize> PcsTranscript<N> {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, config: *const FieldConfig<N>) -> Result<F<N>, Error> {
+    pub(super) fn read_field_element(
+        &mut self,
+        config: *const FieldConfig<N>,
+    ) -> Result<F<N>, Error> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
@@ -88,7 +97,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(fe)
     }
 
-    pub fn write_field_element(&mut self, fe: &F<N>) -> Result<(), Error> {
+    pub(super) fn write_field_element(&mut self, fe: &F<N>) -> Result<(), Error> {
         self.common_field_element(fe);
         let repr = fe.value().to_bytes_be();
         self.stream
@@ -96,7 +105,7 @@ impl<const N: usize> PcsTranscript<N> {
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
     }
 
-    pub fn write_integer<const M: usize>(&mut self, int: &Int<M>) -> Result<(), Error> {
+    pub(super) fn write_integer<const M: usize>(&mut self, int: &Int<M>) -> Result<(), Error> {
         for &word in int.as_words().iter() {
             let bytes = word.to_le_bytes();
             self.stream
@@ -105,14 +114,14 @@ impl<const N: usize> PcsTranscript<N> {
         }
         Ok(())
     }
-    pub fn write_integers<const M: usize>(&mut self, ints: &[Int<M>]) -> Result<(), Error> {
+    pub(super) fn write_integers<const M: usize>(&mut self, ints: &[Int<M>]) -> Result<(), Error> {
         for int in ints {
             self.write_integer(int)?;
         }
         Ok(())
     }
 
-    pub fn read_integer<const M: usize>(&mut self) -> Result<Int<M>, Error> {
+    pub(super) fn read_integer<const M: usize>(&mut self) -> Result<Int<M>, Error> {
         let mut words = [0u64; M];
 
         for word in &mut words {
@@ -126,17 +135,18 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(Int::<M>::from_words(words))
     }
 
-    pub fn read_integers<const M: usize>(&mut self, n: usize) -> Result<Vec<Int<M>>, Error> {
+    pub(super) fn read_integers<const M: usize>(&mut self, n: usize) -> Result<Vec<Int<M>>, Error> {
         (0..n)
             .map(|_| self.read_integer())
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, Error> {
+    #[cfg(test)]
+    fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, Error> {
         (0..n).map(|_| self.read_commitment()).collect()
     }
-
-    pub fn write_commitments<'a>(
+    #[cfg(test)]
+    fn write_commitments<'a>(
         &mut self,
         comms: impl IntoIterator<Item = &'a Output<Keccak256>>,
     ) -> Result<(), Error> {
@@ -146,14 +156,18 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: *const FieldConfig<N>, cap: usize) -> usize {
+    pub(super) fn squeeze_challenge_idx(
+        &mut self,
+        config: *const FieldConfig<N>,
+        cap: usize,
+    ) -> usize {
         let challenge = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
         num % cap
     }
 
-    pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
+    pub(super) fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
         // Read the length of the merkle_path first
         let mut length_bytes = [0u8; 8];
         self.stream
@@ -170,7 +184,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(MerkleProof { merkle_path })
     }
 
-    pub fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
+    pub(super) fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
         // Write the length of the merkle_path first
         let path_length = proof.merkle_path.len() as u64;
         self.stream

@@ -1,14 +1,12 @@
-use ark_ff::{UniformRand, Zero};
+use ark_ff::Zero;
 
 use crate::biginteger::BigInt;
 use crate::field::conversion::FieldMap;
 use crate::field_config::FieldConfig;
-use crate::sparse_matrix::SparseMatrix;
-use ark_std::rand::Rng;
+
 use ark_std::{
     cfg_iter,
     collections::BTreeMap,
-    log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
     vec::*,
 };
@@ -17,7 +15,7 @@ use rayon::iter::*;
 
 use crate::field::RandomField;
 
-use super::{swap_bits, MultilinearExtension};
+use super::MultilinearExtension;
 
 use hashbrown::HashMap;
 
@@ -31,157 +29,8 @@ pub(crate) struct SparseMultilinearExtension<const N: usize> {
     /// Field in which the MLE is operating
     pub config: *const FieldConfig<N>,
 }
-impl<const N: usize> SparseMultilinearExtension<N> {
-    pub(crate) fn from_evaluations<'a>(
-        num_vars: usize,
-        evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
-        config: *const FieldConfig<N>,
-    ) -> Self {
-        let bit_mask = 1 << num_vars;
-
-        let evaluations: Vec<_> = evaluations
-            .into_iter()
-            .map(|(i, v): &(usize, RandomField<N>)| {
-                assert!(*i < bit_mask, "index out of range");
-                (*i, *v)
-            })
-            .collect();
-        Self {
-            evaluations: tuples_to_treemap(&evaluations),
-            num_vars,
-            zero: RandomField::zero(),
-            config,
-        }
-    }
-    pub(crate) fn evaluate(
-        &self,
-        point: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> RandomField<N> {
-        assert!(point.len() == self.num_vars);
-        self.fixed_variables(point, config)[0]
-    }
-    /// Outputs an `l`-variate multilinear extension where value of evaluations
-    /// are sampled uniformly at random. The number of nonzero entries is
-    /// `num_nonzero_entries` and indices of those nonzero entries are
-    /// distributed uniformly at random.
-    ///
-    /// Note that this function uses rejection sampling. As number of nonzero
-    /// entries approach `2 ^ num_vars`, sampling will be very slow due to
-    /// large number of collisions.
-    pub fn rand_with_config<Rn: Rng>(
-        num_vars: usize,
-        num_nonzero_entries: usize,
-        config: *const FieldConfig<N>,
-        rng: &mut Rn,
-    ) -> Self {
-        assert!(num_nonzero_entries <= 1 << num_vars);
-
-        let mut map = HashMap::new();
-        for _ in 0..num_nonzero_entries {
-            let mut index = usize::rand(rng) & ((1 << num_vars) - 1);
-            while map.contains_key(&index) {
-                index = usize::rand(rng) & ((1 << num_vars) - 1);
-            }
-            map.entry(index).or_insert(RandomField::rand(rng));
-        }
-        let mut buf = Vec::new();
-        for (arg, v) in map.iter() {
-            if *v != RandomField::zero() {
-                buf.push((*arg, *v));
-            }
-        }
-        let evaluations = hashmap_to_treemap(&map);
-        Self {
-            num_vars,
-            evaluations,
-            zero: RandomField::zero(),
-            config,
-        }
-    }
-
-    /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: *const FieldConfig<N>) -> Self {
-        let n_rows = m.n_rows.next_power_of_two();
-        let n_cols = m.n_cols.next_power_of_two();
-        let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
-
-        // build the sparse vec representing the sparse matrix
-        let total_elements: usize = m.coeffs.iter().map(|row| row.len()).sum();
-        let mut v: Vec<(usize, RandomField<N>)> = Vec::with_capacity(total_elements);
-
-        for (row_i, row) in m.coeffs.iter().enumerate() {
-            for (val, col_i) in row {
-                let index = row_i * n_cols + col_i;
-                v.push((index, *val));
-            }
-        }
-
-        // convert the sparse vector into a mle
-        Self::from_sparse_slice(n_vars, &v, config)
-    }
-
-    /// Takes n_vars and a sparse slice and returns its sparse MLE.
-    pub fn from_sparse_slice(
-        n_vars: usize,
-        v: &[(usize, RandomField<N>)],
-        config: *const FieldConfig<N>,
-    ) -> Self {
-        SparseMultilinearExtension::<N>::from_evaluations(n_vars, v, config)
-    }
-
-    /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: *const FieldConfig<N>) -> Self {
-        let v_sparse = v
-            .iter()
-            .enumerate()
-            .map(|(i, v_i)| (i, *v_i))
-            .collect::<Vec<(usize, RandomField<N>)>>();
-        SparseMultilinearExtension::<N>::from_evaluations(n_vars, &v_sparse, config)
-    }
-}
 
 impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
-    fn num_vars(&self) -> usize {
-        self.num_vars
-    }
-    /// Outputs an `l`-variate multilinear extension where value of evaluations
-    /// are sampled uniformly at random. The number of nonzero entries is
-    /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
-    /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(
-        num_vars: usize,
-        config: *const FieldConfig<N>,
-        rng: &mut Rn,
-    ) -> Self {
-        Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
-    }
-
-    fn relabel(&self, mut a: usize, mut b: usize, k: usize) -> Self {
-        if a > b {
-            // swap
-            core::mem::swap(&mut a, &mut b);
-        }
-        // sanity check
-        assert!(
-            a + k < self.num_vars && b + k < self.num_vars,
-            "invalid relabel argument"
-        );
-        if a == b || k == 0 {
-            return self.clone();
-        }
-        assert!(a + k <= b, "overlapped swap window is not allowed");
-        let ev: Vec<_> = cfg_iter!(self.evaluations)
-            .map(|(&i, &v)| (swap_bits(i, a, b, k), v))
-            .collect();
-        Self {
-            num_vars: self.num_vars,
-            evaluations: tuples_to_treemap(&ev),
-            zero: RandomField::<N>::zero(),
-            config: self.config,
-        }
-    }
-
     fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: *const FieldConfig<N>) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
@@ -229,19 +78,6 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
-    }
-
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
-        let mut evaluations: Vec<_> = (0..1 << self.num_vars)
-            .map(|_| RandomField::<N>::zero())
-            .collect();
-        self.evaluations
-            .iter()
-            .map(|(&i, &v)| {
-                evaluations[i] = v;
-            })
-            .last();
-        evaluations
     }
 }
 impl<const N: usize> Zero for SparseMultilinearExtension<N> {
@@ -440,146 +276,4 @@ fn precompute_eq<const N: usize>(
         }
     }
     dp
-}
-
-#[cfg(test)]
-#[allow(non_snake_case)]
-mod tests {
-    use super::*;
-
-    use ark_ff::Zero;
-
-    // Function to convert usize to a binary vector of Ring elements.
-    fn usize_to_binary_vector<const N: usize>(
-        n: usize,
-        dimensions: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>> {
-        let mut bits = Vec::with_capacity(dimensions);
-        let mut current = n;
-
-        for _ in 0..dimensions {
-            if (current & 1) == 1 {
-                bits.push(1u64.map_to_field(config));
-            } else {
-                bits.push(0u64.map_to_field(config));
-            }
-            current >>= 1;
-        }
-        bits
-    }
-
-    // Wrapper function to generate a boolean hypercube.
-    fn boolean_hypercube<const N: usize>(
-        dimensions: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<Vec<RandomField<N>>> {
-        let max_val = 1 << dimensions; // 2^dimensions
-        (0..max_val)
-            .map(|i| usize_to_binary_vector::<N>(i, dimensions, config))
-            .collect()
-    }
-
-    fn vec_cast<const N: usize>(v: &[usize], config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
-        v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
-    }
-
-    fn matrix_cast<const N: usize>(
-        m: &[Vec<usize>],
-        config: *const FieldConfig<N>,
-    ) -> SparseMatrix<RandomField<N>> {
-        let n_rows = m.len();
-        let n_cols = m[0].len();
-        let mut coeffs = Vec::with_capacity(n_rows);
-        for row in m.iter() {
-            let mut row_coeffs = Vec::with_capacity(n_cols);
-            for (col_i, &val) in row.iter().enumerate() {
-                if val != 0 {
-                    row_coeffs.push(((val as u64).map_to_field(config), col_i));
-                }
-            }
-            coeffs.push(row_coeffs);
-        }
-        SparseMatrix {
-            n_rows,
-            n_cols,
-            coeffs,
-        }
-    }
-
-    fn get_test_z<const N: usize>(
-        input: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>> {
-        vec_cast(
-            &[
-                input, // io
-                1,
-                input * input * input + input + 5, // x^3 + x + 5
-                input * input,                     // x^2
-                input * input * input,             // x^2 * x
-                input * input * input + input,     // x^3 + x
-            ],
-            config,
-        )
-    }
-
-    #[test]
-    fn test_matrix_to_mle() {
-        const N: usize = 1;
-        let config = FieldConfig::new(293u32.into());
-        let config_ptr: *const FieldConfig<1> = &config;
-        let A = matrix_cast::<N>(
-            &[
-                vec![2, 3, 4, 4],
-                vec![4, 11, 14, 14],
-                vec![2, 8, 17, 17],
-                vec![420, 4, 2, 0],
-            ],
-            config_ptr,
-        );
-
-        let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
-        assert_eq!(A_mle.evaluations.len(), 15); // 15 non-zero elements
-        assert_eq!(A_mle.num_vars, 4); // 4x4 matrix, thus 2bit x 2bit, thus 2^4=16 evals
-
-        let A = matrix_cast::<N>(
-            &[
-                vec![2, 3, 4, 4, 1],
-                vec![4, 11, 14, 14, 2],
-                vec![2, 8, 17, 17, 3],
-                vec![420, 4, 2, 0, 4],
-                vec![420, 4, 2, 0, 5],
-            ],
-            config_ptr,
-        );
-        let A_mle = SparseMultilinearExtension::from_matrix(&A, config_ptr);
-        assert_eq!(A_mle.evaluations.len(), 23); // 23 non-zero elements
-        assert_eq!(A_mle.num_vars, 6); // 5x5 matrix, thus 3bit x 3bit, thus 2^6=64 evals
-    }
-
-    #[test]
-    fn test_vec_to_mle() {
-        const N: usize = 1;
-        let config = FieldConfig::new(293u32.into());
-        let config_ptr: *const FieldConfig<1> = &config;
-        let z = get_test_z::<N>(3, config_ptr);
-
-        let n_vars = 3;
-        let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config_ptr);
-
-        // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
-        let bhc = boolean_hypercube(z_mle.num_vars, config_ptr);
-        for (i, z_i) in z.iter().enumerate() {
-            let s_i = &bhc[i];
-            assert_eq!(z_mle.evaluate(s_i, config_ptr), z_i.clone());
-        }
-        // for the rest of elements of the boolean hypercube, expect it to evaluate to zero
-        for s_i in bhc.iter().take(1 << z_mle.num_vars).skip(z.len()) {
-            assert_eq!(
-                z_mle.fixed_variables(s_i, config_ptr)[0],
-                RandomField::<N>::zero()
-            );
-        }
-    }
 }

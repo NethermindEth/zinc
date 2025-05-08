@@ -1,6 +1,5 @@
 mod errors;
 mod multilinear_polynomial;
-mod util;
 
 //TODO add exports
 pub use errors::ArithErrors;

@@ -1,12 +1,11 @@
 use core::ops::IndexMut;
 
-use ark_ff::{UniformRand, Zero};
+use ark_ff::Zero;
 
 use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
     ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign},
-    rand,
     vec::*,
 };
 #[cfg(feature = "parallel")]
@@ -131,26 +130,6 @@ impl<const N: usize> DenseMultilinearExtension<N> {
 }
 
 impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
-    fn num_vars(&self) -> usize {
-        self.num_vars
-    }
-
-    fn rand<Rn: rand::Rng>(num_vars: usize, config: *const FieldConfig<N>, rng: &mut Rn) -> Self {
-        Self::from_evaluations_vec(
-            num_vars,
-            (0..1 << num_vars)
-                .map(|_| RandomField::<N>::rand(rng))
-                .collect(),
-            config,
-        )
-    }
-
-    fn relabel(&self, a: usize, b: usize, k: usize) -> Self {
-        let mut copy = self.clone();
-        copy.relabel_in_place(a, b, k);
-        copy
-    }
-
     fn fix_variables(&mut self, partial_point: &[RandomField<N>], _config: *const FieldConfig<N>) {
         assert!(
             partial_point.len() <= self.num_vars,
@@ -187,10 +166,6 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
-    }
-
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
-        self.evaluations.to_vec()
     }
 }
 

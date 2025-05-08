@@ -1,11 +1,9 @@
 pub(crate) mod dense;
 pub(crate) mod sparse;
 
-use ark_std::rand::Rng;
 use ark_std::{
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
-    vec::*,
     Zero,
 };
 
@@ -30,21 +28,6 @@ pub trait MultilinearExtension<const N: usize>:
     + for<'a> SubAssign<&'a Self>
     + Index<usize>
 {
-    /// Returns the number of variables in `self`
-    fn num_vars(&self) -> usize;
-
-    /// Outputs an `l`-variate multilinear extension where value of evaluations
-    /// are sampled uniformly at random.
-    fn rand<Rn: Rng>(num_vars: usize, config: *const FieldConfig<N>, rng: &mut Rn) -> Self;
-
-    /// Relabel the point by swapping `k` scalars from positions `a..a+k` to
-    /// positions `b..b+k`, and from position `b..b+k` to position `a..a+k`
-    /// in vector.
-    ///
-    /// This function turns `P(x_1,...,x_a,...,x_{a+k - 1},...,x_b,...,x_{b+k - 1},...,x_n)`
-    /// to `P(x_1,...,x_b,...,x_{b+k - 1},...,x_a,...,x_{a+k - 1},...,x_n)`
-    fn relabel(&self, a: usize, b: usize, k: usize) -> Self;
-
     /// Reduce the number of variables of `self` by fixing the
     /// `partial_point.len()` variables at `partial_point`.
     fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: *const FieldConfig<N>);
@@ -56,10 +39,6 @@ pub trait MultilinearExtension<const N: usize>:
         partial_point: &[RandomField<N>],
         config: *const FieldConfig<N>,
     ) -> Self;
-
-    /// Returns a list of evaluations over the domain, which is the boolean
-    /// hypercube. The evaluations are in little-endian order.
-    fn to_evaluations(&self) -> Vec<RandomField<N>>;
 }
 /// swap the bits of `x` from position `a..a+n` to `b..b+n` and from `b..b+n` to `a..a+n` in little endian order
 pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {

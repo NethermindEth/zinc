@@ -11,7 +11,7 @@ use crate::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
-        Error,
+        ZipError,
     },
 };
 
@@ -26,14 +26,15 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
+    /// Verify a PCS opening
     pub fn verify(
-        vp: &Self::VerifierParam,
+        vp: &Self::Param,
         comm: &Self::Commitment,
         point: &[F<N>],
         eval: F<N>,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
@@ -42,15 +43,15 @@ where
 
         Ok(())
     }
-
+    /// Verify a multiple PCS openings
     pub fn batch_verify_z<'a>(
-        vp: &Self::VerifierParam,
+        vp: &Self::Param,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
         }
@@ -58,11 +59,11 @@ where
     }
 
     pub(super) fn verify_testing(
-        vp: &Self::VerifierParam,
+        vp: &Self::Param,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
+    ) -> Result<Vec<(usize, Vec<Int<K>>)>, ZipError> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
             <Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()),
@@ -114,7 +115,7 @@ where
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         let column_entries_comb = if num_rows > 1 {
             let coeffs: Vec<_> = coeffs.iter().map(expand::<N, M>).collect();
             let column_entries: Vec<_> = column_entries.iter().map(expand::<K, M>).collect();
@@ -124,19 +125,19 @@ where
         };
 
         if column_entries_comb != encoded_combined_row[column] {
-            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            return Err(ZipError::InvalidPcsOpen("Proximity failure".to_string()));
         }
         Ok(())
     }
 
     fn verify_evaluation_z(
-        vp: &Self::VerifierParam,
+        vp: &Self::Param,
         point: &[F<N>],
         eval: F<N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         let q_0_combined_row = transcript
             .read_field_elements(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()), field)?;
         println!("read q_0 combined row: {:?}", q_0_combined_row);
@@ -146,7 +147,7 @@ where
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
             println!("{:?} != {:?}", inner_product(&q_0_combined_row, &q_1), eval);
-            return Err(Error::InvalidPcsOpen(
+            return Err(ZipError::InvalidPcsOpen(
                 "Evaluation consistency failure".to_string(),
             ));
         }
@@ -172,7 +173,7 @@ where
         column: usize,
         num_rows: usize,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         println!("Verify proximity q_0\n\n");
 
         println!("{:?}", column);
@@ -186,7 +187,7 @@ where
         println!("{:?}", column_entries_comb);
         println!("{:?}", encoded_q_0_combined_row[column]);
         if column_entries_comb != encoded_q_0_combined_row[column] {
-            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            return Err(ZipError::InvalidPcsOpen("Proximity failure".to_string()));
         }
 
         Ok(())

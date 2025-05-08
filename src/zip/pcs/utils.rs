@@ -13,15 +13,15 @@ use crate::{
     zip::{
         pcs_transcript::PcsTranscript,
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
-        Error,
+        ZipError,
     },
 };
 
 use super::error::MerkleError;
 use super::structs::MultilinearZipData;
 
-fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
-    Error::InvalidPcsParam(
+fn err_too_many_variates(function: &str, upto: usize, got: usize) -> ZipError {
+    ZipError::InvalidPcsParam(
         format!(
             "Too many variates of poly to {function} (param supports variates up to {upto} but got {got})"
         )
@@ -34,7 +34,7 @@ pub(super) fn validate_input<'a, const N: usize>(
     param_num_vars: usize,
     polys: impl Iterable<Item = &'a MLE_Z<N>>,
     points: impl Iterable<Item = &'a [F<N>]>,
-) -> Result<(), Error> {
+) -> Result<(), ZipError> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
         if param_num_vars < poly.num_vars {
@@ -56,7 +56,7 @@ pub(super) fn validate_input<'a, const N: usize>(
 
     for point in points.iter() {
         if point.len() != input_num_vars {
-            return Err(Error::InvalidPcsParam(format!(
+            return Err(ZipError::InvalidPcsParam(format!(
                 "Invalid point (expect point to have {input_num_vars} variates but got {})",
                 point.len()
             )));
@@ -279,7 +279,7 @@ pub(super) fn point_to_tensor<const N: usize>(
     num_rows: usize,
     point: &[F<N>],
     config: *const FieldConfig<N>,
-) -> Result<(Vec<F<N>>, Vec<F<N>>), Error> {
+) -> Result<(Vec<F<N>>, Vec<F<N>>), ZipError> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
@@ -305,7 +305,7 @@ pub(super) fn left_point_to_tensor<const N: usize>(
     num_rows: usize,
     point: &[F<N>],
     config: *const FieldConfig<N>,
-) -> Result<Vec<F<N>>, Error> {
+) -> Result<Vec<F<N>>, ZipError> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {

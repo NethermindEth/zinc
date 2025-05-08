@@ -1,3 +1,4 @@
+//! Module that defines main structures for PCS as used in the zinc protocol
 use std::{collections::BTreeSet, marker::PhantomData};
 
 use crypto_bigint::Int;
@@ -10,7 +11,7 @@ use crate::{
 };
 
 use super::utils::MerkleTree;
-/// The Zip PCS struct
+/// The main Zip PCS struct
 /// N is the width of elements in witness/ polynomial evaluations on hypercube
 /// L is the width of elements in the encoding matrices
 /// K is the width of elements in the code
@@ -38,7 +39,40 @@ impl<
         Self(PhantomData, PhantomData)
     }
 }
+impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<N, L, K, M, S, T>
+where
+    S: ZipSpec,
+    T: ZipTranscript<L>,
+{
+    /// Zip Paramaters
+    pub type Param = MultilinearZipParams<N, L>;
+    /// The kind of polyomial we can commit to
+    pub type Polynomial = DenseMultilinearExtension<N>;
+    /// The data that the prover stores in state
+    pub type Data = MultilinearZipData<N, K>;
+    /// The commitment that is given over to the prover
+    pub type Commitment = MultilinearZipCommitment<N>;
 
+    /// Gets the Zip parameters
+    pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {
+        assert!(poly_size.is_power_of_two());
+        let num_vars = poly_size.ilog2() as usize;
+        let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
+
+        MultilinearZipParams {
+            num_vars,
+            num_rows: ((1 << num_vars) / <Zip<N, L> as LinearCodes<N, M>>::row_len(&zip))
+                .next_power_of_two(),
+            zip,
+        }
+    }
+}
+
+/// Defines some parameters for the ML zip scheme
+/// includes the number of variables in polynomials,
+/// the number of rows we split the evaluations matrix into,
+/// and the encoding scheme.
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<const N: usize, const L: usize> {
     num_vars: usize,
@@ -101,52 +135,19 @@ impl<const N: usize, const K: usize> MultilinearZipData<N, K> {
     pub(crate) fn rows_merkle_trees(&self) -> &[MerkleTree] {
         &self.rows_merkle_trees
     }
-
-    pub(crate) fn roots(&self) -> Vec<Output<Keccak256>> {
-        self.rows_merkle_trees
-            .iter()
-            .map(|tree| tree.root)
-            .collect::<Vec<_>>()
-    }
-
-    pub(crate) fn root_at_index(&self, index: usize) -> Output<Keccak256> {
-        self.rows_merkle_trees[index].root
-    }
 }
 
+/// Some functionality we need a Fiat Shamir transcript to implement
+/// so that we can use it in the PCS. i.e. the PCS can be non-interactive
+/// if the prover and verifier have access to the following pseudorandom challenges.
 pub trait ZipTranscript<const L: usize> {
+    /// Get an element of an encoding matrix for the linear code
     fn get_encoding_element(&mut self) -> Int<L>;
+    /// Decide which columns we should challenge
     fn sample_unique_columns(
         &mut self,
         range: std::ops::Range<usize>,
         columns: &mut BTreeSet<usize>,
         count: usize,
     ) -> usize;
-}
-impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<N, L, K, M, S, T>
-where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
-{
-    pub type Param = MultilinearZipParams<N, L>;
-    pub type ProverParam = MultilinearZipParams<N, L>;
-    pub type VerifierParam = MultilinearZipParams<N, L>;
-    pub type Polynomial = DenseMultilinearExtension<N>;
-    pub type Data = MultilinearZipData<N, K>;
-    pub type Commitment = MultilinearZipCommitment<N>;
-    pub type CommitmentChunk = Output<Keccak256>;
-
-    pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {
-        assert!(poly_size.is_power_of_two());
-        let num_vars = poly_size.ilog2() as usize;
-        let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
-
-        MultilinearZipParams {
-            num_vars,
-            num_rows: ((1 << num_vars) / <Zip<N, L> as LinearCodes<N, M>>::row_len(&zip))
-                .next_power_of_two(),
-            zip,
-        }
-    }
 }

@@ -13,7 +13,7 @@ use crate::traits::FromBytes;
 use crate::transcript::KeccakTranscript;
 
 use super::pcs::utils::MerkleProof;
-use super::Error;
+use super::ZipError;
 
 /// A PCS transcipt is a queue that allows prover to push elements on as part
 /// of proving an opening.
@@ -47,23 +47,23 @@ impl<const N: usize> PcsTranscript<N> {
         self.fs_transcript.absorb_random_field(fe);
     }
 
-    pub(super) fn read_commitment(&mut self) -> Result<Output<Keccak256>, Error> {
+    pub(super) fn read_commitment(&mut self) -> Result<Output<Keccak256>, ZipError> {
         let mut buf = Output::<Keccak256>::default();
         self.stream
             .read_exact(&mut buf)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
         Ok(*Output::<Keccak256>::from_slice(&buf))
     }
 
-    pub(super) fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), Error> {
+    pub(super) fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), ZipError> {
         self.stream
             .write_all(comm)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
         Ok(())
     }
 
     // TODO if we change this to an iterator we may be able to save some memory
-    pub(super) fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
+    pub(super) fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), ZipError> {
         for elem in elems {
             self.write_field_element(elem)?;
         }
@@ -75,7 +75,7 @@ impl<const N: usize> PcsTranscript<N> {
         &mut self,
         n: usize,
         config: *const FieldConfig<N>,
-    ) -> Result<Vec<F<N>>, Error> {
+    ) -> Result<Vec<F<N>>, ZipError> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
@@ -84,12 +84,12 @@ impl<const N: usize> PcsTranscript<N> {
     pub(super) fn read_field_element(
         &mut self,
         config: *const FieldConfig<N>,
-    ) -> Result<F<N>, Error> {
+    ) -> Result<F<N>, ZipError> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
             .read_exact(&mut bytes)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
 
         let fe = F::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
 
@@ -97,59 +97,65 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(fe)
     }
 
-    pub(super) fn write_field_element(&mut self, fe: &F<N>) -> Result<(), Error> {
+    pub(super) fn write_field_element(&mut self, fe: &F<N>) -> Result<(), ZipError> {
         self.common_field_element(fe);
         let repr = fe.value().to_bytes_be();
         self.stream
             .write_all(repr.as_ref())
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))
     }
 
-    pub(super) fn write_integer<const M: usize>(&mut self, int: &Int<M>) -> Result<(), Error> {
+    pub(super) fn write_integer<const M: usize>(&mut self, int: &Int<M>) -> Result<(), ZipError> {
         for &word in int.as_words().iter() {
             let bytes = word.to_le_bytes();
             self.stream
                 .write_all(&bytes)
-                .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+                .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
         }
         Ok(())
     }
-    pub(super) fn write_integers<const M: usize>(&mut self, ints: &[Int<M>]) -> Result<(), Error> {
+    pub(super) fn write_integers<const M: usize>(
+        &mut self,
+        ints: &[Int<M>],
+    ) -> Result<(), ZipError> {
         for int in ints {
             self.write_integer(int)?;
         }
         Ok(())
     }
 
-    pub(super) fn read_integer<const M: usize>(&mut self) -> Result<Int<M>, Error> {
+    pub(super) fn read_integer<const M: usize>(&mut self) -> Result<Int<M>, ZipError> {
         let mut words = [0u64; M];
 
         for word in &mut words {
             let mut buf = [0u8; 8];
             self.stream
                 .read_exact(&mut buf)
-                .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+                .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
 
             *word = u64::from_le_bytes(buf);
         }
         Ok(Int::<M>::from_words(words))
     }
 
-    pub(super) fn read_integers<const M: usize>(&mut self, n: usize) -> Result<Vec<Int<M>>, Error> {
+    pub(super) fn read_integers<const M: usize>(
+        &mut self,
+        n: usize,
+    ) -> Result<Vec<Int<M>>, ZipError> {
         (0..n)
             .map(|_| self.read_integer())
             .collect::<Result<Vec<_>, _>>()
     }
 
     #[cfg(test)]
-    fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, Error> {
+    fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, ZipError> {
         (0..n).map(|_| self.read_commitment()).collect()
     }
     #[cfg(test)]
     fn write_commitments<'a>(
         &mut self,
         comms: impl IntoIterator<Item = &'a Output<Keccak256>>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         for comm in comms.into_iter() {
             self.write_commitment(comm)?;
         }
@@ -167,12 +173,12 @@ impl<const N: usize> PcsTranscript<N> {
         num % cap
     }
 
-    pub(super) fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
+    pub(super) fn read_merkle_proof(&mut self) -> Result<MerkleProof, ZipError> {
         // Read the length of the merkle_path first
         let mut length_bytes = [0u8; 8];
         self.stream
             .read_exact(&mut length_bytes)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
         let path_length = u64::from_be_bytes(length_bytes);
 
         // Read each element of the merkle_path
@@ -184,12 +190,12 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(MerkleProof { merkle_path })
     }
 
-    pub(super) fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
+    pub(super) fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), ZipError> {
         // Write the length of the merkle_path first
         let path_length = proof.merkle_path.len() as u64;
         self.stream
             .write_all(&path_length.to_be_bytes())
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+            .map_err(|err| ZipError::Transcript(err.kind(), err.to_string()))?;
 
         // Write each element of the merkle_path
         for hash in &proof.merkle_path {

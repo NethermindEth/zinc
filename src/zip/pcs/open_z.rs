@@ -13,7 +13,7 @@ use crate::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
-        Error,
+        ZipError,
     },
 };
 
@@ -54,13 +54,13 @@ where
     /// describing the failure reason.
     ///
     pub fn open(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         point: &[F<N>],
         field: *const FieldConfig<N>,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
         Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
@@ -73,13 +73,13 @@ where
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30ynomal
     /// Open multiple polynomials at (possibly) different point
     pub fn batch_open<'a>(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             proofs.push(Self::open(pp, poly, comm, point, field, transcript)?);
@@ -89,12 +89,12 @@ where
 
     // Subprotocol functions
     fn prove_evaluation_phase(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         transcript: &mut PcsTranscript<N>,
         point: &[F<N>],
         poly: &Self::Polynomial,
         field: *const FieldConfig<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         let num_rows = pp.num_rows();
         let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
 
@@ -117,12 +117,12 @@ where
     }
 
     pub(super) fn prove_testing_phase(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
@@ -155,11 +155,11 @@ where
     }
 
     pub(super) fn open_merkle_trees_for_column(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         commit_data: &MultilinearZipData<N, K>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), ZipError> {
         //Write the elements in the squeezed column to the shared transcript
         transcript.write_integers(
             &commit_data
@@ -171,7 +171,7 @@ where
                 .collect::<Vec<_>>(),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)
-            .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
+            .map_err(|_| ZipError::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
         Ok(())
     }
 }

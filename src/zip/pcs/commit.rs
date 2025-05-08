@@ -6,7 +6,7 @@ use crate::{
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         utils::{div_ceil, num_threads, parallelize_iter},
-        Error,
+        ZipError,
     },
 };
 
@@ -37,9 +37,9 @@ where
     ///     i.e just the merkle root.
     ///
     pub fn commit(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         poly: &Self::Polynomial,
-    ) -> Result<(Self::Data, Self::Commitment), Error> {
+    ) -> Result<(Self::Data, Self::Commitment), ZipError> {
         validate_input::<N>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = <Zip<N, L> as LinearCodes<N, M>>::row_len(pp.zip());
@@ -68,15 +68,15 @@ where
     /// Allows for comitting to multiple polynomials at the same time
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a>(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
-    ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
+    ) -> Result<Vec<(Self::Data, Self::Commitment)>, ZipError> {
         polys.iter().map(|poly| Self::commit(pp, poly)).collect()
     }
 
     /// Encodes the rows of the polynomial concatenating each encoded row
     fn encode_rows(
-        pp: &Self::ProverParam,
+        pp: &Self::Param,
         codeword_len: usize,
         row_len: usize,
         poly: &Self::Polynomial,

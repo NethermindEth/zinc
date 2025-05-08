@@ -1,5 +1,4 @@
 //! Defines behaviour for Zip, a PCS over the integers
-///
 pub mod code;
 pub mod pcs;
 pub mod pcs_transcript;
@@ -9,7 +8,7 @@ pub mod utils;
 mod tests;
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]
-pub enum Error {
+pub enum ZipError {
     #[error("Invalid PCS param: {0}")]
     InvalidPcsParam(String),
     #[error("Invalid commitment opening: {0}")]

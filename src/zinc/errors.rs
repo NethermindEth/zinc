@@ -2,8 +2,7 @@
 use thiserror::Error;
 
 use crate::{
-    ccs::error::CSError, poly_f::polynomials::ArithErrors, sumcheck::SumCheckError,
-    zip::Error as ZipError,
+    ccs::error::CSError, poly_f::polynomials::ArithErrors, sumcheck::SumCheckError, zip::ZipError,
 };
 
 #[derive(Debug, Error)]

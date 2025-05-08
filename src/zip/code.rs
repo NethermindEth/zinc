@@ -16,18 +16,29 @@ use std::iter;
 use super::pcs::structs::ZipTranscript;
 
 const INVERSE_RATE: usize = 2;
+
+/// A trait for encoding things with a linear homomorphism, parameterized by the sizes of the inut elemet and the code elements
+/// i.e N is the width of an element that is being encoded in words
+///     and  M is the width of an element in the code in words
 pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
+    /// Returns the number of elements encoded in one transformation,
     fn row_len(&self) -> usize;
 
+    /// Returns the length of the codeword.
     fn codeword_len(&self) -> usize;
 
+    /// Returns the number of columns we check to make sure that the linear combination of codewords is correct
     fn num_column_opening(&self) -> usize;
 
+    /// Returns how combinations of codewords we check to make sure they are all close to being codewords.
+    /// i.e. because the code is linear, a linear combinations of a set of codewords will also be a codeword
     fn num_proximity_testing(&self) -> usize;
 
+    /// Encodes the given input into a codeword.
+    /// Takes vectors with elements N * 64 bits wide, outputs codes with elements M*64 bits wide
     fn encode(&self, input: &[Int<N>]) -> Vec<Int<M>>;
 }
-
+/// The Encoding structure for the Zip Protocol
 #[derive(Clone, Debug)]
 pub struct Zip<const N: usize, const L: usize> {
     row_len: usize,
@@ -39,12 +50,14 @@ pub struct Zip<const N: usize, const L: usize> {
 }
 
 impl<const N: usize, const L: usize> Zip<N, L> {
+    /// Return the proof size of a Zip opening
     pub fn proof_size<S: ZipSpec>(n_0: usize, c: usize, r: usize) -> usize {
         let log2_q = N;
         let num_ldt = S::num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
+    /// Creates a new object that allows us to encode Multilinear polynomials
     pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<L>>(
         num_vars: usize,
         n_0: usize,
@@ -72,6 +85,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
         }
     }
 
+    /// Encode a row of Random Field elements
     pub fn encode_f(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
@@ -81,7 +95,10 @@ impl<const N: usize, const L: usize> Zip<N, L> {
 
         code
     }
-
+    /// Encode wider integers
+    /// Specifically, we can take linear combinations of rows in the polynomial matrix
+    /// and encode that 1 row.
+    /// We use this in verification of a PCS opening
     pub(crate) fn encode_wide<const M: usize>(&self, row: &[Int<M>]) -> Vec<Int<M>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
@@ -117,19 +134,23 @@ impl<const N: usize, const M: usize, const L: usize> LinearCodes<N, M> for Zip<N
     }
 }
 
+/// Defines parameters for the ZIp PCS protocl
 pub trait ZipSpec: Debug {
+    /// number fo times we check that linear combinations provided are correct
+    /// i.e the verifier does some combinations itself to confirm
     fn num_column_opening() -> usize {
         1000
     }
-
+    /// Nmber of times we take a combination and check if it is a codeword
     fn num_proximity_testing(_log2_q: usize, _n: usize, _n_0: usize) -> usize {
         1
     }
-
+    /// Length of the codeword
     fn codeword_len(n: usize) -> usize {
         n * INVERSE_RATE
     }
-
+    /// THe encoding matrices
+    /// Given an vector c we concatonate A * c and B * c to get the codeword of the vector
     fn matrices<const L: usize, T: ZipTranscript<L>>(
         rows: usize,
         cols: usize,
@@ -148,6 +169,7 @@ macro_rules! impl_spec_128 {
     ($(($name:ident,)),*) => {
         $(
             #[derive(Debug)]
+            /// The Zip configuration struct
             pub struct $name;
             impl ZipSpec for $name {
 
@@ -156,11 +178,10 @@ macro_rules! impl_spec_128 {
     };
 }
 
-// Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
 impl_spec_128!((ZipSpec1,));
 
 #[derive(Clone, Copy, Debug)]
-pub struct SparseMatrixDimension {
+struct SparseMatrixDimension {
     n: usize, // number of rows
     m: usize, // number of columns
     d: usize, // number of non-zero elements per row
@@ -182,6 +203,7 @@ impl SparseMatrixDimension {
     }
 }
 
+/// An encoding matrix for the zip protocol
 #[derive(Clone, Debug)]
 pub struct SparseMatrixZ<const L: usize> {
     dimension: SparseMatrixDimension,
@@ -230,7 +252,7 @@ impl<const L: usize> SparseMatrixZ<L> {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<const N: usize> {
+pub(crate) struct SparseMatrixF<const N: usize> {
     dimension: SparseMatrixDimension,
     cells: Vec<(usize, F<N>)>,
 }
@@ -274,12 +296,4 @@ impl<const N: usize> SparseMatrixF<N> {
 
         result
     }
-}
-
-pub fn steps(start: i64) -> impl Iterator<Item = i64> {
-    steps_by(start, 1i64)
-}
-
-pub fn steps_by(start: i64, step: i64) -> impl Iterator<Item = i64> {
-    iter::successors(Some(start), move |state| Some(step + *state))
 }

@@ -1,3 +1,4 @@
+//! Defines behaviour for verifying zinc proofs
 use ark_ff::Zero;
 
 use crate::{
@@ -18,7 +19,12 @@ use super::{
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 
+/// Verifier for the Zinc Protocol
+///
+/// Takes a statement over the integers and a proof
+/// and errors if the proof is invalid
 pub trait Verifier<const N: usize> {
+    /// Verify a Zinc proof against a statement
     fn verify(
         &self,
         cm_i: &Statement_Z<N>,
@@ -103,8 +109,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, unsafe { *ccs.config.as_ptr() });
 
         //Step 2: The sumcheck.
-        let (r_x, s) =
-            self.verify_linearization_proof(&proof.linearization_sumcheck, transcript, ccs)?;
+        let (r_x, s) = self.verify_linearization_proof(&proof.first_sumcheck, transcript, ccs)?;
 
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
@@ -124,7 +129,13 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     }
 }
 
+/// Verify a lookup argument
+///
+/// At the end of the Zinc protocol we make sure that entries in the witness are
+/// really integers by looking up the integers in the witness in a table of integers.
+/// This trait is implemented by the lookup verifier
 pub trait LookupVerifier<const N: usize> {
+    /// Verify a lookup argument
     fn verify(&self, proof: LookupProof<N>) -> Result<(), LookupError>;
 }
 

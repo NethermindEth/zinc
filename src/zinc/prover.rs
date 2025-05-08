@@ -30,7 +30,14 @@ use super::{
     },
 };
 
+/// Trait for proving ccs over the integers
+///
+/// Structs that implement this trait will be bale ot prove
+/// knowledge of a satisfying witness for their statement and an
+/// integer CCS instance, and produce a Zinc proof of this knowledge
+/// which can be verified by a Zinc Verifier.
 pub trait Prover<const N: usize> {
+    /// Prove knowledge of the witness
     fn prove(
         &self,
         statement: &Statement_Z<N>,
@@ -153,15 +160,20 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
 
         let proof = SpartanProof {
-            linearization_sumcheck: sumcheck_proof_1,
+            first_sumcheck: sumcheck_proof_1,
             second_sumcheck: sumcheck_proof_2,
             V_s,
         };
         Ok((proof, r_y))
     }
 }
-
+/// Prove knowledge of a lookup witness
+///
+/// At the end of the Zinc protocol we make sure that entries in the witness are
+/// really integers by looking up the integers in the witness in a table of integers.
+/// This trait is implemented by the zinc prover.
 pub trait LookupProver<const N: usize> {
+    /// Prove knowledge of a lookup witness for integers
     fn prove(&self, wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>>;
 }
 
@@ -172,6 +184,7 @@ impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
 }
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
+    /// Do some preliminary work
     pub fn prepare_for_random_field_piop(
         statement: &Statement_Z<N>,
         wit: &Witness_Z<N>,

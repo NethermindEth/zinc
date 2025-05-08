@@ -250,20 +250,17 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         )?;
 
         // Evaluate constraints at rx_ry point
-        let rx_ry = &verification_points.rx_ry;
-        let r_x = &rx_ry[..ccs.s];
-        let r_y = &rx_ry[ccs.s..];
-        let rx_ry = [r_y, r_x].concat();
         let V_xy = cm_i
             .constraints
             .iter()
             .map(|M| {
                 let mle = DenseMultilinearExtension::from_matrix(M, config);
-                mle.evaluate(&rx_ry, config)
-                    .ok_or(MleEvaluationError::IncorrectLength(
-                        rx_ry.len(),
+                mle.evaluate(&verification_points.rx_ry, config).ok_or(
+                    MleEvaluationError::IncorrectLength(
+                        verification_points.rx_ry.len(),
                         mle.num_vars,
-                    ))
+                    ),
+                )
             })
             .collect::<Result<Vec<_>, _>>()?;
 

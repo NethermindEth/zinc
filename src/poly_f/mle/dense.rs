@@ -27,14 +27,6 @@ pub struct DenseMultilinearExtension<const N: usize> {
 }
 
 impl<const N: usize> DenseMultilinearExtension<N> {
-    pub(crate) fn from_evaluations_slice(
-        num_vars: usize,
-        evaluations: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Self {
-        Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
-    }
-
     pub(crate) fn evaluate(
         &self,
         point: &[RandomField<N>],

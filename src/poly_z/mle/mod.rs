@@ -1,3 +1,4 @@
+//! Multilinear extnesion of a function with the codomain being integers
 mod dense;
 mod sparse;
 

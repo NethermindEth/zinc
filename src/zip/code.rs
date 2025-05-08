@@ -1,3 +1,4 @@
+//! Defines behaviour for the encoding which takes place in the Zip PCS
 #![allow(non_snake_case)]
 use ark_ff::Zero;
 use crypto_bigint::Int;

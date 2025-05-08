@@ -1,3 +1,4 @@
+//! Utility types for the ZInc protocol
 use std::marker::PhantomData;
 
 use crate::{

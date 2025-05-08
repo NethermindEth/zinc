@@ -1,3 +1,4 @@
+//! Functions for testing and benching
 #![allow(non_snake_case)]
 use std::vec;
 

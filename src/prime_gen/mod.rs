@@ -10,6 +10,9 @@ fn hash_int<const N: usize>(hasher: &mut KeccakTranscript) -> Uint<N> {
     Uint::<N>::from_be_slice(&bytes)
 }
 
+/// Generate a prime that can be used as the modulus of a prime field
+///
+/// We repeatedly hash and Miller-Rabin test for primality until we find a prime
 pub fn get_prime<const N: usize>(hasher: &mut KeccakTranscript) -> BigInt<N> {
     let prime = loop {
         let mut prime_candidate: Uint<N> = hash_int(hasher);

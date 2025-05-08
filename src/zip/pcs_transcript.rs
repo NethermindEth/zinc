@@ -1,3 +1,8 @@
+//! Defines behaviour for a transcript shared between the verifier and prover
+//! in a PCS
+//!
+//! This allows the prover to share the proof with the vierifier and for both of
+//! them to indepdently generate the same randomness needed for challenges
 #![allow(non_snake_case)]
 use std::io::{Cursor, Read, Write};
 

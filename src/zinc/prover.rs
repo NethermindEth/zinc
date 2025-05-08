@@ -1,3 +1,4 @@
+//! Defines the behaviour of the prover in the Zinc protocol
 use ark_ff::Zero;
 use crypto_bigint::Int;
 

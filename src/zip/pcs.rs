@@ -1,3 +1,4 @@
+//! Defines behaviour of the Zip PCS
 mod commit;
 mod error;
 mod open_z;

@@ -59,6 +59,7 @@ impl<const N: usize> FromBytes for RandomField<N> {
     }
 }
 //TODO decide whethere to keep this or not
+#[cfg(test)]
 impl<const N: usize> RandomField<N> {
     pub(crate) fn from_bytes_le_with_config(
         config: *const FieldConfig<N>,

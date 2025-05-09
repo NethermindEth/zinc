@@ -129,7 +129,6 @@ macro_rules! impl_field_map_for_int {
                             let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                             wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(wider.to_words())
                         }
                     };

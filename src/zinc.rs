@@ -5,5 +5,6 @@ pub mod prover;
 pub mod structs;
 #[cfg(test)]
 mod tests;
+// TODO: private utils
 pub mod utils;
 pub mod verifier;

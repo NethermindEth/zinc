@@ -86,31 +86,6 @@ impl<const N: usize> FieldConfig<N> {
         a.sub_with_borrow(b);
     }
 
-    #[allow(dead_code)]
-    fn double_in_place(&self, a: &mut BigInt<N>) {
-        // This cannot exceed the backing capacity.
-        let carry = a.mul2();
-        // However, it may need to be reduced.
-        if self.modulus_has_spare_bit {
-            if *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        } else if carry || *a >= self.modulus {
-            a.sub_with_borrow(&self.modulus);
-        }
-    }
-
-    /// Sets `a = -a`.
-    #[inline(always)]
-    #[allow(dead_code)]
-    fn neg_in_place(&self, a: &mut BigInt<N>) {
-        if !a.is_zero() {
-            let mut tmp = self.modulus;
-            tmp.sub_with_borrow(a);
-            *a = tmp;
-        }
-    }
-
     pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         let (mut lo, mut hi) = ([0u64; N], [0u64; N]);
         crate::const_for!((i in 0..N) {

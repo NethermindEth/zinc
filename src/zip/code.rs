@@ -14,7 +14,6 @@ use std::collections::BTreeSet;
 use std::iter;
 
 use super::pcs::structs::ZipTranscript;
-
 const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
     fn row_len(&self) -> usize;

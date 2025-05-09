@@ -94,7 +94,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
-                v[(padded_cols * row_i) + *col_i] = *val;
+                v[(padded_rows * *col_i) + row_i] = *val;
             }
         }
 

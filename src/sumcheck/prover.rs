@@ -1,5 +1,4 @@
 //! Prover
-
 use std::sync::atomic::{self, AtomicPtr};
 
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};

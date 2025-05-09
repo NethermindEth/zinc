@@ -50,7 +50,7 @@ fn test_dummy_spartan_prover() {
 fn test_spartan_verifier() {
     const N: usize = 3;
     let input = 3;
-    let config: *const FieldConfig<N> = &FieldConfig::new(
+    let config = &FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
     );
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
@@ -80,8 +80,13 @@ fn test_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res =
-        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
+    let res = SpartanVerifier::<N>::verify(
+        &verifier,
+        &spartan_proof,
+        &mut verifier_transcript,
+        &ccs_f,
+        config,
+    );
 
     assert!(res.is_ok())
 }
@@ -91,7 +96,7 @@ fn test_dummy_spartan_verifier() {
     const N: usize = 3;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
-    let config: *const FieldConfig<N> = &FieldConfig::new(
+    let config = &FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
     );
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
@@ -121,8 +126,13 @@ fn test_dummy_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res =
-        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
+    let res = SpartanVerifier::<N>::verify(
+        &verifier,
+        &spartan_proof,
+        &mut verifier_transcript,
+        &ccs_f,
+        config,
+    );
 
     assert!(res.is_ok())
 }
@@ -131,7 +141,7 @@ fn test_dummy_spartan_verifier() {
 fn test_failing_spartan_verifier() {
     const N: usize = 3;
     let input = 3;
-    let config: *const FieldConfig<N> = &FieldConfig::new(
+    let config = &FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
     );
     let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
@@ -164,8 +174,13 @@ fn test_failing_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
-    let res =
-        SpartanVerifier::<N>::verify(&verifier, &spartan_proof, &mut verifier_transcript, &ccs_f);
+    let res = SpartanVerifier::<N>::verify(
+        &verifier,
+        &spartan_proof,
+        &mut verifier_transcript,
+        &ccs_f,
+        config,
+    );
 
     assert!(res.is_err())
 }

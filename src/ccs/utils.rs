@@ -69,23 +69,6 @@ where
     Ok(result)
 }
 
-//  Computes the hadamard product of two ring
-#[cfg(test)]
-pub(crate) fn hadamard_vec<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &[R]) -> Vec<R> {
-    lhs.iter()
-        .zip(rhs)
-        .map(|(lhs, rhs)| lhs.clone() * rhs.clone())
-        .collect()
-}
-
-// Multiplies Vector of rings by another ring
-#[cfg(test)]
-pub(crate) fn vec_value_mul<R: Clone + Mul<R, Output = R>>(lhs: &[R], rhs: &R) -> Vec<R> {
-    lhs.iter()
-        .map(|lhs_i| lhs_i.clone() * rhs.clone())
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

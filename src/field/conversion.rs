@@ -121,7 +121,6 @@ macro_rules! impl_field_map_for_int {
                             let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                             value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
                             BigInt(value.to_words())
                         }
                         _ => {
@@ -239,7 +238,7 @@ impl_field_map_for_uint!(u32, 32);
 impl_field_map_for_uint!(u64, 64);
 impl_field_map_for_uint!(u128, 128);
 
-// Implementation of FieldMap for bool
+// Implementation for bool
 impl<const N: usize> FieldMap<N> for bool {
     type Output = RandomField<N>;
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {

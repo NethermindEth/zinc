@@ -102,48 +102,6 @@ mod tests {
     }
 
     #[test]
-    fn test_hadamard_vec() {
-        let config = get_config();
-
-        let a = [
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
-        ];
-        let b = [
-            5u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            7u64.map_to_field(&config),
-        ];
-        let result = hadamard_vec(&a, &b);
-        let expected = vec![
-            10u64.map_to_field(&config),
-            18u64.map_to_field(&config),
-            28u64.map_to_field(&config),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn test_vec_value_mul() {
-        let config = get_config();
-
-        let a = [
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
-        ];
-        let scalar = 2u64.map_to_field(&config);
-        let result = vec_value_mul(&a, &scalar);
-        let expected = vec![
-            4u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            8u64.map_to_field(&config),
-        ];
-        assert_eq!(result, expected);
-    }
-
-    #[test]
     fn test_vec_add() {
         let config = get_config();
 

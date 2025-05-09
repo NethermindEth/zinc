@@ -246,18 +246,6 @@ impl<const N: usize> BigInt<N> {
         (self, borrow != 0)
     }
 
-    #[allow(dead_code)]
-    #[inline]
-    pub(crate) const fn const_add_with_carry(mut self, other: &Self) -> (Self, bool) {
-        let mut carry = 0;
-
-        crate::const_for!((i in 0..N) {
-            self.0[i] = adc!(self.0[i], other.0[i], &mut carry);
-        });
-
-        (self, carry != 0)
-    }
-
     pub(crate) const fn const_mul2_with_carry(mut self) -> (Self, bool) {
         let mut last = 0;
         crate::const_for!((i in 0..N) {

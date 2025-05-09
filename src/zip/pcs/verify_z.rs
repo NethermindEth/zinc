@@ -144,6 +144,7 @@ where
         let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, field)?;
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
+            println!("{:?} != {:?}", inner_product(&q_0_combined_row, &q_1), eval);
             return Err(Error::InvalidPcsOpen(
                 "Evaluation consistency failure".to_string(),
             ));
@@ -170,6 +171,9 @@ where
         num_rows: usize,
         field: &FieldConfig<N>,
     ) -> Result<(), Error> {
+        println!("Verify proximity q_0\n\n");
+
+        println!("{:?}", column);
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
             inner_product(q_0, &column_entries)

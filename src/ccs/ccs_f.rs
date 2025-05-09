@@ -254,10 +254,9 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> V
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
+    use crate::field::conversion::FieldMap;
     use ark_std::log2;
     use std::ops::Neg;
-
-    use crate::field::conversion::FieldMap;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 

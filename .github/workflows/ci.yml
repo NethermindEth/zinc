@@ -122,8 +122,8 @@ jobs:
           components: miri
       - uses: Swatinem/rust-cache@v2
       - name: Setup Miri
-        run: cargo +nightly miri setup
+        run: cargo miri setup
       - name: Run Miri tests
-        run: cargo +nightly miri test
+        run: cargo miri test
 
 

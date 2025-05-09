@@ -111,3 +111,19 @@ jobs:
         uses: crate-ci/typos@master
         with:
           config: .github/workflows/typos.toml
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - name: Setup Miri
+        run: cargo +nightly miri setup
+      - name: Run Miri tests
+        run: cargo +nightly miri test
+
+

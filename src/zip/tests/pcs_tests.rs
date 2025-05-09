@@ -123,3 +123,54 @@ fn test_zip_evaluation() {
     TestZip::verify(&param, &comm, &point, eval, &mut transcript, config)
         .expect("Failed to verify");
 }
+
+#[test]
+fn test_zip_batch_evaluation() {
+    let config: *const FieldConfig<N> =
+        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let mut rng = ark_std::test_rng();
+
+    let n = 8;
+    // the number of polynomials we will batch verify;
+    let m = 10;
+    let mut keccak_transcript = KeccakTranscript::new();
+    let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
+    let evaluations: Vec<Vec<Int<N>>> = (0..m)
+        .map(|_| {
+            (0..(1 << n))
+                .map(|_| Int::<N>::from_i8(i8::rand(&mut rng)))
+                .collect::<Vec<Int<N>>>()
+        })
+        .collect();
+
+    let mles: Vec<_> = evaluations
+        .iter()
+        .map(|evaluations| DenseMultilinearExtension::from_evaluations_slice(n, evaluations))
+        .collect();
+
+    let commitments: Vec<_> = TestZip::batch_commit(&param, &mles).unwrap();
+    let (data, commitments): (Vec<_>, Vec<_>) = commitments.into_iter().unzip();
+    let point: Vec<_> = (0..n).map(|_| Int::<N>::from(i8::rand(&mut rng))).collect();
+    let eval: Vec<_> = mles
+        .iter()
+        .map(|mle| mle.evaluate(&point).unwrap().map_to_field(config))
+        .collect();
+
+    let point = point.map_to_field(config);
+    let points: Vec<_> = (0..m).map(|_| point.clone()).collect();
+    let mut transcript = PcsTranscript::new();
+    let _ = TestZip::batch_open(&param, &mles, &data, &points, &mut transcript, config);
+
+    let proof = transcript.into_proof();
+    let mut transcript = PcsTranscript::from_proof(&proof);
+
+    TestZip::batch_verify_z(
+        &param,
+        &commitments,
+        &points,
+        &eval,
+        &mut transcript,
+        config,
+    )
+    .expect("Failed to verify");
+}

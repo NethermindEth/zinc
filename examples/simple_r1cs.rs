@@ -2,18 +2,7 @@ use std::marker::PhantomData;
 
 use ark_std::log2;
 use crypto_bigint::Int;
-use zinc::{
-    ccs::ccs_z::*,
-    transcript::KeccakTranscript,
-    zinc::{
-        prover::Prover,
-        structs::{ZincProver, ZincVerifier},
-        verifier::Verifier,
-    },
-    zip::code::ZipSpec1,
-};
-
-use zinc::zinc::utils::draw_random_field;
+use zinc::zinc::prelude::*;
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )

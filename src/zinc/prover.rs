@@ -22,10 +22,10 @@ use crate::{
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
-    structs::{SpartanProof, ZincProof, ZincProver, ZipProof},
+    structs::{LookupProof, SpartanProof, ZincProof, ZincProver, ZipProof},
     utils::{
-        calculate_Mz_mles, prepare_lin_sumcheck_polynomial, sumcheck_polynomial_comb_fn_1,
-        SqueezeBeta, SqueezeGamma,
+        calculate_Mz_mles, draw_random_field, prepare_lin_sumcheck_polynomial,
+        sumcheck_polynomial_comb_fn_1, SqueezeBeta, SqueezeGamma,
     },
 };
 
@@ -36,7 +36,6 @@ pub trait Prover<const N: usize> {
         wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
-        config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
         [(); 2 * N]:,
@@ -51,13 +50,13 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
         wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
-        config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
         [(); 2 * N]:,
         [(); 4 * N]:,
         [(); 8 * N]:,
     {
+        let config = draw_random_field::<N>(&statement.public_input, transcript);
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
             Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
@@ -83,10 +82,14 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
             pcs_proof,
         };
 
+        // Prove lookup argument
+        let lookup_proof = LookupProver::<N>::prove(self, wit)?;
+
         // Return proof
         Ok(ZincProof {
             spartan_proof,
             zip_proof,
+            lookup_proof,
         })
     }
 }
@@ -133,12 +136,12 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         config: *const FieldConfig<N>,
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         // Do first Sumcheck
-        let (sumcheck_proof_1, r_x, mz_mles) =
+        let (sumcheck_proof_1, r_a, mz_mles) =
             Self::sumcheck_1(z_ccs, transcript, statement_f, ccs_f, config)?;
 
         // Do second sumcheck
         let (sumcheck_proof_2, r_y) = Self::sumcheck_2(
-            &r_x,
+            &r_a,
             ccs_f,
             statement_f,
             config,
@@ -146,7 +149,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
             transcript,
         )?;
 
-        let V_s = Self::calculate_V_s(&mz_mles, &r_x, config)?;
+        let V_s = Self::calculate_V_s(&mz_mles, &r_a, config)?;
 
         let proof = SpartanProof {
             linearization_sumcheck: sumcheck_proof_1,
@@ -154,6 +157,16 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
             V_s,
         };
         Ok((proof, r_y))
+    }
+}
+
+pub trait LookupProver<const N: usize> {
+    fn prove(&self, wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>>;
+}
+
+impl<const N: usize, S: ZipSpec> LookupProver<N> for ZincProver<N, S> {
+    fn prove(&self, _wit: &Witness_Z<N>) -> Result<LookupProof<N>, SpartanError<N>> {
+        todo!()
     }
 }
 
@@ -247,9 +260,9 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         };
 
         // Run sumcheck protocol.
-        let (sumcheck_proof_1, r_x) =
+        let (sumcheck_proof_1, r_a) =
             Self::generate_sumcheck_proof(transcript, g_mles, ccs.s, g_degree, comb_fn, config)?;
-        Ok((sumcheck_proof_1, r_x, mz_mles))
+        Ok((sumcheck_proof_1, r_a, mz_mles))
     }
 
     fn sumcheck_2(
@@ -333,15 +346,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
 
     fn calculate_V_s(
         mz_mles: &[DenseMultilinearExtension<N>],
-        r_x: &[RandomField<N>],
+        r_a: &[RandomField<N>],
         config: *const FieldConfig<N>,
     ) -> Result<Vec<RandomField<N>>, SpartanError<N>> {
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
                 |mle: &DenseMultilinearExtension<N>| -> Result<RandomField<N>, MleEvaluationError> {
-                    mle.evaluate(r_x, config)
-                        .ok_or(MleEvaluationError::IncorrectLength(r_x.len(), mle.num_vars))
+                    mle.evaluate(r_a, config)
+                        .ok_or(MleEvaluationError::IncorrectLength(r_a.len(), mle.num_vars))
                 },
             )
             .collect();

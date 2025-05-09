@@ -175,11 +175,12 @@ where
 pub fn draw_random_field<const N: usize>(
     public_inputs: &[Int<N>],
     transcript: &mut KeccakTranscript,
-) -> FieldConfig<N> {
+) -> *const FieldConfig<N> {
     for input in public_inputs {
         transcript.absorb(cast_slice(input.as_words()));
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now
-    FieldConfig::new(get_prime(transcript))
+    let config: *const FieldConfig<N> = &FieldConfig::new(get_prime(transcript));
+    config
 }

@@ -16,7 +16,7 @@ use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
 use zinc::zip::pcs_transcript::PcsTranscript;
-const N: usize = 4;
+const N: usize = 2;
 type BenchZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
 
 fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
@@ -82,7 +82,8 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 }
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let field_config = &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let field_config: *const FieldConfig<N> =
+        &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();

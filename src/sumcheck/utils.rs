@@ -5,6 +5,7 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
+
 use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,

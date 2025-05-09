@@ -109,7 +109,6 @@ fn benchmark_spartan_verifier<const N: usize>(
                             &spartan_proof,
                             &mut verifier_transcript,
                             &ccs_f,
-                            config,
                         )
                         .expect("Proof verification failed"),
                     )

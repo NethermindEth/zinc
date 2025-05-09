@@ -15,24 +15,6 @@ pub struct SparseMatrix<R1: Clone + Send + Sync> {
     pub coeffs: Vec<Vec<(R1, usize)>>,
 }
 
-impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMatrix<R1> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for i in 0..self.n_rows {
-            let mut row = vec!["0".to_string(); self.n_cols];
-            if i < self.coeffs.len() {
-                for (val, col) in &self.coeffs[i] {
-                    row[*col] = val.to_string().trim_start_matches('0').to_string();
-                    if row[*col].is_empty() {
-                        row[*col] = "0".to_string();
-                    }
-                }
-            }
-            writeln!(f, "{}", row.join(" "))?;
-        }
-        Ok(())
-    }
-}
-
 // At the moment only using i128 for the sparse matrix, macro later if needed
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {

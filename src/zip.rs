@@ -5,7 +5,6 @@ pub mod utils;
 
 #[cfg(test)]
 mod tests;
-
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum Error {

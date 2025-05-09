@@ -29,9 +29,12 @@ pub struct ZipProof<const N: usize> {
     pub pcs_proof: Vec<u8>,
 }
 
+pub struct LookupProof<const N: usize> {}
+
 pub struct ZincProof<const N: usize> {
     pub spartan_proof: SpartanProof<N>,
     pub zip_proof: ZipProof<N>,
+    pub lookup_proof: LookupProof<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

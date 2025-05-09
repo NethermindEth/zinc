@@ -1,4 +1,5 @@
 use crypto_bigint::{Int, NonZero, Uint};
+use i256::{I256, I512};
 
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
@@ -75,7 +76,6 @@ pub trait FieldMap<const N: usize> {
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output;
 }
 
-// Implementation of FieldMap for signed integers
 macro_rules! impl_field_map_for_int {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
@@ -121,6 +121,7 @@ macro_rules! impl_field_map_for_int {
                             let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                             let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                             value %= crypto_bigint::NonZero::new(modu).unwrap();
+
                             BigInt(value.to_words())
                         }
                         _ => {
@@ -153,13 +154,187 @@ macro_rules! impl_field_map_for_int {
         }
     };
 }
+
+// Usage with bit sizes
 impl_field_map_for_int!(i8, 8);
 impl_field_map_for_int!(i16, 16);
 impl_field_map_for_int!(i32, 32);
 impl_field_map_for_int!(i64, 64);
 impl_field_map_for_int!(i128, 128);
 
-// Implementation of FieldMap for unsigned integers
+// Separate implementation for I256
+impl<const N: usize> FieldMap<N> for I256 {
+    type Output = RandomField<N>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        if config.is_null() {
+            panic!("Cannot convert signed integer to prime field element without a modulus")
+        }
+        unsafe {
+            let modulus: [u64; N] = (*config).modulus.0;
+            if *self == I256::MIN {
+                panic!("Cannot convert I256::MIN to field element due to overflow in abs()");
+            }
+            let val: [u64; 4] = self.abs().to_le_u64();
+
+            let mut r: BigInt<N> = match N {
+                n if n < 4 => {
+                    let mut wider_modulus: [u64; 4] = [0; 4];
+                    wider_modulus[..N].copy_from_slice(&modulus);
+                    let value = crypto_bigint::Uint::<4>::from_words(val);
+                    let modu = crypto_bigint::Uint::<4>::from_words(wider_modulus);
+
+                    let value = if value >= modu {
+                        value % crypto_bigint::NonZero::new(modu).unwrap()
+                    } else {
+                        value
+                    };
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[..N]);
+
+                    BigInt(result)
+                }
+                4 => {
+                    let mut value_N: [u64; N] = [0; N];
+                    value_N.copy_from_slice(&val);
+
+                    let value = crypto_bigint::Uint::<N>::from_words(value_N);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    let value = if value >= modu {
+                        value % crypto_bigint::NonZero::new(modu).unwrap()
+                    } else {
+                        value
+                    };
+                    BigInt(value.to_words())
+                }
+                _ => {
+                    let mut wider_value: [u64; N] = [0; N];
+                    wider_value[..4].copy_from_slice(&val);
+                    let wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    let wider = if wider >= modu {
+                        wider % crypto_bigint::NonZero::new(modu).unwrap()
+                    } else {
+                        wider
+                    };
+                    BigInt(wider.to_words())
+                }
+            };
+
+            (*config).mul_assign(&mut r, &(*config).r2);
+
+            let mut elem = RandomField::<N>::new_unchecked(config, r);
+            if self.is_negative() {
+                elem = -elem;
+            }
+
+            elem
+        }
+    }
+}
+
+// Reference implementation for I256
+impl<const N: usize> FieldMap<N> for &I256 {
+    type Output = RandomField<N>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        (*self).map_to_field(config)
+    }
+}
+
+// Implementation for I512
+impl<const N: usize> FieldMap<N> for I512 {
+    type Output = RandomField<N>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        if config.is_null() {
+            panic!("Cannot convert signed integer to prime field element without a modulus")
+        }
+        unsafe {
+            let modulus: [u64; N] = (*config).modulus.0;
+            let val: [u64; 8] = self.abs().to_le_u64();
+
+            let mut r: BigInt<N> = match N {
+                n if n < 8 => {
+                    let mut wider_modulus: [u64; 8] = [0; 8];
+                    wider_modulus[..N].copy_from_slice(&modulus);
+                    let mut value = crypto_bigint::Uint::<8>::from_words(val);
+                    let modu = crypto_bigint::Uint::<8>::from_words(wider_modulus);
+
+                    value %= crypto_bigint::NonZero::new(modu).unwrap();
+                    let mut result = [0u64; N];
+                    result.copy_from_slice(&value.to_words()[..N]);
+
+                    BigInt(result)
+                }
+                8 => {
+                    let mut value_N: [u64; N] = [0; N];
+                    value_N.copy_from_slice(&val);
+
+                    let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    value %= crypto_bigint::NonZero::new(modu).unwrap();
+                    BigInt(value.to_words())
+                }
+                _ => {
+                    let mut wider_value: [u64; N] = [0; N];
+                    wider_value[..8].copy_from_slice(&val);
+                    let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                    let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                    wider %= crypto_bigint::NonZero::new(modu).unwrap();
+                    BigInt(wider.to_words())
+                }
+            };
+
+            (*config).mul_assign(&mut r, &(*config).r2);
+
+            let mut elem = RandomField::<N>::new_unchecked(config, r);
+            if self.is_negative() {
+                elem = -elem;
+            }
+
+            elem
+        }
+    }
+}
+
+impl<const N: usize> FieldMap<N> for &I512 {
+    type Output = RandomField<N>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        (*self).map_to_field(config)
+    }
+}
+
+macro_rules! impl_field_map_for_vec {
+    ($type:ty) => {
+        impl<const N: usize> FieldMap<N> for Vec<$type> {
+            type Output = Vec<RandomField<N>>;
+            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+
+        impl<const N: usize> FieldMap<N> for &Vec<$type> {
+            type Output = Vec<RandomField<N>>;
+            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+
+        impl<const M: usize> FieldMap<M> for &[$type] {
+            type Output = Vec<RandomField<M>>;
+            fn map_to_field(&self, config: *const FieldConfig<M>) -> Self::Output {
+                self.iter().map(|x| x.map_to_field(config)).collect()
+            }
+        }
+    };
+}
+
+impl_field_map_for_vec!(i8);
+impl_field_map_for_vec!(i16);
+impl_field_map_for_vec!(i32);
+impl_field_map_for_vec!(i64);
+impl_field_map_for_vec!(i128);
+impl_field_map_for_vec!(I256);
+impl_field_map_for_vec!(I512);
+
 macro_rules! impl_field_map_for_uint {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
@@ -231,6 +406,8 @@ macro_rules! impl_field_map_for_uint {
         }
     };
 }
+
+// Usage with bit sizes
 impl_field_map_for_uint!(u8, 8);
 impl_field_map_for_uint!(u16, 16);
 impl_field_map_for_uint!(u32, 32);
@@ -280,7 +457,28 @@ impl<const M: usize, const N: usize> FieldMap<N> for &Int<M> {
         (*self).map_to_field(config)
     }
 }
-// Implementation of FieldMap for BigInt<N>
+impl<const N: usize, const M: usize> FieldMap<N> for Vec<Int<M>> {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
+    }
+}
+
+impl<const N: usize, const M: usize> FieldMap<N> for &Vec<Int<M>> {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
+    }
+}
+
+impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
+    type Output = Vec<RandomField<N>>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        self.iter().map(|x| x.map_to_field(config)).collect()
+    }
+}
+
+// Implementation for BigInt<N>
 impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
     type Output = RandomField<N>;
 
@@ -338,69 +536,19 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
     }
 }
 
-// Implementation of FieldMap for reference to BigInt<N>
+// Implementation for reference to BigInt<N>
 impl<const M: usize, const N: usize> FieldMap<N> for &BigInt<M> {
     type Output = RandomField<N>;
+
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
 
-// Implementation of FieldMap for Vec<T>
-macro_rules! impl_field_map_for_vec {
-    ($type:ty) => {
-        impl<const N: usize> FieldMap<N> for Vec<$type> {
-            type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-                self.iter().map(|x| x.map_to_field(config)).collect()
-            }
-        }
-
-        impl<const N: usize> FieldMap<N> for &Vec<$type> {
-            type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-                self.iter().map(|x| x.map_to_field(config)).collect()
-            }
-        }
-
-        impl<const M: usize> FieldMap<M> for &[$type] {
-            type Output = Vec<RandomField<M>>;
-            fn map_to_field(&self, config: *const FieldConfig<M>) -> Self::Output {
-                self.iter().map(|x| x.map_to_field(config)).collect()
-            }
-        }
-    };
-}
-
-impl_field_map_for_vec!(i8);
-impl_field_map_for_vec!(i16);
-impl_field_map_for_vec!(i32);
-impl_field_map_for_vec!(i64);
-impl_field_map_for_vec!(i128);
-
-impl<const N: usize, const M: usize> FieldMap<N> for Vec<Int<M>> {
-    type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        self.iter().map(|x| x.map_to_field(config)).collect()
-    }
-}
-
-impl<const N: usize, const M: usize> FieldMap<N> for &Vec<Int<M>> {
-    type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        self.iter().map(|x| x.map_to_field(config)).collect()
-    }
-}
-
-impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
-    type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        self.iter().map(|x| x.map_to_field(config)).collect()
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use i256::{I256, I512};
+
     use crate::field::conversion::FieldMap;
     use crate::field_config::FieldConfig;
     use crate::traits::FromBytes;
@@ -697,6 +845,10 @@ mod tests {
         test_signed_type_edge_cases!(i32, field_1, config_1, 1);
         test_signed_type_edge_cases!(i64, field_1, config_1, 1);
         test_signed_type_edge_cases!(i128, field_1, config_1, 1);
+
+        // Test big integer types with edge cases
+        test_signed_type_edge_cases!(I256, field_1, config_1, 1);
+        test_signed_type_edge_cases!(I512, field_1, config_1, 1);
     }
 
     macro_rules! test_unsigned_type_full_range {

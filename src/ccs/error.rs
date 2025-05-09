@@ -1,4 +1,5 @@
 //! Provides error functionality for constraint systems.
+
 use thiserror::Error;
 
 /// Errors that can arise in constraint system calculations

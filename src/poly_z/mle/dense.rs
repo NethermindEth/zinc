@@ -1,3 +1,4 @@
+use crate::field_config::ConfigPtr;
 use core::ops::IndexMut;
 
 use ark_ff::Zero;
@@ -15,7 +16,7 @@ use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
 use crate::{
-    field::conversion::FieldMap, field_config::FieldConfig,
+    field::conversion::FieldMap,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
     poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
 };
@@ -41,7 +42,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn to_random_field(&self, config: *const FieldConfig<N>) -> DenseMultilinearExtensionF<N> {
+    pub fn to_random_field(&self, config: ConfigPtr<N>) -> DenseMultilinearExtensionF<N> {
         let evaluations = self
             .evaluations
             .iter()

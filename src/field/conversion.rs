@@ -3,7 +3,7 @@ use crypto_bigint::{Int, NonZero, Uint};
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
 use crate::field::RandomField::Raw;
-use crate::field_config::FieldConfig;
+use crate::field_config::ConfigPtr;
 use crate::traits::FromBytes;
 
 impl<const N: usize> From<u128> for RandomField<N> {
@@ -57,13 +57,13 @@ impl<const N: usize> FromBytes for RandomField<N> {
 }
 
 impl<const N: usize> RandomField<N> {
-    pub fn from_bytes_le_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
+    pub fn from_bytes_le_with_config(config: ConfigPtr<N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_le(bytes);
 
         Self::from_bigint(config, value?)
     }
 
-    pub fn from_bytes_be_with_config(config: *const FieldConfig<N>, bytes: &[u8]) -> Option<Self> {
+    pub fn from_bytes_be_with_config(config: ConfigPtr<N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_be(bytes);
 
         Self::from_bigint(config, value?)
@@ -72,7 +72,7 @@ impl<const N: usize> RandomField<N> {
 
 pub trait FieldMap<const N: usize> {
     type Output;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output;
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output;
 }
 
 // Implementation of FieldMap for signed integers
@@ -80,74 +80,74 @@ macro_rules! impl_field_map_for_int {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-                if config.is_null() {
-                    panic!("Cannot convert signed integer to prime field element without a modulus")
-                }
-                unsafe {
-                    let modulus: [u64; N] = (*config).modulus.0;
-                    let abs_val = self.unsigned_abs();
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+                let config = match config.reference() {
+                    Some(config) => config,
+                    None => panic!("Cannot convert signed integer to prime field element without a modulus"),
+                };
 
-                    // Calculate how many u64 limbs we need based on bits
-                    const LIMBS: usize = ($bits + 63) / 64;
-                    let mut val = [0u64; LIMBS];
+                let modulus: [u64; N] = config.modulus.0;
+                let abs_val = self.unsigned_abs();
 
-                    // Fill val array based on size
-                    if LIMBS == 1 {
-                        val[0] = abs_val as u64;
-                    } else {
-                        for i in 0..LIMBS {
-                            val[i] = (abs_val >> (i * 64)) as u64;
-                        }
+                // Calculate how many u64 limbs we need based on bits
+                const LIMBS: usize = ($bits + 63) / 64;
+                let mut val = [0u64; LIMBS];
+
+                // Fill val array based on size
+                if LIMBS == 1 {
+                    val[0] = abs_val as u64;
+                } else {
+                    for i in 0..LIMBS {
+                        val[i] = (abs_val >> (i * 64)) as u64;
                     }
-
-                    let mut r: BigInt<N> = match N {
-                        n if n < LIMBS => {
-                            let mut wider_modulus = [0u64; LIMBS];
-                            wider_modulus[..N].copy_from_slice(&modulus);
-                            let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
-                            let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
-
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            let mut result = [0u64; N];
-                            result.copy_from_slice(&value.to_words()[..N]);
-
-                            BigInt(result)
-                        }
-                        n if n == LIMBS => {
-                            let mut value_N = [0u64; N];
-                            value_N.copy_from_slice(&val);
-
-                            let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(value.to_words())
-                        }
-                        _ => {
-                            let mut wider_value = [0u64; N];
-                            wider_value[..LIMBS].copy_from_slice(&val);
-                            let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(wider.to_words())
-                        }
-                    };
-
-                    (*config).mul_assign(&mut r, &(*config).r2);
-
-                    let mut elem = RandomField::<N>::new_unchecked(config, r);
-                    if *self < 0 {
-                        elem = -elem;
-                    }
-
-                    elem
                 }
+
+                let mut r: BigInt<N> = match N {
+                    n if n < LIMBS => {
+                        let mut wider_modulus = [0u64; LIMBS];
+                        wider_modulus[..N].copy_from_slice(&modulus);
+                        let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
+                        let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
+
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        let mut result = [0u64; N];
+                        result.copy_from_slice(&value.to_words()[..N]);
+
+                        BigInt(result)
+                    }
+                    n if n == LIMBS => {
+                        let mut value_N = [0u64; N];
+                        value_N.copy_from_slice(&val);
+
+                        let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(value.to_words())
+                    }
+                    _ => {
+                        let mut wider_value = [0u64; N];
+                        wider_value[..LIMBS].copy_from_slice(&val);
+                        let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        wider %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(wider.to_words())
+                    }
+                };
+
+                config.mul_assign(&mut r, &config.r2);
+
+                let mut elem = RandomField::<N>::new_unchecked(ConfigPtr::from(config), r);
+                if *self < 0 {
+                    elem = -elem;
+                }
+
+                elem
             }
         }
 
         impl<const N: usize> FieldMap<N> for &$type {
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
                 (*self).map_to_field(config)
             }
         }
@@ -164,68 +164,66 @@ macro_rules! impl_field_map_for_uint {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-                if config.is_null() {
-                    panic!(
-                        "Cannot convert unsigned integer to prime field element without a modulus"
-                    )
-                }
-                unsafe {
-                    let modulus: [u64; N] = (*config).modulus.0;
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+                let config = match config.reference() {
+                    Some(config) => config,
+                    None => panic!("Cannot convert unsigned integer to prime field element without a modulus"),
+                };
 
-                    // Calculate how many u64 limbs we need based on bits
-                    const LIMBS: usize = ($bits + 63) / 64;
-                    let mut val = [0u64; LIMBS];
+                let modulus: [u64; N] = config.modulus.0;
 
-                    // Fill val array based on size
-                    if LIMBS == 1 {
-                        val[0] = *self as u64;
-                    } else {
-                        for i in 0..LIMBS {
-                            val[i] = (*self >> (i * 64)) as u64;
-                        }
+                // Calculate how many u64 limbs we need based on bits
+                const LIMBS: usize = ($bits + 63) / 64;
+                let mut val = [0u64; LIMBS];
+
+                // Fill val array based on size
+                if LIMBS == 1 {
+                    val[0] = *self as u64;
+                } else {
+                    for i in 0..LIMBS {
+                        val[i] = (*self >> (i * 64)) as u64;
                     }
-
-                    let mut r: BigInt<N> = match N {
-                        n if n < LIMBS => {
-                            let mut wider_modulus = [0u64; LIMBS];
-                            wider_modulus[..N].copy_from_slice(&modulus);
-                            let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
-                            let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            let mut result = [0u64; N];
-                            result.copy_from_slice(&value.to_words()[..N]);
-
-                            BigInt(result)
-                        }
-                        n if n == LIMBS => {
-                            let mut value_N = [0u64; N];
-                            value_N.copy_from_slice(&val);
-
-                            let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(value.to_words())
-                        }
-                        _ => {
-                            let mut wider_value = [0u64; N];
-                            wider_value[..LIMBS].copy_from_slice(&val);
-                            let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(wider.to_words())
-                        }
-                    };
-
-                    (*config).mul_assign(&mut r, &(*config).r2);
-                    RandomField::<N>::new_unchecked(config, r)
                 }
+
+                let mut r: BigInt<N> = match N {
+                    n if n < LIMBS => {
+                        let mut wider_modulus = [0u64; LIMBS];
+                        wider_modulus[..N].copy_from_slice(&modulus);
+                        let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
+                        let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        let mut result = [0u64; N];
+                        result.copy_from_slice(&value.to_words()[..N]);
+
+                        BigInt(result)
+                    }
+                    n if n == LIMBS => {
+                        let mut value_N = [0u64; N];
+                        value_N.copy_from_slice(&val);
+
+                        let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(value.to_words())
+                    }
+                    _ => {
+                        let mut wider_value = [0u64; N];
+                        wider_value[..LIMBS].copy_from_slice(&val);
+                        let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        wider %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(wider.to_words())
+                    }
+                };
+
+                config.mul_assign(&mut r, &config.r2);
+                RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
             }
         }
 
         impl<const N: usize> FieldMap<N> for &$type {
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
                 (*self).map_to_field(config)
             }
         }
@@ -240,21 +238,21 @@ impl_field_map_for_uint!(u128, 128);
 // Implementation for bool
 impl<const N: usize> FieldMap<N> for bool {
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        if config.is_null() {
-            panic!("Cannot convert boolean to prime field element without a modulus")
-        }
-        unsafe {
-            let mut r = BigInt::from(*self as u64);
-            (*config).mul_assign(&mut r, &(*config).r2);
-            RandomField::<N>::new_unchecked(config, r)
-        }
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+        let config = match config.reference() {
+            Some(config) => config,
+            None => panic!("Cannot convert boolean to prime field element without a modulus"),
+        };
+
+        let mut r = BigInt::from(*self as u64);
+        config.mul_assign(&mut r, &config.r2);
+        RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
     }
 }
 
 impl<const N: usize> FieldMap<N> for &bool {
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
@@ -263,7 +261,7 @@ impl<const N: usize> FieldMap<N> for &bool {
 impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         let local_type_bigint = BigInt::from(self);
         let res = local_type_bigint.map_to_field(config);
         if self < &Int::ZERO {
@@ -276,7 +274,7 @@ impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
 impl<const M: usize, const N: usize> FieldMap<N> for &Int<M> {
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
@@ -284,64 +282,63 @@ impl<const M: usize, const N: usize> FieldMap<N> for &Int<M> {
 impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        if config.is_null() {
-            panic!("Cannot convert BigInt to prime field element without a modulus")
-        }
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+        let config = match config.reference() {
+            Some(config) => config,
+            None => panic!("Cannot convert BigInt to prime field element without a modulus"),
+        };
 
-        unsafe {
-            let modulus: [u64; N] = (*config).modulus.0;
+        let modulus: [u64; N] = config.modulus.0;
 
-            let mut r: BigInt<N> = match M.cmp(&N) {
-                std::cmp::Ordering::Less => {
-                    let mut wider_value = [0u64; N];
-                    wider_value[..M].copy_from_slice(&self.0);
-                    let mut value = Uint::from_words(wider_value);
-                    let modu = Uint::<N>::from_words(modulus);
+        let mut r: BigInt<N> = match M.cmp(&N) {
+            std::cmp::Ordering::Less => {
+                let mut wider_value = [0u64; N];
+                wider_value[..M].copy_from_slice(&self.0);
+                let mut value = Uint::from_words(wider_value);
+                let modu = Uint::<N>::from_words(modulus);
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-                    BigInt(result)
-                }
-                std::cmp::Ordering::Equal => {
-                    let mut value = Uint::<M>::from_words(self.0);
-                    let mut wider_modulus = [0u64; M];
-                    wider_modulus[..N].copy_from_slice(&modulus);
-                    let modu = Uint::<M>::from_words(wider_modulus);
+                BigInt(result)
+            }
+            std::cmp::Ordering::Equal => {
+                let mut value = Uint::<M>::from_words(self.0);
+                let mut wider_modulus = [0u64; M];
+                wider_modulus[..N].copy_from_slice(&modulus);
+                let modu = Uint::<M>::from_words(wider_modulus);
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-                    BigInt(result)
-                }
-                std::cmp::Ordering::Greater => {
-                    let mut value = Uint::<M>::from_words(self.0);
-                    let mut wider_modulus = [0u64; M];
-                    wider_modulus[..N].copy_from_slice(&modulus);
-                    let modu = Uint::<M>::from_words(wider_modulus);
+                BigInt(result)
+            }
+            std::cmp::Ordering::Greater => {
+                let mut value = Uint::<M>::from_words(self.0);
+                let mut wider_modulus = [0u64; M];
+                wider_modulus[..N].copy_from_slice(&modulus);
+                let modu = Uint::<M>::from_words(wider_modulus);
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-                    BigInt(result)
-                }
-            };
+                BigInt(result)
+            }
+        };
 
-            // Apply Montgomery form transformation
-            (*config).mul_assign(&mut r, &(*config).r2);
-            RandomField::<N>::new_unchecked(config, r)
-        }
+        // Apply Montgomery form transformation
+        config.mul_assign(&mut r, &config.r2);
+        RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
     }
 }
 
 // Implementation of FieldMap for reference to BigInt<N>
 impl<const M: usize, const N: usize> FieldMap<N> for &BigInt<M> {
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
@@ -351,21 +348,21 @@ macro_rules! impl_field_map_for_vec {
     ($type:ty) => {
         impl<const N: usize> FieldMap<N> for Vec<$type> {
             type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
 
         impl<const N: usize> FieldMap<N> for &Vec<$type> {
             type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
 
         impl<const M: usize> FieldMap<M> for &[$type] {
             type Output = Vec<RandomField<M>>;
-            fn map_to_field(&self, config: *const FieldConfig<M>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigPtr<M>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
@@ -380,21 +377,21 @@ impl_field_map_for_vec!(i128);
 
 impl<const N: usize, const M: usize> FieldMap<N> for Vec<Int<M>> {
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
 impl<const N: usize, const M: usize> FieldMap<N> for &Vec<Int<M>> {
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
 impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
@@ -402,7 +399,7 @@ impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
 #[cfg(test)]
 mod tests {
     use crate::field::conversion::FieldMap;
-    use crate::field_config::FieldConfig;
+    use crate::field_config::{ConfigPtr, FieldConfig};
     use crate::traits::FromBytes;
     use crate::{biginteger::BigInt, create_field_config, field::RandomField};
     use std::str::FromStr;
@@ -467,12 +464,11 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_valid() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const _;
 
         let bytes = [0x05, 0, 0, 0, 0, 0, 0, 0];
         let expected = BigInt::from_str("5").unwrap();
 
-        let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes).unwrap();
+        let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes).unwrap();
         assert_eq!(result.into_bigint(), expected);
     }
 
@@ -484,7 +480,7 @@ mod tests {
             )
             .unwrap(),
         );
-        let config_ptr = &config as *const FieldConfig<32>;
+        let config_ptr = ConfigPtr::from(&config);
 
         let bytes = [
             0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -500,76 +496,72 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_zero() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x00; 8]; // All zeros
         let expected = RandomField::Initialized {
-            config: config_ptr,
+            config,
             value: BigInt::<1>::zero(),
         };
 
-        let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes);
+        let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
         assert_eq!(result, Some(expected));
     }
 
     #[test]
     fn converts_from_bytes_be_with_config_zero() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x00; 8]; // All zeros
         let expected = RandomField::Initialized {
-            config: config_ptr,
+            config,
             value: BigInt::<1>::zero(),
         };
 
-        let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes);
+        let result = RandomField::<1>::from_bytes_be_with_config(config, &bytes);
         assert_eq!(result, Some(expected));
     }
 
     #[test]
     fn converts_from_bytes_le_with_config_out_of_range() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101 (modulus is 23)
-        let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes);
+        let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
         assert!(result.is_none());
     }
 
     #[test]
     fn converts_from_bytes_be_with_config_out_of_range() {
-        let config = FieldConfig::new(BigInt::<32>::from_str("37129241769965749").unwrap());
-        let config_ptr = &config as *const FieldConfig<32>;
+        let config = ConfigPtr::from(&FieldConfig::new(
+            BigInt::<32>::from_str("37129241769965749").unwrap(),
+        ));
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101
-        let result = RandomField::<32>::from_bytes_be_with_config(config_ptr, &bytes);
+        let result = RandomField::<32>::from_bytes_be_with_config(config, &bytes);
         assert!(result.is_none());
     }
 
     #[test]
     fn converts_from_bytes_le_with_config_exact_modulus() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 23 (modulus)
-        let result = RandomField::<1>::from_bytes_le_with_config(config_ptr, &bytes);
+        let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
         assert!(result.is_none()); // Must be strictly less than modulus
     }
 
     #[test]
     fn converts_from_bytes_be_with_config_exact_modulus() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17]; // Value: 23 (big-endian)
-        let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes);
+        let result = RandomField::<1>::from_bytes_be_with_config(config, &bytes);
         assert!(result.is_none());
     }
 
     #[test]
     fn converts_from_bytes_le_with_config_leading_zeros() {
-        let config: *const FieldConfig<1> = &create_field_config!(23);
+        let config: ConfigPtr<1> = create_field_config!(23);
 
         let bytes = [0b0000_0001]; // Value: 1 with leading zeros
         let expected = BigInt::<1>::from_bytes_le(&bytes)
@@ -583,11 +575,10 @@ mod tests {
     #[test]
     fn converts_from_bytes_be_with_config_leading_zeros() {
         let config = create_field_config!(23);
-        let config_ptr = &config as *const FieldConfig<1>;
 
         let bytes = [0x01]; //1 with leading zeros (big-endian);
 
-        let result = RandomField::<1>::from_bytes_be_with_config(config_ptr, &bytes).unwrap();
+        let result = RandomField::<1>::from_bytes_be_with_config(config, &bytes).unwrap();
         assert_eq!(result.into_bigint(), BigInt::one());
     }
 
@@ -687,7 +678,7 @@ mod tests {
     #[test]
     fn test_signed_integers_field_map() {
         let field_1 = 18446744069414584321_u64;
-        let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
+        let config_1: ConfigPtr<1> = create_field_config!(field_1);
 
         // Test primitive types with full range
         test_signed_type_full_range!(i8, field_1, config_1, 1);
@@ -769,7 +760,7 @@ mod tests {
     #[test]
     fn test_unsigned_integers_field_map() {
         let field_1 = 18446744069414584321_u64;
-        let config_1: *const FieldConfig<1> = &create_field_config!(field_1);
+        let config_1 = create_field_config!(field_1);
 
         // Test small types with full range
         test_unsigned_type_full_range!(u8, field_1, config_1, 1);
@@ -787,7 +778,7 @@ mod tests {
     )]
     fn test_signed_field_map_null_config() {
         let i32_val: i32 = 5;
-        i32_val.map_to_field(std::ptr::null::<FieldConfig<1>>());
+        i32_val.map_to_field(ConfigPtr::<1>::NONE);
     }
 
     #[test]
@@ -796,13 +787,14 @@ mod tests {
     )]
     fn test_unsigned_field_map_null_config() {
         let u32_val: u32 = 5;
-        u32_val.map_to_field(std::ptr::null::<FieldConfig<1>>());
+        u32_val.map_to_field(ConfigPtr::<1>::NONE);
     }
 }
 
 #[cfg(test)]
 mod bigint_field_map_tests {
     use super::*;
+    use crate::field_config::FieldConfig;
     use std::str::FromStr;
 
     #[test]
@@ -810,7 +802,7 @@ mod bigint_field_map_tests {
         // Using a 2-limb field config with 1-limb BigInt
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         let small_bigint = BigInt::<1>::from(12345u64);
         let result = small_bigint.map_to_field(config_ptr);
@@ -826,7 +818,7 @@ mod bigint_field_map_tests {
     fn test_bigint_equal_size() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         let value = BigInt::<2>::from_str("12345678901234567890").unwrap();
         let result = value.map_to_field(config_ptr);
@@ -845,7 +837,7 @@ mod bigint_field_map_tests {
         // Using a 1-limb field config with 2-limb BigInt
         let modulus = BigInt::<1>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         let large_value = BigInt::<2>::from_str("123456789012345678901").unwrap();
         let result = large_value.map_to_field(config_ptr);
@@ -862,7 +854,7 @@ mod bigint_field_map_tests {
     fn test_bigint_zero() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         let zero = BigInt::<2>::zero();
         let result = zero.map_to_field(config_ptr);
@@ -877,7 +869,7 @@ mod bigint_field_map_tests {
     fn test_bigint_reference() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         let value = BigInt::<2>::from_str("12345").unwrap();
         let result = value.map_to_field(config_ptr);
@@ -894,14 +886,14 @@ mod bigint_field_map_tests {
     #[should_panic(expected = "Cannot convert BigInt to prime field element without a modulus")]
     fn test_null_config() {
         let value = BigInt::<2>::from(123u64);
-        let _result: RandomField<2> = value.map_to_field(std::ptr::null());
+        let _result: RandomField<2> = value.map_to_field(ConfigPtr::NONE);
     }
 
     #[test]
     fn test_bigint_max_value() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = &config as *const _;
+        let config_ptr = ConfigPtr::from(&config);
 
         // Create a BigInt with all bits set to 1
         let mut max_value = BigInt::<2>::zero();

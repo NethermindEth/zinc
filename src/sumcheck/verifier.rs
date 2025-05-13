@@ -1,11 +1,11 @@
 //! Verifier
+use crate::field_config::ConfigPtr;
 use ark_ff::One;
 use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
     field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -29,7 +29,7 @@ pub struct VerifierState<const N: usize> {
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<RandomField<N>>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 }
 
 /// Subclaim when verifier is convinced
@@ -43,11 +43,7 @@ pub struct SubClaim<const N: usize> {
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the verifier
-    pub fn verifier_init(
-        nvars: usize,
-        degree: usize,
-        config: *const FieldConfig<N>,
-    ) -> VerifierState<N> {
+    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigPtr<N>) -> VerifierState<N> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -103,7 +99,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn check_and_generate_subclaim(
         verifier_state: VerifierState<N>,
         asserted_sum: RandomField<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
@@ -138,10 +134,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(
-        transcript: &mut Transcript,
-        config: *const FieldConfig<N>,
-    ) -> VerifierMsg<N> {
+    pub fn sample_round(transcript: &mut Transcript, config: ConfigPtr<N>) -> VerifierMsg<N> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }
@@ -155,7 +148,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
 pub(crate) fn interpolate_uni_poly<const N: usize>(
     p_i: &[RandomField<N>],
     x: RandomField<N>,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> RandomField<N> {
     // We will need these a few times
     let zero = 0u64.map_to_field(config);
@@ -301,7 +294,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<const N: usize>(a: usize, config: *const FieldConfig<N>) -> RandomField<N> {
+fn field_factorial<const N: usize>(a: usize, config: ConfigPtr<N>) -> RandomField<N> {
     let mut res = RandomField::one();
     for i in 1..=a {
         res *= (i as u64).map_to_field(config);

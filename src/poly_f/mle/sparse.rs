@@ -1,8 +1,8 @@
+use crate::field_config::ConfigPtr;
 use ark_ff::{UniformRand, Zero};
 
 use crate::biginteger::BigInt;
 use crate::field::conversion::FieldMap;
-use crate::field_config::FieldConfig;
 use crate::sparse_matrix::SparseMatrix;
 use ark_std::rand::Rng;
 use ark_std::{
@@ -29,13 +29,13 @@ pub struct SparseMultilinearExtension<const N: usize> {
     pub num_vars: usize,
     zero: RandomField<N>,
     /// Field in which the MLE is operating
-    pub config: *const FieldConfig<N>,
+    pub config: ConfigPtr<N>,
 }
 impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Self {
         let bit_mask = 1 << num_vars;
 
@@ -53,11 +53,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             config,
         }
     }
-    pub fn evaluate(
-        &self,
-        point: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> RandomField<N> {
+    pub fn evaluate(&self, point: &[RandomField<N>], config: ConfigPtr<N>) -> RandomField<N> {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point, config)[0]
     }
@@ -72,7 +68,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn rand_with_config<Rn: Rng>(
         num_vars: usize,
         num_nonzero_entries: usize,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
         rng: &mut Rn,
     ) -> Self {
         assert!(num_nonzero_entries <= 1 << num_vars);
@@ -101,7 +97,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: *const FieldConfig<N>) -> Self {
+    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: ConfigPtr<N>) -> Self {
         let n_rows = m.n_rows.next_power_of_two();
         let n_cols = m.n_cols.next_power_of_two();
         let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
@@ -125,13 +121,13 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn from_sparse_slice(
         n_vars: usize,
         v: &[(usize, RandomField<N>)],
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Self {
         SparseMultilinearExtension::<N>::from_evaluations(n_vars, v, config)
     }
 
     /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: *const FieldConfig<N>) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: ConfigPtr<N>) -> Self {
         let v_sparse = v
             .iter()
             .enumerate()
@@ -149,11 +145,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
     /// are sampled uniformly at random. The number of nonzero entries is
     /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
     /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(
-        num_vars: usize,
-        config: *const FieldConfig<N>,
-        rng: &mut Rn,
-    ) -> Self {
+    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: ConfigPtr<N>, rng: &mut Rn) -> Self {
         Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
     }
 
@@ -182,7 +174,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: *const FieldConfig<N>) {
+    fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: ConfigPtr<N>) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -221,11 +213,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         self.zero = RandomField::<N>::zero();
     }
 
-    fn fixed_variables(
-        &self,
-        partial_point: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    fn fixed_variables(&self, partial_point: &[RandomField<N>], config: ConfigPtr<N>) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
@@ -250,7 +238,7 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
             num_vars: 0,
             evaluations: tuples_to_treemap(&Vec::new()),
             zero: RandomField::<N>::zero(),
-            config: std::ptr::null(),
+            config: ConfigPtr::NONE,
         }
     }
 
@@ -426,7 +414,7 @@ fn hashmap_to_treemap<const N: usize>(
 // precompute  f(x) = eq(g,x)
 fn precompute_eq<const N: usize>(
     g: &[RandomField<N>],
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Vec<RandomField<N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
@@ -447,13 +435,14 @@ fn precompute_eq<const N: usize>(
 mod tests {
     use super::*;
 
+    use crate::field_config::FieldConfig;
     use ark_ff::Zero;
 
     // Function to convert usize to a binary vector of Ring elements.
     fn usize_to_binary_vector<const N: usize>(
         n: usize,
         dimensions: usize,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Vec<RandomField<N>> {
         let mut bits = Vec::with_capacity(dimensions);
         let mut current = n;
@@ -472,7 +461,7 @@ mod tests {
     // Wrapper function to generate a boolean hypercube.
     fn boolean_hypercube<const N: usize>(
         dimensions: usize,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Vec<Vec<RandomField<N>>> {
         let max_val = 1 << dimensions; // 2^dimensions
         (0..max_val)
@@ -480,13 +469,13 @@ mod tests {
             .collect()
     }
 
-    fn vec_cast<const N: usize>(v: &[usize], config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
+    fn vec_cast<const N: usize>(v: &[usize], config: ConfigPtr<N>) -> Vec<RandomField<N>> {
         v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
     }
 
     fn matrix_cast<const N: usize>(
         m: &[Vec<usize>],
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> SparseMatrix<RandomField<N>> {
         let n_rows = m.len();
         let n_cols = m[0].len();
@@ -507,10 +496,7 @@ mod tests {
         }
     }
 
-    fn get_test_z<const N: usize>(
-        input: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>> {
+    fn get_test_z<const N: usize>(input: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>> {
         vec_cast(
             &[
                 input, // io
@@ -528,7 +514,7 @@ mod tests {
     fn test_matrix_to_mle() {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
-        let config_ptr: *const FieldConfig<1> = &config;
+        let config_ptr: ConfigPtr<1> = ConfigPtr::from(&config);
         let A = matrix_cast::<N>(
             &[
                 vec![2, 3, 4, 4],
@@ -561,23 +547,22 @@ mod tests {
     #[test]
     fn test_vec_to_mle() {
         const N: usize = 1;
-        let config = FieldConfig::new(293u32.into());
-        let config_ptr: *const FieldConfig<1> = &config;
-        let z = get_test_z::<N>(3, config_ptr);
+        let config = ConfigPtr::from(&FieldConfig::new(293u32.into()));
+        let z = get_test_z::<N>(3, config);
 
         let n_vars = 3;
-        let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config_ptr);
+        let z_mle = SparseMultilinearExtension::from_slice(n_vars, &z, config);
 
         // check that the z_mle evaluated over the boolean hypercube equals the vec z_i values
-        let bhc = boolean_hypercube(z_mle.num_vars, config_ptr);
+        let bhc = boolean_hypercube(z_mle.num_vars, config);
         for (i, z_i) in z.iter().enumerate() {
             let s_i = &bhc[i];
-            assert_eq!(z_mle.evaluate(s_i, config_ptr), z_i.clone());
+            assert_eq!(z_mle.evaluate(s_i, config), z_i.clone());
         }
         // for the rest of elements of the boolean hypercube, expect it to evaluate to zero
         for s_i in bhc.iter().take(1 << z_mle.num_vars).skip(z.len()) {
             assert_eq!(
-                z_mle.fixed_variables(s_i, config_ptr)[0],
+                z_mle.fixed_variables(s_i, config)[0],
                 RandomField::<N>::zero()
             );
         }

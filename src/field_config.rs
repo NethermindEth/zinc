@@ -1,4 +1,5 @@
 use crate::biginteger::BigInt;
+use ark_std::ptr::NonNull;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -244,6 +245,42 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 }
 
 impl<const N: usize> Eq for FieldConfig<N> {}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ConfigPtr<const N: usize>(Option<NonNull<FieldConfig<N>>>);
+
+impl<const N: usize> From<&FieldConfig<N>> for ConfigPtr<N> {
+    fn from(value: &FieldConfig<N>) -> Self {
+        Self(Some(NonNull::from(value)))
+    }
+}
+
+unsafe impl<const N: usize> Sync for ConfigPtr<N> {}
+unsafe impl<const N: usize> Send for ConfigPtr<N> {}
+
+impl<const N: usize> ConfigPtr<N> {
+    pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
+        if self.0.is_none() {
+            None
+        } else {
+            Some(self.0.unwrap().as_ptr())
+        }
+    }
+
+    pub fn reference(&self) -> Option<&FieldConfig<N>> {
+        if self.0.is_none() {
+            None
+        } else {
+            unsafe { Some(self.0.unwrap().as_ref()) }
+        }
+    }
+
+    pub fn new(config_ptr: *mut FieldConfig<N>) -> Self {
+        Self(NonNull::new(config_ptr))
+    }
+
+    pub const NONE: Self = Self(None);
+}
 
 #[cfg(test)]
 mod tests {

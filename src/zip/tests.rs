@@ -1,3 +1,4 @@
+use crate::field_config::ConfigPtr;
 use crate::{
     biginteger::BigInt,
     field::conversion::FieldMap,
@@ -45,8 +46,9 @@ fn test_failing_zip_commitment() {
 
 #[test]
 fn test_zip_opening() {
-    let config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&FieldConfig::new(
+        BigInt::from_str("57316695564490278656402085503").unwrap(),
+    ));
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -68,7 +70,9 @@ fn test_zip_opening() {
 
 #[test]
 fn test_failing_zip_evaluation() {
-    let config = &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&FieldConfig::new(
+        BigInt::from_str("57316695564490278656402085503").unwrap(),
+    ));
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -88,14 +92,23 @@ fn test_failing_zip_evaluation() {
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    let res = TestZip::verify(&param, &comm, &point, eval, &mut transcript, config);
+    let res = TestZip::verify(
+        &param,
+        &comm,
+        &point,
+        eval,
+        &mut transcript,
+        config.reference().expect("Field config cannot be none"),
+    );
 
     assert!(res.is_err())
 }
 
 #[test]
 fn test_zip_evaluation() {
-    let config = &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&FieldConfig::new(
+        BigInt::from_str("57316695564490278656402085503").unwrap(),
+    ));
     let mut rng = ark_std::test_rng();
 
     let n = 8;
@@ -118,12 +131,21 @@ fn test_zip_evaluation() {
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
 
-    TestZip::verify(&param, &comm, &point, eval, &mut transcript, config)
-        .expect("Failed to verify");
+    TestZip::verify(
+        &param,
+        &comm,
+        &point,
+        eval,
+        &mut transcript,
+        config.reference().expect("Field config cannot be none"),
+    )
+    .expect("Failed to verify");
 }
 #[test]
 fn test_zip_batch_evaluation() {
-    let config = &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&FieldConfig::new(
+        BigInt::from_str("57316695564490278656402085503").unwrap(),
+    ));
     let mut rng = ark_std::test_rng();
 
     let n = 8;
@@ -166,7 +188,7 @@ fn test_zip_batch_evaluation() {
         &points,
         &eval,
         &mut transcript,
-        config,
+        config.reference().expect("Field config cannot be none"),
     )
     .expect("Failed to verify");
 }

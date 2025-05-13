@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn test_set_zero() {
         let config = create_field_config!(23);
-        let mut elem = create_random_field!(&config, 7);
+        let mut elem = create_random_field!(config, 7);
         elem.set_zero();
         assert!(elem.is_zero());
     }
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_set_one() {
         let config = create_field_config!(23);
-        let mut elem = create_random_field!(&config, 5);
+        let mut elem = create_random_field!(config, 5);
         elem.set_one();
         assert!(elem.is_one());
     }
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn test_zeroize() {
         let config = create_field_config!(23);
-        let mut elem = create_random_field!(&config, 12);
+        let mut elem = create_random_field!(config, 12);
         elem.zeroize();
         assert!(elem.is_zero());
     }

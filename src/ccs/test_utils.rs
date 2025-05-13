@@ -5,15 +5,14 @@ use ark_ff::One;
 use ark_std::{log2, rand::Rng};
 use crypto_bigint::{Int, Random};
 
-use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
-    field_config::FieldConfig,
-    sparse_matrix::SparseMatrix,
-};
-
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
+};
+use crate::field_config::ConfigPtr;
+use crate::{
+    field::{conversion::FieldMap, rand_with_config, RandomField},
+    sparse_matrix::SparseMatrix,
 };
 
 pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(
@@ -56,7 +55,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
 pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
     rows: usize,
     columns: usize,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> SparseMatrix<RandomField<N>> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
@@ -127,7 +126,7 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
 fn get_dummy_ccs_F_from_z<const N: usize>(
     z: &[RandomField<N>],
     pub_io_len: usize,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
     let ccs = CCS_F::<N> {
         m: z.len(),
@@ -140,7 +139,7 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
-        config: AtomicPtr::new(config as *mut FieldConfig<N>),
+        config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
     };
 
     let A = create_dummy_identity_sparse_matrix_F::<N>(z.len(), z.len(), config);
@@ -174,7 +173,7 @@ pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
 pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
     let mut z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
     let pub_io_len = 1;

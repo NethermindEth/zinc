@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
+use crate::field_config::ConfigPtr;
 use ark_ff::Zero;
 use crypto_bigint::Int;
 
 use crate::field::conversion::FieldMap;
 use crate::field::RandomField as F;
-use crate::field_config::FieldConfig;
 use crate::zip::utils::expand;
 
 use ark_std::fmt::Debug;
@@ -71,7 +71,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
         }
     }
 
-    pub fn encode_f(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
+    pub fn encode_f(&self, row: &[F<N>], field: ConfigPtr<N>) -> Vec<F<N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -235,10 +235,7 @@ pub struct SparseMatrixF<const N: usize> {
 }
 
 impl<const N: usize> SparseMatrixF<N> {
-    fn new<const L: usize>(
-        sparse_matrix: &SparseMatrixZ<L>,
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigPtr<N>) -> Self {
         let cells_f: Vec<(usize, F<N>)> = sparse_matrix
             .cells
             .iter()

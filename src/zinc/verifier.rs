@@ -1,5 +1,11 @@
 use ark_ff::Zero;
 
+use super::{
+    errors::{MleEvaluationError, SpartanError, ZincError},
+    structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
+    utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
+};
+use crate::field_config::ConfigPtr;
 use crate::{
     ccs::{
         ccs_f::{Statement_F, CCS_F},
@@ -11,12 +17,6 @@ use crate::{
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
-};
-
-use super::{
-    errors::{MleEvaluationError, SpartanError, ZincError},
-    structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
-    utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 
 pub trait Verifier<const N: usize> {
@@ -52,8 +52,8 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(config);
-        let statement_f = statement.map_to_field(config);
+        let ccs_F = ccs.map_to_field(ConfigPtr::from(config));
+        let statement_f = statement.map_to_field(ConfigPtr::from(config));
 
         let verification_points =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F, config)
@@ -106,7 +106,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         config: &FieldConfig<N>,
     ) -> Result<VerificationPoints<N>, SpartanError<N>> {
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, ConfigPtr::from(config));
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -115,7 +115,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
-        let gamma = transcript.squeeze_gamma_challenge(config);
+        let gamma = transcript.squeeze_gamma_challenge(ConfigPtr::from(config));
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -151,7 +151,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             degree,
             RandomField::zero(),
             proof,
-            unsafe { *ccs.config.as_ptr() },
+            ConfigPtr::new(unsafe { *ccs.config.as_ptr() }),
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -204,7 +204,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             degree,
             claimed_sum,
             proof,
-            unsafe { *ccs.config.as_ptr() },
+            ConfigPtr::new(unsafe { *ccs.config.as_ptr() }),
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -254,13 +254,12 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             .constraints
             .iter()
             .map(|M| {
-                let mle = DenseMultilinearExtension::from_matrix(M, config);
-                mle.evaluate(&verification_points.rx_ry, config).ok_or(
-                    MleEvaluationError::IncorrectLength(
+                let mle = DenseMultilinearExtension::from_matrix(M, ConfigPtr::from(config));
+                mle.evaluate(&verification_points.rx_ry, ConfigPtr::from(config))
+                    .ok_or(MleEvaluationError::IncorrectLength(
                         verification_points.rx_ry.len(),
                         mle.num_vars,
-                    ),
-                )
+                    ))
             })
             .collect::<Result<Vec<_>, _>>()?;
 

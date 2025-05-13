@@ -247,8 +247,8 @@ mod test {
     fn test_add_wrapping_around_modulus() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 22);
-        let rhs = create_random_field!(&config, 2);
+        let lhs = create_random_field!(config, 22);
+        let rhs = create_random_field!(config, 2);
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), BigInt::one());
@@ -258,8 +258,8 @@ mod test {
     fn test_add_without_wrapping() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 20);
-        let rhs = create_random_field!(&config, 20);
+        let lhs = create_random_field!(config, 20);
+        let rhs = create_random_field!(config, 20);
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), create_bigint!(17));
@@ -269,7 +269,7 @@ mod test {
     fn test_add_one() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 22);
+        let lhs = create_random_field!(config, 22);
         let rhs = RandomField::one();
 
         let sum = lhs + rhs;
@@ -293,8 +293,8 @@ mod test {
     fn test_sub_wrapping_around_modulus() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 2);
-        let rhs = create_random_field!(&config, 22);
+        let lhs = create_random_field!(config, 2);
+        let rhs = create_random_field!(config, 22);
 
         let difference = lhs - rhs;
         assert_eq!(difference.into_bigint(), create_bigint!(3));
@@ -304,8 +304,8 @@ mod test {
     fn test_sub_identical_values_results_in_zero() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 20);
-        let rhs = create_random_field!(&config, 20);
+        let lhs = create_random_field!(config, 20);
+        let rhs = create_random_field!(config, 20);
 
         let difference = lhs - rhs;
         assert_eq!(difference.into_bigint(), BigInt::zero());
@@ -315,7 +315,7 @@ mod test {
     fn test_init_sub_raw() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 2);
+        let lhs = create_random_field!(config, 2);
         let rhs = RandomField::one();
         let res = lhs - rhs;
         let mut expected = lhs;
@@ -327,8 +327,8 @@ mod test {
     fn test_sub_assign_works() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 10);
-        let rhs = create_random_field!(&config, 7);
+        let mut lhs = create_random_field!(config, 10);
+        let rhs = create_random_field!(config, 7);
 
         lhs -= rhs;
 
@@ -339,8 +339,8 @@ mod test {
     fn test_sub_assign_wraps_modulus() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 3);
-        let rhs = create_random_field!(&config, 7);
+        let mut lhs = create_random_field!(config, 3);
+        let rhs = create_random_field!(config, 7);
 
         lhs -= rhs;
 
@@ -351,8 +351,8 @@ mod test {
     fn test_mul_wraps_modulus() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 22);
-        let rhs = create_random_field!(&config, 2);
+        let lhs = create_random_field!(config, 22);
+        let rhs = create_random_field!(config, 2);
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), create_bigint!(21));
@@ -362,8 +362,8 @@ mod test {
     fn test_mul_without_wrapping() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 20);
-        let rhs: RandomField<1> = create_random_field!(&config, 20);
+        let lhs = create_random_field!(config, 20);
+        let rhs: RandomField<1> = create_random_field!(config, 20);
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), create_bigint!(9));
@@ -373,7 +373,7 @@ mod test {
     fn test_left_mul_by_zero() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 22);
+        let lhs = create_random_field!(config, 22);
         let rhs = RandomField::zero();
 
         let product = lhs * rhs;
@@ -385,7 +385,7 @@ mod test {
         let config = create_field_config!(23);
 
         let lhs = RandomField::zero();
-        let rhs = create_random_field!(&config, 22);
+        let rhs = create_random_field!(config, 22);
 
         let product = lhs * rhs;
         assert!(product.is_zero());
@@ -395,8 +395,8 @@ mod test {
     fn test_mul_assign_works() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 5);
-        let rhs = create_random_field!(&config, 4);
+        let mut lhs = create_random_field!(config, 5);
+        let rhs = create_random_field!(config, 4);
 
         lhs *= rhs;
 
@@ -407,8 +407,8 @@ mod test {
     fn test_mul_assign_wraps_modulus() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 6);
-        let rhs = create_random_field!(&config, 4);
+        let mut lhs = create_random_field!(config, 6);
+        let rhs = create_random_field!(config, 4);
 
         lhs *= rhs;
 
@@ -419,8 +419,8 @@ mod test {
     fn test_div_wraps_modulus() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 22);
-        let rhs = create_random_field!(&config, 2);
+        let lhs = create_random_field!(config, 22);
+        let rhs = create_random_field!(config, 2);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(11));
@@ -430,8 +430,8 @@ mod test {
     fn test_div_identical_values_results_in_one() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 20);
-        let rhs = create_random_field!(&config, 20);
+        let lhs = create_random_field!(config, 20);
+        let rhs = create_random_field!(config, 20);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(1));
@@ -441,8 +441,8 @@ mod test {
     fn test_div_without_wrapping() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 17);
-        let rhs = create_random_field!(&config, 4);
+        let lhs = create_random_field!(config, 17);
+        let rhs = create_random_field!(config, 4);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(10));
@@ -453,8 +453,8 @@ mod test {
     fn test_div_by_zero_should_panic() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 17);
-        let rhs = create_random_field!(&config, 0);
+        let lhs = create_random_field!(config, 17);
+        let rhs = create_random_field!(config, 0);
 
         let _sum = lhs / rhs;
     }
@@ -463,7 +463,7 @@ mod test {
     fn test_div_bigint256() {
         let config = create_field_config!(4, 695962179703626800597079116051991347);
 
-        let a = create_random_field!(&config, 3);
+        let a = create_random_field!(config, 3);
         let mut b = RandomField::one();
         b /= a;
         assert_eq!(
@@ -471,9 +471,9 @@ mod test {
             create_bigint!(4, 231987393234542266865693038683997116)
         );
 
-        let a = create_random_field!(&config, 19382769832175);
+        let a = create_random_field!(config, 19382769832175);
 
-        let b = create_random_field!(&config, 97133987132135);
+        let b = create_random_field!(config, 97133987132135);
 
         assert_eq!(
             create_bigint!(4, 243043087159742188419721163456177516),
@@ -485,8 +485,8 @@ mod test {
     fn test_div_by_reference_works() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 15);
-        let rhs = create_random_field!(&config, 3);
+        let lhs = create_random_field!(config, 15);
+        let rhs = create_random_field!(config, 3);
 
         #[allow(clippy::op_ref)] // This implementation could be removed?
         let quotient = lhs / &rhs;
@@ -498,8 +498,8 @@ mod test {
     fn test_div_by_mutable_reference_works() {
         let config = create_field_config!(23);
 
-        let lhs = create_random_field!(&config, 9);
-        let mut rhs = create_random_field!(&config, 3);
+        let lhs = create_random_field!(config, 9);
+        let mut rhs = create_random_field!(config, 3);
 
         #[allow(clippy::op_ref)] // This implementation could be removed?
         let quotient = lhs / &mut rhs;
@@ -511,8 +511,8 @@ mod test {
     fn test_div_assign_works() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 15);
-        let rhs = create_random_field!(&config, 3);
+        let mut lhs = create_random_field!(config, 15);
+        let rhs = create_random_field!(config, 3);
 
         lhs /= rhs;
 
@@ -524,7 +524,7 @@ mod test {
     fn test_div_assign_by_zero_should_panic() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 15);
+        let mut lhs = create_random_field!(config, 15);
         let rhs = RandomField::zero();
 
         lhs /= rhs;
@@ -534,8 +534,8 @@ mod test {
     fn test_div_assign_by_mutable_reference() {
         let config = create_field_config!(23);
 
-        let mut lhs = create_random_field!(&config, 18);
-        let mut rhs = create_random_field!(&config, 3);
+        let mut lhs = create_random_field!(config, 18);
+        let mut rhs = create_random_field!(config, 3);
 
         lhs /= &mut rhs;
 
@@ -546,7 +546,7 @@ mod test {
     fn test_neg_large_value() {
         let config = create_field_config!(23);
 
-        let operand = create_random_field!(&config, 22);
+        let operand = create_random_field!(config, 22);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), create_bigint!(1));
@@ -556,7 +556,7 @@ mod test {
     fn test_neg_mid_value() {
         let config = create_field_config!(23);
 
-        let operand = create_random_field!(&config, 17);
+        let operand = create_random_field!(config, 17);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), create_bigint!(6));
@@ -566,7 +566,7 @@ mod test {
     fn test_neg_zero() {
         let config = create_field_config!(23);
 
-        let operand = create_random_field!(&config, 0);
+        let operand = create_random_field!(config, 0);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), BigInt::zero());
@@ -577,9 +577,9 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 2),
-            create_random_field!(&config, 4),
-            create_random_field!(&config, 6),
+            create_random_field!(config, 2),
+            create_random_field!(config, 4),
+            create_random_field!(config, 6),
         ];
 
         let sum: RandomField<1> = values.iter().sum();
@@ -593,8 +593,8 @@ mod test {
 
         let values = [
             RandomField::zero(),
-            create_random_field!(&config, 5),
-            create_random_field!(&config, 7),
+            create_random_field!(config, 5),
+            create_random_field!(config, 7),
         ];
 
         let sum: RandomField<1> = values.iter().sum();
@@ -607,9 +607,9 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 10),
-            create_random_field!(&config, 15),
-            create_random_field!(&config, 21),
+            create_random_field!(config, 10),
+            create_random_field!(config, 15),
+            create_random_field!(config, 21),
         ];
 
         let sum: RandomField<1> = values.iter().sum();
@@ -627,7 +627,7 @@ mod test {
     fn test_sum_single_element() {
         let config = create_field_config!(23);
 
-        let values = [create_random_field!(&config, 9)];
+        let values = [create_random_field!(config, 9)];
 
         let sum: RandomField<1> = values.iter().sum();
 
@@ -639,8 +639,8 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 12),
-            create_random_field!(&config, 15),
+            create_random_field!(config, 12),
+            create_random_field!(config, 15),
         ];
 
         let sum: RandomField<1> = values.iter().sum();
@@ -653,9 +653,9 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 2),
-            create_random_field!(&config, 4),
-            create_random_field!(&config, 6),
+            create_random_field!(config, 2),
+            create_random_field!(config, 4),
+            create_random_field!(config, 6),
         ];
 
         let product: RandomField<1> = values.iter().product();
@@ -669,8 +669,8 @@ mod test {
 
         let values = [
             RandomField::one(),
-            create_random_field!(&config, 5),
-            create_random_field!(&config, 7),
+            create_random_field!(config, 5),
+            create_random_field!(config, 7),
         ];
 
         let product: RandomField<1> = values.iter().product();
@@ -683,9 +683,9 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 3),
+            create_random_field!(config, 3),
             RandomField::zero(),
-            create_random_field!(&config, 9),
+            create_random_field!(config, 9),
         ];
 
         let product: RandomField<1> = values.iter().product();
@@ -698,9 +698,9 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 10),
-            create_random_field!(&config, 15),
-            create_random_field!(&config, 21),
+            create_random_field!(config, 10),
+            create_random_field!(config, 15),
+            create_random_field!(config, 21),
         ];
 
         let product: RandomField<1> = values.iter().product();
@@ -718,7 +718,7 @@ mod test {
     fn test_product_single_element() {
         let config = create_field_config!(23);
 
-        let values = [create_random_field!(&config, 9)];
+        let values = [create_random_field!(config, 9)];
 
         let product: RandomField<1> = values.iter().product();
 
@@ -730,8 +730,8 @@ mod test {
         let config = create_field_config!(23);
 
         let values = [
-            create_random_field!(&config, 12),
-            create_random_field!(&config, 15),
+            create_random_field!(config, 12),
+            create_random_field!(config, 15),
         ];
 
         let product: RandomField<1> = values.iter().product();

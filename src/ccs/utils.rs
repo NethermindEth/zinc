@@ -76,7 +76,7 @@ mod tests {
     use super::*;
     use crate::biginteger::BigInt;
     use crate::field::conversion::FieldMap;
-    use crate::field_config::FieldConfig;
+    use crate::field_config::{ConfigPtr, FieldConfig};
     use crate::sparse_matrix::dense_matrix_to_sparse;
 
     const N: usize = 3;
@@ -86,36 +86,36 @@ mod tests {
 
     #[test]
     fn test_vec_add() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
         let a = [
-            1u64.map_to_field(&config),
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
+            1u64.map_to_field(config),
+            2u64.map_to_field(config),
+            3u64.map_to_field(config),
         ];
         let b = [
-            4u64.map_to_field(&config),
-            5u64.map_to_field(&config),
-            6u64.map_to_field(&config),
+            4u64.map_to_field(config),
+            5u64.map_to_field(config),
+            6u64.map_to_field(config),
         ];
         let result = vec_add(&a, &b);
         let expected = vec![
-            5u64.map_to_field(&config),
-            7u64.map_to_field(&config),
-            9u64.map_to_field(&config),
+            5u64.map_to_field(config),
+            7u64.map_to_field(config),
+            9u64.map_to_field(config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn test_vec_add_error_case() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
-        let a = [1u64.map_to_field(&config), 2u64.map_to_field(&config)];
+        let a = [1u64.map_to_field(config), 2u64.map_to_field(config)];
         let b = [
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
-            5u64.map_to_field(&config),
+            3u64.map_to_field(config),
+            4u64.map_to_field(config),
+            5u64.map_to_field(config),
         ];
         let result = vec_add(&a, &b);
         assert!(result.is_err());
@@ -123,55 +123,55 @@ mod tests {
 
     #[test]
     fn test_vec_scalar_mul() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
         let vec = [
-            1u64.map_to_field(&config),
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
+            1u64.map_to_field(config),
+            2u64.map_to_field(config),
+            3u64.map_to_field(config),
         ];
-        let c = 3u64.map_to_field(&config);
+        let c = 3u64.map_to_field(config);
         let result = vec_scalar_mul(&vec, &c);
         let expected = vec![
-            3u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            9u64.map_to_field(&config),
+            3u64.map_to_field(config),
+            6u64.map_to_field(config),
+            9u64.map_to_field(config),
         ];
         assert_eq!(result, expected);
     }
 
     #[test]
     fn test_hadamard() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
         let a = [
-            2u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            4u64.map_to_field(&config),
+            2u64.map_to_field(config),
+            3u64.map_to_field(config),
+            4u64.map_to_field(config),
         ];
         let b = [
-            5u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            7u64.map_to_field(&config),
+            5u64.map_to_field(config),
+            6u64.map_to_field(config),
+            7u64.map_to_field(config),
         ];
         let result = hadamard(&a, &b);
         let expected = vec![
-            10u64.map_to_field(&config),
-            18u64.map_to_field(&config),
-            28u64.map_to_field(&config),
+            10u64.map_to_field(config),
+            18u64.map_to_field(config),
+            28u64.map_to_field(config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn test_hadamard_error_case() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
-        let a = [2u64.map_to_field(&config), 3u64.map_to_field(&config)];
+        let a = [2u64.map_to_field(config), 3u64.map_to_field(config)];
         let b = [
-            5u64.map_to_field(&config),
-            6u64.map_to_field(&config),
-            7u64.map_to_field(&config),
+            5u64.map_to_field(config),
+            6u64.map_to_field(config),
+            7u64.map_to_field(config),
         ];
         let result = hadamard(&a, &b);
         assert!(result.is_err());
@@ -179,65 +179,65 @@ mod tests {
 
     #[test]
     fn test_mat_vec_mul() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
         let dense_matrix = vec![
             vec![
-                1u64.map_to_field(&config),
-                0u64.map_to_field(&config),
-                0u64.map_to_field(&config),
+                1u64.map_to_field(config),
+                0u64.map_to_field(config),
+                0u64.map_to_field(config),
             ],
             vec![
-                0u64.map_to_field(&config),
-                2u64.map_to_field(&config),
-                1u64.map_to_field(&config),
+                0u64.map_to_field(config),
+                2u64.map_to_field(config),
+                1u64.map_to_field(config),
             ],
             vec![
-                0u64.map_to_field(&config),
-                0u64.map_to_field(&config),
-                3u64.map_to_field(&config),
+                0u64.map_to_field(config),
+                0u64.map_to_field(config),
+                3u64.map_to_field(config),
             ],
         ];
         let M = dense_matrix_to_sparse(dense_matrix);
 
         let z = [
-            1u64.map_to_field(&config),
-            1u64.map_to_field(&config),
-            1u64.map_to_field(&config),
+            1u64.map_to_field(config),
+            1u64.map_to_field(config),
+            1u64.map_to_field(config),
         ];
         let result = mat_vec_mul(&M, &z);
         let expected = vec![
-            1u64.map_to_field(&config),
-            3u64.map_to_field(&config),
-            3u64.map_to_field(&config),
+            1u64.map_to_field(config),
+            3u64.map_to_field(config),
+            3u64.map_to_field(config),
         ];
         assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn test_mat_vec_mul_error_case() {
-        let config = get_config();
+        let config = ConfigPtr::from(&get_config());
 
         let dense_matrix = vec![
             vec![
-                1u64.map_to_field(&config),
-                0u64.map_to_field(&config),
-                0u64.map_to_field(&config),
+                1u64.map_to_field(config),
+                0u64.map_to_field(config),
+                0u64.map_to_field(config),
             ],
             vec![
-                0u64.map_to_field(&config),
-                2u64.map_to_field(&config),
-                1u64.map_to_field(&config),
+                0u64.map_to_field(config),
+                2u64.map_to_field(config),
+                1u64.map_to_field(config),
             ],
             vec![
-                0u64.map_to_field(&config),
-                0u64.map_to_field(&config),
-                3u64.map_to_field(&config),
+                0u64.map_to_field(config),
+                0u64.map_to_field(config),
+                3u64.map_to_field(config),
             ],
         ];
         let M = dense_matrix_to_sparse(dense_matrix);
 
-        let z = [1u32.map_to_field(&config), 1u32.map_to_field(&config)];
+        let z = [1u32.map_to_field(config), 1u32.map_to_field(config)];
         let result = mat_vec_mul(&M, &z);
         assert!(result.is_err());
     }

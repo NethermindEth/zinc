@@ -1,4 +1,6 @@
 //! Prover
+
+use crate::field_config::ConfigPtr;
 use std::sync::atomic::{self, AtomicPtr};
 
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
@@ -7,7 +9,6 @@ use rayon::iter::*;
 
 use crate::{
     field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
 };
 
@@ -61,7 +62,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         prover_state: &mut ProverState<N>,
         v_msg: &Option<VerifierMsg<N>>,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> ProverMsg<N> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
@@ -73,9 +74,13 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1];
 
-            let atomic_config = AtomicPtr::new(config as *mut FieldConfig<N>);
+            let atomic_config =
+                AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r], atomic_config.load(atomic::Ordering::Relaxed));
+                multiplicand.fix_variables(
+                    &[r],
+                    ConfigPtr::new(atomic_config.load(atomic::Ordering::Relaxed)),
+                );
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");

@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+use crate::field_config::ConfigPtr;
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
@@ -7,7 +8,6 @@ use itertools::izip;
 
 use crate::{
     field::{conversion::FieldMap, RandomField as F},
-    field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
@@ -33,7 +33,7 @@ where
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         point: &[F<N>],
-        field: *const FieldConfig<N>,
+        field: ConfigPtr<N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
@@ -52,7 +52,7 @@ where
         comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: ConfigPtr<N>,
     ) -> Result<(), Error> {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;
@@ -66,7 +66,7 @@ where
         transcript: &mut PcsTranscript<N>,
         point: &[F<N>],
         poly: &Self::Polynomial,
-        field: *const FieldConfig<N>,
+        field: ConfigPtr<N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
         let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
@@ -94,7 +94,7 @@ where
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
+        field: ConfigPtr<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

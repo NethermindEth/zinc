@@ -6,6 +6,7 @@ mod utils;
 
 #[cfg(test)]
 mod tests;
+
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]
 /// Errors that can occur in the Zip PCS scheme

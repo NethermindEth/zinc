@@ -54,12 +54,12 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
         let mut result = vec![Int::<N>::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
-                m.n_rows, self.n,
+                m.n_rows, self.m,
                 "Incorrect number of rows, expected {} and got {}.",
                 self.m, m.n_rows
             );
             assert_eq!(
-                m.n_cols, self.m,
+                m.n_cols, self.n,
                 "Incorrect number of rows, expected {} and got {}.",
                 self.n, m.n_cols
             );
@@ -104,9 +104,8 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
     }
 }
 
-#[cfg(test)]
 impl<const N: usize> CCS_Z<N> {
-    pub(super) fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
+    pub fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
             let log_m = ark_std::log2(size) as usize;
@@ -228,8 +227,8 @@ pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
-    let m = 6;
-    let n = 4;
+    let m = 4;
+    let n = 6;
     CCS_Z {
         m,
         n,
@@ -243,8 +242,8 @@ pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
         c: vec![1, -1],
     }
 }
-#[cfg(test)]
-pub(super) fn to_Z_matrix<const N: usize>(M: Vec<Vec<usize>>) -> SparseMatrix<Int<N>> {
+
+pub fn to_Z_matrix<const N: usize>(M: Vec<Vec<usize>>) -> SparseMatrix<Int<N>> {
     crate::sparse_matrix::dense_matrix_to_sparse(
         M.iter()
             .map(|m| m.iter().map(|c| Int::<N>::from_i64(*c as i64)).collect())

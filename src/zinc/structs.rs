@@ -28,20 +28,11 @@ pub struct ZipProof<const N: usize> {
     pub(crate) pcs_proof: Vec<u8>,
 }
 
-/// Proof for the lookup performed at the end
-/// of the Zinc Protocol
-pub struct LookupProof<const N: usize> {}
-
-/// Proof for the lookup performed at the end
-/// of the Zinc Protocol
 pub struct ZincProof<const N: usize> {
     /// The proof of the spartan subprotocol
     pub spartan_proof: SpartanProof<N>,
     /// The PCS opening proof
     pub zip_proof: ZipProof<N>,
-    /// The lookup proof that all witness elements
-    /// are integers
-    pub lookup_proof: LookupProof<N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

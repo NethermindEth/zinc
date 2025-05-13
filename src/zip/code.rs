@@ -15,7 +15,6 @@ use std::collections::BTreeSet;
 use std::iter;
 
 use super::pcs::structs::ZipTranscript;
-
 const INVERSE_RATE: usize = 2;
 
 /// A trait for encoding things with a linear homomorphism, parameterized by the sizes of the inut elemet and the code elements

@@ -33,7 +33,7 @@ where
         point: &[F<N>],
         eval: F<N>,
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), ZipError> {
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
@@ -50,7 +50,7 @@ where
         points: &[Vec<F<N>>],
         evals: &[F<N>],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), ZipError> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
@@ -136,22 +136,19 @@ where
         eval: F<N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), ZipError> {
         let q_0_combined_row = transcript
             .read_field_elements(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()), field)?;
-        println!("read q_0 combined row: {:?}", q_0_combined_row);
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
 
         let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, field)?;
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
-            println!("{:?} != {:?}", inner_product(&q_0_combined_row, &q_1), eval);
             return Err(ZipError::InvalidPcsOpen(
                 "Evaluation consistency failure".to_string(),
             ));
         }
-        println!("encoded combined row: {:?}", encoded_combined_row);
         for (column_idx, column_values) in columns_opened.iter() {
             Self::verify_proximity_q_0(
                 &q_0,
@@ -172,11 +169,8 @@ where
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: *const FieldConfig<N>,
+        field: &FieldConfig<N>,
     ) -> Result<(), ZipError> {
-        println!("Verify proximity q_0\n\n");
-
-        println!("{:?}", column);
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
             inner_product(q_0, &column_entries)
@@ -184,8 +178,6 @@ where
         } else {
             column_entries.first().unwrap().map_to_field(field)
         };
-        println!("{:?}", column_entries_comb);
-        println!("{:?}", encoded_q_0_combined_row[column]);
         if column_entries_comb != encoded_q_0_combined_row[column] {
             return Err(ZipError::InvalidPcsOpen("Proximity failure".to_string()));
         }

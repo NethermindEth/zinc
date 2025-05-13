@@ -80,9 +80,8 @@ where
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,
     ) -> Result<(), ZipError> {
-        let mut proofs = vec![];
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
-            proofs.push(Self::open(pp, poly, comm, point, field, transcript)?);
+            Self::open(pp, poly, comm, point, field, transcript)?;
         }
         Ok(())
     }

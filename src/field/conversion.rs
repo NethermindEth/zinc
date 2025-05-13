@@ -3,7 +3,7 @@ use crypto_bigint::{Int, NonZero, Uint};
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
 use crate::field::RandomField::Raw;
-use crate::field_config::FieldConfig;
+use crate::field_config::{as_ref_unchecked, FieldConfig};
 use crate::traits::FromBytes;
 
 impl<const N: usize> From<u128> for RandomField<N> {
@@ -84,64 +84,64 @@ macro_rules! impl_field_map_for_int {
                 if config.is_null() {
                     panic!("Cannot convert signed integer to prime field element without a modulus")
                 }
-                unsafe {
-                    let modulus: [u64; N] = (*config).modulus.0;
-                    let abs_val = self.unsigned_abs();
 
-                    // Calculate how many u64 limbs we need based on bits
-                    const LIMBS: usize = ($bits + 63) / 64;
-                    let mut val = [0u64; LIMBS];
+                let config = as_ref_unchecked(&config);
+                let modulus: [u64; N] = config.modulus.0;
+                let abs_val = self.unsigned_abs();
 
-                    // Fill val array based on size
-                    if LIMBS == 1 {
-                        val[0] = abs_val as u64;
-                    } else {
-                        for i in 0..LIMBS {
-                            val[i] = (abs_val >> (i * 64)) as u64;
-                        }
+                // Calculate how many u64 limbs we need based on bits
+                const LIMBS: usize = ($bits + 63) / 64;
+                let mut val = [0u64; LIMBS];
+
+                // Fill val array based on size
+                if LIMBS == 1 {
+                    val[0] = abs_val as u64;
+                } else {
+                    for i in 0..LIMBS {
+                        val[i] = (abs_val >> (i * 64)) as u64;
                     }
-
-                    let mut r: BigInt<N> = match N {
-                        n if n < LIMBS => {
-                            let mut wider_modulus = [0u64; LIMBS];
-                            wider_modulus[..N].copy_from_slice(&modulus);
-                            let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
-                            let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
-
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            let mut result = [0u64; N];
-                            result.copy_from_slice(&value.to_words()[..N]);
-
-                            BigInt(result)
-                        }
-                        n if n == LIMBS => {
-                            let mut value_N = [0u64; N];
-                            value_N.copy_from_slice(&val);
-
-                            let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(value.to_words())
-                        }
-                        _ => {
-                            let mut wider_value = [0u64; N];
-                            wider_value[..LIMBS].copy_from_slice(&val);
-                            let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(wider.to_words())
-                        }
-                    };
-
-                    (*config).mul_assign(&mut r, &(*config).r2);
-
-                    let mut elem = RandomField::<N>::new_unchecked(config, r);
-                    if *self < 0 {
-                        elem = -elem;
-                    }
-
-                    elem
                 }
+
+                let mut r: BigInt<N> = match N {
+                    n if n < LIMBS => {
+                        let mut wider_modulus = [0u64; LIMBS];
+                        wider_modulus[..N].copy_from_slice(&modulus);
+                        let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
+                        let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
+
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        let mut result = [0u64; N];
+                        result.copy_from_slice(&value.to_words()[..N]);
+
+                        BigInt(result)
+                    }
+                    n if n == LIMBS => {
+                        let mut value_N = [0u64; N];
+                        value_N.copy_from_slice(&val);
+
+                        let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(value.to_words())
+                    }
+                    _ => {
+                        let mut wider_value = [0u64; N];
+                        wider_value[..LIMBS].copy_from_slice(&val);
+                        let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        wider %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(wider.to_words())
+                    }
+                };
+
+                config.mul_assign(&mut r, &config.r2);
+
+                let mut elem = RandomField::<N>::new_unchecked(config, r);
+                if *self < 0 {
+                    elem = -elem;
+                }
+
+                elem
             }
         }
 
@@ -170,56 +170,55 @@ macro_rules! impl_field_map_for_uint {
                         "Cannot convert unsigned integer to prime field element without a modulus"
                     )
                 }
-                unsafe {
-                    let modulus: [u64; N] = (*config).modulus.0;
+                let config = as_ref_unchecked(&config);
+                let modulus: [u64; N] = config.modulus.0;
 
-                    // Calculate how many u64 limbs we need based on bits
-                    const LIMBS: usize = ($bits + 63) / 64;
-                    let mut val = [0u64; LIMBS];
+                // Calculate how many u64 limbs we need based on bits
+                const LIMBS: usize = ($bits + 63) / 64;
+                let mut val = [0u64; LIMBS];
 
-                    // Fill val array based on size
-                    if LIMBS == 1 {
-                        val[0] = *self as u64;
-                    } else {
-                        for i in 0..LIMBS {
-                            val[i] = (*self >> (i * 64)) as u64;
-                        }
+                // Fill val array based on size
+                if LIMBS == 1 {
+                    val[0] = *self as u64;
+                } else {
+                    for i in 0..LIMBS {
+                        val[i] = (*self >> (i * 64)) as u64;
                     }
-
-                    let mut r: BigInt<N> = match N {
-                        n if n < LIMBS => {
-                            let mut wider_modulus = [0u64; LIMBS];
-                            wider_modulus[..N].copy_from_slice(&modulus);
-                            let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
-                            let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            let mut result = [0u64; N];
-                            result.copy_from_slice(&value.to_words()[..N]);
-
-                            BigInt(result)
-                        }
-                        n if n == LIMBS => {
-                            let mut value_N = [0u64; N];
-                            value_N.copy_from_slice(&val);
-
-                            let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            value %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(value.to_words())
-                        }
-                        _ => {
-                            let mut wider_value = [0u64; N];
-                            wider_value[..LIMBS].copy_from_slice(&val);
-                            let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-                            let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                            wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                            BigInt(wider.to_words())
-                        }
-                    };
-
-                    (*config).mul_assign(&mut r, &(*config).r2);
-                    RandomField::<N>::new_unchecked(config, r)
                 }
+
+                let mut r: BigInt<N> = match N {
+                    n if n < LIMBS => {
+                        let mut wider_modulus = [0u64; LIMBS];
+                        wider_modulus[..N].copy_from_slice(&modulus);
+                        let mut value = crypto_bigint::Uint::<LIMBS>::from_words(val);
+                        let modu = crypto_bigint::Uint::<LIMBS>::from_words(wider_modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        let mut result = [0u64; N];
+                        result.copy_from_slice(&value.to_words()[..N]);
+
+                        BigInt(result)
+                    }
+                    n if n == LIMBS => {
+                        let mut value_N = [0u64; N];
+                        value_N.copy_from_slice(&val);
+
+                        let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        value %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(value.to_words())
+                    }
+                    _ => {
+                        let mut wider_value = [0u64; N];
+                        wider_value[..LIMBS].copy_from_slice(&val);
+                        let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
+                        let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                        wider %= crypto_bigint::NonZero::new(modu).unwrap();
+                        BigInt(wider.to_words())
+                    }
+                };
+
+                config.mul_assign(&mut r, &config.r2);
+                RandomField::<N>::new_unchecked(config, r)
             }
         }
 
@@ -244,11 +243,10 @@ impl<const N: usize> FieldMap<N> for bool {
         if config.is_null() {
             panic!("Cannot convert boolean to prime field element without a modulus")
         }
-        unsafe {
-            let mut r = BigInt::from(*self as u64);
-            (*config).mul_assign(&mut r, &(*config).r2);
-            RandomField::<N>::new_unchecked(config, r)
-        }
+        let config = as_ref_unchecked(&config);
+        let mut r = BigInt::from(*self as u64);
+        config.mul_assign(&mut r, &config.r2);
+        RandomField::<N>::new_unchecked(config, r)
     }
 }
 
@@ -289,52 +287,52 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
             panic!("Cannot convert BigInt to prime field element without a modulus")
         }
 
-        unsafe {
-            let modulus: [u64; N] = (*config).modulus.0;
+        let config = as_ref_unchecked(&config);
 
-            let mut r: BigInt<N> = match M.cmp(&N) {
-                std::cmp::Ordering::Less => {
-                    let mut wider_value = [0u64; N];
-                    wider_value[..M].copy_from_slice(&self.0);
-                    let mut value = Uint::from_words(wider_value);
-                    let modu = Uint::<N>::from_words(modulus);
+        let modulus: [u64; N] = config.modulus.0;
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+        let mut r: BigInt<N> = match M.cmp(&N) {
+            std::cmp::Ordering::Less => {
+                let mut wider_value = [0u64; N];
+                wider_value[..M].copy_from_slice(&self.0);
+                let mut value = Uint::from_words(wider_value);
+                let modu = Uint::<N>::from_words(modulus);
 
-                    BigInt(result)
-                }
-                std::cmp::Ordering::Equal => {
-                    let mut value = Uint::<M>::from_words(self.0);
-                    let mut wider_modulus = [0u64; M];
-                    wider_modulus[..N].copy_from_slice(&modulus);
-                    let modu = Uint::<M>::from_words(wider_modulus);
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+                BigInt(result)
+            }
+            std::cmp::Ordering::Equal => {
+                let mut value = Uint::<M>::from_words(self.0);
+                let mut wider_modulus = [0u64; M];
+                wider_modulus[..N].copy_from_slice(&modulus);
+                let modu = Uint::<M>::from_words(wider_modulus);
 
-                    BigInt(result)
-                }
-                std::cmp::Ordering::Greater => {
-                    let mut value = Uint::<M>::from_words(self.0);
-                    let mut wider_modulus = [0u64; M];
-                    wider_modulus[..N].copy_from_slice(&modulus);
-                    let modu = Uint::<M>::from_words(wider_modulus);
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-                    value %= NonZero::new(modu).unwrap();
-                    let mut result = [0u64; N];
-                    result.copy_from_slice(&value.to_words()[..N]);
+                BigInt(result)
+            }
+            std::cmp::Ordering::Greater => {
+                let mut value = Uint::<M>::from_words(self.0);
+                let mut wider_modulus = [0u64; M];
+                wider_modulus[..N].copy_from_slice(&modulus);
+                let modu = Uint::<M>::from_words(wider_modulus);
 
-                    BigInt(result)
-                }
-            };
+                value %= NonZero::new(modu).unwrap();
+                let mut result = [0u64; N];
+                result.copy_from_slice(&value.to_words()[..N]);
 
-            // Apply Montgomery form transformation
-            (*config).mul_assign(&mut r, &(*config).r2);
-            RandomField::<N>::new_unchecked(config, r)
-        }
+                BigInt(result)
+            }
+        };
+
+        // Apply Montgomery form transformation
+        config.mul_assign(&mut r, &config.r2);
+        RandomField::<N>::new_unchecked(config, r)
     }
 }
 

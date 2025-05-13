@@ -1,6 +1,7 @@
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
+use crate::field_config::as_ref_unchecked;
 use crate::{
     biginteger::BigInt,
     field::{conversion::FieldMap, RandomField},
@@ -54,12 +55,12 @@ impl KeccakTranscript {
                 self.absorb(&[0x3])
             }
             RandomField::Initialized { config, value } => {
-                unsafe {
-                    let config = config.as_ref().unwrap();
-                    self.absorb(&[0x3]);
-                    self.absorb(&config.modulus.to_bytes_be());
-                    self.absorb(&[0x5])
-                }
+                let config = as_ref_unchecked(config);
+
+                self.absorb(&[0x3]);
+                self.absorb(&config.modulus.to_bytes_be());
+                self.absorb(&[0x5]);
+
                 self.absorb(&[0x1]);
                 self.absorb(&value.to_bytes_be());
                 self.absorb(&[0x3])
@@ -92,7 +93,8 @@ impl KeccakTranscript {
         config: *const FieldConfig<N>,
     ) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let modulus = unsafe { (*config).modulus };
+        let config = as_ref_unchecked(&config);
+        let modulus = config.modulus;
         let challenge_num_bits = modulus.num_bits() - 1;
         if N == 1 {
             let lo_mask = (1u64 << challenge_num_bits) - 1;

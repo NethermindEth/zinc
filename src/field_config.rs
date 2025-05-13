@@ -245,6 +245,14 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 
 impl<const N: usize> Eq for FieldConfig<N> {}
 
+pub fn as_ref_unchecked<const N: usize>(config: &*const FieldConfig<N>) -> &FieldConfig<N> {
+    unsafe {
+        config
+            .as_ref()
+            .expect("Cannot have a null config for Initialized")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

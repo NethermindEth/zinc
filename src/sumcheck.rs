@@ -134,14 +134,14 @@ mod tests {
 
     use rand::Rng;
 
-    use crate::{
-        biginteger::BigInt, field::RandomField, field_config::FieldConfig,
-        transcript::KeccakTranscript,
-    };
-
     use super::{
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck, SumcheckProof,
+    };
+    use crate::field_config::as_ref_unchecked;
+    use crate::{
+        biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+        transcript::KeccakTranscript,
     };
 
     fn generate_sumcheck_proof<const N: usize>(
@@ -177,7 +177,7 @@ mod tests {
             &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
         for _ in 0..20 {
             let (poly_degree, sum, proof) =
-                generate_sumcheck_proof::<N>(nvars, &mut rng, unsafe { config.as_ref() }.unwrap());
+                generate_sumcheck_proof::<N>(nvars, &mut rng, as_ref_unchecked(&config));
 
             let mut transcript = KeccakTranscript::default();
             let res = MLSumcheck::verify_as_subprotocol(

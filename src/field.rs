@@ -1,4 +1,4 @@
-#![allow(clippy::not_unsafe_ptr_arg_deref, non_snake_case)]
+#![allow(non_snake_case)]
 
 use crate::field::conversion::FieldMap;
 use ark_ff::UniformRand;
@@ -25,6 +25,7 @@ pub enum RandomField<const N: usize> {
     },
 }
 
+use crate::field_config::as_ref_unchecked;
 use RandomField::*;
 
 impl<const N: usize> RandomField<N> {
@@ -61,12 +62,7 @@ impl<const N: usize> RandomField<N> {
         F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
     {
         match self {
-            Initialized { config, value } => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-                Some(f(config, value))
-            },
+            Initialized { config, value } => Some(f(as_ref_unchecked(config), value)),
             _ => None,
         }
     }
@@ -76,12 +72,7 @@ impl<const N: usize> RandomField<N> {
         F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
     {
         match self {
-            Initialized { config, value } => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-                f(config, value)
-            },
+            Initialized { config, value } => f(as_ref_unchecked(config), value),
             _ => default,
         }
     }
@@ -93,13 +84,7 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-
-                init_fn(config, value)
-            },
+            Initialized { config, value } => init_fn(as_ref_unchecked(config), value),
         }
     }
 
@@ -110,13 +95,7 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-
-                init_fn(config, value)
-            },
+            Initialized { config, value } => init_fn(as_ref_unchecked(config), value),
         }
     }
 
@@ -127,13 +106,7 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-
-                init_fn(config, value)
-            },
+            Initialized { config, value } => init_fn(as_ref_unchecked(&config), value),
         }
     }
 
@@ -173,41 +146,28 @@ impl<const N: usize> RandomField<N> {
                 Initialized {
                     value: value_rhs, ..
                 },
-            ) => unsafe {
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-
-                with_config(value_self, value_rhs, config)
-            },
+            ) => with_config(value_self, value_rhs, as_ref_unchecked(config)),
             (
                 Initialized {
                     value: value_self,
                     config,
                 },
                 rhs @ Raw { .. },
-            ) => unsafe {
+            ) => {
                 let rhs = (*rhs).set_config_owned(*config);
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
-
-                with_config(value_self, rhs.value(), config)
-            },
+                with_config(value_self, rhs.value(), as_ref_unchecked(config))
+            }
             (
                 lhs @ Raw { .. },
                 Initialized {
                     value: value_rhs,
                     config,
                 },
-            ) => unsafe {
+            ) => {
                 lhs.set_config(*config);
-                let config = config
-                    .as_ref()
-                    .expect("Cannot have a null config for Initialized");
 
-                with_config(lhs.value_mut(), value_rhs, config)
-            },
+                with_config(lhs.value_mut(), value_rhs, as_ref_unchecked(config))
+            }
         }
     }
 }
@@ -226,7 +186,7 @@ pub fn rand_with_config<const N: usize, R: ark_std::rand::Rng + ?Sized>(
 ) -> RandomField<N> {
     loop {
         let mut value = BigInt::rand(rng);
-        let modulus = unsafe { (*config).modulus };
+        let modulus = as_ref_unchecked(&config).modulus;
         let shave_bits = 64 * N - modulus.num_bits() as usize;
         // Mask away the unused bits at the beginning.
         assert!(shave_bits <= 64);
@@ -322,16 +282,16 @@ impl<const N: usize> RandomField<N> {
             return Some(Raw { value });
         }
 
-        unsafe {
-            if value >= (*config).modulus {
-                None
-            } else {
-                let mut r = value;
+        let config = as_ref_unchecked(&config);
 
-                (*config).mul_assign(&mut r, &(*config).r2);
+        if value >= config.modulus {
+            None
+        } else {
+            let mut r = value;
 
-                Some(Self::new_unchecked(config, r))
-            }
+            config.mul_assign(&mut r, &config.r2);
+
+            Some(Self::new_unchecked(config, r))
         }
     }
 
@@ -339,20 +299,19 @@ impl<const N: usize> RandomField<N> {
         if config.is_null() {
             panic!("Cannot convert signed integer to prime field element without a modulus")
         }
-        unsafe {
-            if BigInt::from(value.unsigned_abs()) >= (*config).modulus {
-                None
-            } else {
-                let mut r = (value.unsigned_abs()).into();
+        let config = as_ref_unchecked(&config);
+        if BigInt::from(value.unsigned_abs()) >= config.modulus {
+            None
+        } else {
+            let mut r = (value.unsigned_abs()).into();
 
-                (*config).mul_assign(&mut r, &(*config).r2);
+            (*config).mul_assign(&mut r, &config.r2);
 
-                let mut elem = Self::new_unchecked(config, r);
-                if value.is_negative() {
-                    elem = -elem;
-                }
-                Some(elem)
+            let mut elem = Self::new_unchecked(config, r);
+            if value.is_negative() {
+                elem = -elem;
             }
+            Some(elem)
         }
     }
 

@@ -1,11 +1,10 @@
+use crate::field_config::ConfigPtr;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
-use crate::field_config::as_ref_unchecked;
 use crate::{
     biginteger::BigInt,
     field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -55,7 +54,7 @@ impl KeccakTranscript {
                 self.absorb(&[0x3])
             }
             RandomField::Initialized { config, value } => {
-                let config = as_ref_unchecked(config);
+                let config = config.as_ref();
 
                 self.absorb(&[0x3]);
                 self.absorb(&config.modulus.to_bytes_be());
@@ -88,12 +87,9 @@ impl KeccakTranscript {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<const N: usize>(
-        &mut self,
-        config: *const FieldConfig<N>,
-    ) -> RandomField<N> {
+    pub fn get_challenge<const N: usize>(&mut self, config: ConfigPtr<N>) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let config = as_ref_unchecked(&config);
+        let config = config.as_ref();
         let modulus = config.modulus;
         let challenge_num_bits = modulus.num_bits() - 1;
         if N == 1 {
@@ -101,8 +97,8 @@ impl KeccakTranscript {
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(config);
-            challenge.set_config(config);
+            let mut challenge = truncated_lo.map_to_field(ConfigPtr::from(config));
+            challenge.set_config(ConfigPtr::from(config));
             return challenge;
         }
         if challenge_num_bits < 128 {
@@ -110,16 +106,17 @@ impl KeccakTranscript {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(config);
-            challenge.set_config(config);
+            let mut challenge = truncated_lo.map_to_field(ConfigPtr::from(config));
+            challenge.set_config(ConfigPtr::from(config));
             challenge
         } else if challenge_num_bits >= 256 {
             let two_to_128 =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(config);
+                    .map_to_field(ConfigPtr::from(config));
 
-            let mut challenge = lo.map_to_field(config) + two_to_128 * hi.map_to_field(config);
-            challenge.set_config(config);
+            let mut challenge = lo.map_to_field(ConfigPtr::from(config))
+                + two_to_128 * hi.map_to_field(ConfigPtr::from(config));
+            challenge.set_config(ConfigPtr::from(config));
             challenge
         } else {
             let hi_bits_to_keep = challenge_num_bits - 128;
@@ -129,17 +126,18 @@ impl KeccakTranscript {
 
             let two_to_128 =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(config);
+                    .map_to_field(ConfigPtr::from(config));
 
-            let mut ret = lo.map_to_field(config) + two_to_128 * truncated_hi.map_to_field(config);
-            ret.set_config(config);
+            let mut ret = lo.map_to_field(ConfigPtr::from(config))
+                + two_to_128 * truncated_hi.map_to_field(ConfigPtr::from(config));
+            ret.set_config(ConfigPtr::from(config));
             ret
         }
     }
     pub fn get_challenges<const N: usize>(
         &mut self,
         n: usize,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Vec<RandomField<N>> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge(config)));
@@ -200,28 +198,28 @@ impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{biginteger::BigInt, field::conversion::FieldMap, field_config::FieldConfig};
-
     use super::KeccakTranscript;
+    use crate::field_config::ConfigPtr;
+    use crate::{biginteger::BigInt, field::conversion::FieldMap, field_config::FieldConfig};
 
     #[test]
     fn test_keccak_transcript() {
         let mut transcript = KeccakTranscript::new();
-        let field_config = FieldConfig::new(
+        let field_config = ConfigPtr::from(&FieldConfig::new(
             BigInt::<32>::from_str(
                 "3618502788666131213697322783095070105623107215331596699973092056135872020481",
             )
             .unwrap(),
-        );
+        ));
 
         transcript.absorb(b"This is a test string!");
-        let challenge = transcript.get_challenge(&field_config);
+        let challenge = transcript.get_challenge(field_config);
 
         let expected_bigint = BigInt::<32>::from_str(
             "693058076479703886486101269644733982722902192016595549603371045888466087870",
         )
         .unwrap();
-        let expected_field = expected_bigint.map_to_field(&field_config);
+        let expected_field = expected_bigint.map_to_field(field_config);
 
         assert_eq!(challenge, expected_field);
     }

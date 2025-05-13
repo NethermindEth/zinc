@@ -1,5 +1,7 @@
+use crate::field_config::ConfigPtr;
 use ark_ff::Zero;
 use crypto_bigint::Int;
+use std::sync::atomic::Ordering;
 
 use crate::{
     ccs::{
@@ -60,7 +62,7 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
+            Self::prepare_for_random_field_piop(statement, wit, ccs, ConfigPtr::from(config))?;
 
         // Prove Spartan protocol over random field
         let (spartan_proof, r_y) = SpartanProver::<N>::prove(
@@ -70,12 +72,17 @@ impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
             &z_mle,
             &ccs_f,
             transcript,
-            config,
+            ConfigPtr::from(config),
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
+        let (z_comm, v, pcs_proof) = Self::commit_z_mle_and_prove_evaluation(
+            &z_mle,
+            &ccs_f,
+            ConfigPtr::from(config),
+            &r_y,
+            transcript,
+        )?;
 
         let zip_proof = ZipProof {
             z_comm,
@@ -118,7 +125,7 @@ pub trait SpartanProver<const N: usize> {
         z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>>;
 }
 
@@ -130,7 +137,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
         z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         // Do first Sumcheck
         let (sumcheck_proof_1, r_x, mz_mles) =
@@ -162,7 +169,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         statement: &Statement_Z<N>,
         wit: &Witness_Z<N>,
         ccs: &CCS_Z<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<
         (
             Vec<RandomField<N>>,
@@ -184,7 +191,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         transcript: &mut KeccakTranscript,
         constraints: &[SparseMatrix<RandomField<N>>],
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<
         (
             Vec<DenseMultilinearExtension<N>>,
@@ -210,7 +217,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         statement: &Statement_Z<N>,
         wit: &Witness_Z<N>,
         ccs: &CCS_Z<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ<N>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
@@ -230,7 +237,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         transcript: &mut KeccakTranscript,
         statement: &Statement_F<N>,
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<
         (
             SumcheckProof<N>,
@@ -256,7 +263,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         r_a: &[RandomField<N>],
         ccs: &CCS_F<N>,
         statement: &Statement_F<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
         z_mle: &DenseMultilinearExtension<N>,
         transcript: &mut KeccakTranscript,
     ) -> Result<(SumcheckProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
@@ -284,10 +291,11 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
                 .collect::<Vec<RandomField<N>>>()
         };
 
-        let evals_mle =
-            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
-                *(ccs.config.as_ptr())
-            });
+        let evals_mle = DenseMultilinearExtension::from_evaluations_vec(
+            ccs.s_prime,
+            evals,
+            ConfigPtr::new(ccs.config.load(Ordering::Acquire)),
+        );
 
         sumcheck_2_mles.push(evals_mle);
         sumcheck_2_mles.push(z_mle.clone());
@@ -299,7 +307,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     fn commit_z_mle_and_prove_evaluation(
         z_mle: &DenseMultilinearExtensionZ<N>,
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
         r_y: &[RandomField<N>],
         transcript: &mut KeccakTranscript,
     ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>>
@@ -334,7 +342,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     fn calculate_V_s(
         mz_mles: &[DenseMultilinearExtension<N>],
         r_x: &[RandomField<N>],
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<Vec<RandomField<N>>, SpartanError<N>> {
         let V_s: Result<Vec<RandomField<N>>, MleEvaluationError> = mz_mles
             .iter()
@@ -356,7 +364,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<(SumcheckProof<N>, Vec<RandomField<N>>), SpartanError<N>> {
         let (sum_check_proof, prover_state) =
             MLSumcheck::prove_as_subprotocol(transcript, mles, nvars, degree, comb_fn, config);

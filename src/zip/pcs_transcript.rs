@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+use crate::field_config::ConfigPtr;
 use std::io::{Cursor, Read, Write};
 
 use crypto_bigint::Int;
@@ -8,7 +9,6 @@ use sha3::Keccak256;
 
 use crate::biginteger::BigInt;
 use crate::field::RandomField as F;
-use crate::field_config::FieldConfig;
 use crate::traits::FromBytes;
 use crate::transcript::KeccakTranscript;
 
@@ -68,14 +68,14 @@ impl<const N: usize> PcsTranscript<N> {
     pub fn read_field_elements(
         &mut self,
         n: usize,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<Vec<F<N>>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, config: *const FieldConfig<N>) -> Result<F<N>, Error> {
+    pub fn read_field_element(&mut self, config: ConfigPtr<N>) -> Result<F<N>, Error> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
@@ -146,7 +146,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: *const FieldConfig<N>, cap: usize) -> usize {
+    pub fn squeeze_challenge_idx(&mut self, config: ConfigPtr<N>, cap: usize) -> usize {
         let challenge = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;

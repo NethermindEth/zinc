@@ -1,4 +1,5 @@
 use crate::biginteger::BigInt;
+use ark_std::ptr::NonNull;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -50,6 +51,42 @@ pub struct FieldConfig<const N: usize> {
     /// (a) `Self::MODULUS[N-1] >> 63 == 0`
     #[doc(hidden)]
     modulus_has_spare_bit: bool,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct ConfigPtr<const N: usize>(Option<NonNull<FieldConfig<N>>>);
+
+impl<const N: usize> From<&FieldConfig<N>> for ConfigPtr<N> {
+    fn from(value: &FieldConfig<N>) -> Self {
+        Self(Some(NonNull::from(value)))
+    }
+}
+
+unsafe impl<const N: usize> Sync for ConfigPtr<N> {}
+unsafe impl<const N: usize> Send for ConfigPtr<N> {}
+
+impl<const N: usize> ConfigPtr<N> {
+    pub fn as_ptr(&self) -> *mut FieldConfig<N> {
+        self.0.expect("non-null pointer").as_ptr()
+    }
+
+    pub fn as_ref(&self) -> &FieldConfig<N> {
+        unsafe { self.0.expect("non-null pointer").as_ref() }
+    }
+
+    pub fn expect(&self, message: &str) -> &FieldConfig<N> {
+        unsafe { self.0.expect(message).as_ref() }
+    }
+
+    pub fn new(config_ptr: *mut FieldConfig<N>) -> Self {
+        Self(NonNull::new(config_ptr))
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
+    pub const NONE: Self = Self(None);
 }
 
 impl<const N: usize> FieldConfig<N> {
@@ -244,14 +281,6 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 }
 
 impl<const N: usize> Eq for FieldConfig<N> {}
-
-pub fn as_ref_unchecked<const N: usize>(config: &*const FieldConfig<N>) -> &FieldConfig<N> {
-    unsafe {
-        config
-            .as_ref()
-            .expect("Cannot have a null config for Initialized")
-    }
-}
 
 #[cfg(test)]
 mod tests {

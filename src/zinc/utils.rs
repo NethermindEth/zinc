@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use crate::field_config::ConfigPtr;
 use ark_ff::Zero;
 use bytemuck::cast_slice;
 use crypto_bigint::Int;
@@ -55,7 +56,7 @@ pub fn prepare_lin_sumcheck_polynomial<const N: usize>(
     M_mles: &[DenseMultilinearExtension<N>],
     S: &[Vec<usize>],
     beta_s: &[RandomField<N>],
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Result<(Vec<DenseMultilinearExtension<N>>, usize), SpartanError<N>> {
     let len = 1 + c
         .iter()
@@ -100,19 +101,11 @@ pub(crate) fn sumcheck_polynomial_comb_fn_1<const N: usize>(
 }
 
 pub(crate) trait SqueezeBeta<const N: usize> {
-    fn squeeze_beta_challenges(
-        &mut self,
-        n: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>>;
+    fn squeeze_beta_challenges(&mut self, n: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>>;
 }
 
 impl<const N: usize> SqueezeBeta<N> for KeccakTranscript {
-    fn squeeze_beta_challenges(
-        &mut self,
-        n: usize,
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>> {
+    fn squeeze_beta_challenges(&mut self, n: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>> {
         self.absorb(b"beta_s");
 
         self.get_challenges(n, config)
@@ -120,11 +113,11 @@ impl<const N: usize> SqueezeBeta<N> for KeccakTranscript {
 }
 
 pub(crate) trait SqueezeGamma<const N: usize> {
-    fn squeeze_gamma_challenge(&mut self, config: *const FieldConfig<N>) -> RandomField<N>;
+    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<N>) -> RandomField<N>;
 }
 
 impl<const N: usize> SqueezeGamma<N> for KeccakTranscript {
-    fn squeeze_gamma_challenge(&mut self, config: *const FieldConfig<N>) -> RandomField<N> {
+    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<N>) -> RandomField<N> {
         self.absorb(b"gamma");
 
         self.get_challenge(config)
@@ -136,7 +129,7 @@ pub(super) fn calculate_Mz_mles<E, const N: usize>(
     constraints: &[SparseMatrix<RandomField<N>>],
     ccs_s: usize,
     z_ccs: &[RandomField<N>],
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Result<Vec<DenseMultilinearExtension<N>>, E>
 where
     E: From<MleEvaluationError> + From<CSError> + Sync + Send,
@@ -151,7 +144,7 @@ where
 fn to_mles_err<const N: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Result<Vec<DenseMultilinearExtension<N>>, E>
 where
     I: IntoIterator<Item = Result<Vec<RandomField<N>>, E1>>,

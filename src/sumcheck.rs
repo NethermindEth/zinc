@@ -1,10 +1,10 @@
+use crate::field_config::ConfigPtr;
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
 use self::verifier::SubClaim;
 use crate::{
     field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
     poly_f::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
     transcript::KeccakTranscript as Transcript,
 };
@@ -53,7 +53,7 @@ impl<const N: usize> MLSumcheck<N> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> (SumcheckProof<N>, ProverState<N>) {
         let (nvars_field, degree_field) = if N == 1 {
             (
@@ -97,7 +97,7 @@ impl<const N: usize> MLSumcheck<N> {
         degree: usize,
         claimed_sum: RandomField<N>,
         proof: &SumcheckProof<N>,
-        config: *const FieldConfig<N>,
+        config: ConfigPtr<N>,
     ) -> Result<SubClaim<N>, SumCheckError<N>> {
         let (nvars_field, degree_field) = if N == 1 {
             (
@@ -138,7 +138,7 @@ mod tests {
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck, SumcheckProof,
     };
-    use crate::field_config::as_ref_unchecked;
+    use crate::field_config::ConfigPtr;
     use crate::{
         biginteger::BigInt, field::RandomField, field_config::FieldConfig,
         transcript::KeccakTranscript,
@@ -152,10 +152,10 @@ mod tests {
         let mut transcript = KeccakTranscript::default();
 
         let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (2, 5), 7, config, &mut rng).unwrap();
+            rand_poly(nvars, (2, 5), 7, ConfigPtr::from(config), &mut rng).unwrap();
 
         let comb_fn = |vals: &[RandomField<N>]| -> RandomField<N> {
-            rand_poly_comb_fn(vals, &products, config)
+            rand_poly_comb_fn(vals, &products, ConfigPtr::from(config))
         };
 
         let (proof, _) = MLSumcheck::prove_as_subprotocol(
@@ -164,7 +164,7 @@ mod tests {
             nvars,
             poly_degree,
             comb_fn,
-            config,
+            ConfigPtr::from(config),
         );
         (poly_degree, sum, proof)
     }
@@ -173,11 +173,13 @@ mod tests {
         const N: usize = 2;
         let mut rng = ark_std::test_rng();
         let nvars = 3;
-        let config: *const FieldConfig<N> =
-            &FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+        let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+
+        let config_ptr = ConfigPtr::from(&config);
+
         for _ in 0..20 {
             let (poly_degree, sum, proof) =
-                generate_sumcheck_proof::<N>(nvars, &mut rng, as_ref_unchecked(&config));
+                generate_sumcheck_proof::<N>(nvars, &mut rng, config_ptr.as_ref());
 
             let mut transcript = KeccakTranscript::default();
             let res = MLSumcheck::verify_as_subprotocol(
@@ -186,7 +188,7 @@ mod tests {
                 poly_degree,
                 sum,
                 &proof,
-                config,
+                config_ptr,
             );
             assert!(res.is_ok())
         }

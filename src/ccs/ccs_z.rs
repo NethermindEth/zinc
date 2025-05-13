@@ -10,7 +10,7 @@ use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
-use crate::field_config::FieldConfig;
+use crate::field_config::ConfigPtr;
 use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
 
@@ -130,7 +130,7 @@ impl<const N: usize> CCS_Z<N> {
 
 impl<const N: usize> FieldMap<N> for CCS_Z<N> {
     type Output = CCS_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         CCS_F {
             m: self.m,
             n: self.n,
@@ -142,7 +142,7 @@ impl<const N: usize> FieldMap<N> for CCS_Z<N> {
             s_prime: self.s_prime,
             S: self.S.clone(),
             c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
-            config: AtomicPtr::new(config as *mut FieldConfig<N>),
+            config: AtomicPtr::new(config.as_ptr()),
         }
     }
 }
@@ -154,7 +154,7 @@ pub struct Statement_Z<const N: usize> {
 
 impl<const N: usize> FieldMap<N> for Statement_Z<N> {
     type Output = Statement_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         Statement_F {
             constraints: self
                 .constraints
@@ -185,7 +185,7 @@ impl<const N: usize> Witness_Z<N> {
 
 impl<const N: usize> FieldMap<N> for Witness_Z<N> {
     type Output = Witness_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
         Witness_F {
             w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
         }
@@ -309,10 +309,10 @@ pub(crate) fn get_test_ccs_stuff_Z<const N: usize>(
 
 #[cfg(test)]
 mod tests {
-
     use std::str::FromStr;
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
+    use crate::field_config::ConfigPtr;
     use crate::{
         biginteger::BigInt,
         ccs::{
@@ -379,14 +379,16 @@ mod tests {
             .expect("Failed to check relation over Integer Ring");
 
         const N: usize = 3;
-        let config: *const FieldConfig<N> = &FieldConfig::new(
+        let config = FieldConfig::new(
             BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
         );
 
-        let ccs_f = ccs.map_to_field(config);
-        let statement_f = statement.map_to_field(config);
-        let witness_f = wit.map_to_field(config);
-        let z_f = statement_f.get_z_vector(&witness_f, config);
+        let config_ptr = ConfigPtr::from(&config);
+
+        let ccs_f = ccs.map_to_field(config_ptr);
+        let statement_f = statement.map_to_field(config_ptr);
+        let witness_f = wit.map_to_field(config_ptr);
+        let z_f = statement_f.get_z_vector(&witness_f, config_ptr);
 
         ccs_f
             .check_relation(&statement_f.constraints, &z_f)

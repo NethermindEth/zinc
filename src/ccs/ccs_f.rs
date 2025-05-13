@@ -2,14 +2,14 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::rand;
 
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
-use crate::field_config::FieldConfig;
+use crate::field_config::{ConfigPtr, FieldConfig};
 use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
 use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
 use crate::{field::RandomField, sparse_matrix::SparseMatrix};
@@ -144,9 +144,13 @@ impl<const N: usize> Statement_F<N> {
         self.constraints
             .iter()
             .map(|M| {
-                compute_eval_table_sparse(M, evals, num_rows, num_cols, unsafe {
-                    *(ccs.config.as_ptr())
-                })
+                compute_eval_table_sparse(
+                    M,
+                    evals,
+                    num_rows,
+                    num_cols,
+                    ConfigPtr::new(ccs.config.load(Ordering::Acquire)),
+                )
             })
             .collect()
     }
@@ -202,19 +206,11 @@ impl<const N: usize> Witness_F<N> {
 ///
 pub trait Instance_F<const N: usize> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(
-        &self,
-        w: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>>;
+    fn get_z_vector(&self, w: &[RandomField<N>], config: ConfigPtr<N>) -> Vec<RandomField<N>>;
 }
 
 impl<const N: usize> Instance_F<N> for Statement_F<N> {
-    fn get_z_vector(
-        &self,
-        w: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Vec<RandomField<N>> {
+    fn get_z_vector(&self, w: &[RandomField<N>], config: ConfigPtr<N>) -> Vec<RandomField<N>> {
         let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
@@ -227,7 +223,7 @@ impl<const N: usize> Instance_F<N> for Statement_F<N> {
 
 /// Returns a sparse matrix of field elements given a matrix of unsigned ints
 pub fn to_F_matrix<const N: usize>(
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
     M: Vec<Vec<usize>>,
 ) -> SparseMatrix<RandomField<N>> {
     dense_matrix_to_sparse(
@@ -239,7 +235,7 @@ pub fn to_F_matrix<const N: usize>(
 
 /// Returns a dense matrix of field elements given a matrix of unsigned ints
 pub fn to_F_dense_matrix<const N: usize>(
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
     M: Vec<Vec<usize>>,
 ) -> Vec<Vec<RandomField<N>>> {
     M.iter()
@@ -248,12 +244,12 @@ pub fn to_F_dense_matrix<const N: usize>(
 }
 
 /// Returns a vector of field elements given a vector of unsigned ints
-pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: *const FieldConfig<N>) -> Vec<RandomField<N>> {
+pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigPtr<N>) -> Vec<RandomField<N>> {
     z.iter().map(|c| (*c).map_to_field(config)).collect()
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> CCS_F<N> {
+pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigPtr<N>) -> CCS_F<N> {
     use crate::field::conversion::FieldMap;
     use ark_std::log2;
     use std::ops::Neg;
@@ -273,14 +269,14 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: *const FieldConfig<N>) -> C
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1u32.map_to_field(config), (1u32.map_to_field(config)).neg()],
-        config: AtomicPtr::new(config as *mut FieldConfig<N>),
+        config: AtomicPtr::new(config.as_ptr()),
     }
 }
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     input: u64,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Statement_F<N> {
     let A = to_F_matrix(
         config,
@@ -320,7 +316,7 @@ pub(crate) fn get_test_ccs_F_statement<const N: usize>(
 #[cfg(test)]
 pub(crate) fn get_test_z_F<const N: usize>(
     input: u64,
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Vec<RandomField<N>> {
     // z = (io, 1, w)
     to_F_vec(
@@ -338,23 +334,26 @@ pub(crate) fn get_test_z_F<const N: usize>(
 
 #[cfg(test)]
 mod tests {
+    use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
+    use crate::field_config::ConfigPtr;
     use crate::{
         biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length,
         field_config::FieldConfig,
     };
 
-    use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
     #[test]
     fn test_ccs_f() {
         use std::str::FromStr;
 
         const N: usize = 2;
-        let config: *const FieldConfig<N> =
-            &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let config = FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+
+        let config_ptr = ConfigPtr::from(&config);
+
         let input = 3;
-        let ccs = get_test_ccs_F::<N>(config);
-        let statement = get_test_ccs_F_statement::<N>(input, config);
-        let z = get_test_z_F::<N>(input, config);
+        let ccs = get_test_ccs_F::<N>(config_ptr);
+        let statement = get_test_ccs_F_statement::<N>(input, config_ptr);
+        let z = get_test_z_F::<N>(input, config_ptr);
 
         let res = ccs.check_relation(&statement.constraints, &z);
         assert!(res.is_ok())
@@ -365,11 +364,11 @@ mod tests {
         use std::str::FromStr;
 
         const N: usize = 2;
-        let config: *const FieldConfig<N> =
-            &FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let config = FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
         let mut rng = ark_std::test_rng();
         let n = 1 << 13;
-        let (z, ccs, statement, _) = get_dummy_ccs_F_from_z_length::<N>(n, &mut rng, config);
+        let (z, ccs, statement, _) =
+            get_dummy_ccs_F_from_z_length::<N>(n, &mut rng, ConfigPtr::from(&config));
 
         let res = ccs.check_relation(&statement.constraints, &z);
         assert!(res.is_ok())

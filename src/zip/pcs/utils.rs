@@ -1,3 +1,4 @@
+use crate::field_config::ConfigPtr;
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
@@ -6,7 +7,6 @@ use sha3::{digest::Output, Digest, Keccak256};
 
 use crate::{
     field::RandomField as F,
-    field_config::FieldConfig,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
@@ -278,7 +278,7 @@ impl ColumnOpening {
 pub(super) fn point_to_tensor<const N: usize>(
     num_rows: usize,
     point: &[F<N>],
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Result<(Vec<F<N>>, Vec<F<N>>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
@@ -304,7 +304,7 @@ pub(super) fn point_to_tensor<const N: usize>(
 pub(super) fn left_point_to_tensor<const N: usize>(
     num_rows: usize,
     point: &[F<N>],
-    config: *const FieldConfig<N>,
+    config: ConfigPtr<N>,
 ) -> Result<Vec<F<N>>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.

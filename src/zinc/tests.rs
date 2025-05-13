@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crypto_bigint::{Int, Zero};
 
+use crate::field_config::ConfigPtr;
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
@@ -14,14 +15,16 @@ use crate::{
     },
     zip::code::ZipSpec1,
 };
+
 #[test]
 fn test_dummy_spartan_prover() {
     const N: usize = 3;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
-    let config: *const FieldConfig<N> = &FieldConfig::new(
+    let config = ConfigPtr::from(&FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-    );
+    ));
+
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
@@ -30,8 +33,13 @@ fn test_dummy_spartan_prover() {
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
-            .expect("Failed to prepare for random field PIOP");
+        ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
+            &statement,
+            &wit,
+            &ccs,
+            ConfigPtr::from(config),
+        )
+        .expect("Failed to prepare for random field PIOP");
 
     let proof = SpartanProver::<N>::prove(
         &prover,
@@ -50,9 +58,10 @@ fn test_dummy_spartan_prover() {
 fn test_spartan_verifier() {
     const N: usize = 3;
     let input = 3;
-    let config = &FieldConfig::new(
+    let config = ConfigPtr::from(&FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-    );
+    ));
+
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
     let mut prover_transcript = KeccakTranscript::new();
 
@@ -85,7 +94,7 @@ fn test_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config,
+        config.as_ref(),
     );
 
     assert!(res.is_ok())
@@ -96,9 +105,9 @@ fn test_dummy_spartan_verifier() {
     const N: usize = 3;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
-    let config = &FieldConfig::new(
+    let config = ConfigPtr::from(&FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-    );
+    ));
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
@@ -131,7 +140,7 @@ fn test_dummy_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config,
+        config.as_ref(),
     );
 
     assert!(res.is_ok())
@@ -141,9 +150,9 @@ fn test_dummy_spartan_verifier() {
 fn test_failing_spartan_verifier() {
     const N: usize = 3;
     let input = 3;
-    let config = &FieldConfig::new(
+    let config = ConfigPtr::from(&FieldConfig::new(
         BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-    );
+    ));
     let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
     // Change the witness such that it is no longer valid
     assert!(wit.w_ccs[3] != Int::<N>::zero());
@@ -179,7 +188,7 @@ fn test_failing_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config,
+        config.as_ref(),
     );
 
     assert!(res.is_err())

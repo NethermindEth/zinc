@@ -1,5 +1,6 @@
 use crate::biginteger::BigInt;
 use ark_std::ptr::NonNull;
+use once_cell::sync::Lazy;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -53,12 +54,25 @@ pub struct FieldConfig<const N: usize> {
     modulus_has_spare_bit: bool,
 }
 
+use std::any::Any;
+use std::sync::Mutex;
+
+static CONFIGS: Lazy<Mutex<Vec<Box<dyn Any + Send + Sync>>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct ConfigPtr<const N: usize>(Option<NonNull<FieldConfig<N>>>);
 
 impl<const N: usize> From<&FieldConfig<N>> for ConfigPtr<N> {
     fn from(value: &FieldConfig<N>) -> Self {
-        Self(Some(NonNull::from(value)))
+        let cloned = *value;
+
+        let boxed: Box<dyn Any + Send + Sync> = Box::new(cloned);
+
+        let ptr = (&*boxed as *const dyn Any) as *const FieldConfig<N> as *mut FieldConfig<N>;
+
+        CONFIGS.lock().unwrap().push(boxed);
+
+        ConfigPtr(Some(NonNull::new(ptr).expect("leaked pointer is non-null")))
     }
 }
 

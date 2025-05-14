@@ -62,7 +62,10 @@ impl<const N: usize> RandomField<N> {
         F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
     {
         match self {
-            Initialized { config, value } => Some(f(config.as_ref(), value)),
+            Initialized { config, value } => Some(f(
+                config.reference().expect("Field config cannot be none"),
+                value,
+            )),
             _ => None,
         }
     }
@@ -72,7 +75,10 @@ impl<const N: usize> RandomField<N> {
         F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
     {
         match self {
-            Initialized { config, value } => f(config.as_ref(), value),
+            Initialized { config, value } => f(
+                config.reference().expect("Field config cannot be none"),
+                value,
+            ),
             _ => default,
         }
     }
@@ -84,7 +90,10 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(config.as_ref(), value),
+            Initialized { config, value } => init_fn(
+                config.reference().expect("Field config cannot be none"),
+                value,
+            ),
         }
     }
 
@@ -95,7 +104,10 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(config.as_ref(), value),
+            Initialized { config, value } => init_fn(
+                config.reference().expect("Field config cannot be none"),
+                value,
+            ),
         }
     }
 
@@ -106,7 +118,10 @@ impl<const N: usize> RandomField<N> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(config.as_ref(), value),
+            Initialized { config, value } => init_fn(
+                config.reference().expect("Field config cannot be none"),
+                value,
+            ),
         }
     }
 
@@ -146,7 +161,11 @@ impl<const N: usize> RandomField<N> {
                 Initialized {
                     value: value_rhs, ..
                 },
-            ) => with_config(value_self, value_rhs, config.as_ref()),
+            ) => with_config(
+                value_self,
+                value_rhs,
+                config.reference().expect("Field config cannot be none"),
+            ),
             (
                 Initialized {
                     value: value_self,
@@ -155,7 +174,11 @@ impl<const N: usize> RandomField<N> {
                 rhs @ Raw { .. },
             ) => {
                 let rhs = (*rhs).set_config_owned(*config);
-                with_config(value_self, rhs.value(), config.as_ref())
+                with_config(
+                    value_self,
+                    rhs.value(),
+                    config.reference().expect("Field config cannot be none"),
+                )
             }
             (
                 lhs @ Raw { .. },
@@ -166,7 +189,11 @@ impl<const N: usize> RandomField<N> {
             ) => {
                 lhs.set_config(*config);
 
-                with_config(lhs.value_mut(), value_rhs, config.as_ref())
+                with_config(
+                    lhs.value_mut(),
+                    value_rhs,
+                    config.reference().expect("Field config cannot be none"),
+                )
             }
         }
     }
@@ -186,7 +213,10 @@ pub fn rand_with_config<const N: usize, R: ark_std::rand::Rng + ?Sized>(
 ) -> RandomField<N> {
     loop {
         let mut value = BigInt::rand(rng);
-        let modulus = config.as_ref().modulus;
+        let modulus = config
+            .reference()
+            .expect("Field config cannot be none")
+            .modulus;
         let shave_bits = 64 * N - modulus.num_bits() as usize;
         // Mask away the unused bits at the beginning.
         assert!(shave_bits <= 64);
@@ -278,11 +308,10 @@ impl<const N: usize> RandomField<N> {
     ///
     /// If `BigInteger` is greater then field modulus return `None`
     pub fn from_bigint(config: ConfigPtr<N>, value: BigInt<N>) -> Option<Self> {
-        if config.is_none() {
-            return Some(Raw { value });
-        }
-
-        let config = config.as_ref();
+        let config = match config.reference() {
+            Some(config) => config,
+            None => return Some(Raw { value }),
+        };
 
         if value >= config.modulus {
             None
@@ -296,10 +325,13 @@ impl<const N: usize> RandomField<N> {
     }
 
     pub fn from_i64(value: i64, config: ConfigPtr<N>) -> Option<RandomField<N>> {
-        if config.is_none() {
-            panic!("Cannot convert signed integer to prime field element without a modulus")
-        }
-        let config = config.as_ref();
+        let config = match config.reference() {
+            Some(config) => config,
+            None => {
+                panic!("Cannot convert signed integer to prime field element without a modulus")
+            }
+        };
+
         if BigInt::from(value.unsigned_abs()) >= config.modulus {
             None
         } else {

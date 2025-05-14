@@ -98,7 +98,7 @@ fn test_failing_zip_evaluation() {
         &point,
         eval,
         &mut transcript,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     );
 
     assert!(res.is_err())
@@ -137,7 +137,7 @@ fn test_zip_evaluation() {
         &point,
         eval,
         &mut transcript,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     )
     .expect("Failed to verify");
 }
@@ -188,7 +188,7 @@ fn test_zip_batch_evaluation() {
         &points,
         &eval,
         &mut transcript,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     )
     .expect("Failed to verify");
 }

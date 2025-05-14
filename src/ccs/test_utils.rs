@@ -139,7 +139,7 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
-        config: AtomicPtr::new(config.as_ptr()),
+        config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
     };
 
     let A = create_dummy_identity_sparse_matrix_F::<N>(z.len(), z.len(), config);

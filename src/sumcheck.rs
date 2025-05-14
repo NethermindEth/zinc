@@ -178,8 +178,11 @@ mod tests {
         let config_ptr = ConfigPtr::from(&config);
 
         for _ in 0..20 {
-            let (poly_degree, sum, proof) =
-                generate_sumcheck_proof::<N>(nvars, &mut rng, config_ptr.as_ref());
+            let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(
+                nvars,
+                &mut rng,
+                config_ptr.reference().expect("FieldConfig cannot be null"),
+            );
 
             let mut transcript = KeccakTranscript::default();
             let res = MLSumcheck::verify_as_subprotocol(

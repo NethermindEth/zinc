@@ -81,11 +81,11 @@ macro_rules! impl_field_map_for_int {
         impl<const N: usize> FieldMap<N> for $type {
             type Output = RandomField<N>;
             fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
-                if config.is_none() {
-                    panic!("Cannot convert signed integer to prime field element without a modulus")
-                }
+                let config = match config.reference() {
+                    Some(config) => config,
+                    None => panic!("Cannot convert signed integer to prime field element without a modulus"),
+                };
 
-                let config = config.as_ref();
                 let modulus: [u64; N] = config.modulus.0;
                 let abs_val = self.unsigned_abs();
 
@@ -165,12 +165,11 @@ macro_rules! impl_field_map_for_uint {
         impl<const N: usize> FieldMap<N> for $type {
             type Output = RandomField<N>;
             fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
-                if config.is_none() {
-                    panic!(
-                        "Cannot convert unsigned integer to prime field element without a modulus"
-                    )
-                }
-                let config = config.as_ref();
+                let config = match config.reference() {
+                    Some(config) => config,
+                    None => panic!("Cannot convert unsigned integer to prime field element without a modulus"),
+                };
+
                 let modulus: [u64; N] = config.modulus.0;
 
                 // Calculate how many u64 limbs we need based on bits
@@ -240,10 +239,11 @@ impl_field_map_for_uint!(u128, 128);
 impl<const N: usize> FieldMap<N> for bool {
     type Output = RandomField<N>;
     fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
-        if config.is_none() {
-            panic!("Cannot convert boolean to prime field element without a modulus")
-        }
-        let config = config.as_ref();
+        let config = match config.reference() {
+            Some(config) => config,
+            None => panic!("Cannot convert boolean to prime field element without a modulus"),
+        };
+
         let mut r = BigInt::from(*self as u64);
         config.mul_assign(&mut r, &config.r2);
         RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
@@ -283,11 +283,10 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
     type Output = RandomField<N>;
 
     fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
-        if config.is_none() {
-            panic!("Cannot convert BigInt to prime field element without a modulus")
-        }
-
-        let config = config.as_ref();
+        let config = match config.reference() {
+            Some(config) => config,
+            None => panic!("Cannot convert BigInt to prime field element without a modulus"),
+        };
 
         let modulus: [u64; N] = config.modulus.0;
 

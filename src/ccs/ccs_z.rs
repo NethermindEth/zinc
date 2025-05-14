@@ -142,7 +142,7 @@ impl<const N: usize> FieldMap<N> for CCS_Z<N> {
             s_prime: self.s_prime,
             S: self.S.clone(),
             c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
-            config: AtomicPtr::new(config.as_ptr()),
+            config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
         }
     }
 }

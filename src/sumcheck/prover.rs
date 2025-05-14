@@ -74,7 +74,8 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1];
 
-            let atomic_config = AtomicPtr::new(config.as_ptr());
+            let atomic_config =
+                AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(
                     &[r],

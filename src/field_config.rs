@@ -66,24 +66,24 @@ unsafe impl<const N: usize> Sync for ConfigPtr<N> {}
 unsafe impl<const N: usize> Send for ConfigPtr<N> {}
 
 impl<const N: usize> ConfigPtr<N> {
-    pub fn as_ptr(&self) -> *mut FieldConfig<N> {
-        self.0.expect("non-null pointer").as_ptr()
+    pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
+        if self.0.is_none() {
+            None
+        } else {
+            Some(self.0.unwrap().as_ptr())
+        }
     }
 
-    pub fn as_ref(&self) -> &FieldConfig<N> {
-        unsafe { self.0.expect("non-null pointer").as_ref() }
-    }
-
-    pub fn expect(&self, message: &str) -> &FieldConfig<N> {
-        unsafe { self.0.expect(message).as_ref() }
+    pub fn reference(&self) -> Option<&FieldConfig<N>> {
+        if self.0.is_none() {
+            None
+        } else {
+            unsafe { Some(self.0.unwrap().as_ref()) }
+        }
     }
 
     pub fn new(config_ptr: *mut FieldConfig<N>) -> Self {
         Self(NonNull::new(config_ptr))
-    }
-
-    pub fn is_none(&self) -> bool {
-        self.0.is_none()
     }
 
     pub const NONE: Self = Self(None);

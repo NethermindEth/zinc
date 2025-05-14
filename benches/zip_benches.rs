@@ -119,7 +119,9 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
                         &point.map_to_field(field_config),
                         eval.map_to_field(field_config),
                         &mut transcript,
-                        field_config.as_ref(),
+                        field_config
+                            .reference()
+                            .expect("Field config cannot be none"),
                     )
                     .expect("Failed to verify");
                     total_duration += timer.elapsed();

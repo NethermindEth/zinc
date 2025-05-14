@@ -54,7 +54,7 @@ impl KeccakTranscript {
                 self.absorb(&[0x3])
             }
             RandomField::Initialized { config, value } => {
-                let config = config.as_ref();
+                let config = config.reference().expect("Field config cannot be none");
 
                 self.absorb(&[0x3]);
                 self.absorb(&config.modulus.to_bytes_be());
@@ -89,7 +89,7 @@ impl KeccakTranscript {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<const N: usize>(&mut self, config: ConfigPtr<N>) -> RandomField<N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let config = config.as_ref();
+        let config = config.reference().expect("Field config cannot be none");
         let modulus = config.modulus;
         let challenge_num_bits = modulus.num_bits() - 1;
         if N == 1 {

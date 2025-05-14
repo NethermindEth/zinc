@@ -33,13 +33,8 @@ fn test_dummy_spartan_prover() {
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
-            &statement,
-            &wit,
-            &ccs,
-            ConfigPtr::from(config),
-        )
-        .expect("Failed to prepare for random field PIOP");
+        ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
+            .expect("Failed to prepare for random field PIOP");
 
     let proof = SpartanProver::<N>::prove(
         &prover,
@@ -94,7 +89,7 @@ fn test_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     );
 
     assert!(res.is_ok())
@@ -140,7 +135,7 @@ fn test_dummy_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     );
 
     assert!(res.is_ok())
@@ -188,7 +183,7 @@ fn test_failing_spartan_verifier() {
         &spartan_proof,
         &mut verifier_transcript,
         &ccs_f,
-        config.as_ref(),
+        config.reference().expect("Field config cannot be none"),
     );
 
     assert!(res.is_err())

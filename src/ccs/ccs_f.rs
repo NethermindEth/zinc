@@ -269,7 +269,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigPtr<N>) -> CCS_F<N> {
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1u32.map_to_field(config), (1u32.map_to_field(config)).neg()],
-        config: AtomicPtr::new(config.as_ptr()),
+        config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
     }
 }
 

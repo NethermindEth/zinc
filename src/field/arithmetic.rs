@@ -3,18 +3,18 @@ use ark_ff::{One, Zero};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
-impl<const N: usize> Add<RandomField<N>> for RandomField<N> {
-    type Output = RandomField<N>;
+impl<const N: usize> Add for RandomField<N> {
+    type Output = Self;
 
-    fn add(self, rhs: RandomField<N>) -> RandomField<N> {
+    fn add(self, rhs: Self) -> Self::Output {
         &self + &rhs
     }
 }
 
-impl<'a, const N: usize> Add<&'a RandomField<N>> for &RandomField<N> {
+impl<const N: usize> Add for &RandomField<N> {
     type Output = RandomField<N>;
 
-    fn add(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+    fn add(self, rhs: &RandomField<N>) -> Self::Output {
         let mut res = *self;
 
         res.add_assign(rhs);
@@ -23,8 +23,8 @@ impl<'a, const N: usize> Add<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> AddAssign<&'a RandomField<N>> for RandomField<N> {
-    fn add_assign(&mut self, rhs: &'a RandomField<N>) {
+impl<const N: usize> AddAssign<&Self> for RandomField<N> {
+    fn add_assign(&mut self, rhs: &Self) {
         self.with_aligned_config_mut(
             rhs,
             |lhs, rhs, config| {
@@ -37,18 +37,18 @@ impl<'a, const N: usize> AddAssign<&'a RandomField<N>> for RandomField<N> {
     }
 }
 
-impl<const N: usize> Sub<RandomField<N>> for RandomField<N> {
-    type Output = RandomField<N>;
+impl<const N: usize> Sub for RandomField<N> {
+    type Output = Self;
 
-    fn sub(self, rhs: RandomField<N>) -> RandomField<N> {
+    fn sub(self, rhs: Self) -> Self::Output {
         &self - &rhs
     }
 }
 
-impl<'a, const N: usize> Sub<&'a RandomField<N>> for &RandomField<N> {
+impl<const N: usize> Sub for &RandomField<N> {
     type Output = RandomField<N>;
 
-    fn sub(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+    fn sub(self, rhs: Self) -> Self::Output {
         let mut res = *self;
         res.sub_assign(rhs);
 
@@ -56,14 +56,14 @@ impl<'a, const N: usize> Sub<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
-impl<const N: usize> SubAssign<RandomField<N>> for RandomField<N> {
-    fn sub_assign(&mut self, rhs: RandomField<N>) {
+impl<const N: usize> SubAssign for RandomField<N> {
+    fn sub_assign(&mut self, rhs: Self) {
         self.sub_assign(&rhs);
     }
 }
 
-impl<'a, const N: usize> SubAssign<&'a RandomField<N>> for RandomField<N> {
-    fn sub_assign(&mut self, rhs: &'a RandomField<N>) {
+impl<const N: usize> SubAssign<&Self> for RandomField<N> {
+    fn sub_assign(&mut self, rhs: &Self) {
         self.with_aligned_config_mut(
             rhs,
             |lhs, rhs, config| {
@@ -76,18 +76,18 @@ impl<'a, const N: usize> SubAssign<&'a RandomField<N>> for RandomField<N> {
     }
 }
 
-impl<const N: usize> Mul<RandomField<N>> for RandomField<N> {
-    type Output = RandomField<N>;
+impl<const N: usize> Mul for RandomField<N> {
+    type Output = Self;
 
-    fn mul(self, rhs: RandomField<N>) -> RandomField<N> {
+    fn mul(self, rhs: Self) -> Self::Output {
         &self * &rhs
     }
 }
 
-impl<'a, const N: usize> Mul<&'a RandomField<N>> for RandomField<N> {
-    type Output = RandomField<N>;
+impl<const N: usize> Mul<&Self> for RandomField<N> {
+    type Output = Self;
 
-    fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+    fn mul(self, rhs: &Self) -> Self::Output {
         let mut res = self;
         res.mul_assign(rhs);
 
@@ -95,10 +95,10 @@ impl<'a, const N: usize> Mul<&'a RandomField<N>> for RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> Mul<&'a RandomField<N>> for &RandomField<N> {
+impl<const N: usize> Mul for &RandomField<N> {
     type Output = RandomField<N>;
 
-    fn mul(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+    fn mul(self, rhs: Self) -> Self::Output {
         let mut res = *self;
         res.mul_assign(rhs);
 
@@ -112,8 +112,8 @@ impl<const N: usize> MulAssign<Self> for RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> MulAssign<&'a Self> for RandomField<N> {
-    fn mul_assign(&mut self, rhs: &'a Self) {
+impl<const N: usize> MulAssign<&Self> for RandomField<N> {
+    fn mul_assign(&mut self, rhs: &Self) {
         self.with_aligned_config_mut(
             rhs,
             |lhs, rhs, config| {
@@ -126,18 +126,18 @@ impl<'a, const N: usize> MulAssign<&'a Self> for RandomField<N> {
     }
 }
 
-impl<const N: usize> Div<RandomField<N>> for RandomField<N> {
-    type Output = RandomField<N>;
+impl<const N: usize> Div for RandomField<N> {
+    type Output = Self;
 
-    fn div(self, rhs: RandomField<N>) -> RandomField<N> {
+    fn div(self, rhs: Self) -> Self::Output {
         &self / &rhs
     }
 }
 
-impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
+impl<const N: usize> Div for &RandomField<N> {
     type Output = RandomField<N>;
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn div(self, rhs: &'a RandomField<N>) -> RandomField<N> {
+    fn div(self, rhs: Self) -> Self::Output {
         let mut res = *self;
         res /= rhs;
 
@@ -145,18 +145,18 @@ impl<'a, const N: usize> Div<&'a RandomField<N>> for &RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> Div<&'a Self> for RandomField<N> {
+impl<const N: usize> Div<&Self> for RandomField<N> {
     type Output = Self;
 
-    fn div(self, rhs: &'a Self) -> Self::Output {
+    fn div(self, rhs: &Self) -> Self::Output {
         self / *rhs
     }
 }
 
-impl<'a, const N: usize> Div<&'a mut Self> for RandomField<N> {
+impl<const N: usize> Div<&mut Self> for RandomField<N> {
     type Output = Self;
 
-    fn div(self, rhs: &'a mut Self) -> Self::Output {
+    fn div(self, rhs: &mut Self) -> Self::Output {
         self / *rhs
     }
 }
@@ -167,8 +167,8 @@ impl<const N: usize> DivAssign<Self> for RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
-    fn div_assign(&mut self, rhs: &'a Self) {
+impl<const N: usize> DivAssign<&Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &Self) {
         if rhs.is_zero() {
             panic!("Attempt to divide by zero");
         }
@@ -183,8 +183,8 @@ impl<'a, const N: usize> DivAssign<&'a Self> for RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> DivAssign<&'a mut Self> for RandomField<N> {
-    fn div_assign(&mut self, rhs: &'a mut Self) {
+impl<const N: usize> DivAssign<&mut Self> for RandomField<N> {
+    fn div_assign(&mut self, rhs: &mut Self) {
         *self /= *rhs;
     }
 }
@@ -210,8 +210,8 @@ impl<const N: usize> Neg for RandomField<N> {
     }
 }
 
-impl<'a, const N: usize> Sum<&'a RandomField<N>> for RandomField<N> {
-    fn sum<I: Iterator<Item = &'a RandomField<N>>>(iter: I) -> Self {
+impl<'a, const N: usize> Sum<&'a Self> for RandomField<N> {
+    fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
         iter.fold(Self::zero(), |mut acc, x| {
             acc.add_assign(x);
             acc
@@ -219,8 +219,8 @@ impl<'a, const N: usize> Sum<&'a RandomField<N>> for RandomField<N> {
     }
 }
 
-impl<const N: usize> Sum<RandomField<N>> for RandomField<N> {
-    fn sum<I: Iterator<Item = RandomField<N>>>(iter: I) -> Self {
+impl<const N: usize> Sum for RandomField<N> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         iter.fold(Self::zero(), |mut acc, x| {
             acc.add_assign(&x);
             acc

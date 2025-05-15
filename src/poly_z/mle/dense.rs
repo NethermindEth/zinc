@@ -15,10 +15,11 @@ use crypto_bigint::{Int, Random};
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
+use crate::poly::ArithErrors;
 use crate::{
     field::conversion::FieldMap,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
-    poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
+    sparse_matrix::SparseMatrix,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

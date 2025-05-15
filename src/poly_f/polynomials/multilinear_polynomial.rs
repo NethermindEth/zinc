@@ -7,7 +7,8 @@ use crate::field_config::ConfigPtr;
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 
-use super::{util::get_batched_nv, ArithErrors, RefCounter};
+use super::RefCounter;
+use crate::poly::{get_batched_nv, ArithErrors};
 pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
     field::{conversion::FieldMap, rand_with_config, RandomField},

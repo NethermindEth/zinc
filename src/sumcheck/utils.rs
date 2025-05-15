@@ -18,13 +18,15 @@ use ark_std::{
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
+use crate::poly::ArithErrors;
 use crate::{
     field::{conversion::FieldMap, rand_with_config, RandomField},
     poly_f::{
         mle::DenseMultilinearExtension,
-        polynomials::{random_mle_list, ArithErrors, RefCounter},
+        polynomials::{random_mle_list, RefCounter},
     },
 };
+
 #[allow(clippy::type_complexity)]
 pub fn rand_poly<const N: usize>(
     nv: usize,

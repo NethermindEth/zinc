@@ -3,9 +3,10 @@ use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
 use self::verifier::SubClaim;
+use crate::poly::ArithErrors;
 use crate::{
     field::{conversion::FieldMap, RandomField},
-    poly_f::{mle::DenseMultilinearExtension, polynomials::ArithErrors},
+    poly_f::mle::DenseMultilinearExtension,
     transcript::KeccakTranscript as Transcript,
 };
 

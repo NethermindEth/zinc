@@ -197,6 +197,13 @@ impl<const N: usize> RandomField<N> {
             }
         }
     }
+
+    pub fn config_copied(&self) -> Option<FieldConfig<N>> {
+        match self {
+            Raw { .. } => None,
+            Initialized { config, .. } => config.reference().copied(),
+        }
+    }
 }
 
 impl<const N: usize> UniformRand for RandomField<N> {

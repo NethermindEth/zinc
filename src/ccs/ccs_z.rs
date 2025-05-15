@@ -131,18 +131,21 @@ impl<const N: usize> CCS_Z<N> {
 impl<const N: usize> FieldMap<N> for CCS_Z<N> {
     type Output = CCS_F<N>;
     fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
-        CCS_F {
-            m: self.m,
-            n: self.n,
-            l: self.l,
-            t: self.t,
-            q: self.q,
-            d: self.d,
-            s: self.s,
-            s_prime: self.s_prime,
-            S: self.S.clone(),
-            c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
-            config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
+        match config.pointer() {
+            Some(config_ptr) => CCS_F {
+                m: self.m,
+                n: self.n,
+                l: self.l,
+                t: self.t,
+                q: self.q,
+                d: self.d,
+                s: self.s,
+                s_prime: self.s_prime,
+                S: self.S.clone(),
+                c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
+                config: AtomicPtr::new(config_ptr),
+            },
+            None => panic!("FieldConfig cannot be null"),
         }
     }
 }

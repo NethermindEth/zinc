@@ -128,18 +128,21 @@ fn get_dummy_ccs_F_from_z<const N: usize>(
     pub_io_len: usize,
     config: ConfigPtr<N>,
 ) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
-    let ccs = CCS_F::<N> {
-        m: z.len(),
-        n: z.len(),
-        l: pub_io_len,
-        t: 3,
-        q: 2,
-        d: 2,
-        s: log2(z.len()) as usize,
-        s_prime: log2(z.len()) as usize,
-        S: vec![vec![0, 1], vec![2]],
-        c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
-        config: AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null")),
+    let ccs = match config.pointer() {
+        None => panic!("FieldConfig cannot be null"),
+        Some(config_ptr) => CCS_F::<N> {
+            m: z.len(),
+            n: z.len(),
+            l: pub_io_len,
+            t: 3,
+            q: 2,
+            d: 2,
+            s: log2(z.len()) as usize,
+            s_prime: log2(z.len()) as usize,
+            S: vec![vec![0, 1], vec![2]],
+            c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
+            config: AtomicPtr::new(config_ptr),
+        },
     };
 
     let A = create_dummy_identity_sparse_matrix_F::<N>(z.len(), z.len(), config);

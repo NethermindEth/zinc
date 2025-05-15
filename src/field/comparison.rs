@@ -1,4 +1,5 @@
 use crate::field::RandomField;
+use crate::field::RandomField::{Initialized, Raw};
 use ark_ff::{One, Zero};
 
 impl<const N: usize> PartialEq for RandomField<N> {
@@ -10,14 +11,12 @@ impl<const N: usize> PartialEq for RandomField<N> {
             return true;
         }
 
-        if self.is_raw() && other.is_initialized() || self.is_initialized() && other.is_raw() {
-            return false;
-        }
-        if self.is_raw() {
-            self.value() == other.value()
-        } else {
-            self.value() == other.value()
-                && self.config_ref().unwrap().modulus == other.config_ref().unwrap().modulus
+        match (self, other) {
+            (Initialized { .. }, Raw { .. }) | (Raw { .. }, Initialized { .. }) => false,
+            (Raw { .. }, Raw { .. }) => self.value() == other.value(),
+            (Initialized { .. }, Initialized { .. }) => {
+                self.value() == other.value() && self.config_ptr() == other.config_ptr()
+            }
         }
     }
 }

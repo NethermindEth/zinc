@@ -246,8 +246,14 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 
 impl<const N: usize> Eq for FieldConfig<N> {}
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, Eq)]
 pub struct ConfigPtr<const N: usize>(Option<NonNull<FieldConfig<N>>>);
+
+impl<const N: usize> PartialEq for ConfigPtr<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.reference() == other.reference()
+    }
+}
 
 impl<const N: usize> From<&FieldConfig<N>> for ConfigPtr<N> {
     fn from(value: &FieldConfig<N>) -> Self {
@@ -260,19 +266,11 @@ unsafe impl<const N: usize> Send for ConfigPtr<N> {}
 
 impl<const N: usize> ConfigPtr<N> {
     pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
-        if self.0.is_none() {
-            None
-        } else {
-            Some(self.0.unwrap().as_ptr())
-        }
+        self.0.map(|p| p.as_ptr())
     }
 
     pub fn reference(&self) -> Option<&FieldConfig<N>> {
-        if self.0.is_none() {
-            None
-        } else {
-            unsafe { Some(self.0.unwrap().as_ref()) }
-        }
+        self.0.map(|p| unsafe { p.as_ref() })
     }
 
     pub fn new(config_ptr: *mut FieldConfig<N>) -> Self {

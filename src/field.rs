@@ -280,11 +280,6 @@ impl<const N: usize> RandomField<N> {
 
 impl<const N: usize> RandomField<N> {
     #[inline(always)]
-    pub fn config_ref(&self) -> Option<&FieldConfig<N>> {
-        self.with_init_value(|config, _| config)
-    }
-
-    #[inline(always)]
     pub fn config_ptr(&self) -> ConfigPtr<N> {
         match self {
             Raw { .. } => ConfigPtr::NONE,
@@ -382,7 +377,7 @@ impl<const N: usize> std::fmt::Debug for RandomField<N> {
                 f,
                 "{} in Z_{}",
                 self_.into_bigint(),
-                self.config_ref().unwrap().modulus
+                self.config_ptr().reference().unwrap().modulus
             ),
         }
     }

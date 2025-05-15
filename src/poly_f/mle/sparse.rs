@@ -247,16 +247,16 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
     }
 }
 impl<const N: usize> Add for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn add(self, other: SparseMultilinearExtension<N>) -> Self {
+    fn add(self, other: Self) -> Self {
         &self + &other
     }
 }
-impl<'a, const N: usize> Add<&'a SparseMultilinearExtension<N>> for &SparseMultilinearExtension<N> {
+impl<const N: usize> Add for &SparseMultilinearExtension<N> {
     type Output = SparseMultilinearExtension<N>;
 
-    fn add(self, rhs: &'a SparseMultilinearExtension<N>) -> Self::Output {
+    fn add(self, rhs: Self) -> Self::Output {
         // handle zero case
         if self.is_zero() {
             return rhs.clone();
@@ -298,17 +298,13 @@ impl<const N: usize> AddAssign for SparseMultilinearExtension<N> {
         *self = &*self + &other;
     }
 }
-impl<'a, const N: usize> AddAssign<&'a SparseMultilinearExtension<N>>
-    for SparseMultilinearExtension<N>
-{
-    fn add_assign(&mut self, rhs: &'a SparseMultilinearExtension<N>) {
+impl<const N: usize> AddAssign<&Self> for SparseMultilinearExtension<N> {
+    fn add_assign(&mut self, rhs: &Self) {
         *self = &*self + rhs;
     }
 }
-impl<const N: usize> AddAssign<(RandomField<N>, &SparseMultilinearExtension<N>)>
-    for SparseMultilinearExtension<N>
-{
-    fn add_assign(&mut self, (r, other): (RandomField<N>, &SparseMultilinearExtension<N>)) {
+impl<const N: usize> AddAssign<(RandomField<N>, &Self)> for SparseMultilinearExtension<N> {
+    fn add_assign(&mut self, (r, other): (RandomField<N>, &Self)) {
         if !self.is_zero() && !other.is_zero() {
             assert_eq!(
                 other.num_vars, self.num_vars,
@@ -332,7 +328,7 @@ impl<const N: usize> AddAssign<(RandomField<N>, &SparseMultilinearExtension<N>)>
     }
 }
 impl<const N: usize> Neg for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+    type Output = Self;
 
     fn neg(self) -> Self {
         let ev: Vec<_> = cfg_iter!(self.evaluations)
@@ -347,29 +343,27 @@ impl<const N: usize> Neg for SparseMultilinearExtension<N> {
     }
 }
 impl<const N: usize> Sub for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn sub(self, other: SparseMultilinearExtension<N>) -> Self {
+    fn sub(self, other: Self) -> Self::Output {
         &self - &other
     }
 }
-impl<'a, const N: usize> Sub<&'a SparseMultilinearExtension<N>> for &SparseMultilinearExtension<N> {
+impl<const N: usize> Sub for &SparseMultilinearExtension<N> {
     type Output = SparseMultilinearExtension<N>;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn sub(self, rhs: &'a SparseMultilinearExtension<N>) -> Self::Output {
+    fn sub(self, rhs: Self) -> Self::Output {
         self + &rhs.clone().neg()
     }
 }
 impl<const N: usize> SubAssign for SparseMultilinearExtension<N> {
-    fn sub_assign(&mut self, other: SparseMultilinearExtension<N>) {
+    fn sub_assign(&mut self, other: Self) {
         *self = &*self - &other;
     }
 }
-impl<'a, const N: usize> SubAssign<&'a SparseMultilinearExtension<N>>
-    for SparseMultilinearExtension<N>
-{
-    fn sub_assign(&mut self, rhs: &'a SparseMultilinearExtension<N>) {
+impl<const N: usize> SubAssign<&Self> for SparseMultilinearExtension<N> {
+    fn sub_assign(&mut self, rhs: &Self) {
         *self = &*self - rhs;
     }
 }

@@ -211,17 +211,17 @@ impl<const N: usize> Zero for DenseMultilinearExtension<N> {
 }
 
 impl<const N: usize> Add for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn add(self, other: DenseMultilinearExtension<N>) -> Self {
+    fn add(self, other: Self) -> Self::Output {
         &self + &other
     }
 }
 
-impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
+impl<const N: usize> Add for &DenseMultilinearExtension<N> {
     type Output = DenseMultilinearExtension<N>;
 
-    fn add(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
+    fn add(self, rhs: Self) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -249,15 +249,13 @@ impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultili
 }
 
 impl<const N: usize> AddAssign for DenseMultilinearExtension<N> {
-    fn add_assign(&mut self, rhs: DenseMultilinearExtension<N>) {
+    fn add_assign(&mut self, rhs: Self) {
         self.add_assign(&rhs);
     }
 }
 
-impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
-    for DenseMultilinearExtension<N>
-{
-    fn add_assign(&mut self, other: &'a DenseMultilinearExtension<N>) {
+impl<'a, const N: usize> AddAssign<&Self> for DenseMultilinearExtension<N> {
+    fn add_assign(&mut self, other: &Self) {
         if self.is_zero() {
             *self = other.clone();
             return;
@@ -282,10 +280,8 @@ impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
     }
 }
 
-impl<const N: usize> AddAssign<(RandomField<N>, &DenseMultilinearExtension<N>)>
-    for DenseMultilinearExtension<N>
-{
-    fn add_assign(&mut self, (r, other): (RandomField<N>, &DenseMultilinearExtension<N>)) {
+impl<const N: usize> AddAssign<(RandomField<N>, &Self)> for DenseMultilinearExtension<N> {
+    fn add_assign(&mut self, (r, other): (RandomField<N>, &Self)) {
         if self.is_zero() {
             *self = other.clone();
 
@@ -315,9 +311,9 @@ impl<const N: usize> AddAssign<(RandomField<N>, &DenseMultilinearExtension<N>)>
 }
 
 impl<const N: usize> Neg for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn neg(mut self) -> Self {
+    fn neg(mut self) -> Self::Output {
         cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.neg());
 
         self
@@ -325,17 +321,17 @@ impl<const N: usize> Neg for DenseMultilinearExtension<N> {
 }
 
 impl<const N: usize> Sub for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn sub(self, other: DenseMultilinearExtension<N>) -> Self {
+    fn sub(self, other: Self) -> Self {
         &self - &other
     }
 }
 
-impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
+impl<const N: usize> Sub for &DenseMultilinearExtension<N> {
     type Output = DenseMultilinearExtension<N>;
 
-    fn sub(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
+    fn sub(self, rhs: Self) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -362,15 +358,13 @@ impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultili
 }
 
 impl<const N: usize> SubAssign for DenseMultilinearExtension<N> {
-    fn sub_assign(&mut self, other: DenseMultilinearExtension<N>) {
+    fn sub_assign(&mut self, other: Self) {
         self.sub_assign(&other);
     }
 }
 
-impl<'a, const N: usize> SubAssign<&'a DenseMultilinearExtension<N>>
-    for DenseMultilinearExtension<N>
-{
-    fn sub_assign(&mut self, rhs: &'a DenseMultilinearExtension<N>) {
+impl<const N: usize> SubAssign<&Self> for DenseMultilinearExtension<N> {
+    fn sub_assign(&mut self, rhs: &Self) {
         if self.is_zero() {
             *self = rhs.clone().neg();
             return;
@@ -392,9 +386,9 @@ impl<'a, const N: usize> SubAssign<&'a DenseMultilinearExtension<N>>
 }
 
 impl<const N: usize> Mul<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn mul(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn mul(mut self, rhs: RandomField<N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x *= rhs);
 
         self
@@ -408,9 +402,9 @@ impl<const N: usize> MulAssign<RandomField<N>> for DenseMultilinearExtension<N> 
 }
 
 impl<const N: usize> Sub<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn sub(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn sub(mut self, rhs: RandomField<N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x -= rhs);
 
         self
@@ -418,9 +412,9 @@ impl<const N: usize> Sub<RandomField<N>> for DenseMultilinearExtension<N> {
 }
 
 impl<const N: usize> Add<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+    type Output = Self;
 
-    fn add(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn add(mut self, rhs: RandomField<N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x += &rhs);
 
         self

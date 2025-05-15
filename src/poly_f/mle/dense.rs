@@ -254,7 +254,7 @@ impl<const N: usize> AddAssign for DenseMultilinearExtension<N> {
     }
 }
 
-impl<'a, const N: usize> AddAssign<&Self> for DenseMultilinearExtension<N> {
+impl<const N: usize> AddAssign<&Self> for DenseMultilinearExtension<N> {
     fn add_assign(&mut self, other: &Self) {
         if self.is_zero() {
             *self = other.clone();

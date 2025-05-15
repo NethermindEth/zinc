@@ -17,6 +17,7 @@ macro_rules! mac_with_carry {
     }};
 }
 
+#[macro_export]
 macro_rules! adc {
     ($a:expr, $b:expr, &mut $carry:expr$(,)?) => {{
         let tmp = ($a as u128) + ($b as u128) + ($carry as u128);
@@ -70,13 +71,7 @@ impl<const N: usize> FieldConfig<N> {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
         // However, it may need to be reduced
-        if self.modulus_has_spare_bit {
-            if *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        } else if c || *a >= self.modulus {
-            a.sub_with_borrow(&self.modulus);
-        }
+        self.reduce_modulus(a, c);
     }
 
     pub fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
@@ -125,6 +120,10 @@ impl<const N: usize> FieldConfig<N> {
 
         let carry = carry2 != 0;
 
+        self.reduce_modulus(a, carry);
+    }
+
+    fn reduce_modulus(&self, a: &mut BigInt<{ N }>, carry: bool) {
         if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);

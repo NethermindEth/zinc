@@ -3,14 +3,6 @@
 use ark_std::Zero;
 use ark_std::{vec, vec::*};
 
-macro_rules! adc {
-    ($a:expr, $b:expr, &mut $carry:expr$(,)?) => {{
-        let tmp = ($a as u128) + ($b as u128) + ($carry as u128);
-        $carry = (tmp >> 64) as u64;
-        tmp as u64
-    }};
-}
-
 /// Sets a = a + b + carry, and returns the new carry.
 #[inline(always)]
 #[allow(unused_mut)]

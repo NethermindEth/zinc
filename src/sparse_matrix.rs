@@ -38,8 +38,9 @@ impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMa
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
         impl<const N: usize> FieldMap<N> for SparseMatrix<$type> {
+            type Cfg = ConfigPtr<N>;
             type Output = SparseMatrix<RandomField<N>>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
                     n_cols: self.n_cols,
@@ -58,8 +59,9 @@ macro_rules! impl_field_map_sparse_matrix {
     };
 }
 impl<const N: usize, const M: usize> FieldMap<N> for SparseMatrix<Int<M>> {
+    type Cfg = ConfigPtr<N>;
     type Output = SparseMatrix<RandomField<N>>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,

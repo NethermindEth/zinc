@@ -129,8 +129,9 @@ impl<const N: usize> CCS_Z<N> {
 }
 
 impl<const N: usize> FieldMap<N> for CCS_Z<N> {
+    type Cfg = ConfigPtr<N>;
     type Output = CCS_F<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         match config.pointer() {
             Some(config_ptr) => CCS_F {
                 m: self.m,
@@ -156,8 +157,9 @@ pub struct Statement_Z<const N: usize> {
 }
 
 impl<const N: usize> FieldMap<N> for Statement_Z<N> {
+    type Cfg = ConfigPtr<N>;
     type Output = Statement_F<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Statement_F {
             constraints: self
                 .constraints
@@ -187,8 +189,9 @@ impl<const N: usize> Witness_Z<N> {
 }
 
 impl<const N: usize> FieldMap<N> for Witness_Z<N> {
+    type Cfg = ConfigPtr<N>;
     type Output = Witness_F<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {
             w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
         }

@@ -71,16 +71,18 @@ impl<const N: usize> RandomField<N> {
 }
 
 pub trait FieldMap<const N: usize> {
+    type Cfg;
     type Output;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output;
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output;
 }
 
 // Implementation of FieldMap for signed integers
 macro_rules! impl_field_map_for_int {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
+    type Cfg = ConfigPtr<N>;
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let config = match config.reference() {
                     Some(config) => config,
                     None => panic!("Cannot convert signed integer to prime field element without a modulus"),
@@ -146,8 +148,9 @@ macro_rules! impl_field_map_for_int {
         }
 
         impl<const N: usize> FieldMap<N> for &$type {
+    type Cfg = ConfigPtr<N>;
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 (*self).map_to_field(config)
             }
         }
@@ -163,8 +166,9 @@ impl_field_map_for_int!(i128, 128);
 macro_rules! impl_field_map_for_uint {
     ($type:ty, $bits:expr) => {
         impl<const N: usize> FieldMap<N> for $type {
+    type Cfg = ConfigPtr<N>;
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let config = match config.reference() {
                     Some(config) => config,
                     None => panic!("Cannot convert unsigned integer to prime field element without a modulus"),
@@ -222,8 +226,9 @@ macro_rules! impl_field_map_for_uint {
         }
 
         impl<const N: usize> FieldMap<N> for &$type {
+    type Cfg = ConfigPtr<N>;
             type Output = RandomField<N>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 (*self).map_to_field(config)
             }
         }
@@ -237,8 +242,9 @@ impl_field_map_for_uint!(u128, 128);
 
 // Implementation for bool
 impl<const N: usize> FieldMap<N> for bool {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let config = match config.reference() {
             Some(config) => config,
             None => panic!("Cannot convert boolean to prime field element without a modulus"),
@@ -251,17 +257,19 @@ impl<const N: usize> FieldMap<N> for bool {
 }
 
 impl<const N: usize> FieldMap<N> for &bool {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
 
 // Implementation for Int<N>
 impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let local_type_bigint = BigInt::from(self);
         let res = local_type_bigint.map_to_field(config);
         if self < &Int::ZERO {
@@ -272,17 +280,19 @@ impl<const M: usize, const N: usize> FieldMap<N> for Int<M> {
 }
 
 impl<const M: usize, const N: usize> FieldMap<N> for &Int<M> {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
 // Implementation of FieldMap for BigInt<N>
 impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
 
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let config = match config.reference() {
             Some(config) => config,
             None => panic!("Cannot convert BigInt to prime field element without a modulus"),
@@ -337,8 +347,9 @@ impl<const M: usize, const N: usize> FieldMap<N> for BigInt<M> {
 
 // Implementation of FieldMap for reference to BigInt<N>
 impl<const M: usize, const N: usize> FieldMap<N> for &BigInt<M> {
+    type Cfg = ConfigPtr<N>;
     type Output = RandomField<N>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
     }
 }
@@ -347,20 +358,23 @@ impl<const M: usize, const N: usize> FieldMap<N> for &BigInt<M> {
 macro_rules! impl_field_map_for_vec {
     ($type:ty) => {
         impl<const N: usize> FieldMap<N> for Vec<$type> {
+            type Cfg = ConfigPtr<N>;
             type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
 
         impl<const N: usize> FieldMap<N> for &Vec<$type> {
+            type Cfg = ConfigPtr<N>;
             type Output = Vec<RandomField<N>>;
-            fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
 
         impl<const M: usize> FieldMap<M> for &[$type] {
+            type Cfg = ConfigPtr<M>;
             type Output = Vec<RandomField<M>>;
             fn map_to_field(&self, config: ConfigPtr<M>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
@@ -376,22 +390,25 @@ impl_field_map_for_vec!(i64);
 impl_field_map_for_vec!(i128);
 
 impl<const N: usize, const M: usize> FieldMap<N> for Vec<Int<M>> {
+    type Cfg = ConfigPtr<N>;
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
 impl<const N: usize, const M: usize> FieldMap<N> for &Vec<Int<M>> {
+    type Cfg = ConfigPtr<N>;
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
 impl<const N: usize, const M: usize> FieldMap<N> for &[Int<M>] {
+    type Cfg = ConfigPtr<N>;
     type Output = Vec<RandomField<N>>;
-    fn map_to_field(&self, config: ConfigPtr<N>) -> Self::Output {
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }

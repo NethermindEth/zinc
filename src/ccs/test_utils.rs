@@ -11,7 +11,7 @@ use super::{
 };
 use crate::field_config::ConfigPtr;
 use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
+    field::{conversion::FieldMap, RandomField},
     sparse_matrix::SparseMatrix,
 };
 
@@ -178,7 +178,9 @@ pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
     rng: &mut impl Rng,
     config: ConfigPtr<N>,
 ) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
-    let mut z: Vec<_> = (0..n).map(|_| rand_with_config(rng, config)).collect();
+    let mut z: Vec<_> = (0..n)
+        .map(|_| RandomField::<N>::rand_with_config(rng, config))
+        .collect();
     let pub_io_len = 1;
     z[pub_io_len] = 1u64.map_to_field(config);
     let (ccs, statement, wit) = get_dummy_ccs_F_from_z(&z, pub_io_len, config);

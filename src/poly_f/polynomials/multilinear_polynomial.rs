@@ -11,7 +11,7 @@ use super::RefCounter;
 use crate::poly::{get_batched_nv, ArithErrors};
 pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
+    field::{conversion::FieldMap, RandomField},
     poly_f::mle::MultilinearExtension,
 };
 
@@ -39,7 +39,7 @@ pub fn random_mle_list<const N: usize, Rn: RngCore>(
         let mut product = RandomField::one();
 
         for e in multiplicands.iter_mut() {
-            let val = rand_with_config(rng, config);
+            let val = RandomField::<N>::rand_with_config(rng, config);
             e.push(val);
             product *= val;
         }

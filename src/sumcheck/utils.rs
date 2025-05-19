@@ -20,7 +20,7 @@ use rayon::iter::*;
 
 use crate::poly::ArithErrors;
 use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
+    field::{conversion::FieldMap, RandomField},
     poly_f::{
         mle::DenseMultilinearExtension,
         polynomials::{random_mle_list, RefCounter},
@@ -56,7 +56,7 @@ pub fn rand_poly<const N: usize>(
             .map(|p| RefCounter::into_inner(p).unwrap())
             .collect::<Vec<_>>();
 
-        let coefficient = rand_with_config(rng, config);
+        let coefficient = RandomField::<N>::rand_with_config(rng, config);
         mles.extend(product);
         sum += &(product_sum * coefficient);
 

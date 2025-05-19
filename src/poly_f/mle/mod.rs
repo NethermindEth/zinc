@@ -16,7 +16,7 @@ use ark_std::{
 ///
 /// Index represents a point, which is a vector in {0,1}^`num_vars` in little
 /// endian form. For example, `0b1011` represents `P(1,1,0,1)`
-pub trait MultilinearExtension<const N: usize>:
+pub trait MultilinearExtension<'cfg, const N: usize>:
     Sized
     + Clone
     + Debug
@@ -26,7 +26,7 @@ pub trait MultilinearExtension<const N: usize>:
     + Neg
     + Zero
     + for<'a> AddAssign<&'a Self>
-    + for<'a> AddAssign<(RandomField<N>, &'a Self)>
+    + for<'a> AddAssign<(RandomField<'cfg, N>, &'a Self)>
     + for<'a> SubAssign<&'a Self>
     + Index<usize>
 {

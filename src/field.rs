@@ -15,12 +15,12 @@ pub mod constant;
 pub mod conversion;
 
 #[derive(Copy, Clone)]
-pub enum RandomField<const N: usize> {
+pub enum RandomField<'cfg, const N: usize> {
     Raw {
         value: BigInt<N>,
     },
     Initialized {
-        config: ConfigPtr<N>,
+        config: ConfigPtr<'cfg, N>,
         value: BigInt<N>,
     },
 }
@@ -28,8 +28,8 @@ pub enum RandomField<const N: usize> {
 use crate::field_config::ConfigPtr;
 use RandomField::*;
 
-impl<const N: usize> RandomField<N> {
-    pub type Cfg = ConfigPtr<N>;
+impl<'cfg, const N: usize> RandomField<'cfg, N> {
+    pub type Cfg = ConfigPtr<'cfg, N>;
 
     pub fn is_raw(&self) -> bool {
         matches!(self, Raw { .. })
@@ -358,7 +358,7 @@ impl<const N: usize> RandomField<N> {
     }
 }
 
-impl<const N: usize> UniformRand for RandomField<N> {
+impl<const N: usize> UniformRand for RandomField<'_, N> {
     fn rand<R: ark_std::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         let value = BigInt::rand(rng);
 
@@ -366,7 +366,7 @@ impl<const N: usize> UniformRand for RandomField<N> {
     }
 }
 
-impl<const N: usize> Random for RandomField<N> {
+impl<const N: usize> Random for RandomField<'_, N> {
     fn random(rng: &mut (impl ark_std::rand::RngCore + ?Sized)) -> Self {
         let value = BigInt::rand(rng);
 
@@ -374,7 +374,7 @@ impl<const N: usize> Random for RandomField<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for RandomField<N> {
+impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Raw { value } => write!(f, "{}, no config", value),
@@ -388,7 +388,7 @@ impl<const N: usize> std::fmt::Debug for RandomField<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Display for RandomField<N> {
+impl<const N: usize> std::fmt::Display for RandomField<'_, N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // TODO: we should go back from Montgomery here.
         match self {
@@ -402,7 +402,7 @@ impl<const N: usize> std::fmt::Display for RandomField<N> {
     }
 }
 
-impl<const N: usize> Default for RandomField<N> {
+impl<const N: usize> Default for RandomField<'_, N> {
     fn default() -> Self {
         Raw {
             value: BigInt::zero(),
@@ -410,29 +410,71 @@ impl<const N: usize> Default for RandomField<N> {
     }
 }
 
-unsafe impl<const N: usize> Send for RandomField<N> {}
-unsafe impl<const N: usize> Sync for RandomField<N> {}
+unsafe impl<const N: usize> Send for RandomField<'_, N> {}
+unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
+
+#[derive(Debug)]
+pub enum DebugRandomField<const N: usize> {
+    Raw {
+        value: BigInt<N>,
+    },
+
+    Initialized {
+        config: FieldConfig<N>,
+        value: BigInt<N>,
+    },
+}
+
+impl<const N: usize> From<RandomField<'_, N>> for DebugRandomField<N> {
+    fn from(value: RandomField<'_, N>) -> Self {
+        match value {
+            RandomField::Raw { value } => Self::Raw { value },
+            RandomField::Initialized { config, value } => Self::Initialized {
+                config: *config.reference().unwrap(),
+                value,
+            },
+        }
+    }
+}
+
+impl<const N: usize> std::fmt::Display for DebugRandomField<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Raw { value } => {
+                write!(f, "{}", value)
+            }
+            self_ @ Self::Initialized { .. } => {
+                write!(f, "{}", self_)
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::{biginteger::BigInt, field::RandomField, field_config::FieldConfig};
+    use crate::{
+        biginteger::BigInt,
+        field::RandomField,
+        field_config::{ConfigPtr, FieldConfig},
+    };
     use ark_std::str::FromStr;
 
     /// Helper macro to create a field config with a given modulus
     #[macro_export]
     macro_rules! create_field_config {
         ($N:expr, $modulus:expr) => {{
-            use $crate::field_config::ConfigPtr;
             let bigint = BigInt::<$N>::from_str(stringify!($modulus))
                 .expect("Failed to parse modulus into BigInt");
-            ConfigPtr::from(&FieldConfig::<$N>::new(bigint))
+            let cfg = FieldConfig::new(bigint);
+            (cfg, ConfigPtr::from(&cfg))
         }};
 
         ($modulus:expr) => {{
-            use $crate::field_config::ConfigPtr;
             let bigint = BigInt::<1>::from_str(&$modulus.to_string())
                 .expect("Failed to parse modulus into BigInt");
-            ConfigPtr::from(&FieldConfig::<1>::new(bigint))
+
+            let cfg = FieldConfig::new(bigint);
+            (cfg, ConfigPtr::from(&cfg))
         }};
     }
 
@@ -459,7 +501,7 @@ mod tests {
 
     #[test]
     fn test_with_raw_value_or_for_raw_variant() {
-        let raw_field = RandomField::<1>::Raw {
+        let raw_field: RandomField<'_, 1> = RandomField::Raw {
             value: create_bigint!(42),
         };
 
@@ -471,8 +513,9 @@ mod tests {
 
     #[test]
     fn test_with_raw_value_or_for_initialized_variant() {
-        let config = create_field_config!(23);
-        let init_field = RandomField::<1>::Initialized {
+        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = ConfigPtr::from(&config);
+        let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
             value: create_bigint!(10),
         };
@@ -484,8 +527,9 @@ mod tests {
     }
     #[test]
     fn test_with_init_value_or_initialized() {
-        let config = create_field_config!(23);
-        let init_field = RandomField::<1>::Initialized {
+        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = ConfigPtr::from(&config);
+        let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
             value: create_bigint!(10),
         };
@@ -498,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_with_init_value_or_raw() {
-        let raw_field = RandomField::<1>::Raw {
+        let raw_field: RandomField<'_, 1> = RandomField::Raw {
             value: create_bigint!(42),
         };
 

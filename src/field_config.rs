@@ -1,5 +1,4 @@
 use crate::biginteger::BigInt;
-use ark_std::ptr::NonNull;
 
 macro_rules! mac {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -246,34 +245,35 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 impl<const N: usize> Eq for FieldConfig<N> {}
 
 #[derive(Debug, Copy, Clone, Eq)]
-pub struct ConfigPtr<const N: usize>(Option<NonNull<FieldConfig<N>>>);
+pub struct ConfigPtr<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
-impl<const N: usize> PartialEq for ConfigPtr<N> {
+impl<const N: usize> PartialEq for ConfigPtr<'_, N> {
     fn eq(&self, other: &Self) -> bool {
         self.reference() == other.reference()
     }
 }
 
-impl<const N: usize> From<&FieldConfig<N>> for ConfigPtr<N> {
-    fn from(value: &FieldConfig<N>) -> Self {
-        Self(Some(NonNull::from(value)))
+impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigPtr<'cfg, N> {
+    fn from(value: &'cfg FieldConfig<N>) -> Self {
+        Self(Some(value))
     }
 }
 
-unsafe impl<const N: usize> Sync for ConfigPtr<N> {}
-unsafe impl<const N: usize> Send for ConfigPtr<N> {}
+unsafe impl<const N: usize> Sync for ConfigPtr<'_, N> {}
+unsafe impl<const N: usize> Send for ConfigPtr<'_, N> {}
 
-impl<const N: usize> ConfigPtr<N> {
+impl<'cfg, const N: usize> ConfigPtr<'cfg, N> {
     pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
-        self.0.map(|p| p.as_ptr())
+        self.0.map(|p| p as *const _ as *mut _)
     }
 
-    pub fn reference(&self) -> Option<&FieldConfig<N>> {
-        self.0.map(|p| unsafe { p.as_ref() })
+    pub fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
+        self.0
     }
 
-    pub fn new(config_ptr: *mut FieldConfig<N>) -> Self {
-        Self(NonNull::new(config_ptr))
+    #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
+    pub unsafe fn new(config_ptr: *mut FieldConfig<N>) -> Self {
+        Self(Option::from(config_ptr.as_ref().unwrap()))
     }
 
     pub const NONE: Self = Self(None);

@@ -37,9 +37,10 @@ impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMa
 // At the moment only using i128 for the sparse matrix, macro later if needed
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
-        impl<const N: usize> FieldMap<N> for SparseMatrix<$type> {
-            type Cfg = ConfigPtr<N>;
-            type Output = SparseMatrix<RandomField<N>>;
+        impl<'cfg, const N: usize> FieldMap<'cfg, N> for SparseMatrix<$type> {
+            type Cfg = ConfigPtr<'cfg, N>;
+            type Output = SparseMatrix<RandomField<'cfg, N>>;
+            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
@@ -58,9 +59,10 @@ macro_rules! impl_field_map_sparse_matrix {
         }
     };
 }
-impl<const N: usize, const M: usize> FieldMap<N> for SparseMatrix<Int<M>> {
-    type Cfg = ConfigPtr<N>;
-    type Output = SparseMatrix<RandomField<N>>;
+impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<Int<M>> {
+    type Cfg = ConfigPtr<'cfg, N>;
+    type Output = SparseMatrix<RandomField<'cfg, N>>;
+    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
@@ -184,13 +186,13 @@ where
     r
 }
 
-pub fn compute_eval_table_sparse<const N: usize>(
-    M: &SparseMatrix<RandomField<N>>,
-    rx: &[RandomField<N>],
+pub fn compute_eval_table_sparse<'cfg, const N: usize>(
+    M: &SparseMatrix<RandomField<'cfg, N>>,
+    rx: &[RandomField<'cfg, N>],
     num_rows: usize,
     num_cols: usize,
-    config: ConfigPtr<N>,
-) -> Vec<RandomField<N>> {
+    config: ConfigPtr<'cfg, N>,
+) -> Vec<RandomField<'cfg, N>> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(
         vec![0u32.map_to_field(config); num_cols],

@@ -86,30 +86,32 @@ mod tests {
 
     #[test]
     fn test_vec_add() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config_ptr = ConfigPtr::from(&config);
 
         let a = [
-            1u64.map_to_field(config),
-            2u64.map_to_field(config),
-            3u64.map_to_field(config),
+            1u64.map_to_field(config_ptr),
+            2u64.map_to_field(config_ptr),
+            3u64.map_to_field(config_ptr),
         ];
         let b = [
-            4u64.map_to_field(config),
-            5u64.map_to_field(config),
-            6u64.map_to_field(config),
+            4u64.map_to_field(config_ptr),
+            5u64.map_to_field(config_ptr),
+            6u64.map_to_field(config_ptr),
         ];
         let result = vec_add(&a, &b);
         let expected = vec![
-            5u64.map_to_field(config),
-            7u64.map_to_field(config),
-            9u64.map_to_field(config),
+            5u64.map_to_field(config_ptr),
+            7u64.map_to_field(config_ptr),
+            9u64.map_to_field(config_ptr),
         ];
         assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
     fn test_vec_add_error_case() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let a = [1u64.map_to_field(config), 2u64.map_to_field(config)];
         let b = [
@@ -123,7 +125,8 @@ mod tests {
 
     #[test]
     fn test_vec_scalar_mul() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let vec = [
             1u64.map_to_field(config),
@@ -142,7 +145,8 @@ mod tests {
 
     #[test]
     fn test_hadamard() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let a = [
             2u64.map_to_field(config),
@@ -165,7 +169,8 @@ mod tests {
 
     #[test]
     fn test_hadamard_error_case() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let a = [2u64.map_to_field(config), 3u64.map_to_field(config)];
         let b = [
@@ -179,7 +184,8 @@ mod tests {
 
     #[test]
     fn test_mat_vec_mul() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let dense_matrix = vec![
             vec![
@@ -216,7 +222,8 @@ mod tests {
 
     #[test]
     fn test_mat_vec_mul_error_case() {
-        let config = ConfigPtr::from(&get_config());
+        let config = get_config();
+        let config = ConfigPtr::from(&config);
 
         let dense_matrix = vec![
             vec![

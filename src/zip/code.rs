@@ -71,7 +71,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
         }
     }
 
-    pub fn encode_f(&self, row: &[F<N>], field: ConfigPtr<N>) -> Vec<F<N>> {
+    pub fn encode_f<'cfg>(&self, row: &[F<'cfg, N>], field: ConfigPtr<'cfg, N>) -> Vec<F<'cfg, N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -229,14 +229,14 @@ impl<const L: usize> SparseMatrixZ<L> {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<const N: usize> {
+pub struct SparseMatrixF<'cfg, const N: usize> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, F<N>)>,
+    cells: Vec<(usize, F<'cfg, N>)>,
 }
 
-impl<const N: usize> SparseMatrixF<N> {
-    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigPtr<N>) -> Self {
-        let cells_f: Vec<(usize, F<N>)> = sparse_matrix
+impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigPtr<'cfg, N>) -> Self {
+        let cells_f: Vec<(usize, F<'cfg, N>)> = sparse_matrix
             .cells
             .iter()
             .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
@@ -247,11 +247,11 @@ impl<const N: usize> SparseMatrixF<N> {
         }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, F<N>)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, F<'cfg, N>)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul(&self, vector: &[F<N>]) -> Vec<F<N>> {
+    fn mat_vec_mul(&self, vector: &[F<'cfg, N>]) -> Vec<F<'cfg, N>> {
         assert_eq!(
             self.dimension.m,
             vector.len(),

@@ -16,17 +16,17 @@ use super::{verifier::VerifierMsg, IPForMLSumcheck};
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProverMsg<const N: usize> {
+pub struct ProverMsg<'cfg, const N: usize> {
     /// evaluations on P(0), P(1), P(2), ...
-    pub(crate) evaluations: Vec<RandomField<N>>,
+    pub(crate) evaluations: Vec<RandomField<'cfg, N>>,
 }
 
 /// Prover State
-pub struct ProverState<const N: usize> {
+pub struct ProverState<'cfg, const N: usize> {
     /// sampled randomness given by the verifier
-    pub randomness: Vec<RandomField<N>>,
+    pub randomness: Vec<RandomField<'cfg, N>>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<N>>,
+    pub mles: Vec<DenseMultilinearExtension<'cfg, N>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -58,12 +58,12 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// receive message from verifier, generate prover message, and proceed to next round
     ///
     /// Adapted Jolt's sumcheck implementation
-    pub fn prove_round(
-        prover_state: &mut ProverState<N>,
-        v_msg: &Option<VerifierMsg<N>>,
-        comb_fn: impl Fn(&[RandomField<N>]) -> RandomField<N> + Send + Sync,
-        config: ConfigPtr<N>,
-    ) -> ProverMsg<N> {
+    pub fn prove_round<'cfg>(
+        prover_state: &mut ProverState<'cfg, N>,
+        v_msg: &Option<VerifierMsg<'cfg, N>>,
+        comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
+        config: ConfigPtr<'cfg, N>,
+    ) -> ProverMsg<'cfg, N> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");
@@ -77,10 +77,9 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let atomic_config =
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(
-                    &[r],
-                    ConfigPtr::new(atomic_config.load(atomic::Ordering::Relaxed)),
-                );
+                multiplicand.fix_variables(&[r], unsafe {
+                    ConfigPtr::new(atomic_config.load(atomic::Ordering::Relaxed))
+                });
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");

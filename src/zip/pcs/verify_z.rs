@@ -26,13 +26,13 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn verify(
+    pub fn verify<'cfg>(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
-        point: &[F<N>],
-        eval: F<N>,
-        transcript: &mut PcsTranscript<N>,
-        field: &FieldConfig<N>,
+        point: &[F<'cfg, N>],
+        eval: F<'cfg, N>,
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
@@ -44,13 +44,13 @@ where
         Ok(())
     }
 
-    pub fn batch_verify_z<'a>(
+    pub fn batch_verify_z<'cfg, 'a>(
         vp: &Self::VerifierParam,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
-        points: &[Vec<F<N>>],
-        evals: &[F<N>],
-        transcript: &mut PcsTranscript<N>,
-        field: &FieldConfig<N>,
+        points: &[Vec<F<'cfg, N>>],
+        evals: &[F<'cfg, N>],
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
@@ -58,11 +58,11 @@ where
         Ok(())
     }
 
-    pub(super) fn verify_testing(
+    pub(super) fn verify_testing<'cfg>(
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigPtr<N>,
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: ConfigPtr<'cfg, N>,
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
@@ -130,13 +130,13 @@ where
         Ok(())
     }
 
-    fn verify_evaluation_z(
+    fn verify_evaluation_z<'cfg>(
         vp: &Self::VerifierParam,
-        point: &[F<N>],
-        eval: F<N>,
+        point: &[F<'cfg, N>],
+        eval: F<'cfg, N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
-        transcript: &mut PcsTranscript<N>,
-        field: &FieldConfig<N>,
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         let q_0_combined_row = transcript.read_field_elements(
             <Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()),
@@ -165,13 +165,13 @@ where
         Ok(())
     }
 
-    fn verify_proximity_q_0(
-        q_0: &Vec<F<N>>,
-        encoded_q_0_combined_row: &[F<N>],
+    fn verify_proximity_q_0<'cfg>(
+        q_0: &Vec<F<'cfg, N>>,
+        encoded_q_0_combined_row: &[F<'cfg, N>],
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: &FieldConfig<N>,
+        field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(ConfigPtr::from(field));

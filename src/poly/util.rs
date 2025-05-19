@@ -21,13 +21,13 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<const N: usize>(
+pub fn gen_eval_point<'cfg, const N: usize>(
     index: usize,
     index_len: usize,
-    point: &[RandomField<N>],
-    config: ConfigPtr<N>,
-) -> Vec<RandomField<N>> {
-    let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
+    point: &[RandomField<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Vec<RandomField<'cfg, N>> {
+    let index_vec: Vec<RandomField<'cfg, N>> = bit_decompose(index as u64, index_len)
         .into_iter()
         .map(|i| i.map_to_field(config))
         .collect();

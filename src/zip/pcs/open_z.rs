@@ -28,13 +28,13 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn open(
+    pub fn open<'cfg>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        point: &[F<N>],
-        field: ConfigPtr<N>,
-        transcript: &mut PcsTranscript<N>,
+        point: &[F<'cfg, N>],
+        field: ConfigPtr<'cfg, N>,
+        transcript: &mut PcsTranscript<'cfg, N>,
     ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
@@ -46,13 +46,13 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a>(
+    pub fn batch_open<'cfg, 'a>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
-        points: &[Vec<F<N>>],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigPtr<N>,
+        points: &[Vec<F<'cfg, N>>],
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: ConfigPtr<'cfg, N>,
     ) -> Result<(), Error> {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;
@@ -61,12 +61,12 @@ where
     }
 
     // Subprotocol functions
-    fn prove_evaluation_phase(
+    fn prove_evaluation_phase<'cfg>(
         pp: &Self::ProverParam,
-        transcript: &mut PcsTranscript<N>,
-        point: &[F<N>],
+        transcript: &mut PcsTranscript<'cfg, N>,
+        point: &[F<'cfg, N>],
         poly: &Self::Polynomial,
-        field: ConfigPtr<N>,
+        field: ConfigPtr<'cfg, N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
         let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
@@ -89,12 +89,12 @@ where
         transcript.write_field_elements(&q_0_combined_row)
     }
 
-    pub(super) fn prove_testing_phase(
+    pub(super) fn prove_testing_phase<'cfg>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigPtr<N>, // This is only needed to called the transcript but we are getting integers not fields
+        transcript: &mut PcsTranscript<'cfg, N>,
+        field: ConfigPtr<'cfg, N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

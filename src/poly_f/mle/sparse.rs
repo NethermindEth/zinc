@@ -22,24 +22,27 @@ use super::{swap_bits, MultilinearExtension};
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SparseMultilinearExtension<const N: usize> {
+pub struct SparseMultilinearExtension<'cfg, const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
-    pub evaluations: BTreeMap<usize, RandomField<N>>,
+    pub evaluations: BTreeMap<usize, RandomField<'cfg, N>>,
     /// Number of variables
     pub num_vars: usize,
-    zero: RandomField<N>,
+    zero: RandomField<'cfg, N>,
     /// Field in which the MLE is operating
-    pub config: ConfigPtr<N>,
+    pub config: ConfigPtr<'cfg, N>,
 }
-impl<const N: usize> SparseMultilinearExtension<N> {
-    pub type Field = RandomField<N>;
-    pub type Cfg = ConfigPtr<N>;
+impl<'cfg, const N: usize> SparseMultilinearExtension<'cfg, N> {
+    pub type Field = RandomField<'cfg, N>;
+    pub type Cfg = ConfigPtr<'cfg, N>;
 
     pub fn from_evaluations<'a>(
         num_vars: usize,
-        evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
+        evaluations: impl IntoIterator<Item = &'a (usize, RandomField<'cfg, N>)>,
         config: Self::Cfg,
-    ) -> Self {
+    ) -> Self
+    where
+        'cfg: 'a,
+    {
         let bit_mask = 1 << num_vars;
 
         let evaluations: Vec<_> = evaluations
@@ -121,11 +124,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Takes n_vars and a sparse slice and returns its sparse MLE.
-    pub fn from_sparse_slice(
-        n_vars: usize,
-        v: &[(usize, Self::Field)],
-        config: Self::Cfg,
-    ) -> Self {
+    pub fn from_sparse_slice(n_vars: usize, v: &[(usize, Self::Field)], config: Self::Cfg) -> Self {
         SparseMultilinearExtension::<N>::from_evaluations(n_vars, v, config)
     }
 
@@ -140,9 +139,9 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
-    type Field  = RandomField<N>;
-    type Cfg = ConfigPtr<N>;
+impl<'cfg, const N: usize> MultilinearExtension<'cfg, N> for SparseMultilinearExtension<'cfg, N> {
+    type Field = RandomField<'cfg, N>;
+    type Cfg = ConfigPtr<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -237,7 +236,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         evaluations
     }
 }
-impl<const N: usize> Zero for SparseMultilinearExtension<N> {
+impl<const N: usize> Zero for SparseMultilinearExtension<'_, N> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
@@ -252,7 +251,7 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> Add for SparseMultilinearExtension<N> {
+impl<const N: usize> Add for SparseMultilinearExtension<'_, N> {
     type Output = Self;
 
     fn add(self, other: Self) -> Self {
@@ -260,8 +259,8 @@ impl<const N: usize> Add for SparseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> Add for &SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Add for &SparseMultilinearExtension<'cfg, N> {
+    type Output = SparseMultilinearExtension<'cfg, N>;
 
     fn add(self, rhs: Self) -> Self::Output {
         // handle zero case
@@ -300,18 +299,20 @@ impl<const N: usize> Add for &SparseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> AddAssign for SparseMultilinearExtension<N> {
+impl<const N: usize> AddAssign for SparseMultilinearExtension<'_, N> {
     fn add_assign(&mut self, other: Self) {
         *self = &*self + &other;
     }
 }
-impl<const N: usize> AddAssign<&Self> for SparseMultilinearExtension<N> {
+impl<const N: usize> AddAssign<&Self> for SparseMultilinearExtension<'_, N> {
     fn add_assign(&mut self, rhs: &Self) {
         *self = &*self + rhs;
     }
 }
-impl<const N: usize> AddAssign<(RandomField<N>, &Self)> for SparseMultilinearExtension<N> {
-    fn add_assign(&mut self, (r, other): (RandomField<N>, &Self)) {
+impl<'cfg, const N: usize> AddAssign<(RandomField<'cfg, N>, &Self)>
+    for SparseMultilinearExtension<'cfg, N>
+{
+    fn add_assign(&mut self, (r, other): (RandomField<'cfg, N>, &Self)) {
         if !self.is_zero() && !other.is_zero() {
             assert_eq!(
                 other.num_vars, self.num_vars,
@@ -334,7 +335,7 @@ impl<const N: usize> AddAssign<(RandomField<N>, &Self)> for SparseMultilinearExt
         *self += &other;
     }
 }
-impl<const N: usize> Neg for SparseMultilinearExtension<N> {
+impl<const N: usize> Neg for SparseMultilinearExtension<'_, N> {
     type Output = Self;
 
     fn neg(self) -> Self {
@@ -349,33 +350,34 @@ impl<const N: usize> Neg for SparseMultilinearExtension<N> {
         }
     }
 }
-impl<const N: usize> Sub for SparseMultilinearExtension<N> {
+impl<const N: usize> Sub for SparseMultilinearExtension<'_, N> {
     type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
         &self - &other
     }
 }
-impl<const N: usize> Sub for &SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Sub for &SparseMultilinearExtension<'cfg, N> {
+    type Output = SparseMultilinearExtension<'cfg, N>;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
     fn sub(self, rhs: Self) -> Self::Output {
         self + &rhs.clone().neg()
     }
 }
-impl<const N: usize> SubAssign for SparseMultilinearExtension<N> {
+impl<const N: usize> SubAssign for SparseMultilinearExtension<'_, N> {
     fn sub_assign(&mut self, other: Self) {
         *self = &*self - &other;
     }
 }
-impl<const N: usize> SubAssign<&Self> for SparseMultilinearExtension<N> {
+impl<const N: usize> SubAssign<&Self> for SparseMultilinearExtension<'_, N> {
     fn sub_assign(&mut self, rhs: &Self) {
         *self = &*self - rhs;
     }
 }
-impl<const N: usize> Index<usize> for SparseMultilinearExtension<N> {
-    type Output = RandomField<N>;
+
+impl<'cfg, const N: usize> Index<usize> for SparseMultilinearExtension<'cfg, N> {
+    type Output = RandomField<'cfg, N>;
 
     /// Returns the evaluation of the polynomial at a point represented by
     /// index.
@@ -395,28 +397,28 @@ impl<const N: usize> Index<usize> for SparseMultilinearExtension<N> {
 }
 
 /// Utilities
-fn tuples_to_treemap<const N: usize>(
-    tuples: &[(usize, RandomField<N>)],
-) -> BTreeMap<usize, RandomField<N>> {
+fn tuples_to_treemap<'cfg, const N: usize>(
+    tuples: &[(usize, RandomField<'cfg, N>)],
+) -> BTreeMap<usize, RandomField<'cfg, N>> {
     BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, *v)))
 }
 
-fn treemap_to_hashmap<const N: usize>(
-    map: &BTreeMap<usize, RandomField<N>>,
-) -> HashMap<usize, RandomField<N>> {
+fn treemap_to_hashmap<'cfg, const N: usize>(
+    map: &BTreeMap<usize, RandomField<'cfg, N>>,
+) -> HashMap<usize, RandomField<'cfg, N>> {
     HashMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
-fn hashmap_to_treemap<const N: usize>(
-    map: &HashMap<usize, RandomField<N>>,
-) -> BTreeMap<usize, RandomField<N>> {
+fn hashmap_to_treemap<'cfg, const N: usize>(
+    map: &HashMap<usize, RandomField<'cfg, N>>,
+) -> BTreeMap<usize, RandomField<'cfg, N>> {
     BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
 
 // precompute  f(x) = eq(g,x)
-fn precompute_eq<const N: usize>(
-    g: &[RandomField<N>],
-    config: ConfigPtr<N>,
-) -> Vec<RandomField<N>> {
+fn precompute_eq<'cfg, const N: usize>(
+    g: &[RandomField<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Vec<RandomField<'cfg, N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
     dp[0] = BigInt::<N>::one().map_to_field(config) - g[0];
@@ -470,14 +472,17 @@ mod tests {
             .collect()
     }
 
-    fn vec_cast<const N: usize>(v: &[usize], config: ConfigPtr<N>) -> Vec<RandomField<N>> {
+    fn vec_cast<'cfg, const N: usize>(
+        v: &[usize],
+        config: ConfigPtr<'cfg, N>,
+    ) -> Vec<RandomField<'cfg, N>> {
         v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
     }
 
-    fn matrix_cast<const N: usize>(
+    fn matrix_cast<'cfg, const N: usize>(
         m: &[Vec<usize>],
-        config: ConfigPtr<N>,
-    ) -> SparseMatrix<RandomField<N>> {
+        config: ConfigPtr<'cfg, N>,
+    ) -> SparseMatrix<RandomField<'cfg, N>> {
         let n_rows = m.len();
         let n_cols = m[0].len();
         let mut coeffs = Vec::with_capacity(n_rows);
@@ -548,7 +553,8 @@ mod tests {
     #[test]
     fn test_vec_to_mle() {
         const N: usize = 1;
-        let config = ConfigPtr::from(&FieldConfig::new(293u32.into()));
+        let config = FieldConfig::new(293u32.into());
+        let config = ConfigPtr::from(&config);
         let z = get_test_z::<N>(3, config);
 
         let n_vars = 3;

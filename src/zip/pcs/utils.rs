@@ -29,12 +29,15 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, const N: usize>(
+pub(super) fn validate_input<'cfg, 'a, const N: usize>(
     function: &str,
     param_num_vars: usize,
     polys: impl Iterable<Item = &'a MLE_Z<N>>,
-    points: impl Iterable<Item = &'a [F<N>]>,
-) -> Result<(), Error> {
+    points: impl Iterable<Item = &'a [F<'cfg, N>]>,
+) -> Result<(), Error>
+where
+    'cfg: 'a,
+{
     // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
         if param_num_vars < poly.num_vars {
@@ -275,11 +278,11 @@ impl ColumnOpening {
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
-pub(super) fn point_to_tensor<const N: usize>(
+pub(super) fn point_to_tensor<'cfg, const N: usize>(
     num_rows: usize,
-    point: &[F<N>],
-    config: ConfigPtr<N>,
-) -> Result<(Vec<F<N>>, Vec<F<N>>), Error> {
+    point: &[F<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Result<(Vec<F<'cfg, N>>, Vec<F<'cfg, N>>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
@@ -301,11 +304,11 @@ pub(super) fn point_to_tensor<const N: usize>(
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
-pub(super) fn left_point_to_tensor<const N: usize>(
+pub(super) fn left_point_to_tensor<'cfg, const N: usize>(
     num_rows: usize,
-    point: &[F<N>],
-    config: ConfigPtr<N>,
-) -> Result<Vec<F<N>>, Error> {
+    point: &[F<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Result<Vec<F<'cfg, N>>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {

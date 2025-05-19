@@ -16,12 +16,12 @@ use super::pcs::utils::MerkleProof;
 use super::Error;
 
 #[derive(Default, Clone)]
-pub struct PcsTranscript<const N: usize> {
-    pub fs_transcript: KeccakTranscript,
+pub struct PcsTranscript<'cfg, const N: usize> {
+    pub fs_transcript: KeccakTranscript<'cfg>,
     pub stream: Cursor<Vec<u8>>,
 }
 
-impl<const N: usize> PcsTranscript<N> {
+impl<'cfg, const N: usize> PcsTranscript<'cfg, N> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -37,7 +37,7 @@ impl<const N: usize> PcsTranscript<N> {
         }
     }
 
-    pub fn common_field_element(&mut self, fe: &F<N>) {
+    pub fn common_field_element(&mut self, fe: &F<'cfg, N>) {
         self.fs_transcript.absorb_random_field(fe);
     }
 
@@ -57,7 +57,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     // TODO if we change this to an iterator we may be able to save some memory
-    pub fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
+    pub fn write_field_elements(&mut self, elems: &[F<'cfg, N>]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;
         }
@@ -68,14 +68,14 @@ impl<const N: usize> PcsTranscript<N> {
     pub fn read_field_elements(
         &mut self,
         n: usize,
-        config: ConfigPtr<N>,
-    ) -> Result<Vec<F<N>>, Error> {
+        config: ConfigPtr<'cfg, N>,
+    ) -> Result<Vec<F<'cfg, N>>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, config: ConfigPtr<N>) -> Result<F<N>, Error> {
+    pub fn read_field_element(&mut self, config: ConfigPtr<'cfg, N>) -> Result<F<'cfg, N>, Error> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
@@ -88,7 +88,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(fe)
     }
 
-    pub fn write_field_element(&mut self, fe: &F<N>) -> Result<(), Error> {
+    pub fn write_field_element(&mut self, fe: &F<'cfg, N>) -> Result<(), Error> {
         self.common_field_element(fe);
         let repr = fe.value().to_bytes_be();
         self.stream
@@ -146,7 +146,7 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: ConfigPtr<N>, cap: usize) -> usize {
+    pub fn squeeze_challenge_idx(&mut self, config: ConfigPtr<'cfg, N>, cap: usize) -> usize {
         let challenge = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;

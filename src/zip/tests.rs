@@ -13,7 +13,8 @@ use std::str::FromStr;
 
 const N: usize = 2;
 
-type TestZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
+type TestZip<'cfg> =
+    MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript<'cfg>>;
 
 #[test]
 fn test_zip_commitment() {
@@ -46,9 +47,8 @@ fn test_failing_zip_commitment() {
 
 #[test]
 fn test_zip_opening() {
-    let config = ConfigPtr::from(&FieldConfig::new(
-        BigInt::from_str("57316695564490278656402085503").unwrap(),
-    ));
+    let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -70,9 +70,8 @@ fn test_zip_opening() {
 
 #[test]
 fn test_failing_zip_evaluation() {
-    let config = ConfigPtr::from(&FieldConfig::new(
-        BigInt::from_str("57316695564490278656402085503").unwrap(),
-    ));
+    let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -106,9 +105,8 @@ fn test_failing_zip_evaluation() {
 
 #[test]
 fn test_zip_evaluation() {
-    let config = ConfigPtr::from(&FieldConfig::new(
-        BigInt::from_str("57316695564490278656402085503").unwrap(),
-    ));
+    let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&config);
     let mut rng = ark_std::test_rng();
 
     let n = 8;
@@ -143,9 +141,8 @@ fn test_zip_evaluation() {
 }
 #[test]
 fn test_zip_batch_evaluation() {
-    let config = ConfigPtr::from(&FieldConfig::new(
-        BigInt::from_str("57316695564490278656402085503").unwrap(),
-    ));
+    let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = ConfigPtr::from(&config);
     let mut rng = ark_std::test_rng();
 
     let n = 8;

@@ -2,7 +2,7 @@ use crate::field::RandomField;
 use crate::field::RandomField::{Initialized, Raw};
 use ark_ff::{One, Zero};
 
-impl<const N: usize> PartialEq for RandomField<N> {
+impl<const N: usize> PartialEq for RandomField<'_, N> {
     fn eq(&self, other: &Self) -> bool {
         if self.is_one() & other.is_one() {
             return true;
@@ -21,4 +21,4 @@ impl<const N: usize> PartialEq for RandomField<N> {
     }
 }
 
-impl<const N: usize> Eq for RandomField<N> {} // Eq requires PartialEq and ensures reflexivity.
+impl<const N: usize> Eq for RandomField<'_, N> {} // Eq requires PartialEq and ensures reflexivity.

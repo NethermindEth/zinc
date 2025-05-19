@@ -4,7 +4,7 @@ use crate::field::RandomField::Raw;
 use ark_ff::{One, Zero};
 use zeroize::Zeroize;
 
-impl<const N: usize> Zero for RandomField<N> {
+impl<const N: usize> Zero for RandomField<'_, N> {
     fn zero() -> Self {
         Raw {
             value: BigInt::zero(),
@@ -20,7 +20,7 @@ impl<const N: usize> Zero for RandomField<N> {
     }
 }
 
-impl<const N: usize> One for RandomField<N> {
+impl<const N: usize> One for RandomField<'_, N> {
     fn one() -> Self {
         Raw {
             value: BigInt::one(),
@@ -46,7 +46,7 @@ impl<const N: usize> One for RandomField<N> {
     }
 }
 
-impl<const N: usize> Zeroize for RandomField<N> {
+impl<const N: usize> Zeroize for RandomField<'_, N> {
     fn zeroize(&mut self) {
         unsafe { *self = std::mem::zeroed() }
     }
@@ -55,8 +55,10 @@ impl<const N: usize> Zeroize for RandomField<N> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        biginteger::BigInt, create_bigint, create_field_config, create_random_field,
-        field::RandomField, field_config::FieldConfig,
+        biginteger::BigInt,
+        create_bigint, create_random_field,
+        field::RandomField,
+        field_config::{ConfigPtr, FieldConfig},
     };
     use ark_ff::{One, Zero};
     use ark_std::str::FromStr;
@@ -70,7 +72,8 @@ mod tests {
 
     #[test]
     fn test_set_zero() {
-        let config = create_field_config!(23);
+        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = ConfigPtr::from(&config);
         let mut elem = create_random_field!(config, 7);
         elem.set_zero();
         assert!(elem.is_zero());
@@ -84,7 +87,8 @@ mod tests {
 
     #[test]
     fn test_set_one() {
-        let config = create_field_config!(23);
+        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = ConfigPtr::from(&config);
         let mut elem = create_random_field!(config, 5);
         elem.set_one();
         assert!(elem.is_one());
@@ -126,7 +130,8 @@ mod tests {
 
     #[test]
     fn test_zeroize() {
-        let config = create_field_config!(23);
+        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = ConfigPtr::from(&config);
         let mut elem = create_random_field!(config, 12);
         elem.zeroize();
         assert!(elem.is_zero());

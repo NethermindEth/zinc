@@ -50,14 +50,14 @@ use super::errors::{MleEvaluationError, SpartanError};
 /// # Errors:
 /// * Will return an error if any of the MLEs are of the wrong size
 ///
-pub fn prepare_lin_sumcheck_polynomial<const N: usize>(
-    c: &[RandomField<N>],
+pub fn prepare_lin_sumcheck_polynomial<'cfg, const N: usize>(
+    c: &[RandomField<'cfg, N>],
     d: &usize,
-    M_mles: &[DenseMultilinearExtension<N>],
+    M_mles: &[DenseMultilinearExtension<'cfg, N>],
     S: &[Vec<usize>],
-    beta_s: &[RandomField<N>],
-    config: ConfigPtr<N>,
-) -> Result<(Vec<DenseMultilinearExtension<N>>, usize), SpartanError<N>> {
+    beta_s: &[RandomField<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Result<(Vec<DenseMultilinearExtension<'cfg, N>>, usize), SpartanError<N>> {
     let len = 1 + c
         .iter()
         .enumerate()
@@ -78,10 +78,10 @@ pub fn prepare_lin_sumcheck_polynomial<const N: usize>(
     Ok((mles, d + 1))
 }
 
-pub(crate) fn sumcheck_polynomial_comb_fn_1<const N: usize>(
-    vals: &[RandomField<N>],
-    ccs: &CCS_F<N>,
-) -> RandomField<N> {
+pub(crate) fn sumcheck_polynomial_comb_fn_1<'cfg, const N: usize>(
+    vals: &[RandomField<'cfg, N>],
+    ccs: &CCS_F<'cfg, N>,
+) -> RandomField<'cfg, N> {
     let mut result = RandomField::zero();
     'outer: for (i, &c) in ccs.c.iter().enumerate() {
         if c.is_zero() {
@@ -100,24 +100,32 @@ pub(crate) fn sumcheck_polynomial_comb_fn_1<const N: usize>(
     result * vals[vals.len() - 1]
 }
 
-pub(crate) trait SqueezeBeta<const N: usize> {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>>;
+pub(crate) trait SqueezeBeta<'cfg, const N: usize> {
+    fn squeeze_beta_challenges(
+        &mut self,
+        n: usize,
+        config: ConfigPtr<'cfg, N>,
+    ) -> Vec<RandomField<'cfg, N>>;
 }
 
-impl<const N: usize> SqueezeBeta<N> for KeccakTranscript {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>> {
+impl<'cfg, const N: usize> SqueezeBeta<'cfg, N> for KeccakTranscript<'cfg> {
+    fn squeeze_beta_challenges(
+        &mut self,
+        n: usize,
+        config: ConfigPtr<'cfg, N>,
+    ) -> Vec<RandomField<'cfg, N>> {
         self.absorb(b"beta_s");
 
         self.get_challenges(n, config)
     }
 }
 
-pub(crate) trait SqueezeGamma<const N: usize> {
-    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<N>) -> RandomField<N>;
+pub(crate) trait SqueezeGamma<'cfg, const N: usize> {
+    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<'cfg, N>) -> RandomField<'cfg, N>;
 }
 
-impl<const N: usize> SqueezeGamma<N> for KeccakTranscript {
-    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<N>) -> RandomField<N> {
+impl<'cfg, const N: usize> SqueezeGamma<'cfg, N> for KeccakTranscript<'cfg> {
+    fn squeeze_gamma_challenge(&mut self, config: ConfigPtr<'cfg, N>) -> RandomField<'cfg, N> {
         self.absorb(b"gamma");
 
         self.get_challenge(config)
@@ -125,12 +133,12 @@ impl<const N: usize> SqueezeGamma<N> for KeccakTranscript {
 }
 
 // Prepare MLE's of the form mle[M_i \cdot z_ccs](x), a.k.a. \sum mle[M_i](x, b) * mle[z_ccs](b).
-pub(super) fn calculate_Mz_mles<E, const N: usize>(
-    constraints: &[SparseMatrix<RandomField<N>>],
+pub(super) fn calculate_Mz_mles<'cfg, E, const N: usize>(
+    constraints: &[SparseMatrix<RandomField<'cfg, N>>],
     ccs_s: usize,
-    z_ccs: &[RandomField<N>],
-    config: ConfigPtr<N>,
-) -> Result<Vec<DenseMultilinearExtension<N>>, E>
+    z_ccs: &[RandomField<'cfg, N>],
+    config: ConfigPtr<'cfg, N>,
+) -> Result<Vec<DenseMultilinearExtension<'cfg, N>>, E>
 where
     E: From<MleEvaluationError> + From<CSError> + Sync + Send,
 {
@@ -141,13 +149,13 @@ where
     )
 }
 
-fn to_mles_err<const N: usize, I, E, E1>(
+fn to_mles_err<'cfg, const N: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
-    config: ConfigPtr<N>,
-) -> Result<Vec<DenseMultilinearExtension<N>>, E>
+    config: ConfigPtr<'cfg, N>,
+) -> Result<Vec<DenseMultilinearExtension<'cfg, N>>, E>
 where
-    I: IntoIterator<Item = Result<Vec<RandomField<N>>, E1>>,
+    I: IntoIterator<Item = Result<Vec<RandomField<'cfg, N>>, E1>>,
     E: From<MleEvaluationError> + From<E1>,
 {
     mle_s

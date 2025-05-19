@@ -43,7 +43,10 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn to_random_field(&self, config: ConfigPtr<N>) -> DenseMultilinearExtensionF<N> {
+    pub fn to_random_field<'cfg>(
+        &self,
+        config: ConfigPtr<'cfg, N>,
+    ) -> DenseMultilinearExtensionF<'cfg, N> {
         let evaluations = self
             .evaluations
             .iter()

@@ -1,6 +1,7 @@
 use crate::field_config::ConfigPtr;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
+use std::marker::PhantomData;
 
 use crate::{
     biginteger::BigInt,
@@ -9,20 +10,22 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct KeccakTranscript {
+pub struct KeccakTranscript<'cfg> {
     hasher: Keccak256,
+    _phantom: PhantomData<&'cfg ()>,
 }
 
-impl Default for KeccakTranscript {
+impl Default for KeccakTranscript<'_> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl KeccakTranscript {
+impl<'cfg> KeccakTranscript<'cfg> {
     pub fn new() -> Self {
         Self {
             hasher: Keccak256::new(),
+            _phantom: PhantomData,
         }
     }
 
@@ -46,7 +49,7 @@ impl KeccakTranscript {
         result
     }
 
-    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
+    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<'cfg, N>) {
         match v {
             RandomField::Raw { value } => {
                 self.absorb(&[0x1]);
@@ -67,7 +70,7 @@ impl KeccakTranscript {
         }
     }
 
-    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
+    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<'cfg, N>]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -87,7 +90,10 @@ impl KeccakTranscript {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<const N: usize>(&mut self, config: ConfigPtr<N>) -> RandomField<N> {
+    pub fn get_challenge<const N: usize>(
+        &mut self,
+        config: ConfigPtr<'cfg, N>,
+    ) -> RandomField<'cfg, N> {
         let (lo, hi) = self.get_challenge_limbs();
         let config = config.reference().expect("Field config cannot be none");
         let modulus = config.modulus;
@@ -137,8 +143,8 @@ impl KeccakTranscript {
     pub fn get_challenges<const N: usize>(
         &mut self,
         n: usize,
-        config: ConfigPtr<N>,
-    ) -> Vec<RandomField<N>> {
+        config: ConfigPtr<'cfg, N>,
+    ) -> Vec<RandomField<'cfg, N>> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge(config)));
         challenges
@@ -173,7 +179,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
+impl<const L: usize> ZipTranscript<L> for KeccakTranscript<'_> {
     fn get_encoding_element(&mut self) -> Int<L> {
         self.get_integer_challenge::<L>()
     }
@@ -205,12 +211,13 @@ mod tests {
     #[test]
     fn test_keccak_transcript() {
         let mut transcript = KeccakTranscript::new();
-        let field_config = ConfigPtr::from(&FieldConfig::new(
+        let config = FieldConfig::new(
             BigInt::<32>::from_str(
                 "3618502788666131213697322783095070105623107215331596699973092056135872020481",
             )
             .unwrap(),
-        ));
+        );
+        let field_config = ConfigPtr::from(&config);
 
         transcript.absorb(b"This is a test string!");
         let challenge = transcript.get_challenge(field_config);

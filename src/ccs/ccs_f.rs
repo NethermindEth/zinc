@@ -38,7 +38,7 @@ pub trait Arith<const N: usize> {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug)]
-pub struct CCS_F<const N: usize> {
+pub struct CCS_F<'cfg, const N: usize> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -58,13 +58,13 @@ pub struct CCS_F<const N: usize> {
     /// vector of multisets
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
-    pub c: Vec<RandomField<N>>,
+    pub c: Vec<RandomField<'cfg, N>>,
     /// The field the constraint system operates in
     pub config: AtomicPtr<FieldConfig<N>>,
 }
 
-impl<const N: usize> Arith<N> for CCS_F<N> {
-    type Scalar = RandomField<N>;
+impl<'cfg, const N: usize> Arith<N> for CCS_F<'cfg, N> {
+    type Scalar = RandomField<'cfg, N>;
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(
         &self,
@@ -127,13 +127,13 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
 
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct Statement_F<const N: usize> {
-    pub constraints: Vec<SparseMatrix<RandomField<N>>>,
-    pub public_input: Vec<RandomField<N>>,
+pub struct Statement_F<'cfg, const N: usize> {
+    pub constraints: Vec<SparseMatrix<RandomField<'cfg, N>>>,
+    pub public_input: Vec<RandomField<'cfg, N>>,
 }
 
-impl<const N: usize> Statement_F<N> {
-    pub type Scalar = RandomField<N>;
+impl<'cfg, const N: usize> Statement_F<'cfg, N> {
+    pub type Scalar = RandomField<'cfg, N>;
     pub fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
@@ -147,13 +147,9 @@ impl<const N: usize> Statement_F<N> {
         self.constraints
             .iter()
             .map(|M| {
-                compute_eval_table_sparse(
-                    M,
-                    evals,
-                    num_rows,
-                    num_cols,
-                    ConfigPtr::new(ccs.config.load(Ordering::Acquire)),
-                )
+                compute_eval_table_sparse(M, evals, num_rows, num_cols, unsafe {
+                    ConfigPtr::new(ccs.config.load(Ordering::Acquire))
+                })
             })
             .collect()
     }
@@ -161,27 +157,27 @@ impl<const N: usize> Statement_F<N> {
 
 /// A representation of a linearised CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct LStatement<const N: usize> {
-    constraints: Vec<SparseMultilinearExtension<N>>,
-    r: Vec<RandomField<N>>,
+pub struct LStatement<'cfg, const N: usize> {
+    constraints: Vec<SparseMultilinearExtension<'cfg, N>>,
+    r: Vec<RandomField<'cfg, N>>,
 }
 
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness_F<const N: usize> {
+pub struct Witness_F<'cfg, const N: usize> {
     /// `w_ccs` is the original CCS witness.
-    pub w_ccs: Vec<RandomField<N>>,
+    pub w_ccs: Vec<RandomField<'cfg, N>>,
 }
 
 /// A representation of a linearised CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LWitness<const N: usize> {
+pub struct LWitness<'cfg, const N: usize> {
     /// `w_ccs` is the original CCS witness.
-    pub lw_ccs: DenseMultilinearExtension<N>,
+    pub lw_ccs: DenseMultilinearExtension<'cfg, N>,
 }
 
-impl<const N: usize> Witness_F<N> {
-    pub type Scalar = RandomField<N>;
+impl<'cfg, const N: usize> Witness_F<'cfg, N> {
+    pub type Scalar = RandomField<'cfg, N>;
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<Self::Scalar>) -> Self {
         Self { w_ccs }
@@ -211,9 +207,9 @@ pub trait Instance_F<const N: usize> {
     fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar>;
 }
 
-impl<const N: usize> Instance_F<N> for Statement_F<N> {
-    type Scalar = RandomField<N>;
-    type Cfg = ConfigPtr<N>;
+impl<'cfg, const N: usize> Instance_F<N> for Statement_F<'cfg, N> {
+    type Scalar = RandomField<'cfg, N>;
+    type Cfg = ConfigPtr<'cfg, N>;
 
     fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar> {
         let mut z: Vec<Self::Scalar> = Vec::with_capacity(self.public_input.len() + w.len() + 1);

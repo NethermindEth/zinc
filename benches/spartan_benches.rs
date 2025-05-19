@@ -120,22 +120,24 @@ fn benchmark_spartan_verifier<const N: usize>(
 
 fn run_benches(c: &mut Criterion) {
     // Using a 256-bit prime field
-    let config = ConfigPtr::from(&FieldConfig::new(
+    let config = FieldConfig::new(
         BigInt::<4>::from_str(
             "115792089237316195423570985008687907853269984665640564039457584007913129639747",
         )
         .unwrap(),
-    ));
+    );
+    let config = ConfigPtr::from(&config);
 
     benchmark_spartan_prover::<4>(c, config, "256");
     benchmark_spartan_verifier::<4>(c, config, "256");
 
-    let stark_config = ConfigPtr::from(&FieldConfig::new(
+    let stark_config = FieldConfig::new(
         BigInt::<4>::from_str(
             "3618502788666131213697322783095070105623107215331596699973092056135872020481",
         )
         .unwrap(),
-    ));
+    );
+    let stark_config = ConfigPtr::from(&stark_config);
 
     benchmark_spartan_prover::<4>(c, stark_config, "stark");
     benchmark_spartan_verifier::<4>(c, stark_config, "stark");

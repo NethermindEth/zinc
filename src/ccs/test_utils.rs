@@ -1,9 +1,9 @@
 #![allow(non_snake_case)]
-use std::{sync::atomic::AtomicPtr, vec};
-
 use ark_ff::One;
 use ark_std::{log2, rand::Rng};
 use crypto_bigint::{Int, Random};
+use std::marker::PhantomData;
+use std::{sync::atomic::AtomicPtr, vec};
 
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
@@ -69,11 +69,11 @@ pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
+pub(crate) fn create_dummy_squaring_sparse_matrix_F<'cfg, const N: usize>(
     rows: usize,
     columns: usize,
-    witness: &[RandomField<N>],
-) -> SparseMatrix<RandomField<N>> {
+    witness: &[RandomField<'cfg, N>],
+) -> SparseMatrix<RandomField<'cfg, N>> {
     assert_eq!(
         rows,
         witness.len(),
@@ -90,10 +90,10 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<const N: usize>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z<const N: usize>(
+fn get_dummy_ccs_Z_from_z<'cfg, const N: usize>(
     z: &[Int<N>],
     pub_io_len: usize,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+) -> (CCS_Z<'cfg, N>, Statement_Z<'cfg, N>, Witness_Z<'cfg, N>) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
@@ -105,6 +105,7 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1, -1],
+        _phantom: PhantomData,
     };
 
     let A = create_dummy_identity_sparse_matrix_Z(z.len(), z.len());
@@ -114,23 +115,25 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
     let statement = Statement_Z {
         constraints: vec![A, B, C],
         public_input: z[..pub_io_len].to_vec(),
+        _phantom: PhantomData,
     };
 
     let wit = Witness_Z {
         w_ccs: z[pub_io_len + 1..].to_vec(),
+        _phantom: PhantomData,
     };
 
     (ccs, statement, wit)
 }
 
-fn get_dummy_ccs_F_from_z<const N: usize>(
-    z: &[RandomField<N>],
+fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
+    z: &[RandomField<'cfg, N>],
     pub_io_len: usize,
-    config: ConfigPtr<N>,
-) -> (CCS_F<N>, Statement_F<N>, Witness_F<N>) {
+    config: ConfigPtr<'cfg, N>,
+) -> (CCS_F<'cfg, N>, Statement_F<'cfg, N>, Witness_F<'cfg, N>) {
     let ccs = match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
-        Some(config_ptr) => CCS_F::<N> {
+        Some(config_ptr) => CCS_F {
             m: z.len(),
             n: z.len(),
             l: pub_io_len,
@@ -173,11 +176,16 @@ pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
     (z, ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_F_from_z_length<const N: usize>(
+pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
     n: usize,
     rng: &mut impl Rng,
-    config: ConfigPtr<N>,
-) -> (Vec<RandomField<N>>, CCS_F<N>, Statement_F<N>, Witness_F<N>) {
+    config: ConfigPtr<'cfg, N>,
+) -> (
+    Vec<RandomField<'cfg, N>>,
+    CCS_F<'cfg, N>,
+    Statement_F<'cfg, N>,
+    Witness_F<'cfg, N>,
+) {
     let mut z: Vec<_> = (0..n)
         .map(|_| RandomField::<N>::rand_with_config(rng, config))
         .collect();

@@ -2,6 +2,7 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
+use std::marker::PhantomData;
 use std::sync::atomic::AtomicPtr;
 
 use ark_std::log2;
@@ -27,7 +28,7 @@ pub trait Arith_Z<const N: usize> {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug, Clone, PartialEq)]
-pub struct CCS_Z<const N: usize> {
+pub struct CCS_Z<'cfg, const N: usize> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -48,9 +49,10 @@ pub struct CCS_Z<const N: usize> {
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
     pub c: Vec<i64>,
+    pub _phantom: PhantomData<&'cfg ()>, // TODO Implement CCS_Z<'cfg, N>::new
 }
 
-impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
+impl<const N: usize> Arith_Z<N> for CCS_Z<'_, N> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(&self, M: &[SparseMatrix<Int<N>>], z: &[Int<N>]) -> Result<(), Error> {
         let mut result = vec![Int::<N>::zero(); self.m];
@@ -106,7 +108,7 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
     }
 }
 
-impl<const N: usize> CCS_Z<N> {
+impl<const N: usize> CCS_Z<'_, N> {
     pub fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
@@ -128,9 +130,11 @@ impl<const N: usize> CCS_Z<N> {
     }
 }
 
-impl<const N: usize> FieldMap<N> for CCS_Z<N> {
-    type Cfg = ConfigPtr<N>;
-    type Output = CCS_F<N>;
+impl<'cfg, const N: usize> FieldMap<'cfg, N> for CCS_Z<'cfg, N> {
+    type Cfg = ConfigPtr<'cfg, N>;
+    type Output = CCS_F<'cfg, N>;
+    type Lifetime = ();
+
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         match config.pointer() {
             Some(config_ptr) => CCS_F {
@@ -151,16 +155,19 @@ impl<const N: usize> FieldMap<N> for CCS_Z<N> {
     }
 }
 
-pub struct Statement_Z<const N: usize> {
+pub struct Statement_Z<'cfg, const N: usize> {
     pub constraints: Vec<SparseMatrix<Int<N>>>,
     pub public_input: Vec<Int<N>>,
+    pub _phantom: PhantomData<&'cfg ()>, // TODO Implement Statement_Z<'cfg, N>::new
 }
 
-impl<const N: usize> FieldMap<N> for Statement_Z<N> {
-    type Cfg = ConfigPtr<N>;
-    type Output = Statement_F<N>;
+impl<'cfg, const N: usize> FieldMap<'cfg, N> for Statement_Z<'cfg, N> {
+    type Cfg = ConfigPtr<'cfg, N>;
+    type Output = Statement_F<'cfg, N>;
+    type Lifetime = ();
+
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
-        Statement_F {
+        Self::Output {
             constraints: self
                 .constraints
                 .iter()
@@ -176,21 +183,27 @@ impl<const N: usize> FieldMap<N> for Statement_Z<N> {
 }
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness_Z<const N: usize> {
+pub struct Witness_Z<'cfg, const N: usize> {
     /// `w_ccs` is the original CCS witness.
     pub w_ccs: Vec<Int<N>>,
+    pub _phantom: PhantomData<&'cfg ()>, // TODO Implement Witness_Z<'cfg, N>::new
 }
 
-impl<const N: usize> Witness_Z<N> {
+impl<const N: usize> Witness_Z<'_, N> {
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<Int<N>>) -> Self {
-        Self { w_ccs }
+        Self {
+            w_ccs,
+            _phantom: PhantomData,
+        }
     }
 }
 
-impl<const N: usize> FieldMap<N> for Witness_Z<N> {
-    type Cfg = ConfigPtr<N>;
-    type Output = Witness_F<N>;
+impl<'cfg, const N: usize> FieldMap<'cfg, N> for Witness_Z<'cfg, N> {
+    type Cfg = ConfigPtr<'cfg, N>;
+    type Output = Witness_F<'cfg, N>;
+    type Lifetime = ();
+
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {
             w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
@@ -208,7 +221,7 @@ pub trait Instance_Z<const N: usize> {
     fn get_z_vector(&self, w: &[Int<N>]) -> Vec<Int<N>>;
 }
 
-impl<const N: usize> Instance_Z<N> for Statement_Z<N> {
+impl<const N: usize> Instance_Z<N> for Statement_Z<'_, N> {
     fn get_z_vector(&self, w: &[Int<N>]) -> Vec<Int<N>> {
         let mut z: Vec<_> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
@@ -221,7 +234,7 @@ impl<const N: usize> Instance_Z<N> for Statement_Z<N> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
+pub(crate) fn get_test_ccs_Z<'cfg, const N: usize>() -> CCS_Z<'cfg, N> {
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -238,6 +251,7 @@ pub(crate) fn get_test_ccs_Z<const N: usize>() -> CCS_Z<N> {
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1, -1],
+        _phantom: PhantomData,
     }
 }
 
@@ -250,7 +264,7 @@ pub fn to_Z_matrix<const N: usize>(M: Vec<Vec<usize>>) -> SparseMatrix<Int<N>> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_Z_statement<const N: usize>(input: i64) -> Statement_Z<N> {
+pub(crate) fn get_test_ccs_Z_statement<'cfg, const N: usize>(input: i64) -> Statement_Z<'cfg, N> {
     let A = to_Z_matrix(vec![
         vec![1, 0, 0, 0, 0, 0],
         vec![0, 0, 0, 1, 0, 0],
@@ -274,6 +288,7 @@ pub(crate) fn get_test_ccs_Z_statement<const N: usize>(input: i64) -> Statement_
     Statement_Z {
         constraints,
         public_input,
+        _phantom: PhantomData,
     }
 }
 
@@ -291,7 +306,7 @@ pub(crate) fn get_test_z_Z<const N: usize>(input: i64) -> Vec<Int<N>> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_wit_Z<const N: usize>(input: i64) -> Witness_Z<N> {
+pub(crate) fn get_test_wit_Z<'cfg, const N: usize>(input: i64) -> Witness_Z<'cfg, N> {
     Witness_Z::new(vec![
         Int::<N>::from_i64(input * input * input + input + 5), // x^3 + x + 5
         Int::<N>::from_i64(input * input),                     // x^2
@@ -301,9 +316,14 @@ pub(crate) fn get_test_wit_Z<const N: usize>(input: i64) -> Witness_Z<N> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_stuff_Z<const N: usize>(
+pub(crate) fn get_test_ccs_stuff_Z<'cfg, const N: usize>(
     input: i64,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>, Vec<Int<N>>) {
+) -> (
+    CCS_Z<'cfg, N>,
+    Statement_Z<'cfg, N>,
+    Witness_Z<'cfg, N>,
+    Vec<Int<N>>,
+) {
     let mut ccs = get_test_ccs_Z();
     let mut statement = get_test_ccs_Z_statement(input);
     let witness = get_test_wit_Z(input);

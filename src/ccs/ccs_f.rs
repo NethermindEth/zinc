@@ -22,11 +22,12 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 ///
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
 pub trait Arith<const N: usize> {
+    type Scalar: Clone + Send + Sync;
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
     fn check_relation(
         &self,
-        M: &[SparseMatrix<RandomField<N>>],
-        z: &[RandomField<N>],
+        M: &[SparseMatrix<Self::Scalar>],
+        z: &[Self::Scalar],
     ) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
@@ -63,13 +64,14 @@ pub struct CCS_F<const N: usize> {
 }
 
 impl<const N: usize> Arith<N> for CCS_F<N> {
+    type Scalar = RandomField<N>;
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(
         &self,
-        M: &[SparseMatrix<RandomField<N>>],
-        z: &[RandomField<N>],
+        M: &[SparseMatrix<Self::Scalar>],
+        z: &[Self::Scalar],
     ) -> Result<(), Error> {
-        let mut result = vec![RandomField::zero(); self.m];
+        let mut result = vec![Self::Scalar::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.m,
@@ -84,14 +86,14 @@ impl<const N: usize> Arith<N> for CCS_F<N> {
         }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
-            let vec_M_j: Vec<&SparseMatrix<RandomField<N>>> =
+            let vec_M_j: Vec<&SparseMatrix<Self::Scalar>> =
                 self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
-            let mut hadamard_result = vec![RandomField::one(); self.m];
+            let mut hadamard_result = vec![Self::Scalar::one(); self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, RandomField::zero());
+                res.resize(self.m, Self::Scalar::zero());
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
@@ -131,13 +133,14 @@ pub struct Statement_F<const N: usize> {
 }
 
 impl<const N: usize> Statement_F<N> {
+    pub type Scalar = RandomField<N>;
     pub fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
         num_cols: usize,
         ccs: &CCS_F<N>,
-        evals: &[RandomField<N>],
-    ) -> Vec<Vec<RandomField<N>>> {
+        evals: &[Self::Scalar],
+    ) -> Vec<Vec<Self::Scalar>> {
         assert_eq!(num_rows, ccs.n);
         assert!(num_cols > (ccs.m - ccs.l) - 1);
 
@@ -178,8 +181,9 @@ pub struct LWitness<const N: usize> {
 }
 
 impl<const N: usize> Witness_F<N> {
+    pub type Scalar = RandomField<N>;
     /// Create a [`Witness`] from a ccs witness.
-    pub fn new(w_ccs: Vec<RandomField<N>>) -> Self {
+    pub fn new(w_ccs: Vec<Self::Scalar>) -> Self {
         Self { w_ccs }
     }
 
@@ -191,11 +195,7 @@ impl<const N: usize> Witness_F<N> {
     /// * `rng` is a mutable reference to the random number generator.
     /// * `w_ccs_len` is the length of the non-decomposed witness (a.k.a. the CCS witness).
     pub fn rand<Rng: rand::Rng + ?Sized>(rng: &mut Rng, w_ccs_len: usize) -> Self {
-        Self::new(
-            (0..w_ccs_len)
-                .map(|_| RandomField::<N>::rand(rng))
-                .collect(),
-        )
+        Self::new((0..w_ccs_len).map(|_| Self::Scalar::rand(rng)).collect())
     }
 }
 
@@ -205,13 +205,18 @@ impl<const N: usize> Witness_F<N> {
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
 pub trait Instance_F<const N: usize> {
+    type Scalar;
+    type Cfg;
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, w: &[RandomField<N>], config: ConfigPtr<N>) -> Vec<RandomField<N>>;
+    fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar>;
 }
 
 impl<const N: usize> Instance_F<N> for Statement_F<N> {
-    fn get_z_vector(&self, w: &[RandomField<N>], config: ConfigPtr<N>) -> Vec<RandomField<N>> {
-        let mut z: Vec<RandomField<N>> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
+    type Scalar = RandomField<N>;
+    type Cfg = ConfigPtr<N>;
+
+    fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar> {
+        let mut z: Vec<Self::Scalar> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
         z.push(1u32.map_to_field(config));

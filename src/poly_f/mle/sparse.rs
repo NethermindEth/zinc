@@ -32,10 +32,13 @@ pub struct SparseMultilinearExtension<const N: usize> {
     pub config: ConfigPtr<N>,
 }
 impl<const N: usize> SparseMultilinearExtension<N> {
+    pub type Field = RandomField<N>;
+    pub type Cfg = ConfigPtr<N>;
+
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, RandomField<N>)>,
-        config: ConfigPtr<N>,
+        config: Self::Cfg,
     ) -> Self {
         let bit_mask = 1 << num_vars;
 
@@ -53,7 +56,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             config,
         }
     }
-    pub fn evaluate(&self, point: &[RandomField<N>], config: ConfigPtr<N>) -> RandomField<N> {
+    pub fn evaluate(&self, point: &[Self::Field], config: Self::Cfg) -> Self::Field {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point, config)[0]
     }
@@ -68,7 +71,7 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     pub fn rand_with_config<Rn: Rng>(
         num_vars: usize,
         num_nonzero_entries: usize,
-        config: ConfigPtr<N>,
+        config: Self::Cfg,
         rng: &mut Rn,
     ) -> Self {
         assert!(num_nonzero_entries <= 1 << num_vars);
@@ -97,14 +100,14 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<RandomField<N>>, config: ConfigPtr<N>) -> Self {
+    pub fn from_matrix(m: &SparseMatrix<Self::Field>, config: Self::Cfg) -> Self {
         let n_rows = m.n_rows.next_power_of_two();
         let n_cols = m.n_cols.next_power_of_two();
         let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
 
         // build the sparse vec representing the sparse matrix
         let total_elements: usize = m.coeffs.iter().map(|row| row.len()).sum();
-        let mut v: Vec<(usize, RandomField<N>)> = Vec::with_capacity(total_elements);
+        let mut v: Vec<(usize, Self::Field)> = Vec::with_capacity(total_elements);
 
         for (row_i, row) in m.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -120,24 +123,26 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     /// Takes n_vars and a sparse slice and returns its sparse MLE.
     pub fn from_sparse_slice(
         n_vars: usize,
-        v: &[(usize, RandomField<N>)],
-        config: ConfigPtr<N>,
+        v: &[(usize, Self::Field)],
+        config: Self::Cfg,
     ) -> Self {
         SparseMultilinearExtension::<N>::from_evaluations(n_vars, v, config)
     }
 
     /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: ConfigPtr<N>) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[Self::Field], config: Self::Cfg) -> Self {
         let v_sparse = v
             .iter()
             .enumerate()
             .map(|(i, v_i)| (i, *v_i))
-            .collect::<Vec<(usize, RandomField<N>)>>();
+            .collect::<Vec<(usize, Self::Field)>>();
         SparseMultilinearExtension::<N>::from_evaluations(n_vars, &v_sparse, config)
     }
 }
 
 impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
+    type Field  = RandomField<N>;
+    type Cfg = ConfigPtr<N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -145,7 +150,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
     /// are sampled uniformly at random. The number of nonzero entries is
     /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
     /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: ConfigPtr<N>, rng: &mut Rn) -> Self {
+    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: Self::Cfg, rng: &mut Rn) -> Self {
         Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
     }
 
@@ -169,12 +174,12 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         Self {
             num_vars: self.num_vars,
             evaluations: tuples_to_treemap(&ev),
-            zero: RandomField::<N>::zero(),
+            zero: Self::Field::zero(),
             config: self.config,
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[RandomField<N>], config: ConfigPtr<N>) {
+    fn fix_variables(&mut self, partial_point: &[Self::Field], config: Self::Cfg) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -210,18 +215,18 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
 
         self.evaluations = evaluations;
         self.num_vars -= dim;
-        self.zero = RandomField::<N>::zero();
+        self.zero = Self::Field::zero();
     }
 
-    fn fixed_variables(&self, partial_point: &[RandomField<N>], config: ConfigPtr<N>) -> Self {
+    fn fixed_variables(&self, partial_point: &[Self::Field], config: Self::Cfg) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
+    fn to_evaluations(&self) -> Vec<Self::Field> {
         let mut evaluations: Vec<_> = (0..1 << self.num_vars)
-            .map(|_| RandomField::<N>::zero())
+            .map(|_| Self::Field::zero())
             .collect();
         self.evaluations
             .iter()
@@ -246,6 +251,7 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
         self.num_vars == 0 && self.evaluations.is_empty()
     }
 }
+
 impl<const N: usize> Add for SparseMultilinearExtension<N> {
     type Output = Self;
 
@@ -253,6 +259,7 @@ impl<const N: usize> Add for SparseMultilinearExtension<N> {
         &self + &other
     }
 }
+
 impl<const N: usize> Add for &SparseMultilinearExtension<N> {
     type Output = SparseMultilinearExtension<N>;
 

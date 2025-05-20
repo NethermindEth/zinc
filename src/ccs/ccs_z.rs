@@ -11,7 +11,7 @@ use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
 
@@ -131,7 +131,7 @@ impl<const N: usize> CCS_Z<'_, N> {
 }
 
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for CCS_Z<'cfg, N> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = CCS_F<'cfg, N>;
     type Lifetime = ();
 
@@ -162,7 +162,7 @@ pub struct Statement_Z<'cfg, const N: usize> {
 }
 
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for Statement_Z<'cfg, N> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = Statement_F<'cfg, N>;
     type Lifetime = ();
 
@@ -200,7 +200,7 @@ impl<const N: usize> Witness_Z<'_, N> {
 }
 
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for Witness_Z<'cfg, N> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = Witness_F<'cfg, N>;
     type Lifetime = ();
 
@@ -338,7 +338,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
-    use crate::field_config::ConfigPtr;
+    use crate::field_config::ConfigRef;
     use crate::{
         biginteger::BigInt,
         ccs::{
@@ -409,7 +409,7 @@ mod tests {
             BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
         );
 
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let ccs_f = ccs.map_to_field(config_ptr);
         let statement_f = statement.map_to_field(config_ptr);

@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::{UniformRand, Zero};
 
 use crate::biginteger::BigInt;
@@ -29,11 +29,11 @@ pub struct SparseMultilinearExtension<'cfg, const N: usize> {
     pub num_vars: usize,
     zero: RandomField<'cfg, N>,
     /// Field in which the MLE is operating
-    pub config: ConfigPtr<'cfg, N>,
+    pub config: ConfigRef<'cfg, N>,
 }
 impl<'cfg, const N: usize> SparseMultilinearExtension<'cfg, N> {
     pub type Field = RandomField<'cfg, N>;
-    pub type Cfg = ConfigPtr<'cfg, N>;
+    pub type Cfg = ConfigRef<'cfg, N>;
 
     pub fn from_evaluations<'a>(
         num_vars: usize,
@@ -141,7 +141,7 @@ impl<'cfg, const N: usize> SparseMultilinearExtension<'cfg, N> {
 
 impl<'cfg, const N: usize> MultilinearExtension<'cfg, N> for SparseMultilinearExtension<'cfg, N> {
     type Field = RandomField<'cfg, N>;
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -242,7 +242,7 @@ impl<const N: usize> Zero for SparseMultilinearExtension<'_, N> {
             num_vars: 0,
             evaluations: tuples_to_treemap(&Vec::new()),
             zero: RandomField::<N>::zero(),
-            config: ConfigPtr::NONE,
+            config: ConfigRef::NONE,
         }
     }
 
@@ -417,7 +417,7 @@ fn hashmap_to_treemap<'cfg, const N: usize>(
 // precompute  f(x) = eq(g,x)
 fn precompute_eq<'cfg, const N: usize>(
     g: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RandomField<'cfg, N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
@@ -445,7 +445,7 @@ mod tests {
     fn usize_to_binary_vector<const N: usize>(
         n: usize,
         dimensions: usize,
-        config: ConfigPtr<N>,
+        config: ConfigRef<N>,
     ) -> Vec<RandomField<N>> {
         let mut bits = Vec::with_capacity(dimensions);
         let mut current = n;
@@ -464,7 +464,7 @@ mod tests {
     // Wrapper function to generate a boolean hypercube.
     fn boolean_hypercube<const N: usize>(
         dimensions: usize,
-        config: ConfigPtr<N>,
+        config: ConfigRef<N>,
     ) -> Vec<Vec<RandomField<N>>> {
         let max_val = 1 << dimensions; // 2^dimensions
         (0..max_val)
@@ -474,14 +474,14 @@ mod tests {
 
     fn vec_cast<'cfg, const N: usize>(
         v: &[usize],
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Vec<RandomField<'cfg, N>> {
         v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
     }
 
     fn matrix_cast<'cfg, const N: usize>(
         m: &[Vec<usize>],
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> SparseMatrix<RandomField<'cfg, N>> {
         let n_rows = m.len();
         let n_cols = m[0].len();
@@ -502,7 +502,7 @@ mod tests {
         }
     }
 
-    fn get_test_z<const N: usize>(input: usize, config: ConfigPtr<N>) -> Vec<RandomField<N>> {
+    fn get_test_z<const N: usize>(input: usize, config: ConfigRef<N>) -> Vec<RandomField<N>> {
         vec_cast(
             &[
                 input, // io
@@ -520,7 +520,7 @@ mod tests {
     fn test_matrix_to_mle() {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
-        let config_ptr: ConfigPtr<1> = ConfigPtr::from(&config);
+        let config_ptr: ConfigRef<1> = ConfigRef::from(&config);
         let A = matrix_cast::<N>(
             &[
                 vec![2, 3, 4, 4],
@@ -554,7 +554,7 @@ mod tests {
     fn test_vec_to_mle() {
         const N: usize = 1;
         let config = FieldConfig::new(293u32.into());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
         let z = get_test_z::<N>(3, config);
 
         let n_vars = 3;

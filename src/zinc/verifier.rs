@@ -5,7 +5,7 @@ use super::{
     structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::{
     ccs::{
         ccs_f::{Statement_F, CCS_F},
@@ -52,8 +52,8 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(ConfigPtr::from(config));
-        let statement_f = statement.map_to_field(ConfigPtr::from(config));
+        let ccs_F = ccs.map_to_field(ConfigRef::from(config));
+        let statement_f = statement.map_to_field(ConfigRef::from(config));
 
         let verification_points =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F, config)
@@ -106,7 +106,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N> for ZincVerifier
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError<N>> {
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, ConfigPtr::from(config));
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, ConfigRef::from(config));
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -116,7 +116,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N> for ZincVerifier
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
         let gamma: RandomField<'cfg, N> =
-            transcript.squeeze_gamma_challenge(ConfigPtr::from(config));
+            transcript.squeeze_gamma_challenge(ConfigRef::from(config));
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -152,7 +152,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             degree,
             RandomField::zero(),
             proof,
-            unsafe { ConfigPtr::new(*ccs.config.as_ptr()) },
+            unsafe { ConfigRef::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -205,7 +205,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             degree,
             claimed_sum,
             proof,
-            unsafe { ConfigPtr::new(*ccs.config.as_ptr()) },
+            unsafe { ConfigRef::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -258,8 +258,8 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
             .constraints
             .iter()
             .map(|M| {
-                let mle = DenseMultilinearExtension::from_matrix(M, ConfigPtr::from(config));
-                mle.evaluate(&verification_points.rx_ry, ConfigPtr::from(config))
+                let mle = DenseMultilinearExtension::from_matrix(M, ConfigRef::from(config));
+                mle.evaluate(&verification_points.rx_ry, ConfigRef::from(config))
                     .ok_or(MleEvaluationError::IncorrectLength(
                         verification_points.rx_ry.len(),
                         mle.num_vars,

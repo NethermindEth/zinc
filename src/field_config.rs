@@ -244,25 +244,34 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 
 impl<const N: usize> Eq for FieldConfig<N> {}
 
+/// A wrapper around an optional reference to a `FieldConfig`.
+///
+/// This struct is used to represent a pointer to a `FieldConfig` instance,
+/// allowing for safe handling of nullable references. It provides methods
+/// to access the underlying reference or raw pointer.
+///
+/// # Type Parameters
+/// - `'cfg`: The lifetime of the `FieldConfig` reference.
+/// - `N`: The size of the `FieldConfig` (e.g., the number of limbs in the `BigInt` modulus).
 #[derive(Debug, Copy, Clone, Eq)]
-pub struct ConfigPtr<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
+pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
-impl<const N: usize> PartialEq for ConfigPtr<'_, N> {
+impl<const N: usize> PartialEq for ConfigRef<'_, N> {
     fn eq(&self, other: &Self) -> bool {
         self.reference() == other.reference()
     }
 }
 
-impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigPtr<'cfg, N> {
+impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigRef<'cfg, N> {
     fn from(value: &'cfg FieldConfig<N>) -> Self {
         Self(Some(value))
     }
 }
 
-unsafe impl<const N: usize> Sync for ConfigPtr<'_, N> {}
-unsafe impl<const N: usize> Send for ConfigPtr<'_, N> {}
+unsafe impl<const N: usize> Sync for ConfigRef<'_, N> {}
+unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
 
-impl<'cfg, const N: usize> ConfigPtr<'cfg, N> {
+impl<'cfg, const N: usize> ConfigRef<'cfg, N> {
     pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
         self.0.map(|p| p as *const _ as *mut _)
     }

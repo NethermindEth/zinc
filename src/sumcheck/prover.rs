@@ -1,6 +1,6 @@
 //! Prover
 
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use std::sync::atomic::{self, AtomicPtr};
 
 use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
@@ -62,7 +62,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         prover_state: &mut ProverState<'cfg, N>,
         v_msg: &Option<VerifierMsg<'cfg, N>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> ProverMsg<'cfg, N> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
@@ -78,7 +78,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(&[r], unsafe {
-                    ConfigPtr::new(atomic_config.load(atomic::Ordering::Relaxed))
+                    ConfigRef::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });
         } else if prover_state.round > 0 {

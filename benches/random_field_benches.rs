@@ -10,13 +10,13 @@ use std::iter::{Product, Sum};
 use std::str::FromStr;
 use zinc::field::conversion::FieldMap;
 
-use zinc::field_config::ConfigPtr;
+use zinc::field_config::ConfigRef;
 use zinc::{biginteger::BigInteger256, field::RandomField, field_config::FieldConfig};
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let config =
         FieldConfig::new(BigInteger256::from_str("695962179703626800597079116051991347").unwrap());
-    let field_config = ConfigPtr::from(&config);
+    let field_config = ConfigRef::from(&config);
 
     let bigint = BigInteger256::from_str("695962179703").unwrap();
 

@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 use std::marker::PhantomData;
@@ -92,7 +92,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<const N: usize>(
         &mut self,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> RandomField<'cfg, N> {
         let (lo, hi) = self.get_challenge_limbs();
         let config = config.reference().expect("Field config cannot be none");
@@ -103,8 +103,8 @@ impl<'cfg> KeccakTranscript<'cfg> {
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(ConfigPtr::from(config));
-            challenge.set_config(ConfigPtr::from(config));
+            let mut challenge = truncated_lo.map_to_field(ConfigRef::from(config));
+            challenge.set_config(ConfigRef::from(config));
             return challenge;
         }
         if challenge_num_bits < 128 {
@@ -112,17 +112,17 @@ impl<'cfg> KeccakTranscript<'cfg> {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(ConfigPtr::from(config));
-            challenge.set_config(ConfigPtr::from(config));
+            let mut challenge = truncated_lo.map_to_field(ConfigRef::from(config));
+            challenge.set_config(ConfigRef::from(config));
             challenge
         } else if challenge_num_bits >= 256 {
             let two_to_128 =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(ConfigPtr::from(config));
+                    .map_to_field(ConfigRef::from(config));
 
-            let mut challenge = lo.map_to_field(ConfigPtr::from(config))
-                + two_to_128 * hi.map_to_field(ConfigPtr::from(config));
-            challenge.set_config(ConfigPtr::from(config));
+            let mut challenge = lo.map_to_field(ConfigRef::from(config))
+                + two_to_128 * hi.map_to_field(ConfigRef::from(config));
+            challenge.set_config(ConfigRef::from(config));
             challenge
         } else {
             let hi_bits_to_keep = challenge_num_bits - 128;
@@ -132,18 +132,18 @@ impl<'cfg> KeccakTranscript<'cfg> {
 
             let two_to_128 =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(ConfigPtr::from(config));
+                    .map_to_field(ConfigRef::from(config));
 
-            let mut ret = lo.map_to_field(ConfigPtr::from(config))
-                + two_to_128 * truncated_hi.map_to_field(ConfigPtr::from(config));
-            ret.set_config(ConfigPtr::from(config));
+            let mut ret = lo.map_to_field(ConfigRef::from(config))
+                + two_to_128 * truncated_hi.map_to_field(ConfigRef::from(config));
+            ret.set_config(ConfigRef::from(config));
             ret
         }
     }
     pub fn get_challenges<const N: usize>(
         &mut self,
         n: usize,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Vec<RandomField<'cfg, N>> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge(config)));
@@ -205,7 +205,7 @@ mod tests {
     use std::str::FromStr;
 
     use super::KeccakTranscript;
-    use crate::field_config::ConfigPtr;
+    use crate::field_config::ConfigRef;
     use crate::{biginteger::BigInt, field::conversion::FieldMap, field_config::FieldConfig};
 
     #[test]
@@ -217,7 +217,7 @@ mod tests {
             )
             .unwrap(),
         );
-        let field_config = ConfigPtr::from(&config);
+        let field_config = ConfigRef::from(&config);
 
         transcript.absorb(b"This is a test string!");
         let challenge = transcript.get_challenge(field_config);

@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::Zero;
 use crypto_bigint::Int;
 
@@ -71,7 +71,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
         }
     }
 
-    pub fn encode_f<'cfg>(&self, row: &[F<'cfg, N>], field: ConfigPtr<'cfg, N>) -> Vec<F<'cfg, N>> {
+    pub fn encode_f<'cfg>(&self, row: &[F<'cfg, N>], field: ConfigRef<'cfg, N>) -> Vec<F<'cfg, N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -235,7 +235,7 @@ pub struct SparseMatrixF<'cfg, const N: usize> {
 }
 
 impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
-    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigPtr<'cfg, N>) -> Self {
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigRef<'cfg, N>) -> Self {
         let cells_f: Vec<(usize, F<'cfg, N>)> = sparse_matrix
             .cells
             .iter()

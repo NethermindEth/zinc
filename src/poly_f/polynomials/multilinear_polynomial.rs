@@ -3,7 +3,7 @@
 
 // Adapted for rings by Nethermind
 
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
 
@@ -23,7 +23,7 @@ pub fn random_mle_list<'cfg, const N: usize, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> (
     Vec<RefCounter<DenseMultilinearExtension<'cfg, N>>>,
     RandomField<'cfg, N>,
@@ -64,7 +64,7 @@ pub fn random_zero_mle_list<'cfg, const N: usize, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<'cfg, N>>> {
     let start = start_timer!(|| "sample random zero mle list");
 
@@ -95,7 +95,7 @@ pub fn random_zero_mle_list<'cfg, const N: usize, Rn: RngCore>(
 pub fn identity_permutation<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
-    config: ConfigPtr<N>,
+    config: ConfigRef<N>,
 ) -> Vec<RandomField<N>> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
     (0..len).map(|i| i.map_to_field(config)).collect()
@@ -105,7 +105,7 @@ pub fn identity_permutation<const N: usize>(
 pub fn identity_permutation_mles<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
-    config: ConfigPtr<N>,
+    config: ConfigRef<N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<N>>> {
     let mut res = vec![];
     for i in 0..num_chunks {
@@ -124,7 +124,7 @@ pub fn random_permutation<'cfg, const N: usize, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RandomField<'cfg, N>> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
     let mut s_id_vec: Vec<RandomField<N>> = (0..len).map(|i| i.map_to_field(config)).collect();
@@ -141,7 +141,7 @@ pub fn random_permutation_mles<'cfg, const N: usize, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RefCounter<DenseMultilinearExtension<'cfg, N>>> {
     let s_perm_vec = random_permutation(num_vars, num_chunks, rng, config);
     let mut res = vec![];
@@ -161,7 +161,7 @@ pub fn random_permutation_mles<'cfg, const N: usize, Rn: RngCore>(
 pub fn evaluate_opt<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables(poly, point, config).evaluations[0]
@@ -170,7 +170,7 @@ pub fn evaluate_opt<'cfg, const N: usize>(
 pub fn fix_variables<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     partial_point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> DenseMultilinearExtension<'cfg, N> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -210,7 +210,7 @@ fn fix_one_variable_helper<'cfg, const N: usize>(
 pub fn evaluate_no_par<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
     assert_eq!(poly.num_vars, point.len());
     fix_variables_no_par(poly, point, config).evaluations[0]
@@ -219,7 +219,7 @@ pub fn evaluate_no_par<'cfg, const N: usize>(
 fn fix_variables_no_par<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     partial_point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> DenseMultilinearExtension<'cfg, N> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -242,7 +242,7 @@ fn fix_variables_no_par<'cfg, const N: usize>(
 /// polynomials do not share a same number of nvs.
 pub fn merge_polynomials<'cfg, const N: usize>(
     polynomials: &[RefCounter<DenseMultilinearExtension<'cfg, N>>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Result<RefCounter<DenseMultilinearExtension<'cfg, N>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
     for poly in polynomials.iter() {
@@ -267,7 +267,7 @@ pub fn merge_polynomials<'cfg, const N: usize>(
 pub fn fix_last_variables_no_par<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     partial_point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> DenseMultilinearExtension<'cfg, N> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap(), config);
     for p in partial_point.iter().rev().skip(1) {
@@ -279,7 +279,7 @@ pub fn fix_last_variables_no_par<'cfg, const N: usize>(
 fn fix_last_variable_no_par<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     partial_point: &RandomField<'cfg, N>,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> DenseMultilinearExtension<'cfg, N> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
@@ -293,7 +293,7 @@ fn fix_last_variable_no_par<'cfg, const N: usize>(
 pub fn fix_last_variables<'cfg, const N: usize>(
     poly: &DenseMultilinearExtension<'cfg, N>,
     partial_point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> DenseMultilinearExtension<'cfg, N> {
     assert!(
         partial_point.len() <= poly.num_vars,

@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::Zero;
@@ -45,7 +45,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
 
     pub fn to_random_field<'cfg>(
         &self,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> DenseMultilinearExtensionF<'cfg, N> {
         let evaluations = self
             .evaluations

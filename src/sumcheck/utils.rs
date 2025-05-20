@@ -5,7 +5,7 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
@@ -32,7 +32,7 @@ pub fn rand_poly<'cfg, const N: usize>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
     rng: &mut impl RngCore,
 ) -> Result<
     (
@@ -72,7 +72,7 @@ pub fn rand_poly<'cfg, const N: usize>(
 pub fn rand_poly_comb_fn<'cfg, const N: usize>(
     vals: &[RandomField<'cfg, N>],
     products: &[(RandomField<'cfg, N>, Vec<usize>)],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
@@ -114,7 +114,7 @@ pub fn eq_eval<'cfg, const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
 pub fn build_eq_x_r<'cfg, const N: usize>(
     r: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Result<DenseMultilinearExtension<'cfg, N>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);

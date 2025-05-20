@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::{UniformRand, Zero};
@@ -24,12 +24,12 @@ pub struct DenseMultilinearExtension<'cfg, const N: usize> {
     /// Number of variables
     pub num_vars: usize,
     /// Field in which the MLE is operating
-    pub config: ConfigPtr<'cfg, N>,
+    pub config: ConfigRef<'cfg, N>,
 }
 
 impl<'cfg, const N: usize> DenseMultilinearExtension<'cfg, N> {
     pub type Field = RandomField<'cfg, N>;
-    pub type Cfg = ConfigPtr<'cfg, N>;
+    pub type Cfg = ConfigRef<'cfg, N>;
 
     pub fn from_evaluations_slice(
         num_vars: usize,
@@ -137,7 +137,7 @@ impl<'cfg, const N: usize> DenseMultilinearExtension<'cfg, N> {
 
 impl<'cfg, const N: usize> MultilinearExtension<'cfg, N> for DenseMultilinearExtension<'cfg, N> {
     type Field = RandomField<'cfg, N>;
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -200,7 +200,7 @@ impl<const N: usize> Zero for DenseMultilinearExtension<'_, N> {
         Self {
             num_vars: 0,
             evaluations: vec![RandomField::<N>::zero()],
-            config: ConfigPtr::NONE,
+            config: ConfigRef::NONE,
         }
     }
 

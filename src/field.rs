@@ -20,16 +20,16 @@ pub enum RandomField<'cfg, const N: usize> {
         value: BigInt<N>,
     },
     Initialized {
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
         value: BigInt<N>,
     },
 }
 
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use RandomField::*;
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
-    pub type Cfg = ConfigPtr<'cfg, N>;
+    pub type Cfg = ConfigRef<'cfg, N>;
 
     pub fn is_raw(&self) -> bool {
         matches!(self, Raw { .. })
@@ -279,7 +279,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     #[inline(always)]
     pub fn config_ptr(&self) -> Self::Cfg {
         match self {
-            Raw { .. } => ConfigPtr::NONE,
+            Raw { .. } => ConfigRef::NONE,
             Initialized { config, .. } => *config,
         }
     }
@@ -455,7 +455,7 @@ mod tests {
     use crate::{
         biginteger::BigInt,
         field::RandomField,
-        field_config::{ConfigPtr, FieldConfig},
+        field_config::{ConfigRef, FieldConfig},
     };
     use ark_std::str::FromStr;
 
@@ -466,7 +466,7 @@ mod tests {
             let bigint = BigInt::<$N>::from_str(stringify!($modulus))
                 .expect("Failed to parse modulus into BigInt");
             let cfg = FieldConfig::new(bigint);
-            (cfg, ConfigPtr::from(&cfg))
+            (cfg, ConfigRef::from(&cfg))
         }};
 
         ($modulus:expr) => {{
@@ -474,7 +474,7 @@ mod tests {
                 .expect("Failed to parse modulus into BigInt");
 
             let cfg = FieldConfig::new(bigint);
-            (cfg, ConfigPtr::from(&cfg))
+            (cfg, ConfigRef::from(&cfg))
         }};
     }
 
@@ -514,7 +514,7 @@ mod tests {
     #[test]
     fn test_with_raw_value_or_for_initialized_variant() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
         let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
             value: create_bigint!(10),
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn test_with_init_value_or_initialized() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
         let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
             value: create_bigint!(10),

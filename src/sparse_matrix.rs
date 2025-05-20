@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::vec::*;
 use ark_ff::Zero;
 use ark_std::rand::Rng;
@@ -38,7 +38,7 @@ impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMa
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for SparseMatrix<$type> {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = SparseMatrix<RandomField<'cfg, N>>;
             type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -60,7 +60,7 @@ macro_rules! impl_field_map_sparse_matrix {
     };
 }
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<Int<M>> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = SparseMatrix<RandomField<'cfg, N>>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -191,7 +191,7 @@ pub fn compute_eval_table_sparse<'cfg, const N: usize>(
     rx: &[RandomField<'cfg, N>],
     num_rows: usize,
     num_cols: usize,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RandomField<'cfg, N>> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(

@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::Zero;
 use ark_std::iterable::Iterable;
 
@@ -281,7 +281,7 @@ impl ColumnOpening {
 pub(super) fn point_to_tensor<'cfg, const N: usize>(
     num_rows: usize,
     point: &[F<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Result<(Vec<F<'cfg, N>>, Vec<F<'cfg, N>>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
@@ -307,7 +307,7 @@ pub(super) fn point_to_tensor<'cfg, const N: usize>(
 pub(super) fn left_point_to_tensor<'cfg, const N: usize>(
     num_rows: usize,
     point: &[F<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Result<Vec<F<'cfg, N>>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.

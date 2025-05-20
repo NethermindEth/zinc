@@ -3,7 +3,7 @@
 
 // Adapted for rings by Nethermind
 
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_std::{log2, vec::*};
 
 use crate::field::{conversion::FieldMap, RandomField};
@@ -25,7 +25,7 @@ pub fn gen_eval_point<'cfg, const N: usize>(
     index: usize,
     index_len: usize,
     point: &[RandomField<'cfg, N>],
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> Vec<RandomField<'cfg, N>> {
     let index_vec: Vec<RandomField<'cfg, N>> = bit_decompose(index as u64, index_len)
         .into_iter()

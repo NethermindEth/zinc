@@ -9,7 +9,7 @@ use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::{
     field::{conversion::FieldMap, RandomField},
     sparse_matrix::SparseMatrix,
@@ -55,7 +55,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
 pub(crate) fn create_dummy_identity_sparse_matrix_F<const N: usize>(
     rows: usize,
     columns: usize,
-    config: ConfigPtr<N>,
+    config: ConfigRef<N>,
 ) -> SparseMatrix<RandomField<N>> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
@@ -129,7 +129,7 @@ fn get_dummy_ccs_Z_from_z<'cfg, const N: usize>(
 fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
     z: &[RandomField<'cfg, N>],
     pub_io_len: usize,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> (CCS_F<'cfg, N>, Statement_F<'cfg, N>, Witness_F<'cfg, N>) {
     let ccs = match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
@@ -179,7 +179,7 @@ pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
 pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
     n: usize,
     rng: &mut impl Rng,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> (
     Vec<RandomField<'cfg, N>>,
     CCS_F<'cfg, N>,

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use zinc::field_config::ConfigPtr;
+use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
@@ -15,7 +15,7 @@ use zinc::{
     zip::code::ZipSpec1,
 };
 
-fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigPtr<N>, prime: &str) {
+fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef<N>, prime: &str) {
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
@@ -60,7 +60,7 @@ fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigPtr
 
 fn benchmark_spartan_verifier<const N: usize>(
     c: &mut Criterion,
-    config: ConfigPtr<N>,
+    config: ConfigRef<N>,
     prime: &str,
 ) {
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
@@ -126,7 +126,7 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
-    let config = ConfigPtr::from(&config);
+    let config = ConfigRef::from(&config);
 
     benchmark_spartan_prover::<4>(c, config, "256");
     benchmark_spartan_verifier::<4>(c, config, "256");
@@ -137,7 +137,7 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
-    let stark_config = ConfigPtr::from(&stark_config);
+    let stark_config = ConfigRef::from(&stark_config);
 
     benchmark_spartan_prover::<4>(c, stark_config, "stark");
     benchmark_spartan_verifier::<4>(c, stark_config, "stark");

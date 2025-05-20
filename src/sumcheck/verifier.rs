@@ -1,5 +1,5 @@
 //! Verifier
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use ark_ff::One;
 use ark_std::vec::Vec;
 
@@ -29,7 +29,7 @@ pub struct VerifierState<'cfg, const N: usize> {
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<RandomField<'cfg, N>>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 }
 
 /// Subclaim when verifier is convinced
@@ -43,7 +43,7 @@ pub struct SubClaim<'cfg, const N: usize> {
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigPtr<N>) -> VerifierState<N> {
+    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigRef<N>) -> VerifierState<N> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -99,7 +99,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn check_and_generate_subclaim<'cfg>(
         verifier_state: VerifierState<'cfg, N>,
         asserted_sum: RandomField<'cfg, N>,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<SubClaim<'cfg, N>, SumCheckError<N>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
@@ -139,7 +139,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     #[inline]
     pub fn sample_round<'cfg>(
         transcript: &mut Transcript<'cfg>,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> VerifierMsg<'cfg, N> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
@@ -154,7 +154,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
 pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
     p_i: &[RandomField<'cfg, N>],
     x: RandomField<'cfg, N>,
-    config: ConfigPtr<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
     // We will need these a few times
     let zero = 0u64.map_to_field(config);
@@ -300,7 +300,7 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<const N: usize>(a: usize, config: ConfigPtr<N>) -> RandomField<N> {
+fn field_factorial<const N: usize>(a: usize, config: ConfigRef<N>) -> RandomField<N> {
     let mut res = RandomField::one();
     for i in 1..=a {
         res *= (i as u64).map_to_field(config);

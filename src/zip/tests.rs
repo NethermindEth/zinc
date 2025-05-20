@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::{
     biginteger::BigInt,
     field::conversion::FieldMap,
@@ -48,7 +48,7 @@ fn test_failing_zip_commitment() {
 #[test]
 fn test_zip_opening() {
     let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
-    let config = ConfigPtr::from(&config);
+    let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -71,7 +71,7 @@ fn test_zip_opening() {
 #[test]
 fn test_failing_zip_evaluation() {
     let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
-    let config = ConfigPtr::from(&config);
+    let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
@@ -106,7 +106,7 @@ fn test_failing_zip_evaluation() {
 #[test]
 fn test_zip_evaluation() {
     let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
-    let config = ConfigPtr::from(&config);
+    let config = ConfigRef::from(&config);
     let mut rng = ark_std::test_rng();
 
     let n = 8;
@@ -142,7 +142,7 @@ fn test_zip_evaluation() {
 #[test]
 fn test_zip_batch_evaluation() {
     let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
-    let config = ConfigPtr::from(&config);
+    let config = ConfigRef::from(&config);
     let mut rng = ark_std::test_rng();
 
     let n = 8;

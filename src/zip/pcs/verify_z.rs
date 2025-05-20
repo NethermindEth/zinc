@@ -8,7 +8,7 @@ use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::{
     field::{conversion::FieldMap, RandomField as F},
     field_config::FieldConfig,
@@ -37,7 +37,7 @@ where
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened =
-            Self::verify_testing(vp, comm.roots(), transcript, ConfigPtr::from(field))?;
+            Self::verify_testing(vp, comm.roots(), transcript, ConfigRef::from(field))?;
 
         Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
 
@@ -62,7 +62,7 @@ where
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<'cfg, N>,
-        field: ConfigPtr<'cfg, N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
@@ -140,11 +140,11 @@ where
     ) -> Result<(), Error> {
         let q_0_combined_row = transcript.read_field_elements(
             <Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()),
-            ConfigPtr::from(field),
+            ConfigRef::from(field),
         )?;
-        let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, ConfigPtr::from(field));
+        let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, ConfigRef::from(field));
 
-        let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, ConfigPtr::from(field))?;
+        let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, ConfigRef::from(field))?;
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
             return Err(Error::InvalidPcsOpen(
@@ -174,14 +174,14 @@ where
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let column_entries = column_entries.map_to_field(ConfigPtr::from(field));
+            let column_entries = column_entries.map_to_field(ConfigRef::from(field));
             inner_product(q_0, &column_entries)
             // TODO: this inner product is taking a long time.
         } else {
             column_entries
                 .first()
                 .unwrap()
-                .map_to_field(ConfigPtr::from(field))
+                .map_to_field(ConfigRef::from(field))
         };
         if column_entries_comb != encoded_q_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));

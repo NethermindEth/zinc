@@ -76,7 +76,7 @@ mod tests {
     use super::*;
     use crate::biginteger::BigInt;
     use crate::field::conversion::FieldMap;
-    use crate::field_config::{ConfigPtr, FieldConfig};
+    use crate::field_config::{ConfigRef, FieldConfig};
     use crate::sparse_matrix::dense_matrix_to_sparse;
 
     const N: usize = 3;
@@ -87,7 +87,7 @@ mod tests {
     #[test]
     fn test_vec_add() {
         let config = get_config();
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let a = [
             1u64.map_to_field(config_ptr),
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn test_vec_add_error_case() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let a = [1u64.map_to_field(config), 2u64.map_to_field(config)];
         let b = [
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn test_vec_scalar_mul() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let vec = [
             1u64.map_to_field(config),
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn test_hadamard() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let a = [
             2u64.map_to_field(config),
@@ -170,7 +170,7 @@ mod tests {
     #[test]
     fn test_hadamard_error_case() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let a = [2u64.map_to_field(config), 3u64.map_to_field(config)];
         let b = [
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_mat_vec_mul() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let dense_matrix = vec![
             vec![
@@ -223,7 +223,7 @@ mod tests {
     #[test]
     fn test_mat_vec_mul_error_case() {
         let config = get_config();
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let dense_matrix = vec![
             vec![

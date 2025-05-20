@@ -11,7 +11,7 @@ use ark_std::test_rng;
 use criterion::measurement::WallTime;
 use zinc::biginteger::BigInt;
 
-use zinc::field_config::{ConfigPtr, FieldConfig};
+use zinc::field_config::{ConfigRef, FieldConfig};
 use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
@@ -47,7 +47,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
-    let field_config = ConfigPtr::from(&config);
+    let field_config = ConfigRef::from(&config);
 
     type T<'cfg> = KeccakTranscript<'cfg>;
     let mut keccak_transcript = T::new();
@@ -84,7 +84,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
-    let field_config = ConfigPtr::from(&config);
+    let field_config = ConfigRef::from(&config);
 
     type T<'cfg> = KeccakTranscript<'cfg>;
     let mut keccak_transcript = T::new();

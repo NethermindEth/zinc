@@ -3,7 +3,7 @@ use crypto_bigint::{Int, NonZero, Uint};
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
 use crate::field::RandomField::Raw;
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use crate::traits::FromBytes;
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
@@ -57,13 +57,13 @@ impl<const N: usize> FromBytes for RandomField<'_, N> {
 }
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
-    pub fn from_bytes_le_with_config(config: ConfigPtr<'cfg, N>, bytes: &[u8]) -> Option<Self> {
+    pub fn from_bytes_le_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_le(bytes);
 
         Self::from_bigint(config, value?)
     }
 
-    pub fn from_bytes_be_with_config(config: ConfigPtr<'cfg, N>, bytes: &[u8]) -> Option<Self> {
+    pub fn from_bytes_be_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
         let value = BigInt::<N>::from_bytes_be(bytes);
 
         Self::from_bigint(config, value?)
@@ -81,7 +81,7 @@ pub trait FieldMap<'cfg, const N: usize> {
 macro_rules! impl_field_map_for_int {
     ($type:ty, $bits:expr) => {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for $type {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
             type Lifetime = ();
 
@@ -141,7 +141,7 @@ macro_rules! impl_field_map_for_int {
 
                 config.mul_assign(&mut r, &config.r2);
 
-                let mut elem = RandomField::<N>::new_unchecked(ConfigPtr::from(config), r);
+                let mut elem = RandomField::<N>::new_unchecked(ConfigRef::from(config), r);
                 if *self < 0 {
                     elem = -elem;
                 }
@@ -151,7 +151,7 @@ macro_rules! impl_field_map_for_int {
         }
 
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &$type {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
             type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -170,7 +170,7 @@ impl_field_map_for_int!(i128, 128);
 macro_rules! impl_field_map_for_uint {
     ($type:ty, $bits:expr) => {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for $type {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
             type Lifetime = ();
 
@@ -227,12 +227,12 @@ macro_rules! impl_field_map_for_uint {
                 };
 
                 config.mul_assign(&mut r, &config.r2);
-                RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
+                RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
             }
         }
 
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &$type {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
             type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -249,7 +249,7 @@ impl_field_map_for_uint!(u128, 128);
 
 // Implementation for bool
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
 
@@ -261,12 +261,12 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
 
         let mut r = BigInt::from(*self as u64);
         config.mul_assign(&mut r, &config.r2);
-        RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
+        RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
     }
 }
 
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -276,7 +276,7 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
 
 // Implementation for Int<N>
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
 
@@ -291,7 +291,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
 }
 
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
 
@@ -301,7 +301,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
 }
 // Implementation of FieldMap for BigInt<N>
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
 
@@ -354,13 +354,13 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 
         // Apply Montgomery form transformation
         config.mul_assign(&mut r, &config.r2);
-        RandomField::<N>::new_unchecked(ConfigPtr::from(config), r)
+        RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
     }
 }
 
 // Implementation of FieldMap for reference to BigInt<N>
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &BigInt<M> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -372,7 +372,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &BigInt<M> {
 macro_rules! impl_field_map_for_vec {
     ($type:ty) => {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for Vec<$type> {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = Vec<RandomField<'cfg, N>>;
             type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -381,7 +381,7 @@ macro_rules! impl_field_map_for_vec {
         }
 
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &Vec<$type> {
-            type Cfg = ConfigPtr<'cfg, N>;
+            type Cfg = ConfigRef<'cfg, N>;
             type Output = Vec<RandomField<'cfg, N>>;
             type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -390,10 +390,10 @@ macro_rules! impl_field_map_for_vec {
         }
 
         impl<'cfg, const M: usize> FieldMap<'cfg, M> for &[$type] {
-            type Cfg = ConfigPtr<'cfg, M>;
+            type Cfg = ConfigRef<'cfg, M>;
             type Output = Vec<RandomField<'cfg, M>>;
             type Lifetime = ();
-            fn map_to_field(&self, config: ConfigPtr<'cfg, M>) -> Self::Output {
+            fn map_to_field(&self, config: ConfigRef<'cfg, M>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
         }
@@ -407,7 +407,7 @@ impl_field_map_for_vec!(i64);
 impl_field_map_for_vec!(i128);
 
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for Vec<Int<M>> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -416,7 +416,7 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for Vec<Int<M>> {
 }
 
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &Vec<Int<M>> {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -425,7 +425,7 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &Vec<Int<M>> {
 }
 
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &[Int<M>] {
-    type Cfg = ConfigPtr<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
     type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -436,7 +436,7 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &[Int<M>] {
 #[cfg(test)]
 mod tests {
     use crate::field::conversion::FieldMap;
-    use crate::field_config::{ConfigPtr, FieldConfig};
+    use crate::field_config::{ConfigRef, FieldConfig};
     use crate::traits::FromBytes;
     use crate::{biginteger::BigInt, field::RandomField};
     use std::str::FromStr;
@@ -501,7 +501,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_valid() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x05, 0, 0, 0, 0, 0, 0, 0];
         let expected = BigInt::from_str("5").unwrap();
@@ -518,7 +518,7 @@ mod tests {
             )
             .unwrap(),
         );
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let bytes = [
             0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x00; 8]; // All zeros
         let expected = RandomField::Initialized {
@@ -549,7 +549,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_be_with_config_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x00; 8]; // All zeros
         let expected = RandomField::Initialized {
@@ -564,7 +564,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_out_of_range() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101 (modulus is 23)
         let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
@@ -574,7 +574,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_be_with_config_out_of_range() {
         let config = FieldConfig::new(BigInt::<32>::from_str("37129241769965749").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101
         let result = RandomField::<32>::from_bytes_be_with_config(config, &bytes);
@@ -584,7 +584,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_exact_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 23 (modulus)
         let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes);
@@ -594,7 +594,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_be_with_config_exact_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17]; // Value: 23 (big-endian)
         let result = RandomField::<1>::from_bytes_be_with_config(config, &bytes);
@@ -604,7 +604,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_le_with_config_leading_zeros() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0b0000_0001]; // Value: 1 with leading zeros
         let expected = BigInt::<1>::from_bytes_le(&bytes)
@@ -618,7 +618,7 @@ mod tests {
     #[test]
     fn converts_from_bytes_be_with_config_leading_zeros() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let bytes = [0x01]; //1 with leading zeros (big-endian);
 
@@ -724,7 +724,7 @@ mod tests {
     fn test_signed_integers_field_map() {
         let field = 18446744069414584321_u64;
         let config = FieldConfig::new(BigInt::from_str("18446744069414584321_u64").unwrap());
-        let config: ConfigPtr<1> = ConfigPtr::from(&config);
+        let config: ConfigRef<1> = ConfigRef::from(&config);
 
         // Test primitive types with full range
         test_signed_type_full_range!(i8, field, config, 1);
@@ -808,7 +808,7 @@ mod tests {
     fn test_unsigned_integers_field_map() {
         let field_1 = 18446744069414584321_u64;
         let config_1 = FieldConfig::new(BigInt::from_str("18446744069414584321_u64").unwrap());
-        let config = ConfigPtr::from(&config_1);
+        let config = ConfigRef::from(&config_1);
         // Test small types with full range
         test_unsigned_type_full_range!(u8, field_1, config, 1);
         test_unsigned_type_full_range!(u16, field_1, config, 1);
@@ -825,7 +825,7 @@ mod tests {
     )]
     fn test_signed_field_map_null_config() {
         let i32_val: i32 = 5;
-        i32_val.map_to_field(ConfigPtr::<1>::NONE);
+        i32_val.map_to_field(ConfigRef::<1>::NONE);
     }
 
     #[test]
@@ -834,7 +834,7 @@ mod tests {
     )]
     fn test_unsigned_field_map_null_config() {
         let u32_val: u32 = 5;
-        u32_val.map_to_field(ConfigPtr::<1>::NONE);
+        u32_val.map_to_field(ConfigRef::<1>::NONE);
     }
 }
 
@@ -849,7 +849,7 @@ mod bigint_field_map_tests {
         // Using a 2-limb field config with 1-limb BigInt
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let small_bigint = BigInt::<1>::from(12345u64);
         let result = small_bigint.map_to_field(config_ptr);
@@ -865,7 +865,7 @@ mod bigint_field_map_tests {
     fn test_bigint_equal_size() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let value = BigInt::<2>::from_str("12345678901234567890").unwrap();
         let result = value.map_to_field(config_ptr);
@@ -884,7 +884,7 @@ mod bigint_field_map_tests {
         // Using a 1-limb field config with 2-limb BigInt
         let modulus = BigInt::<1>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let large_value = BigInt::<2>::from_str("123456789012345678901").unwrap();
         let result = large_value.map_to_field(config_ptr);
@@ -901,7 +901,7 @@ mod bigint_field_map_tests {
     fn test_bigint_zero() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let zero = BigInt::<2>::zero();
         let result = zero.map_to_field(config_ptr);
@@ -916,7 +916,7 @@ mod bigint_field_map_tests {
     fn test_bigint_reference() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         let value = BigInt::<2>::from_str("12345").unwrap();
         let result = value.map_to_field(config_ptr);
@@ -933,14 +933,14 @@ mod bigint_field_map_tests {
     #[should_panic(expected = "Cannot convert BigInt to prime field element without a modulus")]
     fn test_null_config() {
         let value = BigInt::<2>::from(123u64);
-        let _result: RandomField<2> = value.map_to_field(ConfigPtr::NONE);
+        let _result: RandomField<2> = value.map_to_field(ConfigRef::NONE);
     }
 
     #[test]
     fn test_bigint_max_value() {
         let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
         let config = FieldConfig::new(modulus);
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         // Create a BigInt with all bits set to 1
         let mut max_value = BigInt::<2>::zero();

@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use std::io::{Cursor, Read, Write};
 
 use crypto_bigint::Int;
@@ -68,14 +68,14 @@ impl<'cfg, const N: usize> PcsTranscript<'cfg, N> {
     pub fn read_field_elements(
         &mut self,
         n: usize,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<Vec<F<'cfg, N>>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, config: ConfigPtr<'cfg, N>) -> Result<F<'cfg, N>, Error> {
+    pub fn read_field_element(&mut self, config: ConfigRef<'cfg, N>) -> Result<F<'cfg, N>, Error> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
@@ -146,7 +146,7 @@ impl<'cfg, const N: usize> PcsTranscript<'cfg, N> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: ConfigPtr<'cfg, N>, cap: usize) -> usize {
+    pub fn squeeze_challenge_idx(&mut self, config: ConfigRef<'cfg, N>, cap: usize) -> usize {
         let challenge = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;

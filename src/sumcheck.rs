@@ -1,4 +1,4 @@
-use crate::field_config::ConfigPtr;
+use crate::field_config::ConfigRef;
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
@@ -57,7 +57,7 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> (SumcheckProof<'cfg, N>, ProverState<'cfg, N>) {
         let (nvars_field, degree_field) = if N == 1 {
             (
@@ -101,7 +101,7 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
         degree: usize,
         claimed_sum: RandomField<'cfg, N>,
         proof: &SumcheckProof<'cfg, N>,
-        config: ConfigPtr<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<SubClaim<'cfg, N>, SumCheckError<N>> {
         let (nvars_field, degree_field) = if N == 1 {
             (
@@ -142,7 +142,7 @@ mod tests {
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck, SumcheckProof,
     };
-    use crate::field_config::ConfigPtr;
+    use crate::field_config::ConfigRef;
     use crate::{
         biginteger::BigInt, field::RandomField, field_config::FieldConfig,
         transcript::KeccakTranscript,
@@ -156,10 +156,10 @@ mod tests {
         let mut transcript = KeccakTranscript::default();
 
         let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (2, 5), 7, ConfigPtr::from(config), &mut rng).unwrap();
+            rand_poly(nvars, (2, 5), 7, ConfigRef::from(config), &mut rng).unwrap();
 
         let comb_fn = |vals: &[RandomField<'cfg, N>]| -> RandomField<'cfg, N> {
-            rand_poly_comb_fn(vals, &products, ConfigPtr::from(config))
+            rand_poly_comb_fn(vals, &products, ConfigRef::from(config))
         };
 
         let (proof, _) = MLSumcheck::prove_as_subprotocol(
@@ -168,7 +168,7 @@ mod tests {
             nvars,
             poly_degree,
             comb_fn,
-            ConfigPtr::from(config),
+            ConfigRef::from(config),
         );
         (poly_degree, sum, proof)
     }
@@ -179,7 +179,7 @@ mod tests {
         let nvars = 3;
         let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
-        let config_ptr = ConfigPtr::from(&config);
+        let config_ptr = ConfigRef::from(&config);
 
         for _ in 0..20 {
             let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(

@@ -175,7 +175,7 @@ mod test {
         biginteger::BigInt,
         create_bigint, create_random_field,
         field::RandomField,
-        field_config::{ConfigPtr, FieldConfig},
+        field_config::{ConfigRef, FieldConfig},
     };
     use ark_ff::{One, Zero};
     use std::str::FromStr;
@@ -183,7 +183,7 @@ mod test {
     #[test]
     fn test_add_wrapping_around_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 22);
         let rhs = create_random_field!(config, 2);
@@ -195,7 +195,7 @@ mod test {
     #[test]
     fn test_add_without_wrapping() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 20);
         let rhs = create_random_field!(config, 20);
@@ -207,7 +207,7 @@ mod test {
     #[test]
     fn test_add_one() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 22);
         let rhs = RandomField::one();
@@ -232,7 +232,7 @@ mod test {
     #[test]
     fn test_sub_wrapping_around_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 2);
         let rhs = create_random_field!(config, 22);
@@ -244,7 +244,7 @@ mod test {
     #[test]
     fn test_sub_identical_values_results_in_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 20);
         let rhs = create_random_field!(config, 20);
@@ -256,7 +256,7 @@ mod test {
     #[test]
     fn test_init_sub_raw() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 2);
         let rhs = RandomField::one();
@@ -269,7 +269,7 @@ mod test {
     #[test]
     fn test_sub_assign_works() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 10);
         let rhs = create_random_field!(config, 7);
@@ -282,7 +282,7 @@ mod test {
     #[test]
     fn test_sub_assign_wraps_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 3);
         let rhs = create_random_field!(config, 7);
@@ -295,7 +295,7 @@ mod test {
     #[test]
     fn test_mul_wraps_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 22);
         let rhs = create_random_field!(config, 2);
@@ -307,7 +307,7 @@ mod test {
     #[test]
     fn test_mul_without_wrapping() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 20);
         let rhs: RandomField<1> = create_random_field!(config, 20);
@@ -319,7 +319,7 @@ mod test {
     #[test]
     fn test_left_mul_by_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 22);
         let rhs = RandomField::zero();
@@ -331,7 +331,7 @@ mod test {
     #[test]
     fn test_right_mul_by_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = RandomField::zero();
         let rhs = create_random_field!(config, 22);
@@ -343,7 +343,7 @@ mod test {
     #[test]
     fn test_mul_assign_works() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 5);
         let rhs = create_random_field!(config, 4);
@@ -356,7 +356,7 @@ mod test {
     #[test]
     fn test_mul_assign_wraps_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 6);
         let rhs = create_random_field!(config, 4);
@@ -369,7 +369,7 @@ mod test {
     #[test]
     fn test_div_wraps_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 22);
         let rhs = create_random_field!(config, 2);
@@ -381,7 +381,7 @@ mod test {
     #[test]
     fn test_div_identical_values_results_in_one() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 20);
         let rhs = create_random_field!(config, 20);
@@ -393,7 +393,7 @@ mod test {
     #[test]
     fn test_div_without_wrapping() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 17);
         let rhs = create_random_field!(config, 4);
@@ -406,7 +406,7 @@ mod test {
     #[should_panic]
     fn test_div_by_zero_should_panic() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let lhs = create_random_field!(config, 17);
         let rhs = create_random_field!(config, 0);
@@ -418,7 +418,7 @@ mod test {
     fn test_div_bigint256() {
         let config =
             FieldConfig::new(BigInt::from_str("695962179703626800597079116051991347").unwrap());
-        let config = ConfigPtr::<4>::from(&config);
+        let config = ConfigRef::<4>::from(&config);
 
         let a = create_random_field!(config, 3);
         let mut b = RandomField::one();
@@ -441,7 +441,7 @@ mod test {
     #[test]
     fn test_div_by_reference_works() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 15);
         let rhs = create_random_field!(config, 3);
@@ -455,7 +455,7 @@ mod test {
     #[test]
     fn test_div_by_mutable_reference_works() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let lhs = create_random_field!(config, 9);
         let rhs = create_random_field!(config, 3);
@@ -469,7 +469,7 @@ mod test {
     #[test]
     fn test_div_assign_works() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let mut lhs = create_random_field!(config, 15);
         let rhs = create_random_field!(config, 3);
@@ -483,7 +483,7 @@ mod test {
     #[should_panic(expected = "Attempt to divide by zero")]
     fn test_div_assign_by_zero_should_panic() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 15);
         let rhs = RandomField::zero();
@@ -494,7 +494,7 @@ mod test {
     #[test]
     fn test_div_assign_by_mutable_reference() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let mut lhs = create_random_field!(config, 18);
         let mut rhs = create_random_field!(config, 3);
@@ -507,7 +507,7 @@ mod test {
     #[test]
     fn test_neg_large_value() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let operand = create_random_field!(config, 22);
         let negated = -operand;
@@ -518,7 +518,7 @@ mod test {
     #[test]
     fn test_neg_mid_value() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let operand = create_random_field!(config, 17);
         let negated = -operand;
@@ -529,7 +529,7 @@ mod test {
     #[test]
     fn test_neg_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::<1>::from(&config);
+        let config = ConfigRef::<1>::from(&config);
 
         let operand = create_random_field!(config, 0);
         let negated = -operand;
@@ -540,7 +540,7 @@ mod test {
     #[test]
     fn test_sum_of_multiple_values() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 2),
@@ -556,7 +556,7 @@ mod test {
     #[test]
     fn test_sum_with_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             RandomField::zero(),
@@ -572,7 +572,7 @@ mod test {
     #[test]
     fn test_sum_wraps_modulus() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 10),
@@ -594,7 +594,7 @@ mod test {
     #[test]
     fn test_sum_single_element() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [create_random_field!(config, 9)];
 
@@ -606,7 +606,7 @@ mod test {
     #[test]
     fn test_sum_with_modulus_wrapping() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 12),
@@ -621,7 +621,7 @@ mod test {
     #[test]
     fn test_product_of_multiple_values() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 2),
@@ -637,7 +637,7 @@ mod test {
     #[test]
     fn test_product_with_one() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             RandomField::one(),
@@ -653,7 +653,7 @@ mod test {
     #[test]
     fn test_product_with_zero() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
         let values = [
             create_random_field!(config, 3),
             RandomField::zero(),
@@ -668,7 +668,7 @@ mod test {
     #[test]
     fn test_product_negative_modular_complements() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 10),
@@ -690,7 +690,7 @@ mod test {
     #[test]
     fn test_product_single_element() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [create_random_field!(config, 9)];
 
@@ -702,7 +702,7 @@ mod test {
     #[test]
     fn test_product_with_modulus_wrapping() {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
-        let config = ConfigPtr::from(&config);
+        let config = ConfigRef::from(&config);
 
         let values = [
             create_random_field!(config, 12),

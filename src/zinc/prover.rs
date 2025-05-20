@@ -34,10 +34,10 @@ use super::{
 pub trait Prover<'cfg, const N: usize> {
     fn prove(
         &self,
-        statement: &Statement_Z<'cfg, N>,
-        wit: &Witness_Z<'cfg, N>,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript<'cfg>,
-        ccs: &CCS_Z<'cfg, N>,
+        ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
     where
@@ -49,10 +49,10 @@ pub trait Prover<'cfg, const N: usize> {
 impl<'cfg, const N: usize, S: ZipSpec> Prover<'cfg, N> for ZincProver<N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z<'cfg, N>,
-        wit: &Witness_Z<'cfg, N>,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
         transcript: &mut KeccakTranscript<'cfg>,
-        ccs: &CCS_Z<'cfg, N>,
+        ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
     where
@@ -166,9 +166,9 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanProver<'cfg, N> for ZincProver<N, 
 
 impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     pub fn prepare_for_random_field_piop<'cfg>(
-        statement: &Statement_Z<'cfg, N>,
-        wit: &Witness_Z<'cfg, N>,
-        ccs: &CCS_Z<'cfg, N>,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: ConfigRef<'cfg, N>,
     ) -> Result<
         (
@@ -214,9 +214,9 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle<'cfg>(
-        statement: &Statement_Z<'cfg, N>,
-        wit: &Witness_Z<'cfg, N>,
-        ccs: &CCS_Z<'cfg, N>,
+        statement: &Statement_Z<N>,
+        wit: &Witness_Z<N>,
+        ccs: &CCS_Z<N>,
         config: ConfigRef<'cfg, N>,
     ) -> (Vec<RandomField<'cfg, N>>, DenseMultilinearExtensionZ<N>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);

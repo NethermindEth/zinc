@@ -22,10 +22,10 @@ use crate::{
 pub trait Verifier<const N: usize> {
     fn verify<'cfg>(
         &self,
-        cm_i: &Statement_Z<'cfg, N>,
+        cm_i: &Statement_Z<N>,
         proof: ZincProof<'cfg, N>,
         transcript: &mut KeccakTranscript<'cfg>,
-        ccs: &CCS_Z<'cfg, N>,
+        ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where
@@ -37,10 +37,10 @@ pub trait Verifier<const N: usize> {
 impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
     fn verify<'cfg>(
         &self,
-        statement: &Statement_Z<'cfg, N>,
+        statement: &Statement_Z<N>,
         proof: ZincProof<'cfg, N>,
         transcript: &mut KeccakTranscript<'cfg>,
-        ccs: &CCS_Z<'cfg, N>,
+        ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where

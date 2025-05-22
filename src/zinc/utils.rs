@@ -172,8 +172,8 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<const N: usize>(
-    public_inputs: &[Int<N>],
+pub fn draw_random_field<const I: usize, const N: usize>(
+    public_inputs: &[Int<I>],
     transcript: &mut KeccakTranscript,
 ) -> FieldConfig<N> {
     for input in public_inputs {

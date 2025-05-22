@@ -10,13 +10,13 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<N, _> {
+    let prover = ZincProver::<I, N, _> {
         data: PhantomData::<ZipSpec1>,
     };
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<N>(&statement.public_input, &mut prover_transcript);
+    let field_config = draw_random_field::<I, N>(&statement.public_input, &mut prover_transcript);
     let proof = prover
         .prove(
             &statement,

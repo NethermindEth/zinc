@@ -13,11 +13,7 @@ use crate::{
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
     transcript::KeccakTranscript,
-    zip::{
-        code::ZipSpec,
-        pcs::structs::MultilinearZip,
-        pcs_transcript::PcsTranscript,
-    },
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 use super::{

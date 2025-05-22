@@ -43,7 +43,7 @@ where
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<const N: usize, S>
+pub struct ZincVerifier<const I: usize, const N: usize, S>
 where
     S: ZipSpec,
 {

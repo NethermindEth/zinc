@@ -19,36 +19,36 @@ use super::{
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 
-pub trait Verifier<const N: usize> {
+pub trait Verifier<const I: usize, const N: usize> {
     fn verify(
         &self,
-        cm_i: &Statement_Z<N>,
-        proof: ZincProof<N>,
+        cm_i: &Statement_Z<I>,
+        proof: ZincProof<I, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:;
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:;
 }
 
-impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier<I, N, S> {
     fn verify(
         &self,
-        statement: &Statement_Z<N>,
-        proof: ZincProof<N>,
+        statement: &Statement_Z<I>,
+        proof: ZincProof<I, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
-        if draw_random_field::<N>(&statement.public_input, transcript) != *config {
+        if draw_random_field::<I, N>(&statement.public_input, transcript) != *config {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
@@ -91,18 +91,18 @@ pub trait SpartanVerifier<const N: usize> {
     fn verify(
         &self,
         proof: &SpartanProof<N>,
-        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
+        transcript: &mut KeccakTranscript,
         config: &FieldConfig<N>,
     ) -> Result<VerificationPoints<N>, SpartanError<N>>;
 }
 
-impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<I, N, S> {
     fn verify(
         &self,
         proof: &SpartanProof<N>,
-        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
+        transcript: &mut KeccakTranscript,
         config: &FieldConfig<N>,
     ) -> Result<VerificationPoints<N>, SpartanError<N>> {
         // Step 1: Generate the beta challenges.
@@ -134,7 +134,7 @@ impl<const N: usize, S: ZipSpec> SpartanVerifier<N> for ZincVerifier<N, S> {
     }
 }
 
-impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<N>,

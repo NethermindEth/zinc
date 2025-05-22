@@ -55,7 +55,10 @@ where
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
     ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
-        polys.iter().map(|poly| Self::commit::<N>(pp, poly)).collect()
+        polys
+            .iter()
+            .map(|poly| Self::commit::<N>(pp, poly))
+            .collect()
     }
 
     /// Encodes the rows of the polynomial concatenating each encoded row

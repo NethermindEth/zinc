@@ -41,15 +41,6 @@ impl<const I: usize> DenseMultilinearExtension<I> {
         }
     }
 
-    pub fn to_random_field(&self, config: *const FieldConfig<I>) -> DenseMultilinearExtensionF<I> {
-        let evaluations = self
-            .evaluations
-            .iter()
-            .map(|x| x.map_to_field(config))
-            .collect();
-        DenseMultilinearExtensionF::from_evaluations_vec(self.num_vars, evaluations, config)
-    }
-
     pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<I>>) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
@@ -126,6 +117,17 @@ impl<const I: usize> DenseMultilinearExtension<I> {
                 self.evaluations.swap(i, j);
             }
         }
+    }
+}
+
+impl<const I: usize, const N: usize> FieldMap<N> for DenseMultilinearExtension<I> {
+    type Output = DenseMultilinearExtensionF<N>;
+    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        DenseMultilinearExtensionF::from_evaluations_vec(
+            self.num_vars,
+            self.evaluations.map_to_field(config),
+            config,
+        )
     }
 }
 

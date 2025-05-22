@@ -18,7 +18,14 @@ use zinc::zip::pcs::structs::MultilinearZip;
 use zinc::zip::pcs_transcript::PcsTranscript;
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
-type BenchZip = MultilinearZip<INT_LIMBS, { 2 * INT_LIMBS }, { 4 * INT_LIMBS }, { 8 * INT_LIMBS }, ZipSpec1, KeccakTranscript>;
+type BenchZip = MultilinearZip<
+    INT_LIMBS,
+    { 2 * INT_LIMBS },
+    { 4 * INT_LIMBS },
+    { 8 * INT_LIMBS },
+    ZipSpec1,
+    KeccakTranscript,
+>;
 
 fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();

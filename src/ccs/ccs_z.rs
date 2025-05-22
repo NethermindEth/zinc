@@ -295,9 +295,9 @@ pub(crate) fn get_test_wit_Z<const N: usize>(input: i64) -> Witness_Z<N> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_stuff_Z<const N: usize>(
+pub(crate) fn get_test_ccs_stuff_Z<const I: usize>(
     input: i64,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>, Vec<Int<N>>) {
+) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>, Vec<Int<I>>) {
     let mut ccs = get_test_ccs_Z();
     let mut statement = get_test_ccs_Z_statement(input);
     let witness = get_test_wit_Z(input);

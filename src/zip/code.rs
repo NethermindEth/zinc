@@ -71,7 +71,11 @@ impl<const I: usize, const L: usize> Zip<I, L> {
         }
     }
 
-    pub fn encode_f<const N: usize>(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
+    pub fn encode_f<const N: usize>(
+        &self,
+        row: &[F<N>],
+        field: *const FieldConfig<N>,
+    ) -> Vec<F<N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);

@@ -10,13 +10,16 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<I, N, _> {
+    let prover = ZincProver::<INT_LIMBS, FIELD_LIMBS, _> {
         data: PhantomData::<ZipSpec1>,
     };
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<I, N>(&statement.public_input, &mut prover_transcript);
+    let field_config = draw_random_field::<INT_LIMBS, FIELD_LIMBS>(
+        &statement.public_input,
+        &mut prover_transcript,
+    );
     let proof = prover
         .prove(
             &statement,
@@ -27,7 +30,7 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<N, _> {
+    let verifier = ZincVerifier::<INT_LIMBS, FIELD_LIMBS, _> {
         data: PhantomData::<ZipSpec1>,
     };
 
@@ -41,6 +44,7 @@ fn main() {
             &field_config,
         )
         .expect("Proof verification failed");
+    println!("Proof verified successfully");
 }
 
 fn get_ccs<const N: usize>() -> CCS_Z<N> {

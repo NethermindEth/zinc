@@ -37,9 +37,9 @@ pub struct Zip<const N: usize, const L: usize> {
     b: SparseMatrixZ<L>,
 }
 
-impl<const N: usize, const L: usize> Zip<N, L> {
+impl<const I: usize, const L: usize> Zip<I, L> {
     pub fn proof_size<S: ZipSpec>(n_0: usize, c: usize, r: usize) -> usize {
-        let log2_q = N;
+        let log2_q = I;
         let num_ldt = S::num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
@@ -51,7 +51,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
     ) -> Self {
         assert!(1 << num_vars > n_0);
 
-        let log2_q = N;
+        let log2_q = I;
 
         let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
 
@@ -71,7 +71,7 @@ impl<const N: usize, const L: usize> Zip<N, L> {
         }
     }
 
-    pub fn encode_f(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
+    pub fn encode_f<const N: usize>(&self, row: &[F<N>], field: *const FieldConfig<N>) -> Vec<F<N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);

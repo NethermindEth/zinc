@@ -128,7 +128,7 @@ impl<const N: usize> CCS_Z<N> {
     }
 }
 
-impl<const N: usize> FieldMap<N> for CCS_Z<N> {
+impl<const I: usize, const N: usize> FieldMap<N> for CCS_Z<I> {
     type Output = CCS_F<N>;
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
         CCS_F {
@@ -141,7 +141,7 @@ impl<const N: usize> FieldMap<N> for CCS_Z<N> {
             s: self.s,
             s_prime: self.s_prime,
             S: self.S.clone(),
-            c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
+            c: self.c.map_to_field(config),
             config: AtomicPtr::new(config as *mut FieldConfig<N>),
         }
     }
@@ -152,7 +152,7 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<const N: usize> FieldMap<N> for Statement_Z<N> {
+impl<const I: usize, const N: usize> FieldMap<N> for Statement_Z<I> {
     type Output = Statement_F<N>;
     fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
         Statement_F {

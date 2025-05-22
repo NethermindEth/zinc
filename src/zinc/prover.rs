@@ -166,7 +166,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     ) -> Result<
         (
             Vec<RandomField<N>>,
-            DenseMultilinearExtensionZ<N>,
+            DenseMultilinearExtensionZ<I>,
             CCS_F<N>,
             Statement_F<N>,
         ),

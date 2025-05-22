@@ -29,10 +29,10 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, const N: usize>(
+pub(super) fn validate_input<'a, const I: usize, const N: usize>(
     function: &str,
     param_num_vars: usize,
-    polys: impl Iterable<Item = &'a MLE_Z<N>>,
+    polys: impl Iterable<Item = &'a MLE_Z<I>>,
     points: impl Iterable<Item = &'a [F<N>]>,
 ) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit

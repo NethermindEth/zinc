@@ -22,13 +22,13 @@ use super::{
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 
-impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<N, L, K, M, S, T>
+impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn open(
+    pub fn open<const N: usize>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
@@ -46,10 +46,10 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a>(
+    pub fn batch_open<'a, const N: usize>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
         points: &[Vec<F<N>>],
         transcript: &mut PcsTranscript<N>,
         field: *const FieldConfig<N>,

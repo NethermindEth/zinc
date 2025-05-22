@@ -37,11 +37,11 @@ pub trait Prover<const I: usize, const N: usize> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
-    ) -> Result<ZincProof<N>, ZincError<N>>
+    ) -> Result<ZincProof<I, N>, ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:;
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:;
 }
 
 impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, N, S> {
@@ -52,11 +52,11 @@ impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, 
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
-    ) -> Result<ZincProof<N>, ZincError<N>>
+    ) -> Result<ZincProof<I, N>, ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -74,14 +74,8 @@ impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, 
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let (z_comm, v, pcs_proof) =
-            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, config, &r_y, transcript)?;
-
-        let zip_proof = ZipProof {
-            z_comm,
-            v,
-            pcs_proof,
-        };
+        let zip_proof =
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, &r_y, transcript, config)?;
 
         // Return proof
         Ok(ZincProof {
@@ -297,28 +291,28 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     }
 
     fn commit_z_mle_and_prove_evaluation(
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs: &CCS_F<N>,
-        config: *const FieldConfig<N>,
         r_y: &[RandomField<N>],
         transcript: &mut KeccakTranscript,
-    ) -> Result<(MultilinearZipCommitment<N>, RandomField<N>, Vec<u8>), SpartanError<N>>
+        config: *const FieldConfig<N>,
+    ) -> Result<ZipProof<I, N>, SpartanError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
         let param =
-            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, _>::setup(ccs.m, transcript);
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =
-            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::commit(
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit(
                 &param, z_mle,
             )?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::open(
+        MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::open(
             &param,
             z_mle,
             &z_data,
@@ -328,7 +322,11 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         )?;
 
         let pcs_proof = pcs_transcript.into_proof();
-        Ok((z_comm, v, pcs_proof))
+        Ok(ZipProof {
+            z_comm,
+            v,
+            pcs_proof,
+        })
     }
 
     fn calculate_V_s(

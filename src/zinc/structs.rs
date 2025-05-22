@@ -23,15 +23,15 @@ pub struct SpartanProof<const N: usize> {
     pub V_s: Vec<RandomField<N>>,
 }
 
-pub struct ZipProof<const N: usize> {
-    pub z_comm: MultilinearZipCommitment<N>,
+pub struct ZipProof<const I: usize, const N: usize> {
+    pub z_comm: MultilinearZipCommitment<I>,
     pub v: RandomField<N>,
     pub pcs_proof: Vec<u8>,
 }
 
-pub struct ZincProof<const N: usize> {
+pub struct ZincProof<const I: usize, const N: usize> {
     pub spartan_proof: SpartanProof<N>,
-    pub zip_proof: ZipProof<N>,
+    pub zip_proof: ZipProof<I, N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

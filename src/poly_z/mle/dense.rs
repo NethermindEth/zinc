@@ -21,19 +21,19 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DenseMultilinearExtension<const N: usize> {
+pub struct DenseMultilinearExtension<const I: usize> {
     /// The evaluation over {0,1}^`num_vars`
-    pub evaluations: Vec<Int<N>>,
+    pub evaluations: Vec<Int<I>>,
     /// Number of variables
     pub num_vars: usize,
 }
 
-impl<const N: usize> DenseMultilinearExtension<N> {
-    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[Int<N>]) -> Self {
+impl<const I: usize> DenseMultilinearExtension<I> {
+    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[Int<I>]) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec())
     }
 
-    pub fn evaluate(&self, point: &[Int<N>]) -> Option<Int<N>> {
+    pub fn evaluate(&self, point: &[Int<I>]) -> Option<Int<I>> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point)[0])
         } else {
@@ -41,7 +41,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn to_random_field(&self, config: *const FieldConfig<N>) -> DenseMultilinearExtensionF<N> {
+    pub fn to_random_field(&self, config: *const FieldConfig<I>) -> DenseMultilinearExtensionF<I> {
         let evaluations = self
             .evaluations
             .iter()
@@ -50,7 +50,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         DenseMultilinearExtensionF::from_evaluations_vec(self.num_vars, evaluations, config)
     }
 
-    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<N>>) -> Self {
+    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<Int<I>>) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
             evaluations.len() <= 1 << num_vars,
@@ -59,7 +59,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
 
         if evaluations.len() != 1 << num_vars {
             let mut evaluations = evaluations;
-            evaluations.resize(1 << num_vars, Int::<N>::zero());
+            evaluations.resize(1 << num_vars, Int::<I>::zero());
             return Self {
                 num_vars,
                 evaluations,
@@ -73,7 +73,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(matrix: &SparseMatrix<Int<N>>) -> Self {
+    pub fn from_matrix(matrix: &SparseMatrix<Int<I>>) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -81,7 +81,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         let padded_cols = matrix.n_cols.next_power_of_two();
 
         // build dense vector representing the sparse padded matrix
-        let mut v = vec![Int::<N>::ZERO; padded_rows * padded_cols];
+        let mut v = vec![Int::<I>::ZERO; padded_rows * padded_cols];
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -94,12 +94,12 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[Int<N>]) -> Self {
-        let v_padded: Vec<Int<N>> = if v.len() != (1 << n_vars) {
+    pub fn from_slice(n_vars: usize, v: &[Int<I>]) -> Self {
+        let v_padded: Vec<Int<I>> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
                 v.to_owned(),
-                ark_std::iter::repeat(Int::<N>::zero())
+                ark_std::iter::repeat(Int::<I>::zero())
                     .take((1 << n_vars) - v.len())
                     .collect(),
             ]

@@ -8,7 +8,8 @@ use zinc::zinc::prelude::*;
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
 fn main() {
     // Example code goes here
-    const N: usize = 4;
+    const FIELD_LIMBS: usize = 4;
+    const INT_LIMBS: usize = 1;
     let prover = ZincProver::<N, _> {
         data: PhantomData::<ZipSpec1>,
     };

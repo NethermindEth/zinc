@@ -29,11 +29,11 @@ use super::{
     },
 };
 
-pub trait Prover<const N: usize> {
+pub trait Prover<const I: usize, const N: usize> {
     fn prove(
         &self,
         statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
+        wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
         config: &FieldConfig<N>,
@@ -44,13 +44,13 @@ pub trait Prover<const N: usize> {
         [(); 8 * N]:;
 }
 
-impl<const N: usize, S: ZipSpec> Prover<N> for ZincProver<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
@@ -157,11 +157,11 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
     }
 }
 
-impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     pub fn prepare_for_random_field_piop(
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
-        ccs: &CCS_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
+        ccs: &CCS_Z<I>,
         config: *const FieldConfig<N>,
     ) -> Result<
         (
@@ -207,15 +207,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
-        ccs: &CCS_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
+        ccs: &CCS_Z<I>,
         config: *const FieldConfig<N>,
-    ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ<N>) {
+    ) -> (Vec<RandomField<N>>, DenseMultilinearExtensionZ<I>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(ccs.m, Int::<N>::ZERO);
+            z_ccs.resize(ccs.m, Int::<I>::ZERO);
         }
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 

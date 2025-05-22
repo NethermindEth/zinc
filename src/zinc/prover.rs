@@ -32,10 +32,10 @@ use super::{
 pub trait Prover<const I: usize, const N: usize> {
     fn prove(
         &self,
-        statement: &Statement_Z<N>,
+        statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &FieldConfig<N>,
     ) -> Result<ZincProof<N>, ZincError<N>>
     where
@@ -63,7 +63,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, 
             Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
-        let (spartan_proof, r_y) = SpartanProver::<N>::prove(
+        let (spartan_proof, r_y) = SpartanProver::<I, N>::prove(
             self,
             &statement_f,
             &z_ccs,
@@ -91,7 +91,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> Prover<I, N> for ZincProver<I, 
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<const N: usize> {
+pub trait SpartanProver<const I: usize, const N: usize> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -115,19 +115,19 @@ pub trait SpartanProver<const N: usize> {
         &self,
         statement_f: &Statement_F<N>,
         z_ccs: &[RandomField<N>],
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
         config: *const FieldConfig<N>,
     ) -> Result<(SpartanProof<N>, Vec<RandomField<N>>), SpartanError<N>>;
 }
 
-impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> SpartanProver<I, N> for ZincProver<I, N, S> {
     fn prove(
         &self,
         statement_f: &Statement_F<N>,
         z_ccs: &[RandomField<N>],
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<N>,
         transcript: &mut KeccakTranscript,
         config: *const FieldConfig<N>,
@@ -142,7 +142,7 @@ impl<const N: usize, S: ZipSpec> SpartanProver<N> for ZincProver<N, S> {
             ccs_f,
             statement_f,
             config,
-            &z_mle.to_random_field(config),
+            &z_mle.map_to_field(config),
             transcript,
         )?;
 
@@ -315,7 +315,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
                 &param, z_mle,
             )?;
         let mut pcs_transcript = PcsTranscript::new();
-        let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
+        let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
         MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::open(

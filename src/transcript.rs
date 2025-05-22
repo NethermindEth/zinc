@@ -1,7 +1,6 @@
 use crate::field_config::ConfigRef;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
-use std::marker::PhantomData;
 
 use crate::{
     biginteger::BigInt,
@@ -10,22 +9,20 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct KeccakTranscript<'cfg> {
+pub struct KeccakTranscript {
     hasher: Keccak256,
-    _phantom: PhantomData<&'cfg ()>,
 }
 
-impl Default for KeccakTranscript<'_> {
+impl Default for KeccakTranscript {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<'cfg> KeccakTranscript<'cfg> {
+impl KeccakTranscript {
     pub fn new() -> Self {
         Self {
             hasher: Keccak256::new(),
-            _phantom: PhantomData,
         }
     }
 
@@ -49,7 +46,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
         result
     }
 
-    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<'cfg, N>) {
+    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
         match v {
             RandomField::Raw { value } => {
                 self.absorb(&[0x1]);
@@ -70,7 +67,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
         }
     }
 
-    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<'cfg, N>]) {
+    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -90,7 +87,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<const N: usize>(
+    pub fn get_challenge<'cfg, const N: usize>(
         &mut self,
         config: ConfigRef<'cfg, N>,
     ) -> RandomField<'cfg, N> {
@@ -140,7 +137,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
             ret
         }
     }
-    pub fn get_challenges<const N: usize>(
+    pub fn get_challenges<'cfg, const N: usize>(
         &mut self,
         n: usize,
         config: ConfigRef<'cfg, N>,
@@ -179,7 +176,7 @@ impl<'cfg> KeccakTranscript<'cfg> {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<L> for KeccakTranscript<'_> {
+impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> Int<L> {
         self.get_integer_challenge::<L>()
     }

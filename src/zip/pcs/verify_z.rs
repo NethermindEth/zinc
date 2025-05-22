@@ -31,7 +31,7 @@ where
         comm: &Self::Commitment,
         point: &[F<'cfg, N>],
         eval: F<'cfg, N>,
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         validate_input::<N>("verify", vp.num_vars(), [], [point])?;
@@ -49,7 +49,7 @@ where
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
         points: &[Vec<F<'cfg, N>>],
         evals: &[F<'cfg, N>],
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
@@ -58,11 +58,11 @@ where
         Ok(())
     }
 
-    pub(super) fn verify_testing<'cfg>(
+    pub(super) fn verify_testing(
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
-        transcript: &mut PcsTranscript<'cfg, N>,
-        field: ConfigRef<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
+        field: ConfigRef<N>,
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
@@ -135,7 +135,7 @@ where
         point: &[F<'cfg, N>],
         eval: F<'cfg, N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         let q_0_combined_row = transcript.read_field_elements(

@@ -24,7 +24,7 @@ pub trait Verifier<const N: usize> {
         &self,
         cm_i: &Statement_Z<N>,
         proof: ZincProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
@@ -39,7 +39,7 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         &self,
         statement: &Statement_Z<N>,
         proof: ZincProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
@@ -91,7 +91,7 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<'cfg, N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError<N>>;
@@ -101,7 +101,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N> for ZincVerifier
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<'cfg, N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError<N>> {
@@ -139,7 +139,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_linearization_proof<'cfg>(
         &self,
         proof: &SumcheckProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<N>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<N>> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
@@ -191,7 +191,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_second_sumcheck_proof<'cfg>(
         &self,
         proof: &SumcheckProof<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<'cfg, N>,
         claimed_sum: RandomField<'cfg, N>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<N>> {
@@ -229,7 +229,7 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
         zip_proof: &ZipProof<'cfg, N>,
         verification_points: &VerificationPoints<'cfg, N>,
         ccs: &CCS_F<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), SpartanError<N>>
     where

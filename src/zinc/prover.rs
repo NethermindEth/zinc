@@ -36,7 +36,7 @@ pub trait Prover<'cfg, const N: usize> {
         &self,
         statement: &Statement_Z<N>,
         wit: &Witness_Z<N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
@@ -51,7 +51,7 @@ impl<'cfg, const N: usize, S: ZipSpec> Prover<'cfg, N> for ZincProver<N, S> {
         &self,
         statement: &Statement_Z<N>,
         wit: &Witness_Z<N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<N>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
@@ -124,7 +124,7 @@ pub trait SpartanProver<'cfg, const N: usize> {
         z_ccs: &[RandomField<'cfg, N>],
         z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
     ) -> Result<(SpartanProof<'cfg, N>, Vec<RandomField<'cfg, N>>), SpartanError<N>>;
 }
@@ -136,7 +136,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanProver<'cfg, N> for ZincProver<N, 
         z_ccs: &[RandomField<'cfg, N>],
         z_mle: &DenseMultilinearExtensionZ<N>,
         ccs_f: &CCS_F<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
     ) -> Result<(SpartanProof<'cfg, N>, Vec<RandomField<'cfg, N>>), SpartanError<N>> {
         // Do first Sumcheck
@@ -188,7 +188,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     /// Step 2 of Fig 5: Construct polynomial $g$ and generate $\beta$ challenges.
     fn construct_polynomial_g<'cfg>(
         z_ccs: &[RandomField<'cfg, N>],
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         constraints: &[SparseMatrix<RandomField<'cfg, N>>],
         ccs: &CCS_F<'cfg, N>,
         config: ConfigRef<'cfg, N>,
@@ -234,7 +234,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
 
     fn sumcheck_1<'cfg>(
         z_ccs: &[RandomField<'cfg, N>],
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         statement: &Statement_F<'cfg, N>,
         ccs: &CCS_F<'cfg, N>,
         config: ConfigRef<'cfg, N>,
@@ -268,7 +268,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         statement: &Statement_F<'cfg, N>,
         config: ConfigRef<'cfg, N>,
         z_mle: &DenseMultilinearExtension<'cfg, N>,
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
     ) -> Result<(SumcheckProof<'cfg, N>, Vec<RandomField<'cfg, N>>), SpartanError<N>> {
         let gamma = transcript.squeeze_gamma_challenge(config);
         let mut sumcheck_2_mles = Vec::with_capacity(2);
@@ -362,7 +362,7 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof<'cfg>(
-        transcript: &mut KeccakTranscript<'cfg>,
+        transcript: &mut KeccakTranscript,
         mles: Vec<DenseMultilinearExtension<'cfg, N>>,
         nvars: usize,
         degree: usize,

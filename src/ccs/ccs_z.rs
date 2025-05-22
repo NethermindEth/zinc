@@ -131,7 +131,6 @@ impl<const N: usize> CCS_Z<N> {
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for CCS_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = CCS_F<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         match config.pointer() {
@@ -161,7 +160,6 @@ pub struct Statement_Z<const N: usize> {
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for Statement_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Statement_F<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Self::Output {
@@ -195,7 +193,6 @@ impl<const N: usize> Witness_Z<N> {
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for Witness_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Witness_F<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {

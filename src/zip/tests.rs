@@ -13,8 +13,7 @@ use std::str::FromStr;
 
 const N: usize = 2;
 
-type TestZip<'cfg> =
-    MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript<'cfg>>;
+type TestZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
 
 #[test]
 fn test_zip_commitment() {

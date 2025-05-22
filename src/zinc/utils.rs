@@ -108,7 +108,7 @@ pub(crate) trait SqueezeBeta<'cfg, const N: usize> {
     ) -> Vec<RandomField<'cfg, N>>;
 }
 
-impl<'cfg, const N: usize> SqueezeBeta<'cfg, N> for KeccakTranscript<'cfg> {
+impl<'cfg, const N: usize> SqueezeBeta<'cfg, N> for KeccakTranscript {
     fn squeeze_beta_challenges(
         &mut self,
         n: usize,
@@ -124,7 +124,7 @@ pub(crate) trait SqueezeGamma<'cfg, const N: usize> {
     fn squeeze_gamma_challenge(&mut self, config: ConfigRef<'cfg, N>) -> RandomField<'cfg, N>;
 }
 
-impl<'cfg, const N: usize> SqueezeGamma<'cfg, N> for KeccakTranscript<'cfg> {
+impl<'cfg, const N: usize> SqueezeGamma<'cfg, N> for KeccakTranscript {
     fn squeeze_gamma_challenge(&mut self, config: ConfigRef<'cfg, N>) -> RandomField<'cfg, N> {
         self.absorb(b"gamma");
 

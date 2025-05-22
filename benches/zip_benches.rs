@@ -17,12 +17,11 @@ use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
 use zinc::zip::pcs_transcript::PcsTranscript;
 const N: usize = 4;
-type BenchZip<'cfg> =
-    MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript<'cfg>>;
+type BenchZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
 
 fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    type T<'cfg> = KeccakTranscript<'cfg>;
+    type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
@@ -49,7 +48,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
     let field_config = ConfigRef::from(&config);
 
-    type T<'cfg> = KeccakTranscript<'cfg>;
+    type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
@@ -86,7 +85,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
     let field_config = ConfigRef::from(&config);
 
-    type T<'cfg> = KeccakTranscript<'cfg>;
+    type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 

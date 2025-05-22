@@ -34,7 +34,7 @@ where
         commit_data: &Self::Data,
         point: &[F<'cfg, N>],
         field: ConfigRef<'cfg, N>,
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
@@ -51,7 +51,7 @@ where
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<N, K>>,
         points: &[Vec<F<'cfg, N>>],
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
         field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
@@ -63,7 +63,7 @@ where
     // Subprotocol functions
     fn prove_evaluation_phase<'cfg>(
         pp: &Self::ProverParam,
-        transcript: &mut PcsTranscript<'cfg, N>,
+        transcript: &mut PcsTranscript<N>,
         point: &[F<'cfg, N>],
         poly: &Self::Polynomial,
         field: ConfigRef<'cfg, N>,
@@ -89,12 +89,12 @@ where
         transcript.write_field_elements(&q_0_combined_row)
     }
 
-    pub(super) fn prove_testing_phase<'cfg>(
+    pub(super) fn prove_testing_phase(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        transcript: &mut PcsTranscript<'cfg, N>,
-        field: ConfigRef<'cfg, N>, // This is only needed to called the transcript but we are getting integers not fields
+        transcript: &mut PcsTranscript<N>,
+        field: ConfigRef<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

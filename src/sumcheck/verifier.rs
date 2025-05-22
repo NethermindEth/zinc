@@ -63,7 +63,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn verify_round<'cfg>(
         prover_msg: ProverMsg<'cfg, N>,
         verifier_state: &mut VerifierState<'cfg, N>,
-        transcript: &mut Transcript<'cfg>,
+        transcript: &mut Transcript,
     ) -> VerifierMsg<'cfg, N> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
@@ -138,7 +138,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// `verify_round`
     #[inline]
     pub fn sample_round<'cfg>(
-        transcript: &mut Transcript<'cfg>,
+        transcript: &mut Transcript,
         config: ConfigRef<'cfg, N>,
     ) -> VerifierMsg<'cfg, N> {
         VerifierMsg {

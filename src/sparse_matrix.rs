@@ -40,7 +40,6 @@ macro_rules! impl_field_map_sparse_matrix {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for SparseMatrix<$type> {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = SparseMatrix<RandomField<'cfg, N>>;
-            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
@@ -62,7 +61,6 @@ macro_rules! impl_field_map_sparse_matrix {
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<Int<M>> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = SparseMatrix<RandomField<'cfg, N>>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,

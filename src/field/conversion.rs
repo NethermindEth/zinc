@@ -73,7 +73,6 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 pub trait FieldMap<'cfg, const N: usize> {
     type Cfg;
     type Output;
-    type Lifetime: 'cfg;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output;
 }
 
@@ -83,7 +82,6 @@ macro_rules! impl_field_map_for_int {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for $type {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
-            type Lifetime = ();
 
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let config = match config.reference() {
@@ -153,7 +151,6 @@ macro_rules! impl_field_map_for_int {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &$type {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
-            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 (*self).map_to_field(config)
             }
@@ -172,7 +169,6 @@ macro_rules! impl_field_map_for_uint {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for $type {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
-            type Lifetime = ();
 
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let config = match config.reference() {
@@ -234,7 +230,6 @@ macro_rules! impl_field_map_for_uint {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &$type {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = RandomField<'cfg, N>;
-            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 (*self).map_to_field(config)
             }
@@ -251,7 +246,6 @@ impl_field_map_for_uint!(u128, 128);
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let config = match config.reference() {
@@ -268,7 +262,6 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
     }
@@ -278,7 +271,6 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let local_type_bigint = BigInt::from(self);
@@ -293,7 +285,6 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
@@ -303,7 +294,6 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let config = match config.reference() {
@@ -362,7 +352,6 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &BigInt<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         (*self).map_to_field(config)
     }
@@ -374,7 +363,6 @@ macro_rules! impl_field_map_for_vec {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for Vec<$type> {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = Vec<RandomField<'cfg, N>>;
-            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
@@ -383,7 +371,6 @@ macro_rules! impl_field_map_for_vec {
         impl<'cfg, const N: usize> FieldMap<'cfg, N> for &Vec<$type> {
             type Cfg = ConfigRef<'cfg, N>;
             type Output = Vec<RandomField<'cfg, N>>;
-            type Lifetime = ();
             fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
@@ -392,7 +379,6 @@ macro_rules! impl_field_map_for_vec {
         impl<'cfg, const M: usize> FieldMap<'cfg, M> for &[$type] {
             type Cfg = ConfigRef<'cfg, M>;
             type Output = Vec<RandomField<'cfg, M>>;
-            type Lifetime = ();
             fn map_to_field(&self, config: ConfigRef<'cfg, M>) -> Self::Output {
                 self.iter().map(|x| x.map_to_field(config)).collect()
             }
@@ -409,7 +395,6 @@ impl_field_map_for_vec!(i128);
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for Vec<Int<M>> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
@@ -418,7 +403,6 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for Vec<Int<M>> {
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &Vec<Int<M>> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
@@ -427,7 +411,6 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &Vec<Int<M>> {
 impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for &[Int<M>] {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Vec<RandomField<'cfg, N>>;
-    type Lifetime = ();
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }

@@ -61,7 +61,7 @@ where
     }
 
     // Subprotocol functions
-    fn prove_evaluation_phase(
+    fn prove_evaluation_phase<const N: usize>(
         pp: &Self::ProverParam,
         transcript: &mut PcsTranscript<N>,
         point: &[F<N>],
@@ -69,7 +69,7 @@ where
         field: *const FieldConfig<N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
-        let row_len = <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip());
+        let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
@@ -89,7 +89,7 @@ where
         transcript.write_field_elements(&q_0_combined_row)
     }
 
-    pub(super) fn prove_testing_phase(
+    pub(super) fn prove_testing_phase<const N: usize>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
@@ -99,17 +99,17 @@ where
         if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(pp.zip()) {
+            for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges::<N>(pp.num_rows());
-                let coeffs = coeffs.iter().map(expand::<N, M>);
+                    .get_integer_challenges::<I>(pp.num_rows());
+                let coeffs = coeffs.iter().map(expand::<I, M>);
 
-                let evals = poly.evaluations.iter().map(expand::<N, M>);
+                let evals = poly.evaluations.iter().map(expand::<I, M>);
                 let combined_row = combine_rows(
                     coeffs,
                     evals,
-                    <Zip<N, L> as LinearCodes<N, L>>::row_len(pp.zip()),
+                    <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip()),
                 );
 
                 transcript.write_integers(&combined_row)?;
@@ -117,19 +117,19 @@ where
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_column_opening(pp.zip()) {
+        for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_column_opening(pp.zip()) {
             let column = transcript.squeeze_challenge_idx(
                 field,
-                <Zip<N, L> as LinearCodes<N, L>>::codeword_len(pp.zip()),
+                <Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()),
             );
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
     }
 
-    pub(super) fn open_merkle_trees_for_column(
+    pub(super) fn open_merkle_trees_for_column<const N: usize>(
         pp: &Self::ProverParam,
-        commit_data: &MultilinearZipData<N, K>,
+        commit_data: &MultilinearZipData<I, K>,
         column: usize,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
@@ -140,7 +140,7 @@ where
                 .iter()
                 .copied()
                 .skip(column)
-                .step_by(<Zip<N, L> as LinearCodes<N, L>>::codeword_len(pp.zip()))
+                .step_by(<Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()))
                 .collect::<Vec<_>>(),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)

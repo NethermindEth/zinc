@@ -243,9 +243,9 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<const N: usize, const M: usize>(
+    pub fn open_at_column<const N: usize, const I: usize, const M: usize>(
         column: usize,
-        commit_data: &MultilinearZipData<N, M>,
+        commit_data: &MultilinearZipData<I, M>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {

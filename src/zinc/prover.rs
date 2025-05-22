@@ -15,7 +15,7 @@ use crate::{
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
-        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
+        pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
@@ -305,7 +305,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         let param =
             MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =
-            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit(
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit::<N>(
                 &param, z_mle,
             )?;
         let mut pcs_transcript = PcsTranscript::new();

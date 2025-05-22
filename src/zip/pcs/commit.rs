@@ -15,20 +15,20 @@ use super::{
     utils::{validate_input, MerkleTree},
 };
 
-impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<N, L, K, M, S, T>
+impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn commit(
+    pub fn commit<const N: usize>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input::<N>("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<I, N>("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = <Zip<N, L> as LinearCodes<N, M>>::row_len(pp.zip());
-        let codeword_len = <Zip<N, L> as LinearCodes<N, M>>::codeword_len(pp.zip());
+        let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
+        let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -46,16 +46,16 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::<N, K>::new(rows, rows_merkle_trees),
+            MultilinearZipData::<I, K>::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }
     #[allow(clippy::type_complexity)]
-    pub fn batch_commit<'a>(
+    pub fn batch_commit<'a, const N: usize>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<N>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
     ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
-        polys.iter().map(|poly| Self::commit(pp, poly)).collect()
+        polys.iter().map(|poly| Self::commit::<N>(pp, poly)).collect()
     }
 
     /// Encodes the rows of the polynomial concatenating each encoded row

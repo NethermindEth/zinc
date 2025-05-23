@@ -16,7 +16,7 @@ use ark_std::{
 ///
 /// Index represents a point, which is a vector in {0,1}^`num_vars` in little
 /// endian form. For example, `0b1011` represents `P(1,1,0,1)`
-pub trait MultilinearExtension<const N: usize>:
+pub trait MultilinearExtension<const I: usize>:
     Sized
     + Clone
     + Debug
@@ -26,7 +26,7 @@ pub trait MultilinearExtension<const N: usize>:
     + Neg
     + Zero
     + for<'a> AddAssign<&'a Self>
-    + for<'a> AddAssign<(Int<N>, &'a Self)>
+    + for<'a> AddAssign<(Int<I>, &'a Self)>
     + for<'a> SubAssign<&'a Self>
     + Index<usize>
 {
@@ -47,15 +47,15 @@ pub trait MultilinearExtension<const N: usize>:
 
     /// Reduce the number of variables of `self` by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fix_variables(&mut self, partial_point: &[Int<N>]);
+    fn fix_variables(&mut self, partial_point: &[Int<I>]);
 
     /// Creates a new object with the number of variables of `self` reduced by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fixed_variables(&self, partial_point: &[Int<N>]) -> Self;
+    fn fixed_variables(&self, partial_point: &[Int<I>]) -> Self;
 
     /// Returns a list of evaluations over the domain, which is the boolean
     /// hypercube. The evaluations are in little-endian order.
-    fn to_evaluations(&self) -> Vec<Int<N>>;
+    fn to_evaluations(&self) -> Vec<Int<I>>;
 }
 /// swap the bits of `x` from position `a..a+n` to `b..b+n` and from `b..b+n` to `a..a+n` in little endian order
 pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {

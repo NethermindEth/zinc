@@ -11,7 +11,7 @@ use ark_std::test_rng;
 use criterion::measurement::WallTime;
 use zinc::biginteger::BigInt;
 
-use zinc::field_config::FieldConfig;
+use zinc::field_config::{ConfigRef, FieldConfig};
 use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
@@ -45,8 +45,8 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 
 fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let field_config: *const FieldConfig<N> =
-        &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let field_config = ConfigRef::from(&config);
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
@@ -82,7 +82,8 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 }
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let field_config = &FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let field_config = ConfigRef::from(&config);
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
@@ -120,7 +121,9 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
                         &point.map_to_field(field_config),
                         eval.map_to_field(field_config),
                         &mut transcript,
-                        field_config,
+                        field_config
+                            .reference()
+                            .expect("Field config cannot be none"),
                     )
                     .expect("Failed to verify");
                     total_duration += timer.elapsed();

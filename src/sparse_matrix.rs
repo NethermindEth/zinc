@@ -1,12 +1,13 @@
 #![allow(non_snake_case)]
 
+use crate::field_config::ConfigRef;
 use ark_ff::vec::*;
 use ark_ff::Zero;
 use ark_std::rand::Rng;
 use crypto_bigint::Int;
 use crypto_bigint::Random;
 
-use crate::{field::conversion::FieldMap, field::RandomField, field_config::FieldConfig};
+use crate::{field::conversion::FieldMap, field::RandomField};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SparseMatrix<R1: Clone + Send + Sync> {
@@ -36,9 +37,10 @@ impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMa
 // At the moment only using i128 for the sparse matrix, macro later if needed
 macro_rules! impl_field_map_sparse_matrix {
     ($type:ty) => {
-        impl<const N: usize> FieldMap<N> for SparseMatrix<$type> {
-            type Output = SparseMatrix<RandomField<N>>;
-            fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+        impl<'cfg, const N: usize> FieldMap<'cfg, N> for SparseMatrix<$type> {
+            type Cfg = ConfigRef<'cfg, N>;
+            type Output = SparseMatrix<RandomField<'cfg, N>>;
+            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
                 let mut matrix = SparseMatrix::<RandomField<N>> {
                     n_rows: self.n_rows,
                     n_cols: self.n_cols,
@@ -56,9 +58,10 @@ macro_rules! impl_field_map_sparse_matrix {
         }
     };
 }
-impl<const N: usize, const M: usize> FieldMap<N> for SparseMatrix<Int<M>> {
-    type Output = SparseMatrix<RandomField<N>>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<Int<M>> {
+    type Cfg = ConfigRef<'cfg, N>;
+    type Output = SparseMatrix<RandomField<'cfg, N>>;
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
@@ -181,13 +184,13 @@ where
     r
 }
 
-pub fn compute_eval_table_sparse<const N: usize>(
-    M: &SparseMatrix<RandomField<N>>,
-    rx: &[RandomField<N>],
+pub fn compute_eval_table_sparse<'cfg, const N: usize>(
+    M: &SparseMatrix<RandomField<'cfg, N>>,
+    rx: &[RandomField<'cfg, N>],
     num_rows: usize,
     num_cols: usize,
-    config: *const FieldConfig<N>,
-) -> Vec<RandomField<N>> {
+    config: ConfigRef<'cfg, N>,
+) -> Vec<RandomField<'cfg, N>> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(
         vec![0u32.map_to_field(config); num_cols],

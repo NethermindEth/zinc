@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
@@ -14,11 +15,7 @@ use zinc::{
     zip::code::ZipSpec1,
 };
 
-fn benchmark_spartan_prover<const N: usize>(
-    c: &mut Criterion,
-    config: &FieldConfig<N>,
-    prime: &str,
-) {
+fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef<N>, prime: &str) {
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
@@ -63,7 +60,7 @@ fn benchmark_spartan_prover<const N: usize>(
 
 fn benchmark_spartan_verifier<const N: usize>(
     c: &mut Criterion,
-    config: &FieldConfig<N>,
+    config: ConfigRef<N>,
     prime: &str,
 ) {
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
@@ -109,7 +106,7 @@ fn benchmark_spartan_verifier<const N: usize>(
                             &spartan_proof,
                             &mut verifier_transcript,
                             &ccs_f,
-                            config,
+                            config.reference().expect("Field config cannot be none"),
                         )
                         .expect("Proof verification failed"),
                     )
@@ -129,9 +126,10 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
+    let config = ConfigRef::from(&config);
 
-    benchmark_spartan_prover::<4>(c, &config, "256");
-    benchmark_spartan_verifier::<4>(c, &config, "256");
+    benchmark_spartan_prover::<4>(c, config, "256");
+    benchmark_spartan_verifier::<4>(c, config, "256");
 
     let stark_config = FieldConfig::new(
         BigInt::<4>::from_str(
@@ -139,9 +137,10 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
+    let stark_config = ConfigRef::from(&stark_config);
 
-    benchmark_spartan_prover::<4>(c, &stark_config, "stark");
-    benchmark_spartan_verifier::<4>(c, &stark_config, "stark");
+    benchmark_spartan_prover::<4>(c, stark_config, "stark");
+    benchmark_spartan_verifier::<4>(c, stark_config, "stark");
 }
 
 criterion_group!(benches, run_benches);

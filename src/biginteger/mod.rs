@@ -310,7 +310,6 @@ impl<const N: usize> BigInt<N> {
     #[allow(unused)]
     pub fn mul2(&mut self) -> bool {
         #[cfg(all(target_arch = "x86_64", feature = "asm"))]
-        #[allow(unsafe_code)]
         {
             let mut carry = 0;
 

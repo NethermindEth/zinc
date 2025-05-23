@@ -1,3 +1,4 @@
+use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::Zero;
@@ -14,10 +15,11 @@ use crypto_bigint::{Int, Random};
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
+use crate::poly::ArithErrors;
 use crate::{
-    field::conversion::FieldMap, field_config::FieldConfig,
+    field::conversion::FieldMap,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
-    poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
+    sparse_matrix::SparseMatrix,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -41,7 +43,10 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         }
     }
 
-    pub fn to_random_field(&self, config: *const FieldConfig<N>) -> DenseMultilinearExtensionF<N> {
+    pub fn to_random_field<'cfg>(
+        &self,
+        config: ConfigRef<'cfg, N>,
+    ) -> DenseMultilinearExtensionF<'cfg, N> {
         let evaluations = self
             .evaluations
             .iter()

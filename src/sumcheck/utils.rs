@@ -5,6 +5,7 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
+use crate::field_config::ConfigRef;
 use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
@@ -17,26 +18,27 @@ use ark_std::{
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
+use crate::poly::ArithErrors;
 use crate::{
-    field::{conversion::FieldMap, rand_with_config, RandomField},
-    field_config::FieldConfig,
+    field::{conversion::FieldMap, RandomField},
     poly_f::{
         mle::DenseMultilinearExtension,
-        polynomials::{random_mle_list, ArithErrors, RefCounter},
+        polynomials::{random_mle_list, RefCounter},
     },
 };
+
 #[allow(clippy::type_complexity)]
-pub fn rand_poly<const N: usize>(
+pub fn rand_poly<'cfg, const N: usize>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: *const FieldConfig<N>,
+    config: ConfigRef<'cfg, N>,
     rng: &mut impl RngCore,
 ) -> Result<
     (
-        (Vec<DenseMultilinearExtension<N>>, usize),
-        Vec<(RandomField<N>, Vec<usize>)>,
-        RandomField<N>,
+        (Vec<DenseMultilinearExtension<'cfg, N>>, usize),
+        Vec<(RandomField<'cfg, N>, Vec<usize>)>,
+        RandomField<'cfg, N>,
     ),
     ArithErrors,
 > {
@@ -54,7 +56,7 @@ pub fn rand_poly<const N: usize>(
             .map(|p| RefCounter::into_inner(p).unwrap())
             .collect::<Vec<_>>();
 
-        let coefficient = rand_with_config(rng, config);
+        let coefficient = RandomField::<N>::rand_with_config(rng, config);
         mles.extend(product);
         sum += &(product_sum * coefficient);
 
@@ -67,11 +69,11 @@ pub fn rand_poly<const N: usize>(
     Ok(((mles, degree), products, sum))
 }
 
-pub fn rand_poly_comb_fn<const N: usize>(
-    vals: &[RandomField<N>],
-    products: &[(RandomField<N>, Vec<usize>)],
-    config: *const FieldConfig<N>,
-) -> RandomField<N> {
+pub fn rand_poly_comb_fn<'cfg, const N: usize>(
+    vals: &[RandomField<'cfg, N>],
+    products: &[(RandomField<'cfg, N>, Vec<usize>)],
+    config: ConfigRef<'cfg, N>,
+) -> RandomField<'cfg, N> {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
         let mut term = *coef;
@@ -85,10 +87,10 @@ pub fn rand_poly_comb_fn<const N: usize>(
 }
 
 /// Evaluate eq polynomial.
-pub fn eq_eval<const N: usize>(
-    x: &[RandomField<N>],
-    y: &[RandomField<N>],
-) -> Result<RandomField<N>, ArithErrors> {
+pub fn eq_eval<'cfg, const N: usize>(
+    x: &[RandomField<'cfg, N>],
+    y: &[RandomField<'cfg, N>],
+) -> Result<RandomField<'cfg, N>, ArithErrors> {
     if x.len() != y.len() {
         return Err(ArithErrors::InvalidParameters(
             "x and y have different length".to_string(),
@@ -110,10 +112,10 @@ pub fn eq_eval<const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r<const N: usize>(
-    r: &[RandomField<N>],
-    config: *const FieldConfig<N>,
-) -> Result<DenseMultilinearExtension<N>, ArithErrors> {
+pub fn build_eq_x_r<'cfg, const N: usize>(
+    r: &[RandomField<'cfg, N>],
+    config: ConfigRef<'cfg, N>,
+) -> Result<DenseMultilinearExtension<'cfg, N>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 
@@ -126,9 +128,9 @@ pub fn build_eq_x_r<const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r_vec<const N: usize>(
-    r: &[RandomField<N>],
-) -> Result<Vec<RandomField<N>>, ArithErrors> {
+pub fn build_eq_x_r_vec<'cfg, const N: usize>(
+    r: &[RandomField<'cfg, N>],
+) -> Result<Vec<RandomField<'cfg, N>>, ArithErrors> {
     // we build eq(x,r) from its evaluations
     // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
     // for example, with num_vars = 4, x is a binary vector of 4, then
@@ -149,9 +151,9 @@ pub fn build_eq_x_r_vec<const N: usize>(
 /// A helper function to build eq(x, r) recursively.
 /// This function takes `r.len()` steps, and for each step it requires a maximum
 /// `r.len()-1` multiplications.
-fn build_eq_x_r_helper<const N: usize>(
-    r: &[RandomField<N>],
-    buf: &mut Vec<RandomField<N>>,
+fn build_eq_x_r_helper<'cfg, const N: usize>(
+    r: &[RandomField<'cfg, N>],
+    buf: &mut Vec<RandomField<'cfg, N>>,
 ) -> Result<(), ArithErrors> {
     if r.is_empty() {
         return Err(ArithErrors::InvalidParameters("r length is 0".to_string()));

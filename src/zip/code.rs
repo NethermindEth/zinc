@@ -1,10 +1,10 @@
 #![allow(non_snake_case)]
+use crate::field_config::ConfigRef;
 use ark_ff::Zero;
 use crypto_bigint::Int;
 
 use crate::field::conversion::FieldMap;
 use crate::field::RandomField as F;
-use crate::field_config::FieldConfig;
 use crate::zip::utils::expand;
 
 use ark_std::fmt::Debug;
@@ -71,11 +71,11 @@ impl<const I: usize, const L: usize> Zip<I, L> {
         }
     }
 
-    pub fn encode_f<const N: usize>(
+    pub fn encode_f<'cfg, const N: usize>(
         &self,
-        row: &[F<N>],
-        field: *const FieldConfig<N>,
-    ) -> Vec<F<N>> {
+        row: &[F<'cfg, N>],
+        field: ConfigRef<'cfg, N>,
+    ) -> Vec<F<'cfg, N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -233,17 +233,14 @@ impl<const L: usize> SparseMatrixZ<L> {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<const N: usize> {
+pub struct SparseMatrixF<'cfg, const N: usize> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, F<N>)>,
+    cells: Vec<(usize, F<'cfg, N>)>,
 }
 
-impl<const N: usize> SparseMatrixF<N> {
-    fn new<const L: usize>(
-        sparse_matrix: &SparseMatrixZ<L>,
-        config: *const FieldConfig<N>,
-    ) -> Self {
-        let cells_f: Vec<(usize, F<N>)> = sparse_matrix
+impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigRef<'cfg, N>) -> Self {
+        let cells_f: Vec<(usize, F<'cfg, N>)> = sparse_matrix
             .cells
             .iter()
             .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
@@ -254,11 +251,11 @@ impl<const N: usize> SparseMatrixF<N> {
         }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, F<N>)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, F<'cfg, N>)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul(&self, vector: &[F<N>]) -> Vec<F<N>> {
+    fn mat_vec_mul(&self, vector: &[F<'cfg, N>]) -> Vec<F<'cfg, N>> {
         assert_eq!(
             self.dimension.m,
             vector.len(),

@@ -1,11 +1,11 @@
 //! Verifier
+use crate::field_config::ConfigRef;
 use ark_ff::One;
 use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
     field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -13,41 +13,37 @@ pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
 
 /// Verifier Message
 #[derive(Clone)]
-pub struct VerifierMsg<const N: usize> {
+pub struct VerifierMsg<'cfg, const N: usize> {
     /// randomness sampled by verifier
-    pub randomness: RandomField<N>,
+    pub randomness: RandomField<'cfg, N>,
 }
 
 /// Verifier State
-pub struct VerifierState<const N: usize> {
+pub struct VerifierState<'cfg, const N: usize> {
     round: usize,
     nv: usize,
     max_multiplicands: usize,
     finished: bool,
     /// a list storing the univariate polynomial in evaluation form sent by the prover at each round
-    polynomials_received: Vec<Vec<RandomField<N>>>,
+    polynomials_received: Vec<Vec<RandomField<'cfg, N>>>,
     /// a list storing the randomness sampled by the verifier at each round
-    randomness: Vec<RandomField<N>>,
+    randomness: Vec<RandomField<'cfg, N>>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: *const FieldConfig<N>,
+    config: ConfigRef<'cfg, N>,
 }
 
 /// Subclaim when verifier is convinced
 #[derive(Debug)]
-pub struct SubClaim<const N: usize> {
+pub struct SubClaim<'cfg, const N: usize> {
     /// the multi-dimensional point that this multilinear extension is evaluated to
-    pub point: Vec<RandomField<N>>,
+    pub point: Vec<RandomField<'cfg, N>>,
     /// the expected evaluation
-    pub expected_evaluation: RandomField<N>,
+    pub expected_evaluation: RandomField<'cfg, N>,
 }
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the verifier
-    pub fn verifier_init(
-        nvars: usize,
-        degree: usize,
-        config: *const FieldConfig<N>,
-    ) -> VerifierState<N> {
+    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigRef<N>) -> VerifierState<N> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -64,11 +60,11 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Normally, this function should perform actual verification. Instead, `verify_round` only samples
     /// and stores randomness and perform verifications altogether in `check_and_generate_subclaim` at
     /// the last step.
-    pub fn verify_round(
-        prover_msg: ProverMsg<N>,
-        verifier_state: &mut VerifierState<N>,
+    pub fn verify_round<'cfg>(
+        prover_msg: ProverMsg<'cfg, N>,
+        verifier_state: &mut VerifierState<'cfg, N>,
         transcript: &mut Transcript,
-    ) -> VerifierMsg<N> {
+    ) -> VerifierMsg<'cfg, N> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
         }
@@ -100,11 +96,11 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// If the asserted sum is correct, then the multilinear polynomial evaluated at `subclaim.point`
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
-    pub fn check_and_generate_subclaim(
-        verifier_state: VerifierState<N>,
-        asserted_sum: RandomField<N>,
-        config: *const FieldConfig<N>,
-    ) -> Result<SubClaim<N>, SumCheckError<N>> {
+    pub fn check_and_generate_subclaim<'cfg>(
+        verifier_state: VerifierState<'cfg, N>,
+        asserted_sum: RandomField<'cfg, N>,
+        config: ConfigRef<'cfg, N>,
+    ) -> Result<SubClaim<'cfg, N>, SumCheckError<N>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
         }
@@ -122,7 +118,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let p0 = evaluations[0];
             let p1 = evaluations[1];
             if p0 + p1 != expected {
-                return Err(SumCheckError::SumCheckFailed(p0 + p1, expected));
+                return Err(SumCheckError::SumCheckFailed(
+                    (p0 + p1).into(),
+                    expected.into(),
+                ));
             }
             expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i], config);
         }
@@ -138,10 +137,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(
+    pub fn sample_round<'cfg>(
         transcript: &mut Transcript,
-        config: *const FieldConfig<N>,
-    ) -> VerifierMsg<N> {
+        config: ConfigRef<'cfg, N>,
+    ) -> VerifierMsg<'cfg, N> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }
@@ -152,11 +151,11 @@ impl<const N: usize> IPForMLSumcheck<N> {
 /// p_i.len()-1 passing through the y-values in p_i at x = 0,..., p_i.len()-1
 /// and evaluate this  polynomial at `eval_at`. In other words, efficiently compute
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
-pub(crate) fn interpolate_uni_poly<const N: usize>(
-    p_i: &[RandomField<N>],
-    x: RandomField<N>,
-    config: *const FieldConfig<N>,
-) -> RandomField<N> {
+pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
+    p_i: &[RandomField<'cfg, N>],
+    x: RandomField<'cfg, N>,
+    config: ConfigRef<'cfg, N>,
+) -> RandomField<'cfg, N> {
     // We will need these a few times
     let zero = 0u64.map_to_field(config);
     let one = 1u64.map_to_field(config);
@@ -301,7 +300,7 @@ pub(crate) fn interpolate_uni_poly<const N: usize>(
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<const N: usize>(a: usize, config: *const FieldConfig<N>) -> RandomField<N> {
+fn field_factorial<const N: usize>(a: usize, config: ConfigRef<N>) -> RandomField<N> {
     let mut res = RandomField::one();
     for i in 1..=a {
         res *= (i as u64).map_to_field(config);

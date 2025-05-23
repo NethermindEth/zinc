@@ -1,3 +1,4 @@
+use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::Zero;
@@ -14,10 +15,11 @@ use crypto_bigint::{Int, Random};
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
+use crate::poly::ArithErrors;
 use crate::{
-    field::conversion::FieldMap, field_config::FieldConfig,
+    field::conversion::FieldMap,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
-    poly_z::polynomials::ArithErrors, sparse_matrix::SparseMatrix,
+    sparse_matrix::SparseMatrix,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -120,9 +122,10 @@ impl<const I: usize> DenseMultilinearExtension<I> {
     }
 }
 
-impl<const I: usize, const N: usize> FieldMap<N> for DenseMultilinearExtension<I> {
-    type Output = DenseMultilinearExtensionF<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for DenseMultilinearExtension<I> {
+    type Cfg = ConfigRef<'cfg, N>;
+    type Output = DenseMultilinearExtensionF<'cfg, N>;
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,
             self.evaluations.map_to_field(config),

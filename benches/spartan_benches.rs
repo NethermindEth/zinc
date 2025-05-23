@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
@@ -16,7 +17,7 @@ use zinc::{
 
 fn benchmark_spartan_prover<const I: usize, const N: usize>(
     c: &mut Criterion,
-    config: &FieldConfig<N>,
+    config: ConfigRef<N>,
     prime: &str,
 ) {
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
@@ -63,7 +64,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
 
 fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     c: &mut Criterion,
-    config: &FieldConfig<N>,
+    config: ConfigRef<N>,
     prime: &str,
 ) {
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
@@ -109,7 +110,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
                             &spartan_proof,
                             &ccs_f,
                             &mut verifier_transcript,
-                            config,
+                            config.reference().expect("Field config cannot be none"),
                         )
                         .expect("Proof verification failed"),
                     )
@@ -131,9 +132,10 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
+    let config = ConfigRef::from(&config);
 
-    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, &config, "256");
-    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, &config, "256");
+    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
+    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
 
     let stark_config = FieldConfig::new(
         BigInt::<FIELD_LIMBS>::from_str(
@@ -141,9 +143,10 @@ fn run_benches(c: &mut Criterion) {
         )
         .unwrap(),
     );
+    let stark_config = ConfigRef::from(&stark_config);
 
-    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, &stark_config, "stark");
-    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, &stark_config, "stark");
+    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, stark_config, "stark");
+    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, stark_config, "stark");
 }
 
 criterion_group!(benches, run_benches);

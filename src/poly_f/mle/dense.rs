@@ -1,3 +1,4 @@
+use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::{UniformRand, Zero};
@@ -13,33 +14,32 @@ use ark_std::{
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
+use crate::field::RandomField;
 use crate::sparse_matrix::SparseMatrix;
-use crate::{field::RandomField, field_config::FieldConfig};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DenseMultilinearExtension<const N: usize> {
+pub struct DenseMultilinearExtension<'cfg, const N: usize> {
     /// The evaluation over {0,1}^`num_vars`
-    pub evaluations: Vec<RandomField<N>>,
+    pub evaluations: Vec<RandomField<'cfg, N>>,
     /// Number of variables
     pub num_vars: usize,
     /// Field in which the MLE is operating
-    pub config: *const FieldConfig<N>,
+    pub config: ConfigRef<'cfg, N>,
 }
 
-impl<const N: usize> DenseMultilinearExtension<N> {
+impl<'cfg, const N: usize> DenseMultilinearExtension<'cfg, N> {
+    pub type Field = RandomField<'cfg, N>;
+    pub type Cfg = ConfigRef<'cfg, N>;
+
     pub fn from_evaluations_slice(
         num_vars: usize,
-        evaluations: &[RandomField<N>],
-        config: *const FieldConfig<N>,
+        evaluations: &[Self::Field],
+        config: Self::Cfg,
     ) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
     }
 
-    pub fn evaluate(
-        &self,
-        point: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Option<RandomField<N>> {
+    pub fn evaluate(&self, point: &[Self::Field], config: Self::Cfg) -> Option<Self::Field> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point, config)[0])
         } else {
@@ -49,8 +49,8 @@ impl<const N: usize> DenseMultilinearExtension<N> {
 
     pub fn from_evaluations_vec(
         num_vars: usize,
-        evaluations: Vec<RandomField<N>>,
-        config: *const FieldConfig<N>,
+        evaluations: Vec<Self::Field>,
+        config: Self::Cfg,
     ) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
@@ -62,7 +62,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
             let mut evaluations = evaluations;
             evaluations.resize(
                 1 << num_vars,
-                RandomField::new_unchecked(config, 0u32.into()),
+                Self::Field::new_unchecked(config, 0u32.into()),
             );
             return Self {
                 num_vars,
@@ -79,10 +79,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(
-        matrix: &SparseMatrix<RandomField<N>>,
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    pub fn from_matrix(matrix: &SparseMatrix<Self::Field>, config: Self::Cfg) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -90,7 +87,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         let padded_cols = matrix.n_cols.next_power_of_two();
 
         // build dense vector representing the sparse padded matrix
-        let mut v = vec![RandomField::<N>::zero(); padded_rows * padded_cols];
+        let mut v = vec![Self::Field::zero(); padded_rows * padded_cols];
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -103,12 +100,12 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[RandomField<N>], config: *const FieldConfig<N>) -> Self {
-        let v_padded: Vec<RandomField<N>> = if v.len() != (1 << n_vars) {
+    pub fn from_slice(n_vars: usize, v: &[Self::Field], config: Self::Cfg) -> Self {
+        let v_padded: Vec<Self::Field> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
                 v.to_owned(),
-                ark_std::iter::repeat(RandomField::<N>::zero())
+                ark_std::iter::repeat(Self::Field::zero())
                     .take((1 << n_vars) - v.len())
                     .collect(),
             ]
@@ -116,7 +113,7 @@ impl<const N: usize> DenseMultilinearExtension<N> {
         } else {
             v.to_owned()
         };
-        DenseMultilinearExtension::<N>::from_evaluations_vec(n_vars, v_padded, config)
+        Self::from_evaluations_vec(n_vars, v_padded, config)
     }
 
     pub fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
@@ -138,17 +135,17 @@ impl<const N: usize> DenseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
+impl<'cfg, const N: usize> MultilinearExtension<'cfg, N> for DenseMultilinearExtension<'cfg, N> {
+    type Field = RandomField<'cfg, N>;
+    type Cfg = ConfigRef<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
 
-    fn rand<Rn: rand::Rng>(num_vars: usize, config: *const FieldConfig<N>, rng: &mut Rn) -> Self {
+    fn rand<Rn: rand::Rng>(num_vars: usize, config: Self::Cfg, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
-            (0..1 << num_vars)
-                .map(|_| RandomField::<N>::rand(rng))
-                .collect(),
+            (0..1 << num_vars).map(|_| Self::Field::rand(rng)).collect(),
             config,
         )
     }
@@ -159,7 +156,7 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         copy
     }
 
-    fn fix_variables(&mut self, partial_point: &[RandomField<N>], _config: *const FieldConfig<N>) {
+    fn fix_variables(&mut self, partial_point: &[Self::Field], _config: Self::Cfg) {
         assert!(
             partial_point.len() <= self.num_vars,
             "too many partial points"
@@ -187,27 +184,23 @@ impl<const N: usize> MultilinearExtension<N> for DenseMultilinearExtension<N> {
         self.num_vars = nv - dim;
     }
 
-    fn fixed_variables(
-        &self,
-        partial_point: &[RandomField<N>],
-        config: *const FieldConfig<N>,
-    ) -> Self {
+    fn fixed_variables(&self, partial_point: &[Self::Field], config: Self::Cfg) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<RandomField<N>> {
+    fn to_evaluations(&self) -> Vec<Self::Field> {
         self.evaluations.to_vec()
     }
 }
 
-impl<const N: usize> Zero for DenseMultilinearExtension<N> {
+impl<const N: usize> Zero for DenseMultilinearExtension<'_, N> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
             evaluations: vec![RandomField::<N>::zero()],
-            config: std::ptr::null(),
+            config: ConfigRef::NONE,
         }
     }
 
@@ -216,18 +209,18 @@ impl<const N: usize> Zero for DenseMultilinearExtension<N> {
     }
 }
 
-impl<const N: usize> Add for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<const N: usize> Add for DenseMultilinearExtension<'_, N> {
+    type Output = Self;
 
-    fn add(self, other: DenseMultilinearExtension<N>) -> Self {
+    fn add(self, other: Self) -> Self::Output {
         &self + &other
     }
 }
 
-impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Add for &DenseMultilinearExtension<'cfg, N> {
+    type Output = DenseMultilinearExtension<'cfg, N>;
 
-    fn add(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
+    fn add(self, rhs: Self) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -254,16 +247,14 @@ impl<'a, const N: usize> Add<&'a DenseMultilinearExtension<N>> for &DenseMultili
     }
 }
 
-impl<const N: usize> AddAssign for DenseMultilinearExtension<N> {
-    fn add_assign(&mut self, rhs: DenseMultilinearExtension<N>) {
+impl<const N: usize> AddAssign for DenseMultilinearExtension<'_, N> {
+    fn add_assign(&mut self, rhs: Self) {
         self.add_assign(&rhs);
     }
 }
 
-impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
-    for DenseMultilinearExtension<N>
-{
-    fn add_assign(&mut self, other: &'a DenseMultilinearExtension<N>) {
+impl<const N: usize> AddAssign<&Self> for DenseMultilinearExtension<'_, N> {
+    fn add_assign(&mut self, other: &Self) {
         if self.is_zero() {
             *self = other.clone();
             return;
@@ -288,10 +279,10 @@ impl<'a, const N: usize> AddAssign<&'a DenseMultilinearExtension<N>>
     }
 }
 
-impl<const N: usize> AddAssign<(RandomField<N>, &DenseMultilinearExtension<N>)>
-    for DenseMultilinearExtension<N>
+impl<'cfg, const N: usize> AddAssign<(RandomField<'cfg, N>, &Self)>
+    for DenseMultilinearExtension<'cfg, N>
 {
-    fn add_assign(&mut self, (r, other): (RandomField<N>, &DenseMultilinearExtension<N>)) {
+    fn add_assign(&mut self, (r, other): (RandomField<'cfg, N>, &Self)) {
         if self.is_zero() {
             *self = other.clone();
 
@@ -320,28 +311,28 @@ impl<const N: usize> AddAssign<(RandomField<N>, &DenseMultilinearExtension<N>)>
     }
 }
 
-impl<const N: usize> Neg for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<const N: usize> Neg for DenseMultilinearExtension<'_, N> {
+    type Output = Self;
 
-    fn neg(mut self) -> Self {
+    fn neg(mut self) -> Self::Output {
         cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.neg());
 
         self
     }
 }
 
-impl<const N: usize> Sub for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<const N: usize> Sub for DenseMultilinearExtension<'_, N> {
+    type Output = Self;
 
-    fn sub(self, other: DenseMultilinearExtension<N>) -> Self {
+    fn sub(self, other: Self) -> Self {
         &self - &other
     }
 }
 
-impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Sub for &DenseMultilinearExtension<'cfg, N> {
+    type Output = DenseMultilinearExtension<'cfg, N>;
 
-    fn sub(self, rhs: &'a DenseMultilinearExtension<N>) -> Self::Output {
+    fn sub(self, rhs: Self) -> Self::Output {
         if rhs.is_zero() {
             return self.clone();
         }
@@ -367,16 +358,14 @@ impl<'a, const N: usize> Sub<&'a DenseMultilinearExtension<N>> for &DenseMultili
     }
 }
 
-impl<const N: usize> SubAssign for DenseMultilinearExtension<N> {
-    fn sub_assign(&mut self, other: DenseMultilinearExtension<N>) {
+impl<const N: usize> SubAssign for DenseMultilinearExtension<'_, N> {
+    fn sub_assign(&mut self, other: Self) {
         self.sub_assign(&other);
     }
 }
 
-impl<'a, const N: usize> SubAssign<&'a DenseMultilinearExtension<N>>
-    for DenseMultilinearExtension<N>
-{
-    fn sub_assign(&mut self, rhs: &'a DenseMultilinearExtension<N>) {
+impl<const N: usize> SubAssign<&Self> for DenseMultilinearExtension<'_, N> {
+    fn sub_assign(&mut self, rhs: &Self) {
         if self.is_zero() {
             *self = rhs.clone().neg();
             return;
@@ -397,56 +386,56 @@ impl<'a, const N: usize> SubAssign<&'a DenseMultilinearExtension<N>>
     }
 }
 
-impl<const N: usize> Mul<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Mul<RandomField<'cfg, N>> for DenseMultilinearExtension<'cfg, N> {
+    type Output = Self;
 
-    fn mul(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn mul(mut self, rhs: RandomField<'cfg, N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x *= rhs);
 
         self
     }
 }
 
-impl<const N: usize> MulAssign<RandomField<N>> for DenseMultilinearExtension<N> {
-    fn mul_assign(&mut self, rhs: RandomField<N>) {
+impl<'cfg, const N: usize> MulAssign<RandomField<'cfg, N>> for DenseMultilinearExtension<'cfg, N> {
+    fn mul_assign(&mut self, rhs: RandomField<'cfg, N>) {
         self.evaluations.iter_mut().for_each(|x| *x *= rhs);
     }
 }
 
-impl<const N: usize> Sub<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Sub<RandomField<'cfg, N>> for DenseMultilinearExtension<'cfg, N> {
+    type Output = Self;
 
-    fn sub(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn sub(mut self, rhs: RandomField<'cfg, N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x -= rhs);
 
         self
     }
 }
 
-impl<const N: usize> Add<RandomField<N>> for DenseMultilinearExtension<N> {
-    type Output = DenseMultilinearExtension<N>;
+impl<'cfg, const N: usize> Add<RandomField<'cfg, N>> for DenseMultilinearExtension<'cfg, N> {
+    type Output = Self;
 
-    fn add(mut self, rhs: RandomField<N>) -> DenseMultilinearExtension<N> {
+    fn add(mut self, rhs: RandomField<'cfg, N>) -> Self::Output {
         self.evaluations.iter_mut().for_each(|x| *x += &rhs);
 
         self
     }
 }
 
-impl<const N: usize> Index<usize> for DenseMultilinearExtension<N> {
-    type Output = RandomField<N>;
+impl<'cfg, const N: usize> Index<usize> for DenseMultilinearExtension<'cfg, N> {
+    type Output = RandomField<'cfg, N>;
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.evaluations[index]
     }
 }
 
-impl<const N: usize> IndexMut<usize> for DenseMultilinearExtension<N> {
+impl<const N: usize> IndexMut<usize> for DenseMultilinearExtension<'_, N> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.evaluations[index]
     }
 }
 
-unsafe impl<const N: usize> Send for DenseMultilinearExtension<N> {}
+unsafe impl<const N: usize> Send for DenseMultilinearExtension<'_, N> {}
 
-unsafe impl<const N: usize> Sync for DenseMultilinearExtension<N> {}
+unsafe impl<const N: usize> Sync for DenseMultilinearExtension<'_, N> {}

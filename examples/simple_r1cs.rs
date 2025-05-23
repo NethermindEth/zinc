@@ -44,7 +44,6 @@ fn main() {
             &field_config,
         )
         .expect("Proof verification failed");
-    println!("Proof verified successfully");
 }
 
 fn get_ccs<const N: usize>() -> CCS_Z<N> {

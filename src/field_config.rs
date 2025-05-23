@@ -16,6 +16,7 @@ macro_rules! mac_with_carry {
     }};
 }
 
+#[macro_export]
 macro_rules! adc {
     ($a:expr, $b:expr, &mut $carry:expr$(,)?) => {{
         let tmp = ($a as u128) + ($b as u128) + ($carry as u128);
@@ -69,13 +70,7 @@ impl<const N: usize> FieldConfig<N> {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
         // However, it may need to be reduced
-        if self.modulus_has_spare_bit {
-            if *a >= self.modulus {
-                a.sub_with_borrow(&self.modulus);
-            }
-        } else if c || *a >= self.modulus {
-            a.sub_with_borrow(&self.modulus);
-        }
+        self.reduce_modulus(a, c);
     }
 
     pub fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
@@ -124,6 +119,10 @@ impl<const N: usize> FieldConfig<N> {
 
         let carry = carry2 != 0;
 
+        self.reduce_modulus(a, carry);
+    }
+
+    fn reduce_modulus(&self, a: &mut BigInt<{ N }>, carry: bool) {
         if self.modulus_has_spare_bit {
             if *a >= self.modulus {
                 a.sub_with_borrow(&self.modulus);
@@ -244,6 +243,50 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 }
 
 impl<const N: usize> Eq for FieldConfig<N> {}
+
+/// A wrapper around an optional reference to a `FieldConfig`.
+///
+/// This struct is used to represent a pointer to a `FieldConfig` instance,
+/// allowing for safe handling of nullable references. It provides methods
+/// to access the underlying reference or raw pointer.
+///
+/// # Type Parameters
+/// - `'cfg`: The lifetime of the `FieldConfig` reference.
+/// - `N`: The size of the `FieldConfig` (e.g., the number of limbs in the `BigInt` modulus).
+#[derive(Debug, Copy, Clone, Eq)]
+pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
+
+impl<const N: usize> PartialEq for ConfigRef<'_, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.reference() == other.reference()
+    }
+}
+
+impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigRef<'cfg, N> {
+    fn from(value: &'cfg FieldConfig<N>) -> Self {
+        Self(Some(value))
+    }
+}
+
+unsafe impl<const N: usize> Sync for ConfigRef<'_, N> {}
+unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
+
+impl<'cfg, const N: usize> ConfigRef<'cfg, N> {
+    pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
+        self.0.map(|p| p as *const _ as *mut _)
+    }
+
+    pub fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
+        self.0
+    }
+
+    #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
+    pub unsafe fn new(config_ptr: *mut FieldConfig<N>) -> Self {
+        Self(Option::from(config_ptr.as_ref().unwrap()))
+    }
+
+    pub const NONE: Self = Self(None);
+}
 
 #[cfg(test)]
 mod tests {

@@ -3,12 +3,10 @@
 
 // Adapted for rings by Nethermind
 
+use crate::field_config::ConfigRef;
 use ark_std::{log2, vec::*};
 
-use crate::{
-    field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
-};
+use crate::field::{conversion::FieldMap, RandomField};
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -23,13 +21,13 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<const N: usize>(
+pub fn gen_eval_point<'cfg, const N: usize>(
     index: usize,
     index_len: usize,
-    point: &[RandomField<N>],
-    config: *const FieldConfig<N>,
-) -> Vec<RandomField<N>> {
-    let index_vec: Vec<RandomField<N>> = bit_decompose(index as u64, index_len)
+    point: &[RandomField<'cfg, N>],
+    config: ConfigRef<'cfg, N>,
+) -> Vec<RandomField<'cfg, N>> {
+    let index_vec: Vec<RandomField<'cfg, N>> = bit_decompose(index as u64, index_len)
         .into_iter()
         .map(|i| i.map_to_field(config))
         .collect();

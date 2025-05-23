@@ -10,7 +10,7 @@ use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
-use crate::field_config::FieldConfig;
+use crate::field_config::ConfigRef;
 use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
 
@@ -128,21 +128,26 @@ impl<const N: usize> CCS_Z<N> {
     }
 }
 
-impl<const I: usize, const N: usize> FieldMap<N> for CCS_Z<I> {
-    type Output = CCS_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        CCS_F {
-            m: self.m,
-            n: self.n,
-            l: self.l,
-            t: self.t,
-            q: self.q,
-            d: self.d,
-            s: self.s,
-            s_prime: self.s_prime,
-            S: self.S.clone(),
-            c: self.c.map_to_field(config),
-            config: AtomicPtr::new(config as *mut FieldConfig<N>),
+impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for CCS_Z<I> {
+    type Cfg = ConfigRef<'cfg, N>;
+    type Output = CCS_F<'cfg, N>;
+
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+        match config.pointer() {
+            Some(config_ptr) => CCS_F {
+                m: self.m,
+                n: self.n,
+                l: self.l,
+                t: self.t,
+                q: self.q,
+                d: self.d,
+                s: self.s,
+                s_prime: self.s_prime,
+                S: self.S.clone(),
+                c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
+                config: AtomicPtr::new(config_ptr),
+            },
+            None => panic!("FieldConfig cannot be null"),
         }
     }
 }
@@ -152,10 +157,12 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<const I: usize, const N: usize> FieldMap<N> for Statement_Z<I> {
-    type Output = Statement_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
-        Statement_F {
+impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for Statement_Z<I> {
+    type Cfg = ConfigRef<'cfg, N>;
+    type Output = Statement_F<'cfg, N>;
+
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+        Self::Output {
             constraints: self
                 .constraints
                 .iter()
@@ -183,9 +190,11 @@ impl<const N: usize> Witness_Z<N> {
     }
 }
 
-impl<const N: usize> FieldMap<N> for Witness_Z<N> {
-    type Output = Witness_F<N>;
-    fn map_to_field(&self, config: *const FieldConfig<N>) -> Self::Output {
+impl<'cfg, const N: usize> FieldMap<'cfg, N> for Witness_Z<N> {
+    type Cfg = ConfigRef<'cfg, N>;
+    type Output = Witness_F<'cfg, N>;
+
+    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {
             w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
         }
@@ -309,10 +318,10 @@ pub(crate) fn get_test_ccs_stuff_Z<const I: usize>(
 
 #[cfg(test)]
 mod tests {
-
     use std::str::FromStr;
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
+    use crate::field_config::ConfigRef;
     use crate::{
         biginteger::BigInt,
         ccs::{
@@ -379,14 +388,16 @@ mod tests {
             .expect("Failed to check relation over Integer Ring");
 
         const N: usize = 3;
-        let config: *const FieldConfig<N> = &FieldConfig::new(
+        let config = FieldConfig::new(
             BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
         );
 
-        let ccs_f = ccs.map_to_field(config);
-        let statement_f = statement.map_to_field(config);
-        let witness_f = wit.map_to_field(config);
-        let z_f = statement_f.get_z_vector(&witness_f, config);
+        let config_ptr = ConfigRef::from(&config);
+
+        let ccs_f = ccs.map_to_field(config_ptr);
+        let statement_f = statement.map_to_field(config_ptr);
+        let witness_f = wit.map_to_field(config_ptr);
+        let z_f = statement_f.get_z_vector(&witness_f, config_ptr);
 
         ccs_f
             .check_relation(&statement_f.constraints, &z_f)

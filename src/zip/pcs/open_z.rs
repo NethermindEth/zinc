@@ -1,4 +1,5 @@
 #![allow(non_snake_case)]
+use crate::field_config::ConfigRef;
 use std::borrow::Cow;
 
 use ark_std::iterable::Iterable;
@@ -7,7 +8,6 @@ use itertools::izip;
 
 use crate::{
     field::{conversion::FieldMap, RandomField as F},
-    field_config::FieldConfig,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
@@ -28,12 +28,12 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn open<const N: usize>(
+    pub fn open<'cfg, const N: usize>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        point: &[F<N>],
-        field: *const FieldConfig<N>,
+        point: &[F<'cfg, N>],
+        field: ConfigRef<'cfg, N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
         validate_input("open", pp.num_vars(), [poly], [point])?;
@@ -46,13 +46,13 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a, const N: usize>(
+    pub fn batch_open<'cfg, 'a, const N: usize>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
-        points: &[Vec<F<N>>],
+        points: &[Vec<F<'cfg, N>>],
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;
@@ -61,12 +61,12 @@ where
     }
 
     // Subprotocol functions
-    fn prove_evaluation_phase<const N: usize>(
+    fn prove_evaluation_phase<'cfg, const N: usize>(
         pp: &Self::ProverParam,
         transcript: &mut PcsTranscript<N>,
-        point: &[F<N>],
+        point: &[F<'cfg, N>],
         poly: &Self::Polynomial,
-        field: *const FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         let num_rows = pp.num_rows();
         let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
@@ -94,7 +94,7 @@ where
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         transcript: &mut PcsTranscript<N>,
-        field: *const FieldConfig<N>, // This is only needed to called the transcript but we are getting integers not fields
+        field: ConfigRef<N>, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

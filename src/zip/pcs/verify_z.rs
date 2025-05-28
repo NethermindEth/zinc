@@ -20,13 +20,13 @@ use crate::{
     },
 };
 
-impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<N, L, K, M, S, T>
+impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn verify<'cfg>(
+    pub fn verify<'cfg, const N: usize>(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
         point: &[F<'cfg, N>],
@@ -34,7 +34,7 @@ where
         transcript: &mut PcsTranscript<N>,
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
-        validate_input::<N>("verify", vp.num_vars(), [], [point])?;
+        validate_input::<I, N>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened =
             Self::verify_testing(vp, comm.roots(), transcript, ConfigRef::from(field))?;
@@ -44,9 +44,9 @@ where
         Ok(())
     }
 
-    pub fn batch_verify_z<'cfg, 'a>(
+    pub fn batch_verify_z<'cfg, 'a, const N: usize>(
         vp: &Self::VerifierParam,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<N>>,
+        comms: impl Iterable<Item = &'a MultilinearZipCommitment<I>>,
         points: &[Vec<F<'cfg, N>>],
         evals: &[F<'cfg, N>],
         transcript: &mut PcsTranscript<N>,
@@ -58,7 +58,7 @@ where
         Ok(())
     }
 
-    pub(super) fn verify_testing(
+    pub(super) fn verify_testing<const N: usize>(
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<N>,
@@ -66,16 +66,16 @@ where
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
-            <Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()),
+            <Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(vp.zip()),
         );
         if vp.num_rows() > 1 {
-            for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_proximity_testing(vp.zip()) {
+            for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(vp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges::<N>(vp.num_rows());
+                    .get_integer_challenges::<I>(vp.num_rows());
 
                 let combined_row: Vec<Int<M>> = transcript
-                    .read_integers(<Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()))?;
+                    .read_integers(<Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()))?;
 
                 let encoded_combined_row: Vec<Int<M>> = vp.zip().encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
@@ -83,12 +83,12 @@ where
         }
 
         let mut columns_opened: Vec<(usize, Vec<Int<K>>)> = Vec::with_capacity(
-            <Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()),
+            <Zip<I, L> as LinearCodes<I, L>>::num_column_opening(vp.zip()),
         );
-        for _ in 0..<Zip<N, L> as LinearCodes<N, L>>::num_column_opening(vp.zip()) {
+        for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_column_opening(vp.zip()) {
             let column_idx = transcript.squeeze_challenge_idx(
                 field,
-                <Zip<N, L> as LinearCodes<N, L>>::codeword_len(vp.zip()),
+                <Zip<I, L> as LinearCodes<I, L>>::codeword_len(vp.zip()),
             );
             let column_values = transcript.read_integers(vp.num_rows())?;
 
@@ -110,14 +110,14 @@ where
     }
 
     pub(super) fn verify_column_testing(
-        coeffs: &[Int<N>],
+        coeffs: &[Int<I>],
         encoded_combined_row: &[Int<M>],
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let coeffs: Vec<_> = coeffs.iter().map(expand::<N, M>).collect();
+            let coeffs: Vec<_> = coeffs.iter().map(expand::<I, M>).collect();
             let column_entries: Vec<_> = column_entries.iter().map(expand::<K, M>).collect();
             inner_product(coeffs.iter(), column_entries.iter())
         } else {
@@ -130,7 +130,7 @@ where
         Ok(())
     }
 
-    fn verify_evaluation_z<'cfg>(
+    fn verify_evaluation_z<'cfg, const N: usize>(
         vp: &Self::VerifierParam,
         point: &[F<'cfg, N>],
         eval: F<'cfg, N>,
@@ -139,7 +139,7 @@ where
         field: &'cfg FieldConfig<N>,
     ) -> Result<(), Error> {
         let q_0_combined_row = transcript.read_field_elements(
-            <Zip<N, L> as LinearCodes<N, L>>::row_len(vp.zip()),
+            <Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()),
             ConfigRef::from(field),
         )?;
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, ConfigRef::from(field));
@@ -165,7 +165,7 @@ where
         Ok(())
     }
 
-    fn verify_proximity_q_0<'cfg>(
+    fn verify_proximity_q_0<'cfg, const N: usize>(
         q_0: &Vec<F<'cfg, N>>,
         encoded_q_0_combined_row: &[F<'cfg, N>],
         column_entries: &[Int<K>],

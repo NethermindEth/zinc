@@ -15,11 +15,7 @@ use crate::{
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
     transcript::KeccakTranscript,
-    zip::{
-        code::ZipSpec,
-        pcs::structs::{MultilinearZip, MultilinearZipCommitment},
-        pcs_transcript::PcsTranscript,
-    },
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 use super::{
@@ -31,41 +27,41 @@ use super::{
     },
 };
 
-pub trait Prover<'cfg, const N: usize> {
+pub trait Prover<'cfg, const I: usize, const N: usize> {
     fn prove(
         &self,
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &'cfg FieldConfig<N>,
-    ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
+    ) -> Result<ZincProof<'cfg, I, N>, ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:;
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:;
 }
 
-impl<'cfg, const N: usize, S: ZipSpec> Prover<'cfg, N> for ZincProver<N, S> {
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Prover<'cfg, I, N> for ZincProver<I, N, S> {
     fn prove(
         &self,
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &'cfg FieldConfig<N>,
-    ) -> Result<ZincProof<'cfg, N>, ZincError<N>>
+    ) -> Result<ZincProof<'cfg, I, N>, ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
             Self::prepare_for_random_field_piop(statement, wit, ccs, ConfigRef::from(config))?;
 
         // Prove Spartan protocol over random field
-        let (spartan_proof, r_y) = SpartanProver::<N>::prove(
+        let (spartan_proof, r_y) = SpartanProver::<I, N>::prove(
             self,
             &statement_f,
             &z_ccs,
@@ -76,19 +72,13 @@ impl<'cfg, const N: usize, S: ZipSpec> Prover<'cfg, N> for ZincProver<N, S> {
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let (z_comm, v, pcs_proof) = Self::commit_z_mle_and_prove_evaluation(
+        let zip_proof = Self::commit_z_mle_and_prove_evaluation(
             &z_mle,
             &ccs_f,
-            ConfigRef::from(config),
             &r_y,
             transcript,
+            ConfigRef::from(config),
         )?;
-
-        let zip_proof = ZipProof {
-            z_comm,
-            v,
-            pcs_proof,
-        };
 
         // Return proof
         Ok(ZincProof {
@@ -98,7 +88,7 @@ impl<'cfg, const N: usize, S: ZipSpec> Prover<'cfg, N> for ZincProver<N, S> {
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<'cfg, const N: usize> {
+pub trait SpartanProver<'cfg, const I: usize, const N: usize> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -122,19 +112,21 @@ pub trait SpartanProver<'cfg, const N: usize> {
         &self,
         statement_f: &Statement_F<'cfg, N>,
         z_ccs: &[RandomField<'cfg, N>],
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<'cfg, N>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
     ) -> Result<(SpartanProof<'cfg, N>, Vec<RandomField<'cfg, N>>), SpartanError<N>>;
 }
 
-impl<'cfg, const N: usize, S: ZipSpec> SpartanProver<'cfg, N> for ZincProver<N, S> {
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanProver<'cfg, I, N>
+    for ZincProver<I, N, S>
+{
     fn prove(
         &self,
         statement_f: &Statement_F<'cfg, N>,
         z_ccs: &[RandomField<'cfg, N>],
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<'cfg, N>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
@@ -149,7 +141,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanProver<'cfg, N> for ZincProver<N, 
             ccs_f,
             statement_f,
             config,
-            &z_mle.to_random_field(config),
+            &z_mle.map_to_field(config),
             transcript,
         )?;
 
@@ -164,16 +156,16 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanProver<'cfg, N> for ZincProver<N, 
     }
 }
 
-impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     pub fn prepare_for_random_field_piop<'cfg>(
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
-        ccs: &CCS_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
+        ccs: &CCS_Z<I>,
         config: ConfigRef<'cfg, N>,
     ) -> Result<
         (
             Vec<RandomField<'cfg, N>>,
-            DenseMultilinearExtensionZ<N>,
+            DenseMultilinearExtensionZ<I>,
             CCS_F<'cfg, N>,
             Statement_F<'cfg, N>,
         ),
@@ -214,15 +206,15 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn get_z_ccs_and_z_mle<'cfg>(
-        statement: &Statement_Z<N>,
-        wit: &Witness_Z<N>,
-        ccs: &CCS_Z<N>,
+        statement: &Statement_Z<I>,
+        wit: &Witness_Z<I>,
+        ccs: &CCS_Z<I>,
         config: ConfigRef<'cfg, N>,
-    ) -> (Vec<RandomField<'cfg, N>>, DenseMultilinearExtensionZ<N>) {
+    ) -> (Vec<RandomField<'cfg, N>>, DenseMultilinearExtensionZ<I>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(ccs.m, Int::<N>::ZERO);
+            z_ccs.resize(ccs.m, Int::<I>::ZERO);
         }
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 
@@ -308,28 +300,28 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
     }
 
     fn commit_z_mle_and_prove_evaluation<'cfg>(
-        z_mle: &DenseMultilinearExtensionZ<N>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs: &CCS_F<'cfg, N>,
-        config: ConfigRef<'cfg, N>,
         r_y: &[RandomField<'cfg, N>],
         transcript: &mut KeccakTranscript,
-    ) -> Result<(MultilinearZipCommitment<N>, RandomField<'cfg, N>, Vec<u8>), SpartanError<N>>
+        config: ConfigRef<'cfg, N>,
+    ) -> Result<ZipProof<'cfg, I, N>, SpartanError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
         let param =
-            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, _>::setup(ccs.m, transcript);
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =
-            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::commit(
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit::<N>(
                 &param, z_mle,
             )?;
         let mut pcs_transcript = PcsTranscript::new();
-        let v = z_mle.to_random_field(config).evaluate(r_y, config).ok_or(
+        let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::open(
+        MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::open(
             &param,
             z_mle,
             &z_data,
@@ -339,7 +331,11 @@ impl<const N: usize, S: ZipSpec> ZincProver<N, S> {
         )?;
 
         let pcs_proof = pcs_transcript.into_proof();
-        Ok((z_comm, v, pcs_proof))
+        Ok(ZipProof {
+            z_comm,
+            v,
+            pcs_proof,
+        })
     }
 
     fn calculate_V_s<'cfg>(

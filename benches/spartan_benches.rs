@@ -15,11 +15,15 @@ use zinc::{
     zip::code::ZipSpec1,
 };
 
-fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef<N>, prime: &str) {
+fn benchmark_spartan_prover<const I: usize, const N: usize>(
+    c: &mut Criterion,
+    config: ConfigRef<N>,
+    prime: &str,
+) {
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<N, _> {
+    let prover = ZincProver::<I, N, _> {
         // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
         data: std::marker::PhantomData::<ZipSpec1>,
     };
@@ -29,7 +33,7 @@ fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
@@ -39,7 +43,7 @@ fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef
                 KeccakTranscript::new,
                 |mut prover_transcript| {
                     black_box(
-                        SpartanProver::<N>::prove(
+                        SpartanProver::<I, N>::prove(
                             &prover,
                             &statement_f,
                             &z_ccs,
@@ -58,7 +62,7 @@ fn benchmark_spartan_prover<const N: usize>(c: &mut Criterion, config: ConfigRef
     group.finish();
 }
 
-fn benchmark_spartan_verifier<const N: usize>(
+fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     c: &mut Criterion,
     config: ConfigRef<N>,
     prime: &str,
@@ -66,11 +70,11 @@ fn benchmark_spartan_verifier<const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<N, _> {
+    let prover = ZincProver::<I, N, _> {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
 
-    let verifier = ZincVerifier::<N, _> {
+    let verifier = ZincVerifier::<I, N, _> {
         data: std::marker::PhantomData::<ZipSpec1>,
     };
 
@@ -80,12 +84,12 @@ fn benchmark_spartan_verifier<const N: usize>(
         let mut prover_transcript = KeccakTranscript::new();
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<N, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
 
-        let (spartan_proof, _) = SpartanProver::<N>::prove(
+        let (spartan_proof, _) = SpartanProver::<I, N>::prove(
             &prover,
             &statement_f,
             &z_ccs,
@@ -104,8 +108,8 @@ fn benchmark_spartan_verifier<const N: usize>(
                         SpartanVerifier::<N>::verify(
                             &verifier,
                             &spartan_proof,
-                            &mut verifier_transcript,
                             &ccs_f,
+                            &mut verifier_transcript,
                             config.reference().expect("Field config cannot be none"),
                         )
                         .expect("Proof verification failed"),
@@ -119,28 +123,30 @@ fn benchmark_spartan_verifier<const N: usize>(
 }
 
 fn run_benches(c: &mut Criterion) {
+    const INT_LIMBS: usize = 1;
+    const FIELD_LIMBS: usize = 4;
     // Using a 256-bit prime field
     let config = FieldConfig::new(
-        BigInt::<4>::from_str(
+        BigInt::<FIELD_LIMBS>::from_str(
             "115792089237316195423570985008687907853269984665640564039457584007913129639747",
         )
         .unwrap(),
     );
     let config = ConfigRef::from(&config);
 
-    benchmark_spartan_prover::<4>(c, config, "256");
-    benchmark_spartan_verifier::<4>(c, config, "256");
+    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
+    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
 
     let stark_config = FieldConfig::new(
-        BigInt::<4>::from_str(
+        BigInt::<FIELD_LIMBS>::from_str(
             "3618502788666131213697322783095070105623107215331596699973092056135872020481",
         )
         .unwrap(),
     );
     let stark_config = ConfigRef::from(&stark_config);
 
-    benchmark_spartan_prover::<4>(c, stark_config, "stark");
-    benchmark_spartan_verifier::<4>(c, stark_config, "stark");
+    benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, stark_config, "stark");
+    benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, stark_config, "stark");
 }
 
 criterion_group!(benches, run_benches);

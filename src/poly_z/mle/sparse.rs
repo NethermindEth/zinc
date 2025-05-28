@@ -18,32 +18,32 @@ use super::{swap_bits, MultilinearExtension};
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SparseMultilinearExtension<const N: usize> {
+pub struct SparseMultilinearExtension<const I: usize> {
     /// The evaluation over {0,1}^`num_vars`
-    pub evaluations: BTreeMap<usize, Int<N>>,
+    pub evaluations: BTreeMap<usize, Int<I>>,
     /// Number of variables
     pub num_vars: usize,
 }
-impl<const N: usize> SparseMultilinearExtension<N> {
+impl<const I: usize> SparseMultilinearExtension<I> {
     pub fn from_evaluations<'a>(
         num_vars: usize,
-        evaluations: impl IntoIterator<Item = &'a (usize, Int<N>)>,
+        evaluations: impl IntoIterator<Item = &'a (usize, Int<I>)>,
     ) -> Self {
         let bit_mask = 1 << num_vars;
 
         let evaluations: Vec<_> = evaluations
             .into_iter()
-            .map(|(i, v): &(usize, Int<N>)| {
+            .map(|(i, v): &(usize, Int<I>)| {
                 assert!(*i < bit_mask, "index out of range");
                 (*i, *v)
             })
             .collect();
         Self {
-            evaluations: tuples_to_treemap::<N>(&evaluations),
+            evaluations: tuples_to_treemap::<I>(&evaluations),
             num_vars,
         }
     }
-    pub fn evaluate(&self, point: &[Int<N>]) -> Int<N> {
+    pub fn evaluate(&self, point: &[Int<I>]) -> Int<I> {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point)[0]
     }
@@ -68,11 +68,11 @@ impl<const N: usize> SparseMultilinearExtension<N> {
             while map.contains_key(&index) {
                 index = usize::rand(rng) & ((1 << num_vars) - 1);
             }
-            map.entry(index).or_insert(Int::<N>::random(rng));
+            map.entry(index).or_insert(Int::<I>::random(rng));
         }
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {
-            if *v != Int::<N>::zero() {
+            if *v != Int::<I>::zero() {
                 buf.push((*arg, *v));
             }
         }
@@ -84,14 +84,14 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<Int<N>>) -> Self {
+    pub fn from_matrix(m: &SparseMatrix<Int<I>>) -> Self {
         let n_rows = m.n_rows.next_power_of_two();
         let n_cols = m.n_cols.next_power_of_two();
         let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
 
         // build the sparse vec representing the sparse matrix
         let total_elements: usize = m.coeffs.iter().map(|row| row.len()).sum();
-        let mut v: Vec<(usize, Int<N>)> = Vec::with_capacity(total_elements);
+        let mut v: Vec<(usize, Int<I>)> = Vec::with_capacity(total_elements);
 
         for (row_i, row) in m.coeffs.iter().enumerate() {
             for (val, col_i) in row {
@@ -105,22 +105,22 @@ impl<const N: usize> SparseMultilinearExtension<N> {
     }
 
     /// Takes n_vars and a sparse slice and returns its sparse MLE.
-    pub fn from_sparse_slice(n_vars: usize, v: &[(usize, Int<N>)]) -> Self {
+    pub fn from_sparse_slice(n_vars: usize, v: &[(usize, Int<I>)]) -> Self {
         SparseMultilinearExtension::from_evaluations(n_vars, v)
     }
 
     /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[Int<N>]) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[Int<I>]) -> Self {
         let v_sparse = v
             .iter()
             .enumerate()
             .map(|(i, v_i)| (i, *v_i))
-            .collect::<Vec<(usize, Int<N>)>>();
+            .collect::<Vec<(usize, Int<I>)>>();
         SparseMultilinearExtension::from_evaluations(n_vars, &v_sparse)
     }
 }
 
-impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
+impl<const I: usize> MultilinearExtension<I> for SparseMultilinearExtension<I> {
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -155,7 +155,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[Int<N>]) {
+    fn fix_variables(&mut self, partial_point: &[Int<I>]) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -182,7 +182,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
                 let old_idx = *src_entry.0;
                 let gz = pre[old_idx & ((1 << dim) - 1)];
                 let new_idx = old_idx >> dim;
-                let dst_entry = result.entry(new_idx).or_insert(Int::<N>::ZERO);
+                let dst_entry = result.entry(new_idx).or_insert(Int::<I>::ZERO);
                 *dst_entry += &(gz * src_entry.1);
             }
             last = result;
@@ -193,14 +193,14 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         self.num_vars -= dim;
     }
 
-    fn fixed_variables(&self, partial_point: &[Int<N>]) -> Self {
+    fn fixed_variables(&self, partial_point: &[Int<I>]) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<Int<N>> {
-        let mut evaluations: Vec<_> = (0..1 << self.num_vars).map(|_| Int::<N>::zero()).collect();
+    fn to_evaluations(&self) -> Vec<Int<I>> {
+        let mut evaluations: Vec<_> = (0..1 << self.num_vars).map(|_| Int::<I>::zero()).collect();
         self.evaluations
             .iter()
             .map(|(&i, &v)| {
@@ -210,7 +210,7 @@ impl<const N: usize> MultilinearExtension<N> for SparseMultilinearExtension<N> {
         evaluations
     }
 }
-impl<const N: usize> Zero for SparseMultilinearExtension<N> {
+impl<const I: usize> Zero for SparseMultilinearExtension<I> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
@@ -222,17 +222,17 @@ impl<const N: usize> Zero for SparseMultilinearExtension<N> {
         self.num_vars == 0 && self.evaluations.is_empty()
     }
 }
-impl<const N: usize> Add for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<const I: usize> Add for SparseMultilinearExtension<I> {
+    type Output = SparseMultilinearExtension<I>;
 
-    fn add(self, other: SparseMultilinearExtension<N>) -> Self {
+    fn add(self, other: SparseMultilinearExtension<I>) -> Self {
         &self + &other
     }
 }
-impl<'a, const N: usize> Add<&'a SparseMultilinearExtension<N>> for &SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<'a, const I: usize> Add<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
+    type Output = SparseMultilinearExtension<I>;
 
-    fn add(self, rhs: &'a SparseMultilinearExtension<N>) -> Self::Output {
+    fn add(self, rhs: &'a SparseMultilinearExtension<I>) -> Self::Output {
         // handle zero case
         if self.is_zero() {
             return rhs.clone();
@@ -249,7 +249,7 @@ impl<'a, const N: usize> Add<&'a SparseMultilinearExtension<N>> for &SparseMulti
         // simply merge the evaluations
         let mut evaluations = HashMap::new();
         for (&i, &v) in self.evaluations.iter().chain(rhs.evaluations.iter()) {
-            *evaluations.entry(i).or_insert(Int::<N>::zero()) += &v;
+            *evaluations.entry(i).or_insert(Int::<I>::zero()) += &v;
         }
         let evaluations: Vec<_> = evaluations
             .into_iter()
@@ -263,22 +263,22 @@ impl<'a, const N: usize> Add<&'a SparseMultilinearExtension<N>> for &SparseMulti
     }
 }
 
-impl<const N: usize> AddAssign for SparseMultilinearExtension<N> {
+impl<const I: usize> AddAssign for SparseMultilinearExtension<I> {
     fn add_assign(&mut self, other: Self) {
         *self = &*self + &other;
     }
 }
-impl<'a, const N: usize> AddAssign<&'a SparseMultilinearExtension<N>>
-    for SparseMultilinearExtension<N>
+impl<'a, const I: usize> AddAssign<&'a SparseMultilinearExtension<I>>
+    for SparseMultilinearExtension<I>
 {
-    fn add_assign(&mut self, rhs: &'a SparseMultilinearExtension<N>) {
+    fn add_assign(&mut self, rhs: &'a SparseMultilinearExtension<I>) {
         *self = &*self + rhs;
     }
 }
-impl<const N: usize> AddAssign<(Int<N>, &SparseMultilinearExtension<N>)>
-    for SparseMultilinearExtension<N>
+impl<const I: usize> AddAssign<(Int<I>, &SparseMultilinearExtension<I>)>
+    for SparseMultilinearExtension<I>
 {
-    fn add_assign(&mut self, (r, other): (Int<N>, &SparseMultilinearExtension<N>)) {
+    fn add_assign(&mut self, (r, other): (Int<I>, &SparseMultilinearExtension<I>)) {
         if !self.is_zero() && !other.is_zero() {
             assert_eq!(
                 other.num_vars, self.num_vars,
@@ -295,12 +295,12 @@ impl<const N: usize> AddAssign<(Int<N>, &SparseMultilinearExtension<N>)>
         *self += &other;
     }
 }
-impl<const N: usize> Neg for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<const I: usize> Neg for SparseMultilinearExtension<I> {
+    type Output = SparseMultilinearExtension<I>;
 
     fn neg(self) -> Self {
         let ev: Vec<_> = cfg_iter!(self.evaluations)
-            .map(|(i, v)| (*i, Int::<N>::zero() - *v))
+            .map(|(i, v)| (*i, Int::<I>::zero() - *v))
             .collect();
         Self::Output {
             num_vars: self.num_vars,
@@ -308,35 +308,35 @@ impl<const N: usize> Neg for SparseMultilinearExtension<N> {
         }
     }
 }
-impl<const N: usize> Sub for SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<const I: usize> Sub for SparseMultilinearExtension<I> {
+    type Output = SparseMultilinearExtension<I>;
 
-    fn sub(self, other: SparseMultilinearExtension<N>) -> Self {
+    fn sub(self, other: SparseMultilinearExtension<I>) -> Self {
         &self - &other
     }
 }
-impl<'a, const N: usize> Sub<&'a SparseMultilinearExtension<N>> for &SparseMultilinearExtension<N> {
-    type Output = SparseMultilinearExtension<N>;
+impl<'a, const I: usize> Sub<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
+    type Output = SparseMultilinearExtension<I>;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
-    fn sub(self, rhs: &'a SparseMultilinearExtension<N>) -> Self::Output {
+    fn sub(self, rhs: &'a SparseMultilinearExtension<I>) -> Self::Output {
         self + &rhs.clone().neg()
     }
 }
-impl<const N: usize> SubAssign for SparseMultilinearExtension<N> {
-    fn sub_assign(&mut self, other: SparseMultilinearExtension<N>) {
+impl<const I: usize> SubAssign for SparseMultilinearExtension<I> {
+    fn sub_assign(&mut self, other: SparseMultilinearExtension<I>) {
         *self = &*self - &other;
     }
 }
-impl<'a, const N: usize> SubAssign<&'a SparseMultilinearExtension<N>>
-    for SparseMultilinearExtension<N>
+impl<'a, const I: usize> SubAssign<&'a SparseMultilinearExtension<I>>
+    for SparseMultilinearExtension<I>
 {
-    fn sub_assign(&mut self, rhs: &'a SparseMultilinearExtension<N>) {
+    fn sub_assign(&mut self, rhs: &'a SparseMultilinearExtension<I>) {
         *self = &*self - rhs;
     }
 }
-impl<const N: usize> Index<usize> for SparseMultilinearExtension<N> {
-    type Output = Int<N>;
+impl<const I: usize> Index<usize> for SparseMultilinearExtension<I> {
+    type Output = Int<I>;
 
     /// Returns the evaluation of the polynomial at a point represented by
     /// index.
@@ -347,27 +347,27 @@ impl<const N: usize> Index<usize> for SparseMultilinearExtension<N> {
     /// For Sparse multilinear polynomial, Lookup_evaluation takes log time to
     /// the size of polynomial.
     fn index(&self, index: usize) -> &Self::Output {
-        self.evaluations.get(&index).unwrap_or(&Int::<N>::ZERO)
+        self.evaluations.get(&index).unwrap_or(&Int::<I>::ZERO)
     }
 }
 
 /// Utilities
-fn tuples_to_treemap<const N: usize>(tuples: &[(usize, Int<N>)]) -> BTreeMap<usize, Int<N>> {
+fn tuples_to_treemap<const I: usize>(tuples: &[(usize, Int<I>)]) -> BTreeMap<usize, Int<I>> {
     BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, *v)))
 }
 
-fn treemap_to_hashmap<const N: usize>(map: &BTreeMap<usize, Int<N>>) -> HashMap<usize, Int<N>> {
+fn treemap_to_hashmap<const I: usize>(map: &BTreeMap<usize, Int<I>>) -> HashMap<usize, Int<I>> {
     HashMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
-fn hashmap_to_treemap<const N: usize>(map: &HashMap<usize, Int<N>>) -> BTreeMap<usize, Int<N>> {
+fn hashmap_to_treemap<const I: usize>(map: &HashMap<usize, Int<I>>) -> BTreeMap<usize, Int<I>> {
     BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
 
 // precompute  f(x) = eq(g,x)
-fn precompute_eq<const N: usize>(g: &[Int<N>]) -> Vec<Int<N>> {
+fn precompute_eq<const I: usize>(g: &[Int<I>]) -> Vec<Int<I>> {
     let dim = g.len();
-    let mut dp = vec![Int::<N>::ZERO; 1 << dim];
-    dp[0] = Int::<N>::ONE - g[0];
+    let mut dp = vec![Int::<I>::ZERO; 1 << dim];
+    dp[0] = Int::<I>::ONE - g[0];
     dp[1] = g[0];
     for i in 1..dim {
         for b in 0..1 << i {

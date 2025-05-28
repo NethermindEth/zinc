@@ -29,10 +29,10 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'cfg, 'a, const N: usize>(
+pub(super) fn validate_input<'cfg, 'a, const I: usize, const N: usize>(
     function: &str,
     param_num_vars: usize,
-    polys: impl Iterable<Item = &'a MLE_Z<N>>,
+    polys: impl Iterable<Item = &'a MLE_Z<I>>,
     points: impl Iterable<Item = &'a [F<'cfg, N>]>,
 ) -> Result<(), Error>
 where
@@ -246,9 +246,9 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<const N: usize, const M: usize>(
+    pub fn open_at_column<const N: usize, const I: usize, const M: usize>(
         column: usize,
-        commit_data: &MultilinearZipData<N, M>,
+        commit_data: &MultilinearZipData<I, M>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {

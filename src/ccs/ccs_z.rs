@@ -15,9 +15,9 @@ use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
-pub trait Arith_Z<const N: usize> {
+pub trait Arith_Z<const I: usize> {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<Int<N>>], z: &[Int<N>]) -> Result<(), Error>;
+    fn check_relation(&self, M: &[SparseMatrix<Int<I>>], z: &[Int<I>]) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
     /// public inputs, etc, without the matrices/polynomials values.
@@ -27,7 +27,7 @@ pub trait Arith_Z<const N: usize> {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug, Clone, PartialEq)]
-pub struct CCS_Z<const N: usize> {
+pub struct CCS_Z<const I: usize> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -50,10 +50,10 @@ pub struct CCS_Z<const N: usize> {
     pub c: Vec<i64>,
 }
 
-impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
+impl<const I: usize> Arith_Z<I> for CCS_Z<I> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
-    fn check_relation(&self, M: &[SparseMatrix<Int<N>>], z: &[Int<N>]) -> Result<(), Error> {
-        let mut result = vec![Int::<N>::zero(); self.m];
+    fn check_relation(&self, M: &[SparseMatrix<Int<I>>], z: &[Int<I>]) -> Result<(), Error> {
+        let mut result = vec![Int::<I>::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.m,
@@ -68,18 +68,18 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
         }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
-            let vec_M_j: Vec<&SparseMatrix<Int<N>>> = self.S[i].iter().map(|j| &M[*j]).collect();
+            let vec_M_j: Vec<&SparseMatrix<Int<I>>> = self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
-            let mut hadamard_result = vec![Int::<N>::ONE; self.m];
+            let mut hadamard_result = vec![Int::<I>::ONE; self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, Int::<N>::zero());
+                res.resize(self.m, Int::<I>::zero());
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
             // multiply by the coefficient of this step
-            let c_M_j_z = vec_scalar_mul(&hadamard_result, &(Int::<N>::from(self.c[i])));
+            let c_M_j_z = vec_scalar_mul(&hadamard_result, &(Int::<I>::from(self.c[i])));
 
             // add it to the final vector
             result = vec_add(&result, &c_M_j_z)?;
@@ -88,7 +88,7 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
         // make sure the final vector is all zeroes
         result
             .iter()
-            .all(|item| *item == Int::<N>::zero())
+            .all(|item| *item == Int::<I>::zero())
             .then_some(())
             .ok_or(Error::NotSatisfied)
     }
@@ -106,8 +106,8 @@ impl<const N: usize> Arith_Z<N> for CCS_Z<N> {
     }
 }
 
-impl<const N: usize> CCS_Z<N> {
-    pub fn pad(&mut self, statement: &mut Statement_Z<N>, size: usize) {
+impl<const I: usize> CCS_Z<I> {
+    pub fn pad(&mut self, statement: &mut Statement_Z<I>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
             let log_m = log2(size) as usize;
@@ -120,7 +120,7 @@ impl<const N: usize> CCS_Z<N> {
             statement
                 .constraints
                 .iter_mut()
-                .for_each(|mat: &mut SparseMatrix<Int<N>>| {
+                .for_each(|mat: &mut SparseMatrix<Int<I>>| {
                     mat.pad_cols(size);
                     mat.pad_rows(size);
                 });
@@ -128,7 +128,7 @@ impl<const N: usize> CCS_Z<N> {
     }
 }
 
-impl<'cfg, const N: usize> FieldMap<'cfg, N> for CCS_Z<N> {
+impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for CCS_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = CCS_F<'cfg, N>;
 
@@ -157,7 +157,7 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<'cfg, const N: usize> FieldMap<'cfg, N> for Statement_Z<N> {
+impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for Statement_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Statement_F<'cfg, N>;
 
@@ -304,9 +304,9 @@ pub(crate) fn get_test_wit_Z<const N: usize>(input: i64) -> Witness_Z<N> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_stuff_Z<const N: usize>(
+pub(crate) fn get_test_ccs_stuff_Z<const I: usize>(
     input: i64,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>, Vec<Int<N>>) {
+) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>, Vec<Int<I>>) {
     let mut ccs = get_test_ccs_Z();
     let mut statement = get_test_ccs_Z_statement(input);
     let witness = get_test_wit_Z(input);

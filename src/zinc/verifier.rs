@@ -19,36 +19,36 @@ use crate::{
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
-pub trait Verifier<const N: usize> {
+pub trait Verifier<const I: usize, const N: usize> {
     fn verify<'cfg>(
         &self,
-        cm_i: &Statement_Z<N>,
-        proof: ZincProof<'cfg, N>,
+        cm_i: &Statement_Z<I>,
+        proof: ZincProof<'cfg, I, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:;
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:;
 }
 
-impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier<I, N, S> {
     fn verify<'cfg>(
         &self,
-        statement: &Statement_Z<N>,
-        proof: ZincProof<'cfg, N>,
+        statement: &Statement_Z<I>,
+        proof: ZincProof<'cfg, I, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<N>,
+        ccs: &CCS_Z<I>,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), ZincError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
-        if draw_random_field::<N>(&statement.public_input, transcript) != *config {
+        if draw_random_field::<I, N>(&statement.public_input, transcript) != *config {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
@@ -56,7 +56,7 @@ impl<const N: usize, S: ZipSpec> Verifier<N> for ZincVerifier<N, S> {
         let statement_f = statement.map_to_field(ConfigRef::from(config));
 
         let verification_points =
-            SpartanVerifier::<N>::verify(self, &proof.spartan_proof, transcript, &ccs_F, config)
+            SpartanVerifier::<N>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
                 .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
@@ -91,18 +91,20 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<'cfg, N>,
+        transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError<N>>;
 }
 
-impl<'cfg, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N> for ZincVerifier<N, S> {
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
+    for ZincVerifier<I, N, S>
+{
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        transcript: &mut KeccakTranscript,
         ccs: &CCS_F<'cfg, N>,
+        transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError<N>> {
         // Step 1: Generate the beta challenges.
@@ -135,7 +137,7 @@ impl<'cfg, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N> for ZincVerifier
     }
 }
 
-impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
+impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_linearization_proof<'cfg>(
         &self,
         proof: &SumcheckProof<'cfg, N>,
@@ -226,25 +228,25 @@ impl<const N: usize, S: ZipSpec> ZincVerifier<N, S> {
     fn verify_pcs_proof<'cfg>(
         &self,
         cm_i: &Statement_F<'cfg, N>,
-        zip_proof: &ZipProof<'cfg, N>,
+        zip_proof: &ZipProof<'cfg, I, N>,
         verification_points: &VerificationPoints<'cfg, N>,
         ccs: &CCS_F<'cfg, N>,
         transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), SpartanError<N>>
     where
-        [(); 2 * N]:,
-        [(); 4 * N]:,
-        [(); 8 * N]:,
+        [(); 2 * I]:,
+        [(); 4 * I]:,
+        [(); 8 * I]:,
     {
         let param =
-            MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::setup(
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::setup(
                 ccs.m, transcript,
             );
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<N, { 2 * N }, { 4 * N }, { 8 * N }, S, KeccakTranscript>::verify(
+        MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,

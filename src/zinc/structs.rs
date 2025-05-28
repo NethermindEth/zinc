@@ -23,19 +23,19 @@ pub struct SpartanProof<'cfg, const N: usize> {
     pub V_s: Vec<RandomField<'cfg, N>>,
 }
 
-pub struct ZipProof<'cfg, const N: usize> {
-    pub z_comm: MultilinearZipCommitment<N>,
+pub struct ZipProof<'cfg, const I: usize, const N: usize> {
+    pub z_comm: MultilinearZipCommitment<I>,
     pub v: RandomField<'cfg, N>,
     pub pcs_proof: Vec<u8>,
 }
 
-pub struct ZincProof<'cfg, const N: usize> {
+pub struct ZincProof<'cfg, const I: usize, const N: usize> {
     pub spartan_proof: SpartanProof<'cfg, N>,
-    pub zip_proof: ZipProof<'cfg, N>,
+    pub zip_proof: ZipProof<'cfg, I, N>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
-pub struct ZincProver<const N: usize, S>
+pub struct ZincProver<const I: usize, const N: usize, S>
 where
     S: ZipSpec,
 {
@@ -43,7 +43,7 @@ where
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<const N: usize, S>
+pub struct ZincVerifier<const I: usize, const N: usize, S>
 where
     S: ZipSpec,
 {

@@ -5,7 +5,7 @@ use crypto_bigint::Int;
 use sha3::{digest::Output, Keccak256};
 
 use crate::{
-    poly_z::mle::DenseMultilinearExtension,
+    poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
 
@@ -120,18 +120,18 @@ pub trait ZipTranscript<const L: usize> {
         count: usize,
     ) -> usize;
 }
-impl<const N: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<N, L, K, M, S, T>
+impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
+    MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub type Param = MultilinearZipParams<N, L>;
-    pub type ProverParam = MultilinearZipParams<N, L>;
-    pub type VerifierParam = MultilinearZipParams<N, L>;
-    pub type Polynomial = DenseMultilinearExtension<N>;
-    pub type Data = MultilinearZipData<N, K>;
-    pub type Commitment = MultilinearZipCommitment<N>;
+    pub type Param = MultilinearZipParams<I, L>;
+    pub type ProverParam = MultilinearZipParams<I, L>;
+    pub type VerifierParam = MultilinearZipParams<I, L>;
+    pub type Polynomial = DenseMultilinearExtensionZ<I>;
+    pub type Data = MultilinearZipData<I, K>;
+    pub type Commitment = MultilinearZipCommitment<I>;
     pub type CommitmentChunk = Output<Keccak256>;
 
     pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {
@@ -141,7 +141,7 @@ where
 
         MultilinearZipParams {
             num_vars,
-            num_rows: ((1 << num_vars) / <Zip<N, L> as LinearCodes<N, M>>::row_len(&zip))
+            num_rows: ((1 << num_vars) / <Zip<I, L> as LinearCodes<I, M>>::row_len(&zip))
                 .next_power_of_two(),
             zip,
         }

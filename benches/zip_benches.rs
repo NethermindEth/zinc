@@ -16,8 +16,16 @@ use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use zinc::zip::code::ZipSpec1;
 use zinc::zip::pcs::structs::MultilinearZip;
 use zinc::zip::pcs_transcript::PcsTranscript;
-const N: usize = 4;
-type BenchZip = MultilinearZip<N, { 2 * N }, { 4 * N }, { 8 * N }, ZipSpec1, KeccakTranscript>;
+const INT_LIMBS: usize = 1;
+const FIELD_LIMBS: usize = 4;
+type BenchZip = MultilinearZip<
+    INT_LIMBS,
+    { 2 * INT_LIMBS },
+    { 4 * INT_LIMBS },
+    { 8 * INT_LIMBS },
+    ZipSpec1,
+    KeccakTranscript,
+>;
 
 fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
@@ -26,14 +34,14 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     group.bench_function(
-        format!("Commit: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
+        format!("Commit: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = BenchZip::commit(&params, &poly).expect("Failed to commit");
+                    let _ = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -45,7 +53,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 
 fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let config = FieldConfig::new(BigInt::<FIELD_LIMBS>::from_str(modulus).unwrap());
     let field_config = ConfigRef::from(&config);
 
     type T = KeccakTranscript;
@@ -53,11 +61,11 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, _) = BenchZip::commit(&params, &poly).unwrap();
+    let (data, _) = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
-        format!("Open: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
+        format!("Open: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
@@ -82,7 +90,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 }
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
-    let config = FieldConfig::new(BigInt::<N>::from_str(modulus).unwrap());
+    let config = FieldConfig::new(BigInt::<FIELD_LIMBS>::from_str(modulus).unwrap());
     let field_config = ConfigRef::from(&config);
 
     type T = KeccakTranscript;
@@ -90,7 +98,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, commitment) = BenchZip::commit(&params, &poly).unwrap();
+    let (data, commitment) = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::new();
@@ -108,7 +116,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let proof = transcript.into_proof();
 
     group.bench_function(
-        format!("Verify: RandomField<{N}>, poly_size = 2^{P}, ZipSpec{spec}, modulus={modulus}"),
+        format!("Verify: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;

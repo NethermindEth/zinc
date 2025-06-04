@@ -8,6 +8,9 @@ use ark_std::vec::Vec;
 use crypto_bigint::Int;
 use sha3::{digest::Output, Digest, Keccak256};
 
+use super::error::MerkleError;
+use super::structs::MultilinearZipData;
+use crate::primitives::Signed;
 use crate::{
     field::RandomField as F,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
@@ -19,9 +22,6 @@ use crate::{
         Error,
     },
 };
-
-use super::error::MerkleError;
-use super::structs::MultilinearZipData;
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
     Error::InvalidPcsParam(
@@ -77,20 +77,24 @@ pub trait ToBytes {
 }
 
 // Macro to implement ToBytes for integer types
-macro_rules! impl_to_bytes {
-    ($($t:ty),*) => {
-        $(
-            impl ToBytes for $t {
-                fn to_bytes(&self) -> Vec<u8> {
-                    self.to_be_bytes().to_vec()
-                }
-            }
-        )*
+// macro_rules! impl_to_bytes {
+//     ($($t:ty),*) => {
+//         $(
+//             impl ToBytes for $t {
+//                 fn to_bytes(&self) -> Vec<u8> {
+//                     self.to_be_bytes().to_vec()
+//                 }
+//             }
+//         )*
+//     }
+// }
+
+impl<T: Signed> ToBytes for T {
+    fn to_bytes(&self) -> Vec<u8> {
+        <Self as Signed>::to_be_bytes(self)
     }
 }
 
-// Implement ToBytes for various integer types
-impl_to_bytes!(i8, i32, i64, i128);
 // Manual impl for generic type
 impl<const N: usize> ToBytes for Int<N> {
     fn to_bytes(&self) -> Vec<u8> {

@@ -1,4 +1,5 @@
 //! Provides error functionality for constraint systems.
+use ark_std::string::String;
 use thiserror::Error;
 
 /// Errors that can arise in constraint system calculations

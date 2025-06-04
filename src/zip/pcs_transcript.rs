@@ -1,7 +1,9 @@
 #![allow(non_snake_case)]
 use crate::field_config::ConfigRef;
-use std::io::{Cursor, Read, Write};
-
+use crate::poly::alloc::string::ToString;
+use ark_std::io::{Cursor, Read, Write};
+use ark_std::vec;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
 
 use sha3::digest::Output;
@@ -192,6 +194,7 @@ impl<const N: usize> PcsTranscript<N> {
 #[allow(unused_macros)]
 macro_rules! test_read_write {
     ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {{
+        use ark_std::format;
         let mut transcript = PcsTranscript::<N>::new();
         transcript
             .$write_fn(&$original_value)
@@ -212,6 +215,7 @@ macro_rules! test_read_write {
 #[allow(unused_macros)]
 macro_rules! test_read_write_vec {
     ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {{
+        use ark_std::format;
         let mut transcript = PcsTranscript::<N>::new();
         transcript
             .$write_fn(&$original_values)

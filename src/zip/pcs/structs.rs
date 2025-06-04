@@ -1,4 +1,5 @@
-use std::{collections::BTreeSet, marker::PhantomData};
+use ark_std::vec::Vec;
+use ark_std::{collections::BTreeSet, marker::PhantomData};
 
 use crypto_bigint::Int;
 
@@ -115,7 +116,7 @@ pub trait ZipTranscript<const L: usize> {
     fn get_encoding_element(&mut self) -> Int<L>;
     fn sample_unique_columns(
         &mut self,
-        range: std::ops::Range<usize>,
+        range: ark_std::ops::Range<usize>,
         columns: &mut BTreeSet<usize>,
         count: usize,
     ) -> usize;

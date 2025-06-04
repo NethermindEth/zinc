@@ -1,8 +1,9 @@
 #![allow(non_snake_case)]
 use ark_ff::One;
+use ark_std::vec::Vec;
 use ark_std::{log2, rand::Rng};
+use ark_std::{sync::atomic::AtomicPtr, vec};
 use crypto_bigint::{Int, Random};
-use std::{sync::atomic::AtomicPtr, vec};
 
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},

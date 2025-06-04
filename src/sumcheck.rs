@@ -1,4 +1,5 @@
 use crate::field_config::ConfigRef;
+use ark_std::vec::Vec;
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
@@ -130,7 +131,7 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
 #[cfg(test)]
 mod tests {
 
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     use ark_std::rand;
 

@@ -10,9 +10,8 @@ use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
     rand::{Rng, RngCore},
-    start_timer,
-    string::ToString,
-    vec::*,
+    start_timer, vec,
+    vec::Vec,
 };
 
 #[cfg(feature = "parallel")]
@@ -93,7 +92,7 @@ pub fn eq_eval<'cfg, const N: usize>(
 ) -> Result<RandomField<'cfg, N>, ArithErrors> {
     if x.len() != y.len() {
         return Err(ArithErrors::InvalidParameters(
-            "x and y have different length".to_string(),
+            "x and y have different length".into(),
         ));
     }
     let start = start_timer!(|| "eq_eval");
@@ -156,7 +155,7 @@ fn build_eq_x_r_helper<'cfg, const N: usize>(
     buf: &mut Vec<RandomField<'cfg, N>>,
 ) -> Result<(), ArithErrors> {
     if r.is_empty() {
-        return Err(ArithErrors::InvalidParameters("r length is 0".to_string()));
+        return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
         buf.push(RandomField::one() - r[0]);

@@ -5,7 +5,7 @@ use ark_std::rand::Rng;
 use ark_std::{
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
-    vec::*,
+    vec::Vec,
     Zero,
 };
 

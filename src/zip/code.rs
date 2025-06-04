@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use crate::field_config::ConfigRef;
 use ark_ff::Zero;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
 
 use crate::field::conversion::FieldMap;
@@ -9,9 +10,10 @@ use crate::zip::utils::expand;
 
 use ark_std::fmt::Debug;
 
+use ark_std::collections::BTreeSet;
+use ark_std::iter;
+use ark_std::vec;
 use itertools::Itertools;
-use std::collections::BTreeSet;
-use std::iter;
 
 use super::pcs::structs::ZipTranscript;
 const INVERSE_RATE: usize = 2;
@@ -169,8 +171,8 @@ pub struct SparseMatrixDimension {
     d: usize, // number of non-zero elements per row
 }
 
-impl std::fmt::Display for SparseMatrixDimension {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl ark_std::fmt::Display for SparseMatrixDimension {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         write!(
             f,
             "{}x{} matrix with {} non-zero elements per row",

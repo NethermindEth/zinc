@@ -5,7 +5,7 @@
 
 use crate::poly::{get_batched_nv, ArithErrors, RefCounter};
 pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
-use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
+use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 use crypto_bigint::{Int, Random};
 
 /// Sample a random list of multilinear polynomials.
@@ -211,7 +211,7 @@ pub fn merge_polynomials<const N: usize>(
     for poly in polynomials.iter() {
         if nv != poly.num_vars() {
             return Err(ArithErrors::InvalidParameters(
-                "num_vars do not match for polynomials".to_string(),
+                "num_vars do not match for polynomials".into(),
             ));
         }
     }

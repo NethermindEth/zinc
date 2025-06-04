@@ -205,8 +205,8 @@ impl<const N: usize> FieldConfig<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for FieldConfig<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> ark_std::fmt::Debug for FieldConfig<N> {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         write!(f, " Z_{}", self.modulus,)
     }
 }
@@ -290,7 +290,7 @@ impl<'cfg, const N: usize> ConfigRef<'cfg, N> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     use crate::biginteger::{BigInteger128, BigInteger256};
 

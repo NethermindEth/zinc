@@ -4,7 +4,6 @@ use crate::field_config::ConfigRef;
 use ark_ff::vec::*;
 use ark_ff::Zero;
 use ark_std::rand::Rng;
-use crypto_bigint::Int;
 use crypto_bigint::Random;
 
 use crate::{field::conversion::FieldMap, field::RandomField};
@@ -35,32 +34,17 @@ impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMa
 }
 
 // At the moment only using i128 for the sparse matrix, macro later if needed
-macro_rules! impl_field_map_sparse_matrix {
-    ($type:ty) => {
-        impl<'cfg, const N: usize> FieldMap<'cfg, N> for SparseMatrix<$type> {
-            type Cfg = ConfigRef<'cfg, N>;
-            type Output = SparseMatrix<RandomField<'cfg, N>>;
-            fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
-                let mut matrix = SparseMatrix::<RandomField<N>> {
-                    n_rows: self.n_rows,
-                    n_cols: self.n_cols,
-                    coeffs: Vec::new(),
-                };
-                for row in self.coeffs.iter() {
-                    let mut new_row = Vec::new();
-                    for (value, col) in row.iter() {
-                        new_row.push((value.map_to_field(config), *col));
-                    }
-                    matrix.coeffs.push(new_row);
-                }
-                matrix
-            }
-        }
-    };
-}
-impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<Int<M>> {
-    type Cfg = ConfigRef<'cfg, N>;
-    type Output = SparseMatrix<RandomField<'cfg, N>>;
+
+impl<
+        'cfg,
+        const N: usize,
+        T: FieldMap<'cfg, N, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
+    > FieldMap<'cfg, N> for SparseMatrix<T>
+where
+    <T as FieldMap<'cfg, N>>::Output: Clone + Send + Sync,
+{
+    type Cfg = T::Cfg;
+    type Output = SparseMatrix<T::Output>;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
@@ -77,8 +61,6 @@ impl<'cfg, const N: usize, const M: usize> FieldMap<'cfg, N> for SparseMatrix<In
         matrix
     }
 }
-impl_field_map_sparse_matrix!(i64);
-impl_field_map_sparse_matrix!(i128);
 
 impl<R: Copy + Send + Sync + Zero + Random> SparseMatrix<R> {
     pub fn empty() -> Self {

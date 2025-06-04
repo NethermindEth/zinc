@@ -645,7 +645,7 @@ impl<const N: usize> FromStr for BigInt<N> {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let biguint = BigUint::from_str(s).map_err(|_| ())?;
+        let biguint = BigUint::from_str(s).unwrap();
         Self::try_from(biguint)
     }
 }

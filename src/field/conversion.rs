@@ -1,6 +1,7 @@
+use ark_std::cmp::Ordering;
+use ark_std::mem::transmute_copy;
+use ark_std::vec::Vec;
 use crypto_bigint::{Int, NonZero, Uint};
-use std::cmp::Ordering;
-use std::mem::transmute_copy;
 
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
@@ -255,7 +256,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
         let modulus: [u64; N] = config.modulus.0;
 
         let mut r: BigInt<N> = match M.cmp(&N) {
-            std::cmp::Ordering::Less => {
+            ark_std::cmp::Ordering::Less => {
                 let mut wider_value = [0u64; N];
                 wider_value[..M].copy_from_slice(&self.0);
                 let mut value = Uint::from_words(wider_value);
@@ -267,7 +268,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 
                 BigInt(result)
             }
-            std::cmp::Ordering::Equal => {
+            ark_std::cmp::Ordering::Equal => {
                 let mut value = Uint::<M>::from_words(self.0);
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
@@ -279,7 +280,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 
                 BigInt(result)
             }
-            std::cmp::Ordering::Greater => {
+            ark_std::cmp::Ordering::Greater => {
                 let mut value = Uint::<M>::from_words(self.0);
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
@@ -343,7 +344,8 @@ mod tests {
     use crate::field_config::{ConfigRef, FieldConfig};
     use crate::traits::FromBytes;
     use crate::{biginteger::BigInt, field::RandomField};
-    use std::str::FromStr;
+    use ark_std::format;
+    use ark_std::str::FromStr;
 
     fn test_from<'cfg, T: Clone, const N: usize>(value: T, value_str: &str)
     where
@@ -569,7 +571,7 @@ mod tests {
             );
 
             // Test maximum value
-            let max = <$type>::from_str(&<$type>::MAX.to_string()).unwrap();
+            let max = <$type>::from_str(&format!("{}", <$type>::MAX)).unwrap();
             let max_result = max.map_to_field($config);
             assert!(
                 max_result.into_bigint() < BigInt::<$N>::from($field),
@@ -577,7 +579,7 @@ mod tests {
             );
 
             // Test minimum value
-            let min = -<$type>::from_str(&<$type>::MAX.to_string()).unwrap();
+            let min = -<$type>::from_str(&format!("{}", <$type>::MAX)).unwrap();
             assert!(
                 min.map_to_field($config).into_bigint() < BigInt::<$N>::from($field),
                 "Minimum value should wrap to valid field element"
@@ -740,7 +742,7 @@ mod tests {
 mod bigint_field_map_tests {
     use super::*;
     use crate::field_config::FieldConfig;
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     #[test]
     fn test_bigint_smaller_than_field() {

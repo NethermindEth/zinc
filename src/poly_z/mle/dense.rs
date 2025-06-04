@@ -7,8 +7,8 @@ use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
     ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign},
-    rand,
-    vec::*,
+    rand, vec,
+    vec::Vec,
 };
 use crypto_bigint::{Int, Random};
 #[cfg(feature = "parallel")]
@@ -471,7 +471,7 @@ fn build_eq_x_r_helper<const I: usize>(
     buf: &mut Vec<Int<I>>,
 ) -> Result<(), ArithErrors> {
     if r.is_empty() {
-        return Err(ArithErrors::InvalidParameters("r length is 0".to_string()));
+        return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
         buf.push(Int::<I>::ONE - r[0]);

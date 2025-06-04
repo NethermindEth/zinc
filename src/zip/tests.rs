@@ -8,8 +8,10 @@ use crate::{
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 use ark_ff::UniformRand;
+use ark_std::str::FromStr;
+use ark_std::vec;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
-use std::str::FromStr;
 
 const I: usize = 1;
 const N: usize = 2;

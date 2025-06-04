@@ -178,7 +178,7 @@ mod test {
         field_config::{ConfigRef, FieldConfig},
     };
     use ark_ff::{One, Zero};
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     #[test]
     fn test_add_wrapping_around_modulus() {
@@ -587,7 +587,7 @@ mod test {
 
     #[test]
     fn test_sum_empty_iterator() {
-        let sum: RandomField<1> = std::iter::empty::<&RandomField<1>>().sum();
+        let sum: RandomField<1> = ark_std::iter::empty::<&RandomField<1>>().sum();
         assert!(sum.is_zero()); // Empty sum should return zero
     }
 
@@ -683,7 +683,7 @@ mod test {
 
     #[test]
     fn test_product_empty_iterator() {
-        let product: RandomField<1> = std::iter::empty::<&RandomField<1>>().product();
+        let product: RandomField<1> = ark_std::iter::empty::<&RandomField<1>>().product();
         assert!(product.is_one()); // Empty product should return one
     }
 

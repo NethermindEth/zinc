@@ -1,4 +1,5 @@
 use crate::field_config::ConfigRef;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
@@ -165,7 +166,7 @@ impl KeccakTranscript {
     pub fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
-    fn get_usize_in_range(&mut self, range: &std::ops::Range<usize>) -> usize {
+    fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
         let challenge = self.hasher.clone().finalize();
 
         self.hasher.update([0x88]);
@@ -183,8 +184,8 @@ impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
 
     fn sample_unique_columns(
         &mut self,
-        range: std::ops::Range<usize>,
-        columns: &mut std::collections::BTreeSet<usize>,
+        range: ark_std::ops::Range<usize>,
+        columns: &mut ark_std::collections::BTreeSet<usize>,
         count: usize,
     ) -> usize {
         let mut added = 0;
@@ -199,7 +200,7 @@ impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
 }
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     use super::KeccakTranscript;
     use crate::field_config::ConfigRef;

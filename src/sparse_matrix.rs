@@ -1,9 +1,11 @@
 #![allow(non_snake_case)]
 
 use crate::field_config::ConfigRef;
-use ark_ff::vec::*;
+use crate::poly::alloc::string::ToString;
 use ark_ff::Zero;
 use ark_std::rand::Rng;
+use ark_std::vec;
+use ark_std::vec::Vec;
 use crypto_bigint::Random;
 
 use crate::{field::conversion::FieldMap, field::RandomField};
@@ -15,15 +17,15 @@ pub struct SparseMatrix<R1: Clone + Send + Sync> {
     pub coeffs: Vec<Vec<(R1, usize)>>,
 }
 
-impl<R1: Clone + Send + Sync + std::fmt::Display> std::fmt::Display for SparseMatrix<R1> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for SparseMatrix<R1> {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         for i in 0..self.n_rows {
-            let mut row = vec!["0".to_string(); self.n_cols];
+            let mut row = vec!["0".into(); self.n_cols];
             if i < self.coeffs.len() {
                 for (val, col) in &self.coeffs[i] {
                     row[*col] = val.to_string().trim_start_matches('0').to_string();
                     if row[*col].is_empty() {
-                        row[*col] = "0".to_string();
+                        row[*col] = "0".into();
                     }
                 }
             }

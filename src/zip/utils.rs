@@ -1,4 +1,6 @@
-use std::ops::{Add, Mul};
+use ark_std::ops::{Add, Mul};
+use ark_std::vec;
+use ark_std::vec::Vec;
 
 use crypto_bigint::Int;
 use num_integer::Integer;
@@ -75,8 +77,8 @@ where
         + Default
         + Send
         + Sync
-        + for<'b> std::ops::AddAssign<&'b F>
-        + for<'b> std::ops::Mul<&'b F, Output = F>,
+        + for<'b> ark_std::ops::AddAssign<&'b F>
+        + for<'b> ark_std::ops::Mul<&'b F, Output = F>,
     C: IntoIterator<Item = F> + Sync,
     E: IntoIterator<Item = F> + Sync,
     C::IntoIter: Clone + Send + Sync,

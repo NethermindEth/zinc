@@ -1,3 +1,4 @@
+use ark_std::string::String;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

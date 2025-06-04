@@ -5,7 +5,7 @@
 
 use crate::field_config::ConfigRef;
 use ark_ff::{One, UniformRand, Zero};
-use ark_std::{end_timer, rand::RngCore, start_timer, string::ToString, vec::*};
+use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 
 use super::RefCounter;
 use crate::poly::{get_batched_nv, ArithErrors};
@@ -248,7 +248,7 @@ pub fn merge_polynomials<'cfg, const N: usize>(
     for poly in polynomials.iter() {
         if nv != poly.num_vars() {
             return Err(ArithErrors::InvalidParameters(
-                "num_vars do not match for polynomials".to_string(),
+                "num_vars do not match for polynomials".into(),
             ));
         }
     }

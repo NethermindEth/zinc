@@ -1,4 +1,5 @@
 #![allow(clippy::enum_variant_names)]
+use ark_std::string::String;
 use thiserror::Error;
 
 use crate::poly::ArithErrors;

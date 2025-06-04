@@ -2,6 +2,7 @@
 
 use crate::field_config::ConfigRef;
 use ark_ff::Zero;
+use ark_std::vec::Vec;
 use bytemuck::cast_slice;
 use crypto_bigint::Int;
 

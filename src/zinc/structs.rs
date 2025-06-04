@@ -1,4 +1,5 @@
-use std::marker::PhantomData;
+use ark_std::marker::PhantomData;
+use ark_std::vec::Vec;
 
 use crate::{
     field::RandomField,

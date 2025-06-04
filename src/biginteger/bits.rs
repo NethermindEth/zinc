@@ -86,6 +86,7 @@ impl<Slice: AsRef<[u64]>> BitIteratorLE<Slice> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_std::vec;
     use ark_std::vec::Vec;
 
     #[test]

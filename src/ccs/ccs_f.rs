@@ -2,7 +2,9 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use std::sync::atomic::{AtomicPtr, Ordering};
+use ark_std::sync::atomic::{AtomicPtr, Ordering};
+use ark_std::vec;
+use ark_std::vec::Vec;
 
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::rand;
@@ -253,7 +255,7 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigRef<N>) -> Vec<Random
 pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<N> {
     use crate::field::conversion::FieldMap;
     use ark_std::log2;
-    use std::ops::Neg;
+    use ark_std::ops::Neg;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -347,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_ccs_f() {
-        use std::str::FromStr;
+        use ark_std::str::FromStr;
 
         const N: usize = 2;
         let config = FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
@@ -365,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_dummy_ccs_f() {
-        use std::str::FromStr;
+        use ark_std::str::FromStr;
 
         const N: usize = 2;
         let config = FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());

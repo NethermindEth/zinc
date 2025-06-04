@@ -1,4 +1,5 @@
 use ark_ff::Zero;
+use ark_std::vec::Vec;
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
@@ -273,7 +274,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * zip_proof.v;
         if V_x_gamma != verification_points.e_y {
             return Err(SpartanError::PCSVerificationError(
-                "linear combination of powers of gamma and V_x != e_y".to_string(),
+                "linear combination of powers of gamma and V_x != e_y".into(),
             ));
         }
 

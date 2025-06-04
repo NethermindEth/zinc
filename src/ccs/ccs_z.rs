@@ -2,7 +2,9 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use std::sync::atomic::AtomicPtr;
+use ark_std::sync::atomic::AtomicPtr;
+use ark_std::vec;
+use ark_std::vec::Vec;
 
 use ark_std::log2;
 
@@ -318,7 +320,8 @@ pub(crate) fn get_test_ccs_stuff_Z<const I: usize>(
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
+    use ark_std::vec::Vec;
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
     use crate::field_config::ConfigRef;

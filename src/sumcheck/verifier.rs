@@ -1,6 +1,7 @@
 //! Verifier
 use crate::field_config::ConfigRef;
 use ark_ff::One;
+use ark_std::vec;
 use ark_std::vec::Vec;
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};

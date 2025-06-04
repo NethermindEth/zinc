@@ -1,9 +1,9 @@
 //! Prover
 
 use crate::field_config::ConfigRef;
-use std::sync::atomic::{self, AtomicPtr};
+use ark_std::sync::atomic::{self, AtomicPtr};
 
-use ark_std::{cfg_into_iter, cfg_iter_mut, vec::Vec};
+use ark_std::{cfg_into_iter, cfg_iter_mut, vec, vec::Vec};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 

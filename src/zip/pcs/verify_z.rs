@@ -1,4 +1,5 @@
 use ark_std::iterable::Iterable;
+use ark_std::vec::Vec;
 
 use crypto_bigint::Int;
 
@@ -125,7 +126,7 @@ where
         };
 
         if column_entries_comb != encoded_combined_row[column] {
-            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            return Err(Error::InvalidPcsOpen("Proximity failure".into()));
         }
         Ok(())
     }
@@ -148,7 +149,7 @@ where
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
             return Err(Error::InvalidPcsOpen(
-                "Evaluation consistency failure".to_string(),
+                "Evaluation consistency failure".into(),
             ));
         }
         for (column_idx, column_values) in columns_opened.iter() {
@@ -184,7 +185,7 @@ where
                 .map_to_field(ConfigRef::from(field))
         };
         if column_entries_comb != encoded_q_0_combined_row[column] {
-            return Err(Error::InvalidPcsOpen("Proximity failure".to_string()));
+            return Err(Error::InvalidPcsOpen("Proximity failure".into()));
         }
 
         Ok(())

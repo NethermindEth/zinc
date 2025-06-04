@@ -6,7 +6,7 @@ pub use errors::ArithErrors;
 
 pub use util::get_batched_nv;
 
-extern crate alloc;
+pub(crate) extern crate alloc;
 
 // ark-std v0.5 should re-export alloc/std::sync.
 // While already released on crates.io, related versioning changes were reverted on the GitHub repo.

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use ark_std::str::FromStr;
 
 use crypto_bigint::{Int, Zero};
 
@@ -30,7 +30,7 @@ fn test_dummy_spartan_prover() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -63,7 +63,7 @@ fn test_spartan_verifier() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -82,7 +82,7 @@ fn test_spartan_verifier() {
     .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
@@ -110,7 +110,7 @@ fn test_dummy_spartan_verifier() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -129,7 +129,7 @@ fn test_dummy_spartan_verifier() {
     .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
@@ -159,7 +159,7 @@ fn test_failing_spartan_verifier() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let prover = ZincProver::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -178,7 +178,7 @@ fn test_failing_spartan_verifier() {
     .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 

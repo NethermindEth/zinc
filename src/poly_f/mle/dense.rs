@@ -7,8 +7,8 @@ use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
     ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign},
-    rand,
-    vec::*,
+    rand, vec,
+    vec::Vec,
 };
 #[cfg(feature = "parallel")]
 use rayon::iter::*;

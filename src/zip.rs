@@ -6,6 +6,7 @@ pub mod utils;
 #[cfg(test)]
 mod tests;
 
+use ark_std::string::String;
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]
 pub enum Error {
@@ -18,5 +19,5 @@ pub enum Error {
     #[error("Serialization Error: {0}")]
     Serialization(String),
     #[error("Transcript failure: {1}")]
-    Transcript(std::io::ErrorKind, String),
+    Transcript(ark_std::io::ErrorKind, String),
 }

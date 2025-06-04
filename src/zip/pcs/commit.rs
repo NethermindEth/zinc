@@ -1,4 +1,6 @@
 use ark_std::iterable::Iterable;
+use ark_std::vec;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
 
 use crate::{

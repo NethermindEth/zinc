@@ -1,7 +1,8 @@
 use crate::field_config::ConfigRef;
 use ark_ff::Zero;
+use ark_std::sync::atomic::Ordering;
+use ark_std::vec::Vec;
 use crypto_bigint::Int;
-use std::sync::atomic::Ordering;
 
 use crate::{
     ccs::{

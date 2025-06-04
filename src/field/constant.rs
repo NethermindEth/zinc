@@ -48,7 +48,7 @@ impl<const N: usize> One for RandomField<'_, N> {
 
 impl<const N: usize> Zeroize for RandomField<'_, N> {
     fn zeroize(&mut self) {
-        unsafe { *self = std::mem::zeroed() }
+        unsafe { *self = ark_std::mem::zeroed() }
     }
 }
 

@@ -1,6 +1,9 @@
 use crate::field_config::ConfigRef;
 use ark_ff::Zero;
+use ark_std::format;
 use ark_std::iterable::Iterable;
+use ark_std::vec;
+use ark_std::vec::Vec;
 
 use crypto_bigint::Int;
 use sha3::{digest::Output, Digest, Keccak256};
@@ -163,8 +166,8 @@ pub struct MerkleProof {
     pub merkle_path: Vec<Output<Keccak256>>,
 }
 
-impl std::fmt::Display for MerkleProof {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl ark_std::fmt::Display for MerkleProof {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         writeln!(f, "Merkle Path:")?;
         for (i, hash) in self.merkle_path.iter().enumerate() {
             writeln!(f, "Level {}: {:?}", i, hash)?;
@@ -231,7 +234,7 @@ impl MerkleProof {
         }
         if current != root {
             return Err(MerkleError::InvalidMerkleProof(
-                "Merkle proof verification failed".to_string(),
+                "Merkle proof verification failed".into(),
             ));
         }
         Ok(())

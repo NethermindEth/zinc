@@ -18,7 +18,7 @@ use ark_std::{
         Rng,
     },
     str::FromStr,
-    vec::*,
+    vec::Vec,
     Zero,
 };
 use crypto_bigint::Int;

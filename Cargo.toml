@@ -29,7 +29,8 @@ zeroize = "1.8.1"
 
 
 [features]
-default = []
+default = ["std"]
+std = []
 asm = ["sha3/asm"]
 parallel = ["dep:rayon"]
 

@@ -58,7 +58,7 @@ impl KeccakTranscript {
                 let config = config.reference().expect("Field config cannot be none");
 
                 self.absorb(&[0x3]);
-                self.absorb(&config.modulus.to_bytes_be());
+                self.absorb(&config.modulus().to_bytes_be());
                 self.absorb(&[0x5]);
 
                 self.absorb(&[0x1]);
@@ -94,7 +94,7 @@ impl KeccakTranscript {
     ) -> RandomField<'cfg, N> {
         let (lo, hi) = self.get_challenge_limbs();
         let config = config.reference().expect("Field config cannot be none");
-        let modulus = config.modulus;
+        let modulus = config.modulus();
         let challenge_num_bits = modulus.num_bits() - 1;
         if N == 1 {
             let lo_mask = (1u64 << challenge_num_bits) - 1;

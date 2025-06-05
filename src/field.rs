@@ -4,10 +4,7 @@ use crate::field::conversion::FieldMap;
 use ark_ff::UniformRand;
 use crypto_bigint::Random;
 
-use crate::{
-    biginteger::BigInt,
-    field_config::{self, FieldConfig},
-};
+use crate::{biginteger::BigInt, field_config::FieldConfig};
 
 pub mod arithmetic;
 pub mod comparison;
@@ -226,9 +223,8 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
                 u64::MAX >> shave_bits
             };
 
-            if let Some(val) = value.0.last_mut() {
-                *val &= mask
-            }
+            let val = value.last_mut();
+            *val &= mask;
 
             if value < modulus {
                 return value.map_to_field(config);
@@ -336,25 +332,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     }
 
     fn demontgomery(config: &FieldConfig<N>, value: BigInt<N>) -> BigInt<N> {
-        let mut r = value.0;
-        // Montgomery Reduction
-        for i in 0..N {
-            let k = r[i].wrapping_mul(config.inv);
-            let mut carry = 0;
-
-            field_config::mac_with_carry(r[i], k, config.modulus.0[0], &mut carry);
-            for j in 1..N {
-                r[(j + i) % N] = field_config::mac_with_carry(
-                    r[(j + i) % N],
-                    k,
-                    config.modulus.0[j],
-                    &mut carry,
-                );
-            }
-            r[i % N] = carry;
-        }
-
-        BigInt::new(r)
+        value.demontgomery(&config.modulus, config.inv)
     }
 }
 

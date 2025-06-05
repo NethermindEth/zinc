@@ -1,12 +1,5 @@
 use crate::biginteger::BigInt;
 
-macro_rules! mac {
-    ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
-        let tmp = ($a as u128) + widening_mul($b, $c);
-        $carry = (tmp >> 64) as u64;
-        tmp as u64
-    }};
-}
 #[macro_export]
 macro_rules! mac_with_carry {
     ($a:expr, $b:expr, $c:expr, &mut $carry:expr$(,)?) => {{
@@ -55,7 +48,7 @@ pub struct FieldConfig<const N: usize> {
 
 impl<const N: usize> FieldConfig<N> {
     pub fn new(modulus: BigInt<N>) -> Self {
-        let modulus_has_spare_bit = modulus.0[N - 1] >> 63 == 0;
+        let modulus_has_spare_bit = modulus.has_spare_bit();
         Self {
             modulus,
             r: modulus.montgomery_r(),
@@ -82,42 +75,10 @@ impl<const N: usize> FieldConfig<N> {
     }
 
     pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
-        let (mut lo, mut hi) = ([0u64; N], [0u64; N]);
-        crate::const_for!((i in 0..N) {
-            let mut carry = 0;
-            crate::const_for!((j in 0..N) {
-                let k = i + j;
-                if k >= N {
-                    hi[k - N] = mac_with_carry!(hi[k - N], (a).0[i], (b).0[j], &mut carry);
-                } else {
-                    lo[k] = mac_with_carry!(lo[k], (a).0[i], (b).0[j], &mut carry);
-                }
-            });
-            hi[i] = carry;
-        });
+        let (mut lo, mut hi) = a.mul_naive(b);
 
         // Montgomery reduction
-        let mut carry2 = 0;
-        crate::const_for!((i in 0..N) {
-            let tmp = lo[i].wrapping_mul(self.inv);
-            let mut carry;
-            mac!(lo[i], tmp, self.modulus.0[0], &mut carry);
-            crate::const_for!((j in 1..N) {
-                let k = i + j;
-                if k >= N {
-                    hi[k - N] = mac_with_carry!(hi[k - N], tmp, self.modulus.0[j], &mut carry);
-                }  else {
-                    lo[k] = mac_with_carry!(lo[k], tmp, self.modulus.0[j], &mut carry);
-                }
-            });
-            hi[i] = adc!(hi[i], carry, &mut carry2);
-        });
-
-        crate::const_for!((i in 0..N) {
-            (a).0[i] = hi[i];
-        });
-
-        let carry = carry2 != 0;
+        let carry = a.montogomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
 
         self.reduce_modulus(a, carry);
     }
@@ -159,7 +120,7 @@ impl<const N: usize> FieldConfig<N> {
                     let carry = b.add_with_carry(&self.modulus);
                     b.div2();
                     if !self.modulus_has_spare_bit && carry {
-                        (b).0[N - 1] |= 1 << 63;
+                        *b.last_mut() |= 1 << 63;
                     }
                 }
             }
@@ -174,7 +135,7 @@ impl<const N: usize> FieldConfig<N> {
                     c.div2();
 
                     if !self.modulus_has_spare_bit && carry {
-                        (c).0[N - 1] |= 1 << 63;
+                        *c.last_mut() |= 1 << 63;
                     }
                 }
             }
@@ -227,7 +188,7 @@ pub const fn inv<const N: usize>(modulus: BigInt<N>) -> u64 {
         // Square
         inv = inv.wrapping_mul(inv);
         // Multiply
-        inv = inv.wrapping_mul(modulus.0[0]);
+        inv = inv.wrapping_mul(modulus.first());
     });
     inv.wrapping_neg()
 }

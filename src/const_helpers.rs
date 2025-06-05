@@ -155,17 +155,6 @@ impl<const N: usize> SerBuffer<N> {
     }
 
     #[inline(always)]
-    pub(super) fn to_bigint(self) -> BigInt<N> {
-        let mut self_integer = BigInt::from(0u64);
-        self_integer
-            .0
-            .iter_mut()
-            .zip(self.buffers)
-            .for_each(|(other, this)| *other = u64::from_le_bytes(this));
-        self_integer
-    }
-
-    #[inline(always)]
     /// Write up to `num_bytes` bytes from `self` to `other`.
     /// `num_bytes` is allowed to range from `8 * (N - 1) + 1` to `8 * N + 1`.
     pub(super) fn write_up_to(

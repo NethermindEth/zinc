@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use zinc::field::RandomField;
 use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
@@ -105,7 +106,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
                 KeccakTranscript::new,
                 |mut verifier_transcript| {
                     black_box(
-                        SpartanVerifier::<N>::verify(
+                        SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
                             &verifier,
                             &spartan_proof,
                             &ccs_f,

@@ -90,7 +90,7 @@ fn test_spartan_verifier() {
 
     config.reference().expect("Field config cannot be none");
 
-    let res = SpartanVerifier::<N>::verify(
+    let res = SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
@@ -138,7 +138,7 @@ fn test_dummy_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
     config.reference().expect("Field config cannot be none");
-    let res = SpartanVerifier::<N>::verify(
+    let res = SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
@@ -189,7 +189,7 @@ fn test_failing_spartan_verifier() {
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");
-    let res = SpartanVerifier::<N>::verify(
+    let res = SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,

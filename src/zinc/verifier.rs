@@ -62,8 +62,14 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
         let statement_f = statement.map_to_field(config);
 
         let verification_points =
-            SpartanVerifier::<N>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
-                .map_err(ZincError::SpartanError)?;
+            SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
+                self,
+                &proof.spartan_proof,
+                &ccs_F,
+                transcript,
+                config,
+            )
+            .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
             &statement_f,
@@ -79,7 +85,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
 }
 
 /// Verifier for the Linearization subprotocol.
-pub trait SpartanVerifier<'cfg, const N: usize> {
+pub trait SpartanVerifier<F, Cr, C> {
     /// Verifies a proof for the linearization subprotocol.
     ///
     /// # Arguments
@@ -96,14 +102,15 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     ///
     fn verify(
         &self,
-        proof: &SpartanProof<RandomField<'cfg, N>>,
-        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
+        proof: &SpartanProof<F>,
+        ccs: &CCS_F<F, C>,
         transcript: &mut KeccakTranscript,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<VerificationPoints<'cfg, N>, SpartanError>;
+        config: Cr,
+    ) -> Result<VerificationPoints<F>, SpartanError>;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
+    SpartanVerifier<RandomField<'cfg, N>, ConfigRef<'cfg, N>, FieldConfig<N>>
     for ZincVerifier<I, N, S>
 {
     fn verify(
@@ -112,7 +119,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<VerificationPoints<'cfg, N>, SpartanError> {
+    ) -> Result<VerificationPoints<RandomField<'cfg, N>>, SpartanError> {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
@@ -234,7 +241,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         &self,
         cm_i: &Statement_F<RandomField<'cfg, N>>,
         zip_proof: &ZipProof<I, RandomField<'cfg, N>>,
-        verification_points: &VerificationPoints<'cfg, N>,
+        verification_points: &VerificationPoints<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
@@ -287,8 +294,8 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     }
 }
 
-pub struct VerificationPoints<'cfg, const N: usize> {
-    pub rx_ry: Vec<RandomField<'cfg, N>>,
-    pub e_y: RandomField<'cfg, N>,
-    pub gamma: RandomField<'cfg, N>,
+pub struct VerificationPoints<F> {
+    pub rx_ry: Vec<F>,
+    pub e_y: F,
+    pub gamma: F,
 }

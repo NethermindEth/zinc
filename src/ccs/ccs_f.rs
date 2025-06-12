@@ -129,12 +129,12 @@ impl<'cfg, const N: usize> Arith for CCS_F<'cfg, N> {
 
 /// A representation of a CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct Statement_F<'cfg, const N: usize> {
-    pub constraints: Vec<SparseMatrix<RandomField<'cfg, N>>>,
-    pub public_input: Vec<RandomField<'cfg, N>>,
+pub struct Statement_F<F: Clone + Send + Sync> {
+    pub constraints: Vec<SparseMatrix<F>>,
+    pub public_input: Vec<F>,
 }
 
-impl<'cfg, const N: usize> Statement_F<'cfg, N> {
+impl<'cfg, const N: usize> Statement_F<RandomField<'cfg, N>> {
     pub type Scalar = RandomField<'cfg, N>;
     pub fn compute_eval_table_sparse(
         &self,
@@ -209,7 +209,7 @@ pub trait Instance_F<const N: usize> {
     fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar>;
 }
 
-impl<'cfg, const N: usize> Instance_F<N> for Statement_F<'cfg, N> {
+impl<'cfg, const N: usize> Instance_F<N> for Statement_F<RandomField<'cfg, N>> {
     type Scalar = RandomField<'cfg, N>;
     type Cfg = ConfigRef<'cfg, N>;
 
@@ -283,7 +283,7 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<N> {
 pub(crate) fn get_test_ccs_F_statement<const N: usize>(
     input: u64,
     config: ConfigRef<N>,
-) -> Statement_F<N> {
+) -> Statement_F<RandomField<N>> {
     let A = to_F_matrix(
         config,
         vec![

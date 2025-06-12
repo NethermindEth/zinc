@@ -12,6 +12,7 @@ use super::ccs_f::{Statement_F, Witness_F, CCS_F};
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
+use crate::field::RandomField;
 use crate::field_config::ConfigRef;
 use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
@@ -161,7 +162,7 @@ pub struct Statement_Z<const N: usize> {
 
 impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Statement_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = Statement_F<'cfg, N>;
+    type Output = Statement_F<RandomField<'cfg, N>>;
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Self::Output {

@@ -111,7 +111,7 @@ pub trait SpartanProver<'cfg, const I: usize, const N: usize> {
     ///
     fn prove(
         &self,
-        statement_f: &Statement_F<'cfg, N>,
+        statement_f: &Statement_F<RandomField<'cfg, N>>,
         z_ccs: &[RandomField<'cfg, N>],
         z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<'cfg, N>,
@@ -125,7 +125,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanProver<'cfg, I, N>
 {
     fn prove(
         &self,
-        statement_f: &Statement_F<'cfg, N>,
+        statement_f: &Statement_F<RandomField<'cfg, N>>,
         z_ccs: &[RandomField<'cfg, N>],
         z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<'cfg, N>,
@@ -168,7 +168,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
             Vec<RandomField<'cfg, N>>,
             DenseMultilinearExtensionZ<I>,
             CCS_F<'cfg, N>,
-            Statement_F<'cfg, N>,
+            Statement_F<RandomField<'cfg, N>>,
         ),
         SpartanError<N>,
     > {
@@ -228,7 +228,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     fn sumcheck_1<'cfg>(
         z_ccs: &[RandomField<'cfg, N>],
         transcript: &mut KeccakTranscript,
-        statement: &Statement_F<'cfg, N>,
+        statement: &Statement_F<RandomField<'cfg, N>>,
         ccs: &CCS_F<'cfg, N>,
         config: ConfigRef<'cfg, N>,
     ) -> Result<
@@ -258,7 +258,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     fn sumcheck_2<'cfg>(
         r_a: &[RandomField<'cfg, N>],
         ccs: &CCS_F<'cfg, N>,
-        statement: &Statement_F<'cfg, N>,
+        statement: &Statement_F<RandomField<'cfg, N>>,
         config: ConfigRef<'cfg, N>,
         z_mle: &DenseMultilinearExtension<'cfg, N>,
         transcript: &mut KeccakTranscript,

@@ -228,7 +228,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
 
     fn verify_pcs_proof<'cfg>(
         &self,
-        cm_i: &Statement_F<'cfg, N>,
+        cm_i: &Statement_F<RandomField<'cfg, N>>,
         zip_proof: &ZipProof<'cfg, I, N>,
         verification_points: &VerificationPoints<'cfg, N>,
         ccs: &CCS_F<'cfg, N>,

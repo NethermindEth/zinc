@@ -127,7 +127,11 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
     z: &[RandomField<'cfg, N>],
     pub_io_len: usize,
     config: ConfigRef<'cfg, N>,
-) -> (CCS_F<'cfg, N>, Statement_F<'cfg, N>, Witness_F<'cfg, N>) {
+) -> (
+    CCS_F<'cfg, N>,
+    Statement_F<RandomField<'cfg, N>>,
+    Witness_F<'cfg, N>,
+) {
     let ccs = match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
         Some(config_ptr) => CCS_F {
@@ -149,7 +153,7 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
     let B = A.clone();
     let C = create_dummy_squaring_sparse_matrix_F::<N>(z.len(), z.len(), z);
 
-    let statement = Statement_F::<N> {
+    let statement = Statement_F::<RandomField<N>> {
         constraints: vec![A, B, C],
         public_input: z[..pub_io_len].to_vec(),
     };
@@ -180,7 +184,7 @@ pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
 ) -> (
     Vec<RandomField<'cfg, N>>,
     CCS_F<'cfg, N>,
-    Statement_F<'cfg, N>,
+    Statement_F<RandomField<'cfg, N>>,
     Witness_F<'cfg, N>,
 ) {
     let mut z: Vec<_> = (0..n)

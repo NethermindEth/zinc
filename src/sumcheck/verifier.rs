@@ -21,17 +21,17 @@ pub struct VerifierMsg<F> {
 }
 
 /// Verifier State
-pub struct VerifierState<'cfg, const N: usize> {
+pub struct VerifierState<F, Cr> {
     round: usize,
     nv: usize,
     max_multiplicands: usize,
     finished: bool,
     /// a list storing the univariate polynomial in evaluation form sent by the prover at each round
-    polynomials_received: Vec<Vec<RandomField<'cfg, N>>>,
+    polynomials_received: Vec<Vec<F>>,
     /// a list storing the randomness sampled by the verifier at each round
-    randomness: Vec<RandomField<'cfg, N>>,
+    randomness: Vec<F>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: ConfigRef<'cfg, N>,
+    config: Cr,
 }
 
 /// Subclaim when verifier is convinced
@@ -45,7 +45,11 @@ pub struct SubClaim<'cfg, const N: usize> {
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigRef<N>) -> VerifierState<N> {
+    pub fn verifier_init(
+        nvars: usize,
+        degree: usize,
+        config: ConfigRef<N>,
+    ) -> VerifierState<RandomField<N>, ConfigRef<N>> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -64,7 +68,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// the last step.
     pub fn verify_round<'cfg>(
         prover_msg: ProverMsg<RandomField<'cfg, N>>,
-        verifier_state: &mut VerifierState<'cfg, N>,
+        verifier_state: &mut VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         transcript: &mut Transcript,
     ) -> VerifierMsg<RandomField<'cfg, N>> {
         if verifier_state.finished {
@@ -99,7 +103,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
     pub fn check_and_generate_subclaim<'cfg>(
-        verifier_state: VerifierState<'cfg, N>,
+        verifier_state: VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
     ) -> Result<SubClaim<'cfg, N>, SumCheckError> {

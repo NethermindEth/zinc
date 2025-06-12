@@ -5,7 +5,7 @@ use ark_std::vec::Vec;
 use crypto_bigint::Int;
 
 use crate::field::conversion::FieldMap;
-use crate::field::RandomField as F;
+use crate::field::RandomField;
 use crate::zip::utils::expand;
 
 use ark_std::fmt::Debug;
@@ -75,9 +75,9 @@ impl<const I: usize, const L: usize> Zip<I, L> {
 
     pub fn encode_f<'cfg, const N: usize>(
         &self,
-        row: &[F<'cfg, N>],
+        row: &[RandomField<'cfg, N>],
         field: ConfigRef<'cfg, N>,
-    ) -> Vec<F<'cfg, N>> {
+    ) -> Vec<RandomField<'cfg, N>> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -237,12 +237,12 @@ impl<const L: usize> SparseMatrixZ<L> {
 #[derive(Clone, Debug)]
 pub struct SparseMatrixF<'cfg, const N: usize> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, F<'cfg, N>)>,
+    cells: Vec<(usize, RandomField<'cfg, N>)>,
 }
 
 impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
     fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigRef<'cfg, N>) -> Self {
-        let cells_f: Vec<(usize, F<'cfg, N>)> = sparse_matrix
+        let cells_f: Vec<(usize, RandomField<'cfg, N>)> = sparse_matrix
             .cells
             .iter()
             .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
@@ -253,21 +253,21 @@ impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
         }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, F<'cfg, N>)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, RandomField<'cfg, N>)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul(&self, vector: &[F<'cfg, N>]) -> Vec<F<'cfg, N>> {
+    fn mat_vec_mul(&self, vector: &[RandomField<'cfg, N>]) -> Vec<RandomField<'cfg, N>> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![F::zero(); self.dimension.n];
+        let mut result = vec![RandomField::zero(); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = F::zero();
+            let mut sum = RandomField::zero();
             for (column, coeff) in cells.iter() {
                 sum += &(*coeff * vector[*column]);
             }

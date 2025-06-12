@@ -143,7 +143,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
 impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_linearization_proof<'cfg>(
         &self,
-        proof: &SumcheckProof<'cfg, N>,
+        proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<N>, FieldConfig<N>>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
@@ -195,7 +195,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
 
     fn verify_second_sumcheck_proof<'cfg>(
         &self,
-        proof: &SumcheckProof<'cfg, N>,
+        proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         claimed_sum: RandomField<'cfg, N>,

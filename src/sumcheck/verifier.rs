@@ -63,7 +63,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// and stores randomness and perform verifications altogether in `check_and_generate_subclaim` at
     /// the last step.
     pub fn verify_round<'cfg>(
-        prover_msg: ProverMsg<'cfg, N>,
+        prover_msg: ProverMsg<RandomField<'cfg, N>>,
         verifier_state: &mut VerifierState<'cfg, N>,
         transcript: &mut Transcript,
     ) -> VerifierMsg<'cfg, N> {

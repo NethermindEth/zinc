@@ -16,9 +16,9 @@ use super::{verifier::VerifierMsg, IPForMLSumcheck};
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProverMsg<'cfg, const N: usize> {
+pub struct ProverMsg<F> {
     /// evaluations on P(0), P(1), P(2), ...
-    pub(crate) evaluations: Vec<RandomField<'cfg, N>>,
+    pub(crate) evaluations: Vec<F>,
 }
 
 /// Prover State
@@ -63,7 +63,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         v_msg: &Option<VerifierMsg<'cfg, N>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
-    ) -> ProverMsg<'cfg, N> {
+    ) -> ProverMsg<RandomField<'cfg, N>> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");

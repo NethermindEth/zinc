@@ -19,8 +19,8 @@ pub struct SpartanProof<'cfg, const N: usize> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
     /// Sent in step 2 of linearization subprotocol.  
-    pub linearization_sumcheck: sumcheck::SumcheckProof<'cfg, N>,
-    pub second_sumcheck: sumcheck::SumcheckProof<'cfg, N>,
+    pub linearization_sumcheck: sumcheck::SumcheckProof<RandomField<'cfg, N>>,
+    pub second_sumcheck: sumcheck::SumcheckProof<RandomField<'cfg, N>>,
     pub V_s: Vec<RandomField<'cfg, N>>,
 }
 

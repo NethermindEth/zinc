@@ -226,6 +226,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         )
     }
 
+    #[allow(clippy::type_complexity)] // TODO refactor this out
     fn sumcheck_1<'cfg>(
         z_ccs: &[RandomField<'cfg, N>],
         transcript: &mut KeccakTranscript,
@@ -233,7 +234,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         ccs: &Self::CcsF<'cfg>,
         config: ConfigRef<'cfg, N>,
     ) -> SpartanResult<(
-        SumcheckProof<'cfg, N>,
+        SumcheckProof<RandomField<'cfg, N>>,
         Vec<RandomField<'cfg, N>>,
         Vec<Self::DenseMleF<'cfg>>,
     )> {
@@ -260,7 +261,10 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         config: ConfigRef<'cfg, N>,
         z_mle: &Self::DenseMleF<'cfg>,
         transcript: &mut KeccakTranscript,
-    ) -> SpartanResult<(SumcheckProof<'cfg, N>, Vec<RandomField<'cfg, N>>)> {
+    ) -> SpartanResult<(
+        SumcheckProof<RandomField<'cfg, N>>,
+        Vec<RandomField<'cfg, N>>,
+    )> {
         let gamma = transcript.squeeze_gamma_challenge(config);
         let mut sumcheck_2_mles = Vec::with_capacity(2);
 
@@ -363,7 +367,10 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         degree: usize,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
-    ) -> SpartanResult<(SumcheckProof<'cfg, N>, Vec<RandomField<'cfg, N>>)> {
+    ) -> SpartanResult<(
+        SumcheckProof<RandomField<'cfg, N>>,
+        Vec<RandomField<'cfg, N>>,
+    )> {
         let (sum_check_proof, prover_state) =
             MLSumcheck::prove_as_subprotocol(transcript, mles, nvars, degree, &comb_fn, config);
 

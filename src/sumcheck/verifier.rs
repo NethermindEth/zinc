@@ -43,7 +43,7 @@ pub struct SubClaim<F> {
     pub expected_evaluation: F,
 }
 
-impl<const N: usize> IPForMLSumcheck<N> {
+impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
     /// initialize the verifier
     pub fn verifier_init(
         nvars: usize,
@@ -66,7 +66,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Normally, this function should perform actual verification. Instead, `verify_round` only samples
     /// and stores randomness and perform verifications altogether in `check_and_generate_subclaim` at
     /// the last step.
-    pub fn verify_round<'cfg>(
+    pub fn verify_round(
         prover_msg: ProverMsg<RandomField<'cfg, N>>,
         verifier_state: &mut VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         transcript: &mut Transcript,
@@ -102,7 +102,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// If the asserted sum is correct, then the multilinear polynomial evaluated at `subclaim.point`
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
-    pub fn check_and_generate_subclaim<'cfg>(
+    pub fn check_and_generate_subclaim(
         verifier_state: VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
@@ -143,7 +143,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round<'cfg>(
+    pub fn sample_round(
         transcript: &mut Transcript,
         config: ConfigRef<'cfg, N>,
     ) -> VerifierMsg<RandomField<'cfg, N>> {

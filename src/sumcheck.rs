@@ -1,5 +1,6 @@
 use crate::field_config::ConfigRef;
 use ark_std::boxed::Box;
+use ark_std::marker::PhantomData;
 use ark_std::vec::Vec;
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
@@ -18,7 +19,7 @@ pub mod utils;
 pub mod verifier;
 
 /// Interactive Proof for Multilinear Sumcheck
-pub struct IPForMLSumcheck<const N: usize>;
+pub struct IPForMLSumcheck<F, Cr>(PhantomData<(F, Cr)>);
 #[derive(Error, Debug)]
 pub enum SumCheckError {
     #[error("univariate polynomial evaluation error")]

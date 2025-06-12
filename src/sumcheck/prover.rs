@@ -35,9 +35,9 @@ pub struct ProverState<F, Cr> {
     pub round: usize,
 }
 
-impl<const N: usize> IPForMLSumcheck<N> {
+impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
-    pub fn prover_init<'cfg>(
+    pub fn prover_init(
         mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
         nvars: usize,
         degree: usize,
@@ -58,7 +58,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// receive message from verifier, generate prover message, and proceed to next round
     ///
     /// Adapted Jolt's sumcheck implementation
-    pub fn prove_round<'cfg>(
+    pub fn prove_round(
         prover_state: &mut ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         v_msg: &Option<VerifierMsg<RandomField<'cfg, N>>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,

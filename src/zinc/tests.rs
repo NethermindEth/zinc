@@ -2,6 +2,7 @@ use ark_std::str::FromStr;
 
 use crypto_bigint::{Int, Zero};
 
+use crate::field::RandomField;
 use crate::field_config::ConfigRef;
 use crate::{
     biginteger::BigInt,
@@ -37,7 +38,7 @@ fn test_dummy_spartan_prover() {
         ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let proof = SpartanProver::<I, N>::prove(
+    let proof = SpartanProver::<I, RandomField<N>, ConfigRef<N>, FieldConfig<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -70,16 +71,17 @@ fn test_spartan_verifier() {
         ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, N>::prove(
-        &prover,
-        &statement_f,
-        &z_ccs,
-        &z_mle,
-        &ccs_f,
-        &mut prover_transcript,
-        config,
-    )
-    .expect("Failed to generate Spartan proof");
+    let (spartan_proof, _) =
+        SpartanProver::<I, RandomField<N>, ConfigRef<N>, FieldConfig<N>>::prove(
+            &prover,
+            &statement_f,
+            &z_ccs,
+            &z_mle,
+            &ccs_f,
+            &mut prover_transcript,
+            config,
+        )
+        .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
         data: ark_std::marker::PhantomData::<ZipSpec1>,
@@ -119,16 +121,17 @@ fn test_dummy_spartan_verifier() {
         ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, N>::prove(
-        &prover,
-        &statement_f,
-        &z_ccs,
-        &z_mle,
-        &ccs_f,
-        &mut prover_transcript,
-        config,
-    )
-    .expect("Failed to generate Spartan proof");
+    let (spartan_proof, _) =
+        SpartanProver::<I, RandomField<N>, ConfigRef<N>, FieldConfig<N>>::prove(
+            &prover,
+            &statement_f,
+            &z_ccs,
+            &z_mle,
+            &ccs_f,
+            &mut prover_transcript,
+            config,
+        )
+        .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
         data: ark_std::marker::PhantomData::<ZipSpec1>,
@@ -168,16 +171,17 @@ fn test_failing_spartan_verifier() {
         ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
             .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, N>::prove(
-        &prover,
-        &statement_f,
-        &z_ccs,
-        &z_mle,
-        &ccs_f,
-        &mut prover_transcript,
-        config,
-    )
-    .expect("Failed to generate Spartan proof");
+    let (spartan_proof, _) =
+        SpartanProver::<I, RandomField<N>, ConfigRef<N>, FieldConfig<N>>::prove(
+            &prover,
+            &statement_f,
+            &z_ccs,
+            &z_mle,
+            &ccs_f,
+            &mut prover_transcript,
+            config,
+        )
+        .expect("Failed to generate Spartan proof");
 
     let verifier = ZincVerifier::<I, N, _> {
         data: ark_std::marker::PhantomData::<ZipSpec1>,

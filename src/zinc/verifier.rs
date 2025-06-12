@@ -25,7 +25,7 @@ pub trait Verifier<const I: usize, const N: usize> {
     fn verify<'cfg>(
         &self,
         cm_i: &Statement_Z<I>,
-        proof: ZincProof<'cfg, I, N>,
+        proof: ZincProof<I, RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: ConfigRef<'cfg, N>,
@@ -40,7 +40,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier
     fn verify<'cfg>(
         &self,
         statement: &Statement_Z<I>,
-        proof: ZincProof<'cfg, I, N>,
+        proof: ZincProof<I, RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: ConfigRef<'cfg, N>,
@@ -94,7 +94,7 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     ///
     fn verify(
         &self,
-        proof: &SpartanProof<'cfg, N>,
+        proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
@@ -106,7 +106,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
 {
     fn verify(
         &self,
-        proof: &SpartanProof<'cfg, N>,
+        proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
@@ -167,7 +167,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         beta_s: &[RandomField<'cfg, N>],
         point_r: &[RandomField<'cfg, N>],
         s: RandomField<'cfg, N>,
-        proof: &SpartanProof<'cfg, N>,
+        proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     ) -> Result<(), SpartanError> {
         let e = eq_eval(point_r, beta_s)?;
@@ -231,7 +231,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_pcs_proof<'cfg>(
         &self,
         cm_i: &Statement_F<RandomField<'cfg, N>>,
-        zip_proof: &ZipProof<'cfg, I, N>,
+        zip_proof: &ZipProof<I, RandomField<'cfg, N>>,
         verification_points: &VerificationPoints<'cfg, N>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,

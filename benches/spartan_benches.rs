@@ -43,7 +43,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
                 KeccakTranscript::new,
                 |mut prover_transcript| {
                     black_box(
-                        SpartanProver::<I, N>::prove(
+                        SpartanProver::<I, _, _, _>::prove(
                             &prover,
                             &statement_f,
                             &z_ccs,
@@ -89,7 +89,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
             )
             .expect("Failed to prepare for random field PIOP");
 
-        let (spartan_proof, _) = SpartanProver::<I, N>::prove(
+        let (spartan_proof, _) = SpartanProver::<I, _, _, _>::prove(
             &prover,
             &statement_f,
             &z_ccs,

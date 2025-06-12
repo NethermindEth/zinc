@@ -99,7 +99,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
             config,
         )
         .expect("Failed to generate Spartan proof");
-
+        config.reference().expect("Field config cannot be none");
         group.bench_function(format!("n={}", n), |b| {
             b.iter_batched(
                 KeccakTranscript::new,
@@ -110,7 +110,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
                             &spartan_proof,
                             &ccs_f,
                             &mut verifier_transcript,
-                            config.reference().expect("Field config cannot be none"),
+                            config,
                         )
                         .expect("Proof verification failed"),
                     )

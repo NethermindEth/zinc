@@ -38,7 +38,7 @@ pub trait Prover<'cfg, const I: usize, const N: usize> {
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<ZincProof<'cfg, I, N>, ZincError>
     where
         [(); 2 * I]:,
@@ -53,7 +53,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Prover<'cfg, I, N> for Zi
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> ZincResult<ZincProof<'cfg, I, N>>
     where
         [(); 2 * I]:,
@@ -62,7 +62,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Prover<'cfg, I, N> for Zi
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            Self::prepare_for_random_field_piop(statement, wit, ccs, ConfigRef::from(config))?;
+            Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
         let (spartan_proof, r_y) = SpartanProver::<I, N>::prove(
@@ -72,17 +72,12 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Prover<'cfg, I, N> for Zi
             &z_mle,
             &ccs_f,
             transcript,
-            ConfigRef::from(config),
+            config,
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let zip_proof = Self::commit_z_mle_and_prove_evaluation(
-            &z_mle,
-            &ccs_f,
-            &r_y,
-            transcript,
-            ConfigRef::from(config),
-        )?;
+        let zip_proof =
+            Self::commit_z_mle_and_prove_evaluation(&z_mle, &ccs_f, &r_y, transcript, config)?;
 
         // Return proof
         Ok(ZincProof {

@@ -28,7 +28,7 @@ pub trait Verifier<const I: usize, const N: usize> {
         proof: ZincProof<'cfg, I, N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<(), ZincError>
     where
         [(); 2 * I]:,
@@ -43,19 +43,21 @@ impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier
         proof: ZincProof<'cfg, I, N>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<(), ZincError>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
         [(); 8 * I]:,
     {
-        if draw_random_field::<I, N>(&statement.public_input, transcript) != *config {
+        if draw_random_field::<I, N>(&statement.public_input, transcript)
+            != *config.reference().unwrap()
+        {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(ConfigRef::from(config));
-        let statement_f = statement.map_to_field(ConfigRef::from(config));
+        let ccs_F = ccs.map_to_field(config);
+        let statement_f = statement.map_to_field(config);
 
         let verification_points =
             SpartanVerifier::<N>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
@@ -95,7 +97,7 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
         proof: &SpartanProof<'cfg, N>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError>;
 }
 
@@ -107,10 +109,10 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
         proof: &SpartanProof<'cfg, N>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError> {
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, ConfigRef::from(config));
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -119,8 +121,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
-        let gamma: RandomField<'cfg, N> =
-            transcript.squeeze_gamma_challenge(ConfigRef::from(config));
+        let gamma: RandomField<'cfg, N> = transcript.squeeze_gamma_challenge(config);
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -234,7 +235,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         verification_points: &VerificationPoints<'cfg, N>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<(), SpartanError>
     where
         [(); 2 * I]:,
@@ -262,12 +263,13 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
             .constraints
             .iter()
             .map(|M| {
-                let mle = DenseMultilinearExtension::from_matrix(M, ConfigRef::from(config));
-                mle.evaluate(&verification_points.rx_ry, ConfigRef::from(config))
-                    .ok_or(MleEvaluationError::IncorrectLength(
+                let mle = DenseMultilinearExtension::from_matrix(M, config);
+                mle.evaluate(&verification_points.rx_ry, config).ok_or(
+                    MleEvaluationError::IncorrectLength(
                         verification_points.rx_ry.len(),
                         mle.num_vars,
-                    ))
+                    ),
+                )
             })
             .collect::<Result<Vec<_>, _>>()?;
 

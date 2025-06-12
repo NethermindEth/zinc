@@ -86,12 +86,14 @@ fn test_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
+    config.reference().expect("Field config cannot be none");
+
     let res = SpartanVerifier::<N>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
         &mut verifier_transcript,
-        config.reference().expect("Field config cannot be none"),
+        config,
     );
 
     assert!(res.is_ok())
@@ -132,13 +134,13 @@ fn test_dummy_spartan_verifier() {
         data: ark_std::marker::PhantomData::<ZipSpec1>,
     };
     let mut verifier_transcript = KeccakTranscript::new();
-
+    config.reference().expect("Field config cannot be none");
     let res = SpartanVerifier::<N>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
         &mut verifier_transcript,
-        config.reference().expect("Field config cannot be none"),
+        config,
     );
 
     assert!(res.is_ok())
@@ -182,12 +184,13 @@ fn test_failing_spartan_verifier() {
     };
     let mut verifier_transcript = KeccakTranscript::new();
 
+    config.reference().expect("Field config cannot be none");
     let res = SpartanVerifier::<N>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
         &mut verifier_transcript,
-        config.reference().expect("Field config cannot be none"),
+        config,
     );
 
     assert!(res.is_err())

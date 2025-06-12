@@ -151,15 +151,15 @@ mod tests {
     fn generate_sumcheck_proof<'cfg, const N: usize>(
         nvars: usize,
         mut rng: &mut (impl Rng + Sized),
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> (usize, RandomField<'cfg, N>, SumcheckProof<'cfg, N>) {
         let mut transcript = KeccakTranscript::default();
 
         let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (2, 5), 7, ConfigRef::from(config), &mut rng).unwrap();
+            rand_poly(nvars, (2, 5), 7, config, &mut rng).unwrap();
 
         let comb_fn = |vals: &[RandomField<'cfg, N>]| -> RandomField<'cfg, N> {
-            rand_poly_comb_fn(vals, &products, ConfigRef::from(config))
+            rand_poly_comb_fn(vals, &products, config)
         };
 
         let (proof, _) = MLSumcheck::prove_as_subprotocol(
@@ -168,7 +168,7 @@ mod tests {
             nvars,
             poly_degree,
             comb_fn,
-            ConfigRef::from(config),
+            config,
         );
         (poly_degree, sum, proof)
     }
@@ -180,13 +180,10 @@ mod tests {
         let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
 
         let config_ptr = ConfigRef::from(&config);
-
+        config_ptr.reference().expect("FieldConfig cannot be null");
         for _ in 0..20 {
-            let (poly_degree, sum, proof) = generate_sumcheck_proof::<N>(
-                nvars,
-                &mut rng,
-                config_ptr.reference().expect("FieldConfig cannot be null"),
-            );
+            let (poly_degree, sum, proof) =
+                generate_sumcheck_proof::<N>(nvars, &mut rng, config_ptr);
 
             let mut transcript = KeccakTranscript::default();
             let res = MLSumcheck::verify_as_subprotocol(

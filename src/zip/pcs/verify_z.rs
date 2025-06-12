@@ -12,7 +12,6 @@ use super::{
 use crate::field_config::ConfigRef;
 use crate::{
     field::{conversion::FieldMap, RandomField as F},
-    field_config::FieldConfig,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
@@ -33,12 +32,11 @@ where
         point: &[F<'cfg, N>],
         eval: F<'cfg, N>,
         transcript: &mut PcsTranscript<N>,
-        field: &'cfg FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         validate_input::<I, N>("verify", vp.num_vars(), [], [point])?;
 
-        let columns_opened =
-            Self::verify_testing(vp, comm.roots(), transcript, ConfigRef::from(field))?;
+        let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
 
         Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
 
@@ -51,7 +49,7 @@ where
         points: &[Vec<F<'cfg, N>>],
         evals: &[F<'cfg, N>],
         transcript: &mut PcsTranscript<N>,
-        field: &'cfg FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
@@ -137,15 +135,13 @@ where
         eval: F<'cfg, N>,
         columns_opened: &[(usize, Vec<Int<K>>)],
         transcript: &mut PcsTranscript<N>,
-        field: &'cfg FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
-        let q_0_combined_row = transcript.read_field_elements(
-            <Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()),
-            ConfigRef::from(field),
-        )?;
-        let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, ConfigRef::from(field));
+        let q_0_combined_row = transcript
+            .read_field_elements(<Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()), field)?;
+        let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
 
-        let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, ConfigRef::from(field))?;
+        let (q_0, q_1) = point_to_tensor(vp.num_rows(), point, field)?;
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
             return Err(Error::InvalidPcsOpen(
@@ -172,17 +168,14 @@ where
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: &'cfg FieldConfig<N>,
+        field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let column_entries = column_entries.map_to_field(ConfigRef::from(field));
+            let column_entries = column_entries.map_to_field(field);
             inner_product(q_0, &column_entries)
             // TODO: this inner product is taking a long time.
         } else {
-            column_entries
-                .first()
-                .unwrap()
-                .map_to_field(ConfigRef::from(field))
+            column_entries.first().unwrap().map_to_field(field)
         };
         if column_entries_comb != encoded_q_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".into()));

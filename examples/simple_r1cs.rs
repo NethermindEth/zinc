@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use ark_std::log2;
 use crypto_bigint::Int;
+use zinc::field_config::ConfigRef;
 use zinc::zinc::prelude::*;
 
 // R1CS for: x^3 + x + 5 = y (example from article
@@ -20,13 +21,16 @@ fn main() {
         &statement.public_input,
         &mut prover_transcript,
     );
+
+    let config_ref = ConfigRef::from(&field_config);
+
     let proof = prover
         .prove(
             &statement,
             &witness,
             &mut prover_transcript,
             &ccs,
-            &field_config,
+            ConfigRef::from(&field_config),
         )
         .expect("Proof generation failed");
 
@@ -41,7 +45,7 @@ fn main() {
             proof,
             &mut verifier_transcript,
             &ccs,
-            &field_config,
+            config_ref,
         )
         .expect("Proof verification failed");
 }

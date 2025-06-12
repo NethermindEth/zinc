@@ -114,7 +114,9 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     .unwrap();
 
     let proof = transcript.into_proof();
-
+    field_config
+        .reference()
+        .expect("Field config cannot be none");
     group.bench_function(
         format!("Verify: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
         |b| {
@@ -129,9 +131,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
                         &point.map_to_field(field_config),
                         eval.map_to_field(field_config),
                         &mut transcript,
-                        field_config
-                            .reference()
-                            .expect("Field config cannot be none"),
+                        field_config,
                     )
                     .expect("Failed to verify");
                     total_duration += timer.elapsed();

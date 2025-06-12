@@ -36,11 +36,11 @@ pub struct VerifierState<F, Cr> {
 
 /// Subclaim when verifier is convinced
 #[derive(Debug)]
-pub struct SubClaim<'cfg, const N: usize> {
+pub struct SubClaim<F> {
     /// the multi-dimensional point that this multilinear extension is evaluated to
-    pub point: Vec<RandomField<'cfg, N>>,
+    pub point: Vec<F>,
     /// the expected evaluation
-    pub expected_evaluation: RandomField<'cfg, N>,
+    pub expected_evaluation: F,
 }
 
 impl<const N: usize> IPForMLSumcheck<N> {
@@ -106,7 +106,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         verifier_state: VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<'cfg, N>, SumCheckError> {
+    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
         }

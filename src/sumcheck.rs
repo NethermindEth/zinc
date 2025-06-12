@@ -105,7 +105,7 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
         claimed_sum: RandomField<'cfg, N>,
         proof: &SumcheckProof<RandomField<'cfg, N>>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<'cfg, N>, SumCheckError> {
+    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {
         let (nvars_field, degree_field) = if N == 1 {
             (
                 (nvars as u64).map_to_field(config),

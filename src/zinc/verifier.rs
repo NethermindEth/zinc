@@ -21,14 +21,14 @@ use crate::{
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
-pub trait Verifier<const I: usize, const N: usize> {
-    fn verify<'cfg>(
+pub trait Verifier<const I: usize, F, Cr> {
+    fn verify(
         &self,
         cm_i: &Statement_Z<I>,
-        proof: ZincProof<I, RandomField<'cfg, N>>,
+        proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: ConfigRef<'cfg, N>,
+        config: Cr,
     ) -> Result<(), ZincError>
     where
         [(); 2 * I]:,
@@ -36,8 +36,10 @@ pub trait Verifier<const I: usize, const N: usize> {
         [(); 8 * I]:;
 }
 
-impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier<I, N, S> {
-    fn verify<'cfg>(
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
+    Verifier<I, RandomField<'cfg, N>, ConfigRef<'cfg, N>> for ZincVerifier<I, N, S>
+{
+    fn verify(
         &self,
         statement: &Statement_Z<I>,
         proof: ZincProof<I, RandomField<'cfg, N>>,

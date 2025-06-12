@@ -122,7 +122,9 @@ impl<const I: usize> DenseMultilinearExtension<I> {
     }
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for DenseMultilinearExtension<I> {
+impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>>
+    for DenseMultilinearExtension<I>
+{
     type Cfg = ConfigRef<'cfg, N>;
     type Output = DenseMultilinearExtensionF<'cfg, N>;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {

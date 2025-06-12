@@ -69,14 +69,14 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     }
 }
 
-pub trait FieldMap<'cfg, const N: usize> {
+pub trait FieldMap<C> {
     type Cfg: Copy;
     type Output;
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output;
+    fn map_to_field(&self, config: C) -> Self::Output;
 }
 
 // Implementation of FieldMap for signed integers
-impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
+impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<ConfigRef<'cfg, N>> for T {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
 
@@ -141,7 +141,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
 }
 
 // Implementation for bool
-impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
+impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for bool {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
 
@@ -157,7 +157,7 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
     }
 }
 
-impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
+impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for &bool {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -166,7 +166,7 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for &bool {
 }
 
 // Implementation for Int<N>
-impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
+impl<'cfg, const M: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Int<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
 
@@ -180,7 +180,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for Int<M> {
     }
 }
 
-impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
+impl<'cfg, const M: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for &Int<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
 
@@ -189,7 +189,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &Int<M> {
     }
 }
 // Implementation of FieldMap for BigInt<N>
-impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
+impl<'cfg, const M: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for BigInt<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
 
@@ -247,7 +247,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 }
 
 // Implementation of FieldMap for reference to BigInt<N>
-impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &BigInt<M> {
+impl<'cfg, const M: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for &BigInt<M> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = RandomField<'cfg, N>;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
@@ -257,29 +257,35 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for &BigInt<M> {
 
 // Implementation of FieldMap for Vec<T>
 
-impl<'cfg, const N: usize, T: FieldMap<'cfg, N>> FieldMap<'cfg, N> for Vec<T> {
+impl<'cfg, const N: usize, T: FieldMap<ConfigRef<'cfg, N>>> FieldMap<ConfigRef<'cfg, N>>
+    for Vec<T>
+{
     type Cfg = T::Cfg;
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config: ConfigRef<'cfg, N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
-impl<'cfg, const N: usize, T: FieldMap<'cfg, N>> FieldMap<'cfg, N> for &Vec<T> {
+impl<'cfg, const N: usize, T: FieldMap<ConfigRef<'cfg, N>>> FieldMap<ConfigRef<'cfg, N>>
+    for &Vec<T>
+{
     type Cfg = T::Cfg;
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config: ConfigRef<'cfg, N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }
 
-impl<'cfg, const N: usize, T: FieldMap<'cfg, N>> FieldMap<'cfg, N> for &[T] {
+impl<'cfg, const N: usize, T: FieldMap<ConfigRef<'cfg, N>>> FieldMap<ConfigRef<'cfg, N>>
+    for &[T]
+{
     type Cfg = T::Cfg;
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config: ConfigRef<'cfg, N>) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config)).collect()
     }
 }

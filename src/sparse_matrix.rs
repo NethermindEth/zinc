@@ -40,14 +40,14 @@ impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for 
 impl<
         'cfg,
         const N: usize,
-        T: FieldMap<'cfg, N, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
-    > FieldMap<'cfg, N> for SparseMatrix<T>
+        T: FieldMap<ConfigRef<'cfg, N>, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
+    > FieldMap<ConfigRef<'cfg, N>> for SparseMatrix<T>
 where
-    <T as FieldMap<'cfg, N>>::Output: Clone + Send + Sync,
+    <T as FieldMap<ConfigRef<'cfg, N>>>::Output: Clone + Send + Sync,
 {
     type Cfg = T::Cfg;
     type Output = SparseMatrix<T::Output>;
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config: ConfigRef<'cfg, N>) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,

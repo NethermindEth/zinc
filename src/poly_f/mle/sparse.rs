@@ -144,11 +144,9 @@ impl<'cfg, const N: usize> SparseMultilinearExtension<RandomField<'cfg, N>, Conf
     }
 }
 
-impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
+impl<'cfg, const N: usize> MultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>
     for SparseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>
 {
-    type Field = RandomField<'cfg, N>;
-    type Cfg = ConfigRef<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -156,7 +154,11 @@ impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
     /// are sampled uniformly at random. The number of nonzero entries is
     /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
     /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: Self::Cfg, rng: &mut Rn) -> Self {
+    fn rand<Rn: ark_std::rand::Rng>(
+        num_vars: usize,
+        config: ConfigRef<'cfg, N>,
+        rng: &mut Rn,
+    ) -> Self {
         Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
     }
 
@@ -180,12 +182,16 @@ impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
         Self {
             num_vars: self.num_vars,
             evaluations: tuples_to_treemap(&ev),
-            zero: Self::Field::zero(),
+            zero: RandomField::<'cfg, N>::zero(),
             config: self.config,
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[Self::Field], config: Self::Cfg) {
+    fn fix_variables(
+        &mut self,
+        partial_point: &[RandomField<'cfg, N>],
+        config: ConfigRef<'cfg, N>,
+    ) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -221,18 +227,22 @@ impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
 
         self.evaluations = evaluations;
         self.num_vars -= dim;
-        self.zero = Self::Field::zero();
+        self.zero = RandomField::<'cfg, N>::zero();
     }
 
-    fn fixed_variables(&self, partial_point: &[Self::Field], config: Self::Cfg) -> Self {
+    fn fixed_variables(
+        &self,
+        partial_point: &[RandomField<'cfg, N>],
+        config: ConfigRef<'cfg, N>,
+    ) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<Self::Field> {
+    fn to_evaluations(&self) -> Vec<RandomField<'cfg, N>> {
         let mut evaluations: Vec<_> = (0..1 << self.num_vars)
-            .map(|_| Self::Field::zero())
+            .map(|_| RandomField::zero())
             .collect();
         self.evaluations
             .iter()

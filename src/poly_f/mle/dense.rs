@@ -135,19 +135,19 @@ impl<'cfg, const N: usize> DenseMultilinearExtension<RandomField<'cfg, N>, Confi
     }
 }
 
-impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
+impl<'cfg, const N: usize> MultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>
     for DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>
 {
-    type Field = RandomField<'cfg, N>;
-    type Cfg = ConfigRef<'cfg, N>;
     fn num_vars(&self) -> usize {
         self.num_vars
     }
 
-    fn rand<Rn: rand::Rng>(num_vars: usize, config: Self::Cfg, rng: &mut Rn) -> Self {
+    fn rand<Rn: rand::Rng>(num_vars: usize, config: ConfigRef<'cfg, N>, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
-            (0..1 << num_vars).map(|_| Self::Field::rand(rng)).collect(),
+            (0..1 << num_vars)
+                .map(|_| RandomField::<'cfg, N>::rand(rng))
+                .collect(),
             config,
         )
     }
@@ -158,7 +158,11 @@ impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
         copy
     }
 
-    fn fix_variables(&mut self, partial_point: &[Self::Field], _config: Self::Cfg) {
+    fn fix_variables(
+        &mut self,
+        partial_point: &[RandomField<'cfg, N>],
+        _config: ConfigRef<'cfg, N>,
+    ) {
         assert!(
             partial_point.len() <= self.num_vars,
             "too many partial points"
@@ -186,13 +190,17 @@ impl<'cfg, const N: usize> MultilinearExtension<'cfg, N>
         self.num_vars = nv - dim;
     }
 
-    fn fixed_variables(&self, partial_point: &[Self::Field], config: Self::Cfg) -> Self {
+    fn fixed_variables(
+        &self,
+        partial_point: &[RandomField<'cfg, N>],
+        config: ConfigRef<'cfg, N>,
+    ) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
     }
 
-    fn to_evaluations(&self) -> Vec<Self::Field> {
+    fn to_evaluations(&self) -> Vec<RandomField<'cfg, N>> {
         self.evaluations.to_vec()
     }
 }

@@ -15,9 +15,9 @@ pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
 
 /// Verifier Message
 #[derive(Clone)]
-pub struct VerifierMsg<'cfg, const N: usize> {
+pub struct VerifierMsg<F> {
     /// randomness sampled by verifier
-    pub randomness: RandomField<'cfg, N>,
+    pub randomness: F,
 }
 
 /// Verifier State
@@ -66,7 +66,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         prover_msg: ProverMsg<RandomField<'cfg, N>>,
         verifier_state: &mut VerifierState<'cfg, N>,
         transcript: &mut Transcript,
-    ) -> VerifierMsg<'cfg, N> {
+    ) -> VerifierMsg<RandomField<'cfg, N>> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
         }
@@ -142,7 +142,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     pub fn sample_round<'cfg>(
         transcript: &mut Transcript,
         config: ConfigRef<'cfg, N>,
-    ) -> VerifierMsg<'cfg, N> {
+    ) -> VerifierMsg<RandomField<'cfg, N>> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }

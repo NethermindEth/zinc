@@ -60,7 +60,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Adapted Jolt's sumcheck implementation
     pub fn prove_round<'cfg>(
         prover_state: &mut ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
-        v_msg: &Option<VerifierMsg<'cfg, N>>,
+        v_msg: &Option<VerifierMsg<RandomField<'cfg, N>>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
     ) -> ProverMsg<RandomField<'cfg, N>> {

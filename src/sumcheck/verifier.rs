@@ -1,6 +1,7 @@
 //! Verifier
 use crate::field_config::ConfigRef;
 use ark_ff::One;
+use ark_std::boxed::Box;
 use ark_std::vec;
 use ark_std::vec::Vec;
 
@@ -101,7 +102,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         verifier_state: VerifierState<'cfg, N>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<'cfg, N>, SumCheckError<N>> {
+    ) -> Result<SubClaim<'cfg, N>, SumCheckError> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
         }
@@ -120,8 +121,8 @@ impl<const N: usize> IPForMLSumcheck<N> {
             let p1 = evaluations[1];
             if p0 + p1 != expected {
                 return Err(SumCheckError::SumCheckFailed(
-                    (p0 + p1).into(),
-                    expected.into(),
+                    Box::new((p0 + p1).into()),
+                    Box::new(expected.into()),
                 ));
             }
             expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i], config);

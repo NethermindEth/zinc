@@ -22,7 +22,7 @@ pub enum RandomField<'cfg, const N: usize> {
     },
 }
 
-use crate::field_config::ConfigRef;
+use crate::field_config::{ConfigRef, DebugFieldConfig};
 use RandomField::*;
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
@@ -392,30 +392,32 @@ unsafe impl<const N: usize> Send for RandomField<'_, N> {}
 unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
 
 #[derive(Debug)]
-pub enum DebugRandomField<const N: usize> {
+pub enum DebugRandomField {
     Raw {
-        value: BigInt<N>,
+        value: num_bigint::BigInt,
     },
 
     Initialized {
-        config: FieldConfig<N>,
-        value: BigInt<N>,
+        config: DebugFieldConfig,
+        value: num_bigint::BigInt,
     },
 }
 
-impl<const N: usize> From<RandomField<'_, N>> for DebugRandomField<N> {
+impl<const N: usize> From<RandomField<'_, N>> for DebugRandomField {
     fn from(value: RandomField<'_, N>) -> Self {
         match value {
-            RandomField::Raw { value } => Self::Raw { value },
-            RandomField::Initialized { config, value } => Self::Initialized {
-                config: *config.reference().unwrap(),
-                value,
+            Raw { value } => Self::Raw {
+                value: value.into(),
+            },
+            Initialized { config, value } => Self::Initialized {
+                config: (*config.reference().unwrap()).into(),
+                value: value.into(),
             },
         }
     }
 }
 
-impl<const N: usize> ark_std::fmt::Display for DebugRandomField<N> {
+impl ark_std::fmt::Display for DebugRandomField {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
             Self::Raw { value } => {

@@ -23,7 +23,7 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 /// ## Type Parameters
 ///
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
-pub trait Arith<const N: usize> {
+pub trait Arith {
     type Scalar: Clone + Send + Sync;
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
     fn check_relation(
@@ -65,7 +65,7 @@ pub struct CCS_F<'cfg, const N: usize> {
     pub config: AtomicPtr<FieldConfig<N>>,
 }
 
-impl<'cfg, const N: usize> Arith<N> for CCS_F<'cfg, N> {
+impl<'cfg, const N: usize> Arith for CCS_F<'cfg, N> {
     type Scalar = RandomField<'cfg, N>;
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(

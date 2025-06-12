@@ -159,9 +159,9 @@ impl<'cfg, const N: usize> Statement_F<RandomField<'cfg, N>> {
 
 /// A representation of a linearised CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct LStatement<'cfg, const N: usize> {
-    constraints: Vec<SparseMultilinearExtension<'cfg, N>>,
-    r: Vec<RandomField<'cfg, N>>,
+pub struct LStatement<F, CR> {
+    constraints: Vec<SparseMultilinearExtension<F, CR>>,
+    r: Vec<F>,
 }
 
 /// A representation of a CCS witness.

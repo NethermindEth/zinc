@@ -58,7 +58,10 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
         degree: usize,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
-    ) -> (SumcheckProof<RandomField<'cfg, N>>, ProverState<'cfg, N>) {
+    ) -> (
+        SumcheckProof<RandomField<'cfg, N>>,
+        ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    ) {
         let (nvars_field, degree_field) = if N == 1 {
             (
                 (nvars as u64).map_to_field(config),

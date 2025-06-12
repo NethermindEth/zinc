@@ -22,11 +22,11 @@ pub struct ProverMsg<F> {
 }
 
 /// Prover State
-pub struct ProverState<'cfg, const N: usize> {
+pub struct ProverState<F, Cr> {
     /// sampled randomness given by the verifier
-    pub randomness: Vec<RandomField<'cfg, N>>,
+    pub randomness: Vec<F>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
+    pub mles: Vec<DenseMultilinearExtension<F, Cr>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -41,7 +41,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
         mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<'cfg, N> {
+    ) -> ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
@@ -59,7 +59,7 @@ impl<const N: usize> IPForMLSumcheck<N> {
     ///
     /// Adapted Jolt's sumcheck implementation
     pub fn prove_round<'cfg>(
-        prover_state: &mut ProverState<'cfg, N>,
+        prover_state: &mut ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         v_msg: &Option<VerifierMsg<'cfg, N>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,

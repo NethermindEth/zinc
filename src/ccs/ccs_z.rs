@@ -195,7 +195,7 @@ impl<const N: usize> Witness_Z<N> {
 
 impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Witness_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = Witness_F<'cfg, N>;
+    type Output = Witness_F<RandomField<'cfg, N>>;
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {

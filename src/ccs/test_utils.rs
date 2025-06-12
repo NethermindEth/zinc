@@ -130,7 +130,7 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
 ) -> (
     CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     Statement_F<RandomField<'cfg, N>>,
-    Witness_F<'cfg, N>,
+    Witness_F<RandomField<'cfg, N>>,
 ) {
     let ccs = match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
@@ -158,7 +158,7 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
         public_input: z[..pub_io_len].to_vec(),
     };
 
-    let wit = Witness_F::<N> {
+    let wit = Witness_F::<RandomField<N>> {
         w_ccs: z[pub_io_len + 1..].to_vec(),
     };
 
@@ -185,7 +185,7 @@ pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
     Vec<RandomField<'cfg, N>>,
     CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     Statement_F<RandomField<'cfg, N>>,
-    Witness_F<'cfg, N>,
+    Witness_F<RandomField<'cfg, N>>,
 ) {
     let mut z: Vec<_> = (0..n)
         .map(|_| RandomField::<N>::rand_with_config(rng, config))

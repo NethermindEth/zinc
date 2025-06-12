@@ -166,9 +166,9 @@ pub struct LStatement<F, CR> {
 
 /// A representation of a CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Witness_F<'cfg, const N: usize> {
+pub struct Witness_F<F> {
     /// `w_ccs` is the original CCS witness.
-    pub w_ccs: Vec<RandomField<'cfg, N>>,
+    pub w_ccs: Vec<F>,
 }
 
 /// A representation of a linearised CCS witness.
@@ -178,7 +178,7 @@ pub struct LWitness<'cfg, const N: usize> {
     pub lw_ccs: DenseMultilinearExtension<'cfg, N>,
 }
 
-impl<'cfg, const N: usize> Witness_F<'cfg, N> {
+impl<'cfg, const N: usize> Witness_F<RandomField<'cfg, N>> {
     pub type Scalar = RandomField<'cfg, N>;
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<Self::Scalar>) -> Self {

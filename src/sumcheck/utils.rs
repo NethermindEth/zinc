@@ -35,7 +35,10 @@ pub fn rand_poly<'cfg, const N: usize>(
     rng: &mut impl RngCore,
 ) -> Result<
     (
-        (Vec<DenseMultilinearExtension<'cfg, N>>, usize),
+        (
+            Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
+            usize,
+        ),
         Vec<(RandomField<'cfg, N>, Vec<usize>)>,
         RandomField<'cfg, N>,
     ),
@@ -114,7 +117,7 @@ pub fn eq_eval<'cfg, const N: usize>(
 pub fn build_eq_x_r<'cfg, const N: usize>(
     r: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> Result<DenseMultilinearExtension<'cfg, N>, ArithErrors> {
+) -> Result<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 

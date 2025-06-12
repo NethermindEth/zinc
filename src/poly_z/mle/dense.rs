@@ -15,6 +15,7 @@ use crypto_bigint::{Int, Random};
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
+use crate::field::RandomField;
 use crate::poly::ArithErrors;
 use crate::{
     field::conversion::FieldMap,
@@ -126,7 +127,7 @@ impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>>
     for DenseMultilinearExtension<I>
 {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = DenseMultilinearExtensionF<'cfg, N>;
+    type Output = DenseMultilinearExtensionF<RandomField<'cfg, N>, ConfigRef<'cfg, N>>;
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,

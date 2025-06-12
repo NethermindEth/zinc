@@ -10,6 +10,7 @@ use sha3::{digest::Output, Digest, Keccak256};
 
 use super::error::MerkleError;
 use super::structs::MultilinearZipData;
+use crate::field::RandomField;
 use crate::primitives::Signed;
 use crate::{
     field::RandomField as F,
@@ -296,13 +297,13 @@ pub(super) fn point_to_tensor<'cfg, const N: usize>(
     let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
-        MLE_F::<N>::zero()
+        MLE_F::<RandomField<N>, ConfigRef<N>>::zero()
     };
 
     let q_1 = if !hi.is_empty() {
         build_eq_x_r_f(hi, config).unwrap()
     } else {
-        MLE_F::<N>::zero()
+        MLE_F::<RandomField<N>, ConfigRef<N>>::zero()
     };
 
     Ok((q_0.evaluations, q_1.evaluations))
@@ -321,7 +322,7 @@ pub(super) fn left_point_to_tensor<'cfg, const N: usize>(
     let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
-        MLE_F::<N>::zero()
+        MLE_F::<RandomField<N>, ConfigRef<N>>::zero()
     };
     Ok(q_0.evaluations)
 }

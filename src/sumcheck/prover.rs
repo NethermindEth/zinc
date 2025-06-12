@@ -26,7 +26,7 @@ pub struct ProverState<'cfg, const N: usize> {
     /// sampled randomness given by the verifier
     pub randomness: Vec<RandomField<'cfg, N>>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<'cfg, N>>,
+    pub mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -37,11 +37,11 @@ pub struct ProverState<'cfg, const N: usize> {
 
 impl<const N: usize> IPForMLSumcheck<N> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
-    pub fn prover_init(
-        mles: Vec<DenseMultilinearExtension<N>>,
+    pub fn prover_init<'cfg>(
+        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<N> {
+    ) -> ProverState<'cfg, N> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }

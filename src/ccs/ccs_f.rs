@@ -173,9 +173,9 @@ pub struct Witness_F<F> {
 
 /// A representation of a linearised CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LWitness<'cfg, const N: usize> {
+pub struct LWitness<F, C> {
     /// `w_ccs` is the original CCS witness.
-    pub lw_ccs: DenseMultilinearExtension<'cfg, N>,
+    pub lw_ccs: DenseMultilinearExtension<F, C>,
 }
 
 impl<'cfg, const N: usize> Witness_F<RandomField<'cfg, N>> {

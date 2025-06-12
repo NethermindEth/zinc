@@ -40,7 +40,7 @@ pub trait Arith {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug)]
-pub struct CCS_F<'cfg, const N: usize> {
+pub struct CCS_F<F, C> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -60,12 +60,12 @@ pub struct CCS_F<'cfg, const N: usize> {
     /// vector of multisets
     pub S: Vec<Vec<usize>>,
     /// vector of coefficients
-    pub c: Vec<RandomField<'cfg, N>>,
+    pub c: Vec<F>,
     /// The field the constraint system operates in
-    pub config: AtomicPtr<FieldConfig<N>>,
+    pub config: AtomicPtr<C>,
 }
 
-impl<'cfg, const N: usize> Arith for CCS_F<'cfg, N> {
+impl<'cfg, const N: usize> Arith for CCS_F<RandomField<'cfg, N>, FieldConfig<N>> {
     type Scalar = RandomField<'cfg, N>;
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(
@@ -140,7 +140,7 @@ impl<'cfg, const N: usize> Statement_F<RandomField<'cfg, N>> {
         &self,
         num_rows: usize,
         num_cols: usize,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_F<RandomField<N>, FieldConfig<N>>,
         evals: &[Self::Scalar],
     ) -> Vec<Vec<Self::Scalar>> {
         assert_eq!(num_rows, ccs.n);
@@ -252,7 +252,9 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigRef<N>) -> Vec<Random
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<N> {
+pub(crate) fn get_test_ccs_F<const N: usize>(
+    config: ConfigRef<N>,
+) -> CCS_F<RandomField<N>, FieldConfig<N>> {
     use crate::field::conversion::FieldMap;
     use ark_std::log2;
     use ark_std::ops::Neg;

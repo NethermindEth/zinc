@@ -81,7 +81,7 @@ pub fn prepare_lin_sumcheck_polynomial<'cfg, const N: usize>(
 
 pub(crate) fn sumcheck_polynomial_comb_fn_1<'cfg, const N: usize>(
     vals: &[RandomField<'cfg, N>],
-    ccs: &CCS_F<'cfg, N>,
+    ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
 ) -> RandomField<'cfg, N> {
     let mut result = RandomField::zero();
     'outer: for (i, &c) in ccs.c.iter().enumerate() {

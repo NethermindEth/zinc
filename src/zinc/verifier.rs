@@ -93,7 +93,7 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        ccs: &CCS_F<'cfg, N>,
+        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError>;
@@ -105,7 +105,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
     fn verify(
         &self,
         proof: &SpartanProof<'cfg, N>,
-        ccs: &CCS_F<'cfg, N>,
+        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<VerificationPoints<'cfg, N>, SpartanError> {
@@ -144,7 +144,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         &self,
         proof: &SumcheckProof<'cfg, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<N>,
+        ccs: &CCS_F<RandomField<N>, FieldConfig<N>>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s;
@@ -167,7 +167,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         point_r: &[RandomField<'cfg, N>],
         s: RandomField<'cfg, N>,
         proof: &SpartanProof<'cfg, N>,
-        ccs: &CCS_F<'cfg, N>,
+        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     ) -> Result<(), SpartanError> {
         let e = eq_eval(point_r, beta_s)?;
         let should_equal_s = e * ccs // e * (\sum c_i * \Pi_{j \in S_i} u_j)
@@ -196,7 +196,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         &self,
         proof: &SumcheckProof<'cfg, N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<'cfg, N>,
+        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         claimed_sum: RandomField<'cfg, N>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
@@ -232,7 +232,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         cm_i: &Statement_F<RandomField<'cfg, N>>,
         zip_proof: &ZipProof<'cfg, I, N>,
         verification_points: &VerificationPoints<'cfg, N>,
-        ccs: &CCS_F<'cfg, N>,
+        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
         config: &'cfg FieldConfig<N>,
     ) -> Result<(), SpartanError>

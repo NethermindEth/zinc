@@ -9,7 +9,7 @@ use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
-use crate::field_config::ConfigRef;
+use crate::field_config::{ConfigRef, FieldConfig};
 use crate::{
     field::{conversion::FieldMap, RandomField},
     sparse_matrix::SparseMatrix,
@@ -128,7 +128,7 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
     pub_io_len: usize,
     config: ConfigRef<'cfg, N>,
 ) -> (
-    CCS_F<'cfg, N>,
+    CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     Statement_F<RandomField<'cfg, N>>,
     Witness_F<'cfg, N>,
 ) {
@@ -183,7 +183,7 @@ pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
     config: ConfigRef<'cfg, N>,
 ) -> (
     Vec<RandomField<'cfg, N>>,
-    CCS_F<'cfg, N>,
+    CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     Statement_F<RandomField<'cfg, N>>,
     Witness_F<'cfg, N>,
 ) {

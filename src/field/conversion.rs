@@ -1,14 +1,13 @@
-use ark_std::cmp::Ordering;
-use ark_std::mem::transmute_copy;
-use ark_std::vec::Vec;
-use crypto_bigint::{Int, NonZero, Uint};
-
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
 use crate::field::RandomField::Raw;
 use crate::field_config::ConfigRef;
 use crate::primitives::{Abs, Unsigned};
 use crate::traits::FromBytes;
+use ark_std::cmp::Ordering;
+use ark_std::mem::transmute_copy;
+use ark_std::vec::Vec;
+use crypto_bigint::{Int, NonZero, Uint};
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
     fn from(value: u128) -> Self {

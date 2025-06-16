@@ -5,7 +5,7 @@ use num_traits::{Signed as NumTraitsSigned, Unsigned as NumTraitsUnsigned};
 pub trait Signed: NumTraitsSigned {
     /// The associated unsigned type (e.g., `i32::Unsigned` is `u32`).
     type Unsigned: Unsigned;
- 
+
     fn to_be_bytes(&self) -> Vec<u8>;
 }
 

@@ -2,6 +2,8 @@ use ark_std::cmp::Ordering;
 use ark_std::mem::transmute_copy;
 use ark_std::vec::Vec;
 use crypto_bigint::{Int, NonZero, Uint};
+use std::cmp::Ordering;
+use std::mem::transmute_copy;
 
 use crate::biginteger::BigInt;
 use crate::field::RandomField;

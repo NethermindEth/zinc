@@ -1,13 +1,13 @@
-use crypto_bigint::{Int, NonZero, Uint};
-use std::cmp::Ordering;
-use std::mem::transmute_copy;
-
 use crate::biginteger::BigInt;
 use crate::field::RandomField;
 use crate::field::RandomField::Raw;
 use crate::field_config::ConfigRef;
 use crate::primitives::{Abs, Unsigned};
 use crate::traits::FromBytes;
+use crypto_bigint::{Int, NonZero, Uint};
+use num_traits::Zero;
+use std::cmp::Ordering;
+use std::mem::transmute_copy;
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
     fn from(other: u128) -> Self {
@@ -104,6 +104,9 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 let wider_value: [u64; N] = unsafe { transmute_copy(&val) };
                 let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
                 wider %= crypto_bigint::NonZero::new(modu).unwrap();
                 BigInt(wider.to_words())
             }
@@ -113,6 +116,9 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
 
                 let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
                 value %= crypto_bigint::NonZero::new(modu).unwrap();
                 BigInt(value.to_words())
             }
@@ -123,6 +129,9 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 slice[..N.min(limbs)].copy_from_slice(&val[..N.min(limbs)]);
                 let mut value = crypto_bigint::Uint::<2>::from_words(slice);
                 let modu = crypto_bigint::Uint::<2>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= crypto_bigint::NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -260,6 +269,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 wider_value[..M].copy_from_slice(&self.0);
                 let mut value = Uint::from_words(wider_value);
                 let modu = Uint::<N>::from_words(modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -272,6 +284,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -284,6 +299,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];

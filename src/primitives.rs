@@ -22,7 +22,7 @@ pub trait Unsigned: NumTraitsUnsigned {
 
 /// Implements [`Signed`] and [`Unsigned`] traits for pairs of signed and unsigned integer types.
 macro_rules! impl_signed_and_unsigned {
-    ($(($s:ty, $u:ty, $b:expr))*) => {
+    ($(($s:ty, $u:ty))*) => {
         $(
             impl Signed for $s {
                 type Unsigned = $u;
@@ -79,6 +79,6 @@ macro_rules! impl_signed_and_unsigned {
     };
 }
 
-impl_signed_and_unsigned!((isize, usize, std::mem::size_of::<usize>() * 8usize)(
-    i8, u8, 8
-)(i16, u16, 16)(i32, u32, 32)(i64, u64, 64)(i128, u128, 128));
+impl_signed_and_unsigned!((isize, usize)(i8, u8)(i16, u16)(i32, u32)(i64, u64)(
+    i128, u128
+));

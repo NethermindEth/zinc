@@ -327,10 +327,12 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
+    #[inline]
     pub fn into_bigint(self) -> BigInt<N> {
         self.with_either_owned(|value| value, Self::demontgomery)
     }
 
+    #[inline]
     fn demontgomery(config: &FieldConfig<N>, value: BigInt<N>) -> BigInt<N> {
         value.demontgomery(config.modulus(), config.inv())
     }

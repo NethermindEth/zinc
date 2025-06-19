@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 use crate::field_config::ConfigRef;
-use std::borrow::Cow;
+use ark_std::borrow::Cow;
+use ark_std::vec::Vec;
 
 use ark_std::iterable::Iterable;
 
@@ -144,7 +145,7 @@ where
                 .collect::<Vec<_>>(),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)
-            .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".to_string()))?;
+            .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".into()))?;
         Ok(())
     }
 }

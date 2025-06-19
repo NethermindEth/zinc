@@ -4,7 +4,7 @@
 // Adapted for rings by Nethermind
 
 use crate::field_config::ConfigRef;
-use ark_std::{log2, vec::*};
+use ark_std::{log2, vec::Vec};
 
 use crate::field::{conversion::FieldMap, RandomField};
 

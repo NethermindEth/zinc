@@ -282,6 +282,7 @@ impl<const N: usize> R2Buffer<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ark_std::vec;
 
     #[test]
     fn test_const_for_macro() {

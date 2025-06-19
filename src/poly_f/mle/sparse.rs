@@ -10,7 +10,8 @@ use ark_std::{
     collections::BTreeMap,
     log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
-    vec::*,
+    vec,
+    vec::Vec,
 };
 #[cfg(feature = "parallel")]
 use rayon::iter::*;

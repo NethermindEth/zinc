@@ -265,7 +265,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             (),
         );
 
-        let value = std::mem::take(self.value_mut());
+        let value = ark_std::mem::take(self.value_mut());
 
         *self = Initialized { config, value }
     }
@@ -374,8 +374,8 @@ impl<const N: usize> Random for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> ark_std::fmt::Debug for RandomField<'_, N> {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
             Raw { value } => write!(f, "{}, no config", value),
             self_ => write!(
@@ -388,8 +388,8 @@ impl<const N: usize> std::fmt::Debug for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> std::fmt::Display for RandomField<'_, N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> ark_std::fmt::Display for RandomField<'_, N> {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         // TODO: we should go back from Montgomery here.
         match self {
             Raw { value } => {
@@ -437,8 +437,8 @@ impl<const N: usize> From<RandomField<'_, N>> for DebugRandomField<N> {
     }
 }
 
-impl<const N: usize> std::fmt::Display for DebugRandomField<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<const N: usize> ark_std::fmt::Display for DebugRandomField<N> {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
             Self::Raw { value } => {
                 write!(f, "{}", value)

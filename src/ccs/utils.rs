@@ -1,7 +1,9 @@
 //! Provides operations used for working with constraint systems
 #![allow(non_snake_case)]
 
-use std::ops::{Add, Mul};
+use ark_std::ops::{Add, Mul};
+use ark_std::string::String;
+use ark_std::vec::Vec;
 
 use crate::sparse_matrix::SparseMatrix;
 
@@ -11,8 +13,8 @@ use super::error::CSError as Error;
 pub(crate) fn vec_add<R: Clone + Add<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
     if a.len() != b.len() {
         return Err(Error::LengthsNotEqual(
-            "a".to_string(),
-            "b".to_string(),
+            String::from("a"),
+            String::from("b"),
             a.len(),
             b.len(),
         ));
@@ -30,8 +32,8 @@ pub(crate) fn vec_scalar_mul<R: Clone + Mul<R, Output = R>>(vec: &[R], c: &R) ->
 pub(crate) fn hadamard<R: Clone + Mul<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
     if a.len() != b.len() {
         return Err(Error::LengthsNotEqual(
-            "a".to_string(),
-            "b".to_string(),
+            "a".into(),
+            "b".into(),
             a.len(),
             b.len(),
         ));
@@ -49,8 +51,8 @@ where
 {
     if M.n_cols != z.len() {
         return Err(Error::LengthsNotEqual(
-            "M".to_string(),
-            "z".to_string(),
+            "M".into(),
+            "z".into(),
             M.n_cols,
             z.len(),
         ));
@@ -71,7 +73,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
+    use ark_std::vec;
 
     use super::*;
     use crate::biginteger::BigInt;

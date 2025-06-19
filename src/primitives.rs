@@ -1,9 +1,12 @@
+use ark_std::vec::Vec;
 use num_traits::{Signed as NumTraitsSigned, Unsigned as NumTraitsUnsigned};
 
 /// Marker trait for signed integer types that links to the corresponding unsigned type.
 pub trait Signed: NumTraitsSigned {
     /// The associated unsigned type (e.g., `i32::Unsigned` is `u32`).
     type Unsigned: Unsigned;
+
+    fn to_be_bytes(&self) -> Vec<u8>;
 }
 
 pub trait Abs {
@@ -22,10 +25,14 @@ pub trait Unsigned: NumTraitsUnsigned {
 
 /// Implements [`Signed`] and [`Unsigned`] traits for pairs of signed and unsigned integer types.
 macro_rules! impl_signed_and_unsigned {
-    ($(($s:ty, $u:ty))*) => {
+    ($(($s:ty, $u:ty, $b:expr))*) => {
         $(
             impl Signed for $s {
                 type Unsigned = $u;
+
+              fn to_be_bytes(&self) -> Vec<u8> {
+                    (*self as $s).to_be_bytes().to_vec()
+                }
             }
 
             impl Abs for $s {
@@ -79,6 +86,6 @@ macro_rules! impl_signed_and_unsigned {
     };
 }
 
-impl_signed_and_unsigned!((isize, usize)(i8, u8)(i16, u16)(i32, u32)(i64, u64)(
-    i128, u128
+impl_signed_and_unsigned!((i8, u8, 8)(i16, u16, 16)(i32, u32, 32)(i64, u64, 64)(
+    i128, u128, 128
 ));

@@ -4,10 +4,11 @@ use crate::field::RandomField::Raw;
 use crate::field_config::ConfigRef;
 use crate::primitives::{Abs, Unsigned};
 use crate::traits::FromBytes;
+use ark_std::cmp::Ordering;
+use ark_std::mem::transmute_copy;
+use ark_std::vec::Vec;
+use ark_std::Zero;
 use crypto_bigint::{Int, NonZero, Uint};
-use num_traits::Zero;
-use std::cmp::Ordering;
-use std::mem::transmute_copy;
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
     fn from(other: u128) -> Self {
@@ -104,9 +105,6 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 let wider_value: [u64; N] = unsafe { transmute_copy(&val) };
                 let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                if modu.is_zero() {
-                    panic!("Cannot reduce modulo zero: field modulus is zero");
-                }
                 wider %= crypto_bigint::NonZero::new(modu).unwrap();
                 BigInt(wider.to_words())
             }
@@ -116,9 +114,6 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
 
                 let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-                if modu.is_zero() {
-                    panic!("Cannot reduce modulo zero: field modulus is zero");
-                }
                 value %= crypto_bigint::NonZero::new(modu).unwrap();
                 BigInt(value.to_words())
             }
@@ -129,9 +124,6 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 slice[..N.min(limbs)].copy_from_slice(&val[..N.min(limbs)]);
                 let mut value = crypto_bigint::Uint::<2>::from_words(slice);
                 let modu = crypto_bigint::Uint::<2>::from_words(wider_modulus);
-                if modu.is_zero() {
-                    panic!("Cannot reduce modulo zero: field modulus is zero");
-                }
 
                 value %= crypto_bigint::NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -264,7 +256,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
         let modulus: [u64; N] = config.modulus.0;
 
         let mut r: BigInt<N> = match M.cmp(&N) {
-            std::cmp::Ordering::Less => {
+            ark_std::cmp::Ordering::Less => {
                 let mut wider_value = [0u64; N];
                 wider_value[..M].copy_from_slice(&self.0);
                 let mut value = Uint::from_words(wider_value);
@@ -279,7 +271,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 
                 BigInt(result)
             }
-            std::cmp::Ordering::Equal => {
+            ark_std::cmp::Ordering::Equal => {
                 let mut value = Uint::<M>::from_words(self.0);
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
@@ -294,7 +286,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
 
                 BigInt(result)
             }
-            std::cmp::Ordering::Greater => {
+            ark_std::cmp::Ordering::Greater => {
                 let mut value = Uint::<M>::from_words(self.0);
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
@@ -361,7 +353,8 @@ mod tests {
     use crate::field_config::{ConfigRef, FieldConfig};
     use crate::traits::FromBytes;
     use crate::{biginteger::BigInt, field::RandomField};
-    use std::str::FromStr;
+    use ark_std::format;
+    use ark_std::str::FromStr;
 
     fn test_from<'cfg, T: Clone, const N: usize>(value: T, value_str: &str)
     where
@@ -587,7 +580,7 @@ mod tests {
             );
 
             // Test maximum value
-            let max = <$type>::from_str(&<$type>::MAX.to_string()).unwrap();
+            let max = <$type>::from_str(&format!("{}", <$type>::MAX)).unwrap();
             let max_result = max.map_to_field($config);
             assert!(
                 max_result.into_bigint() < BigInt::<$N>::from($field),
@@ -595,7 +588,7 @@ mod tests {
             );
 
             // Test minimum value
-            let min = -<$type>::from_str(&<$type>::MAX.to_string()).unwrap();
+            let min = -<$type>::from_str(&format!("{}", <$type>::MAX)).unwrap();
             assert!(
                 min.map_to_field($config).into_bigint() < BigInt::<$N>::from($field),
                 "Minimum value should wrap to valid field element"
@@ -758,7 +751,7 @@ mod tests {
 mod bigint_field_map_tests {
     use super::*;
     use crate::field_config::FieldConfig;
-    use std::str::FromStr;
+    use ark_std::str::FromStr;
 
     #[test]
     fn test_bigint_smaller_than_field() {

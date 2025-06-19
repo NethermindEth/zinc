@@ -26,17 +26,17 @@ pub fn mac_with_carry(a: u64, b: u64, c: u64, carry: &mut u64) -> u64 {
 #[derive(Clone, Copy, Default)]
 pub struct FieldConfig<const N: usize> {
     /// The modulus of the field.
-    pub modulus: BigInt<N>,
+    modulus: BigInt<N>,
 
     /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
     /// `R = M % Self::MODULUS`.
-    pub r: BigInt<N>,
+    r: BigInt<N>,
 
     /// R2 = R^2 % Self::MODULUS
-    pub r2: BigInt<N>,
+    r2: BigInt<N>,
 
     /// INV = -MODULUS^{-1} mod 2^64
-    pub inv: u64,
+    inv: u64,
 
     /// Does the modulus have a spare unused bit
     ///
@@ -163,6 +163,26 @@ impl<const N: usize> FieldConfig<N> {
         } else {
             Some(c)
         }
+    }
+
+    #[inline]
+    pub fn modulus(&self) -> &BigInt<N> {
+        &self.modulus
+    }
+
+    #[inline]
+    pub fn r(&self) -> &BigInt<N> {
+        &self.r
+    }
+
+    #[inline]
+    pub fn r2(&self) -> &BigInt<N> {
+        &self.r2
+    }
+
+    #[inline]
+    pub fn inv(&self) -> u64 {
+        self.inv
     }
 }
 

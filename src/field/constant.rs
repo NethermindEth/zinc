@@ -33,7 +33,7 @@ impl<const N: usize> One for RandomField<'_, N> {
                 *value = BigInt::one();
             },
             |config, value| {
-                *value = config.r;
+                *value = *config.r();
             },
         );
     }
@@ -41,7 +41,7 @@ impl<const N: usize> One for RandomField<'_, N> {
     fn is_one(&self) -> bool {
         self.with_either(
             |value| *value == BigInt::one(),
-            |config, value| *value == config.r,
+            |config, value| *value == *config.r(),
         )
     }
 }

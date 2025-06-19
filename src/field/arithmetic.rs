@@ -136,7 +136,7 @@ impl<const N: usize> Neg for RandomField<'_, N> {
             |_| panic!("Cannot negate without a field config"),
             |config, value| {
                 let tmp = *value;
-                *value = config.modulus;
+                *value = *config.modulus();
                 value.sub_with_borrow(&tmp);
             },
         );

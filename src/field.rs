@@ -213,7 +213,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             let modulus = config
                 .reference()
                 .expect("Field config cannot be none")
-                .modulus;
+                .modulus();
             let shave_bits = 64 * N - modulus.num_bits() as usize;
             // Mask away the unused bits at the beginning.
             assert!(shave_bits <= 64);
@@ -226,7 +226,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             let val = value.last_mut();
             *val &= mask;
 
-            if value < modulus {
+            if value < *modulus {
                 return value.map_to_field(config);
             }
         }
@@ -293,12 +293,12 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             None => return Some(Raw { value }),
         };
 
-        if value >= config_ref.modulus {
+        if value >= *config_ref.modulus() {
             None
         } else {
             let mut r = value;
 
-            config_ref.mul_assign(&mut r, &config_ref.r2);
+            config_ref.mul_assign(&mut r, config_ref.r2());
 
             Some(Self::new_unchecked(Self::Cfg::from(config_ref), r))
         }
@@ -312,12 +312,12 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             }
         };
 
-        if BigInt::from(value.unsigned_abs()) >= config_ref.modulus {
+        if BigInt::from(value.unsigned_abs()) >= *config_ref.modulus() {
             None
         } else {
             let mut r = (value.unsigned_abs()).into();
 
-            (*config_ref).mul_assign(&mut r, &config_ref.r2);
+            (*config_ref).mul_assign(&mut r, config_ref.r2());
 
             let mut elem = Self::new_unchecked(Self::Cfg::from(config_ref), r);
             if value.is_negative() {
@@ -327,12 +327,14 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
+    #[inline]
     pub fn into_bigint(self) -> BigInt<N> {
         self.with_either_owned(|value| value, Self::demontgomery)
     }
 
+    #[inline]
     fn demontgomery(config: &FieldConfig<N>, value: BigInt<N>) -> BigInt<N> {
-        value.demontgomery(&config.modulus, config.inv)
+        value.demontgomery(config.modulus(), config.inv())
     }
 }
 
@@ -360,7 +362,7 @@ impl<const N: usize> ark_std::fmt::Debug for RandomField<'_, N> {
                 f,
                 "{} in Z_{}",
                 self_.into_bigint(),
-                self.config_ptr().reference().unwrap().modulus
+                self.config_ptr().reference().unwrap().modulus()
             ),
         }
     }

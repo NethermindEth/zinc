@@ -88,7 +88,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
             }
         };
 
-        let modulus: [u64; N] = config.modulus.to_words();
+        let modulus: [u64; N] = config.modulus().to_words();
         let abs_val = (*self).unsigned_abs();
 
         let limbs = <T as Abs>::Unsigned::limbs();
@@ -128,7 +128,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
             }
         };
 
-        config.mul_assign(&mut r, &config.r2);
+        config.mul_assign(&mut r, config.r2());
 
         let mut elem = RandomField::<N>::new_unchecked(ConfigRef::from(config), r);
 
@@ -152,7 +152,7 @@ impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
         };
 
         let mut r = BigInt::from(*self as u64);
-        config.mul_assign(&mut r, &config.r2);
+        config.mul_assign(&mut r, config.r2());
         RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
     }
 }
@@ -199,7 +199,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
             None => panic!("Cannot convert BigInt to prime field element without a modulus"),
         };
 
-        let modulus: [u64; N] = config.modulus.to_words();
+        let modulus: [u64; N] = config.modulus().to_words();
 
         let mut r: BigInt<N> = match M.cmp(&N) {
             ark_std::cmp::Ordering::Less => {
@@ -250,7 +250,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
         };
 
         // Apply Montgomery form transformation
-        config.mul_assign(&mut r, &config.r2);
+        config.mul_assign(&mut r, config.r2());
         RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
     }
 }

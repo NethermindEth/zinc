@@ -130,7 +130,7 @@ impl<const I: usize> CCS_Z<I> {
     }
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for CCS_Z<I> {
+impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for CCS_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = CCS_F<'cfg, N>;
 
@@ -159,7 +159,7 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<'cfg, N> for Statement_Z<I> {
+impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Statement_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Statement_F<'cfg, N>;
 
@@ -192,7 +192,7 @@ impl<const N: usize> Witness_Z<N> {
     }
 }
 
-impl<'cfg, const N: usize> FieldMap<'cfg, N> for Witness_Z<N> {
+impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Witness_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
     type Output = Witness_F<'cfg, N>;
 

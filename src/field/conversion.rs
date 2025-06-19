@@ -7,6 +7,7 @@ use crate::traits::FromBytes;
 use ark_std::cmp::Ordering;
 use ark_std::mem::transmute_copy;
 use ark_std::vec::Vec;
+use ark_std::Zero;
 use crypto_bigint::{Int, NonZero, Uint};
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
@@ -206,6 +207,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 wider_value[..M].copy_from_slice(&self.to_words());
                 let mut value = Uint::from_words(wider_value);
                 let modu = Uint::<N>::from_words(modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -218,6 +222,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -230,6 +237,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];

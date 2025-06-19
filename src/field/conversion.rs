@@ -260,6 +260,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 wider_value[..M].copy_from_slice(&self.0);
                 let mut value = Uint::from_words(wider_value);
                 let modu = Uint::<N>::from_words(modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -272,6 +275,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];
@@ -284,6 +290,9 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
+                if modu.is_zero() {
+                    panic!("Cannot reduce modulo zero: field modulus is zero");
+                }
 
                 value %= NonZero::new(modu).unwrap();
                 let mut result = [0u64; N];

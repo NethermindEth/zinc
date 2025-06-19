@@ -445,6 +445,7 @@ impl<const N: usize> BigInt<N> {
         self.mul(other).1
     }
 
+    #[inline]
     pub fn mul_naive(&self, other: &Self) -> (Self, Self) {
         let (mut lo, mut hi) = (Self::zero(), Self::zero());
         crate::const_for!((i in 0..N) {
@@ -571,6 +572,7 @@ impl<const N: usize> BigInt<N> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
 
+    #[inline]
     pub fn montogomery_reduction(
         &mut self,
         lo: &mut Self,
@@ -601,6 +603,7 @@ impl<const N: usize> BigInt<N> {
         carry2 != 0
     }
 
+    #[inline]
     pub fn demontgomery(&self, modulus: &Self, inv: u64) -> Self {
         let mut r = self.0;
         // Montgomery Reduction

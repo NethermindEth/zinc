@@ -23,7 +23,9 @@ use ark_std::{
 };
 use crypto_bigint::Int;
 
+use crate::const_helpers::SerBuffer;
 use crate::traits::FromBytes;
+use crate::{adc, field_config};
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 
@@ -31,7 +33,27 @@ use zeroize::Zeroize;
 pub mod arithmetic;
 mod bits;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Zeroize)]
-pub struct BigInt<const N: usize>(pub [u64; N]);
+pub struct BigInt<const N: usize>([u64; N]);
+
+impl<const N: usize> From<[u64; N]> for BigInt<N> {
+    #[inline]
+    fn from(value: [u64; N]) -> Self {
+        Self(value)
+    }
+}
+
+impl<const N: usize> From<SerBuffer<N>> for BigInt<N> {
+    #[inline]
+    fn from(value: SerBuffer<N>) -> Self {
+        let mut self_integer = BigInt::from(0u64);
+        self_integer
+            .0
+            .iter_mut()
+            .zip(value.buffers)
+            .for_each(|(other, this)| *other = u64::from_le_bytes(this));
+        self_integer
+    }
+}
 
 impl<const N: usize> Default for BigInt<N> {
     fn default() -> Self {
@@ -279,6 +301,18 @@ impl<const N: usize> BigInt<N> {
         let two_pow_n_times_64_square = crate::const_helpers::R2Buffer([0u64; N], [0u64; N], 1);
         const_modulo!(two_pow_n_times_64_square, self)
     }
+
+    pub const fn to_words(&self) -> [u64; N] {
+        self.0
+    }
+
+    pub const fn has_spare_bit(&self) -> bool {
+        self.0[N - 1] >> 63 == 0
+    }
+
+    pub const fn first(&self) -> u64 {
+        self.0[0]
+    }
 }
 
 impl<const N: usize> BigInt<N> {
@@ -412,6 +446,25 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
+    pub fn mul_naive(&self, other: &Self) -> (Self, Self) {
+        let (mut lo, mut hi) = (Self::zero(), Self::zero());
+        crate::const_for!((i in 0..N) {
+            let mut carry = 0;
+            crate::const_for!((j in 0..N) {
+                let k = i + j;
+                if k >= N {
+                    hi.0[k - N] = mac_with_carry!(hi.0[k - N], self.0[i], other.0[j], &mut carry);
+                } else {
+                    lo.0[k] = mac_with_carry!(lo.0[k], self.0[i], other.0[j], &mut carry);
+                }
+            });
+            hi.0[i] = carry;
+        });
+
+        (lo, hi)
+    }
+
+    #[inline]
     pub fn div2(&mut self) {
         let mut t = 0;
         for a in self.0.iter_mut().rev() {
@@ -518,6 +571,61 @@ impl<const N: usize> BigInt<N> {
     pub fn to_bytes_le(self) -> Vec<u8> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
+
+    #[inline]
+    pub fn montogomery_reduction(
+        &mut self,
+        lo: &mut Self,
+        hi: &mut Self,
+        modulus: &Self,
+        inv: u64,
+    ) -> bool {
+        let mut carry2 = 0;
+        crate::const_for!((i in 0..N) {
+            let tmp = lo.0[i].wrapping_mul(inv);
+            let mut carry;
+            mac!(lo.0[i], tmp, modulus.0[0], &mut carry);
+            crate::const_for!((j in 1..N) {
+                let k = i + j;
+                if k >= N {
+                    hi.0[k - N] = mac_with_carry!(hi.0[k - N], tmp, modulus.0[j], &mut carry);
+                }  else {
+                    lo.0[k] = mac_with_carry!(lo.0[k], tmp, modulus.0[j], &mut carry);
+                }
+            });
+            hi.0[i] = adc!(hi.0[i], carry, &mut carry2);
+        });
+
+        crate::const_for!((i in 0..N) {
+            self.0[i] = hi.0[i];
+        });
+
+        carry2 != 0
+    }
+
+    #[inline]
+    pub fn demontgomery(&self, modulus: &Self, inv: u64) -> Self {
+        let mut r = self.0;
+        // Montgomery Reduction
+        for i in 0..N {
+            let k = r[i].wrapping_mul(inv);
+            let mut carry = 0;
+
+            field_config::mac_with_carry(r[i], k, modulus.0[0], &mut carry);
+            for j in 1..N {
+                r[(j + i) % N] =
+                    field_config::mac_with_carry(r[(j + i) % N], k, modulus.0[j], &mut carry);
+            }
+            r[i % N] = carry;
+        }
+
+        BigInt::new(r)
+    }
+
+    #[inline]
+    pub fn last_mut(&mut self) -> &mut u64 {
+        &mut self.0[N - 1]
+    }
 }
 
 impl<const N: usize> UpperHex for BigInt<N> {
@@ -571,7 +679,7 @@ impl<const N: usize> PartialOrd for BigInt<N> {
 
 impl<const N: usize> Distribution<BigInt<N>> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BigInt<N> {
-        BigInt([(); N].map(|_| rng.gen()))
+        BigInt::from([(); N].map(|_| rng.gen()))
     }
 }
 
@@ -610,6 +718,10 @@ impl_from_uint!(u8);
 impl<const N: usize> From<u128> for BigInt<N> {
     #[inline]
     fn from(val: u128) -> BigInt<N> {
+        if N < 2 {
+            panic!("Integer is 128 bits but field is 64 bits");
+        }
+
         let mut repr = Self::default();
         repr.0[0] = val as u64;
         repr.0[1] = (val >> 64) as u64;
@@ -674,13 +786,13 @@ impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
 impl<const N: usize> From<Int<N>> for BigInt<N> {
     fn from(value: Int<N>) -> Self {
         let abs = value.abs();
-        BigInt(*abs.as_words())
+        BigInt::from(*abs.as_words())
     }
 }
 impl<const N: usize> From<&Int<N>> for BigInt<N> {
     fn from(value: &Int<N>) -> Self {
         let abs = value.abs();
-        BigInt(*abs.as_words())
+        BigInt::from(*abs.as_words())
     }
 }
 

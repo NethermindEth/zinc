@@ -11,14 +11,9 @@ use ark_std::Zero;
 use crypto_bigint::{Int, NonZero, Uint};
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
-    fn from(other: u128) -> Self {
-        let mut value = BigInt::default();
-        if N == 1 {
-            panic!("Integer is 128 bits but field is 64 bits")
-        } else {
-            value.0[0] = ((other << 64) >> 64) as u64;
-            value.0[1] = (other >> 64) as u64;
-        }
+    fn from(value: u128) -> Self {
+        let value = BigInt::from(value);
+
         Raw { value }
     }
 }
@@ -93,7 +88,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
             }
         };
 
-        let modulus: [u64; N] = config.modulus.0;
+        let modulus: [u64; N] = config.modulus.to_words();
         let abs_val = (*self).unsigned_abs();
 
         let limbs = <T as Abs>::Unsigned::limbs();
@@ -106,7 +101,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                 wider %= crypto_bigint::NonZero::new(modu).unwrap();
-                BigInt(wider.to_words())
+                BigInt::from(wider.to_words())
             }
             Ordering::Equal => {
                 let mut value_N = [0u64; N];
@@ -115,7 +110,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
                 value %= crypto_bigint::NonZero::new(modu).unwrap();
-                BigInt(value.to_words())
+                BigInt::from(value.to_words())
             }
             Ordering::Greater => {
                 let mut wider_modulus = [0u64; 2];
@@ -129,7 +124,7 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
                 let mut result = [0u64; N];
                 result.copy_from_slice(&value.to_words()[..N]);
 
-                BigInt(result)
+                BigInt::from(result)
             }
         };
 
@@ -144,55 +139,6 @@ impl<'cfg, const N: usize, T: Abs + Copy> FieldMap<'cfg, N> for T {
         elem
     }
 }
-
-// // Implementation of FieldMap for unsigned integers
-// impl<'cfg, const N: usize, T: Unsigned + Copy> FieldMap<'cfg, N> for T
-// {
-//     type Cfg = ConfigRef<'cfg, N>;
-//     type Output = RandomField<'cfg, N>;
-//
-//     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
-//         let config = match config.reference() {
-//             Some(config) => config,
-//             None => panic!("Cannot convert unsigned integer to prime field element without a modulus"),
-//         };
-//
-//         let modulus: [u64; N] = config.modulus.0;
-//         let limbs = T::limbs();
-//         let val = self.as_array::<N>();
-//
-//         let mut r = match limbs.cmp(&N) {
-//             Ordering::Less => {
-//                 let wider_value: [u64; N] = unsafe { core::mem::transmute_copy(&val) };
-//                 let mut wider = crypto_bigint::Uint::<N>::from_words(wider_value);
-//                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-//                 wider %= crypto_bigint::NonZero::new(modu).unwrap();
-//                 BigInt(wider.to_words())
-//             }
-//             Ordering::Equal => {
-//                 let mut value_N = [0u64; N];
-//                 value_N.copy_from_slice(&val);
-//                 let mut value = crypto_bigint::Uint::<N>::from_words(value_N);
-//                 let modu = crypto_bigint::Uint::<N>::from_words(modulus);
-//                 value %= crypto_bigint::NonZero::new(modu).unwrap();
-//                 BigInt(value.to_words())
-//             }
-//             Ordering::Greater => {
-//                 let mut wider_modulus = [0u64; 2];
-//                 wider_modulus[..N].copy_from_slice(&modulus);
-//                 let mut value = crypto_bigint::Uint::<2>::from_words(unsafe { core::mem::transmute_copy(&val) });
-//                 let modu = crypto_bigint::Uint::<2>::from_words(wider_modulus);
-//                 value %= crypto_bigint::NonZero::new(modu).unwrap();
-//                 let mut result = [0u64; N];
-//                 result.copy_from_slice(&value.to_words()[..N]);
-//                 BigInt(result)
-//             }
-//         };
-//
-//         config.mul_assign(&mut r, &config.r2);
-//         RandomField::<N>::new_unchecked(ConfigRef::from(config), r)
-//     }
-// }
 
 // Implementation for bool
 impl<'cfg, const N: usize> FieldMap<'cfg, N> for bool {
@@ -253,12 +199,12 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
             None => panic!("Cannot convert BigInt to prime field element without a modulus"),
         };
 
-        let modulus: [u64; N] = config.modulus.0;
+        let modulus: [u64; N] = config.modulus.to_words();
 
         let mut r: BigInt<N> = match M.cmp(&N) {
             ark_std::cmp::Ordering::Less => {
                 let mut wider_value = [0u64; N];
-                wider_value[..M].copy_from_slice(&self.0);
+                wider_value[..M].copy_from_slice(&self.to_words());
                 let mut value = Uint::from_words(wider_value);
                 let modu = Uint::<N>::from_words(modulus);
                 if modu.is_zero() {
@@ -269,10 +215,10 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut result = [0u64; N];
                 result.copy_from_slice(&value.to_words()[..N]);
 
-                BigInt(result)
+                BigInt::from(result)
             }
             ark_std::cmp::Ordering::Equal => {
-                let mut value = Uint::<M>::from_words(self.0);
+                let mut value = Uint::<M>::from_words(self.to_words());
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
@@ -284,10 +230,10 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut result = [0u64; N];
                 result.copy_from_slice(&value.to_words()[..N]);
 
-                BigInt(result)
+                BigInt::from(result)
             }
             ark_std::cmp::Ordering::Greater => {
-                let mut value = Uint::<M>::from_words(self.0);
+                let mut value = Uint::<M>::from_words(self.to_words());
                 let mut wider_modulus = [0u64; M];
                 wider_modulus[..N].copy_from_slice(&modulus);
                 let modu = Uint::<M>::from_words(wider_modulus);
@@ -299,7 +245,7 @@ impl<'cfg, const M: usize, const N: usize> FieldMap<'cfg, N> for BigInt<M> {
                 let mut result = [0u64; N];
                 result.copy_from_slice(&value.to_words()[..N]);
 
-                BigInt(result)
+                BigInt::from(result)
             }
         };
 
@@ -764,7 +710,7 @@ mod bigint_field_map_tests {
         let result = small_bigint.map_to_field(config_ptr);
 
         assert_eq!(
-            result.into_bigint().0[0],
+            result.into_bigint().first(),
             12345u64,
             "Small BigInt should be preserved in larger field"
         );
@@ -852,8 +798,7 @@ mod bigint_field_map_tests {
         let config_ptr = ConfigRef::from(&config);
 
         // Create a BigInt with all bits set to 1
-        let mut max_value = BigInt::<2>::zero();
-        max_value.0.iter_mut().for_each(|x| *x = u64::MAX);
+        let max_value = BigInt::from([u64::MAX, u64::MAX]);
 
         let result = max_value.map_to_field(config_ptr);
 

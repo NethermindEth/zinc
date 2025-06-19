@@ -30,7 +30,7 @@ macro_rules! impl_signed_and_unsigned {
             impl Signed for $s {
                 type Unsigned = $u;
 
-              fn to_be_bytes(&self) -> Vec<u8> {
+                fn to_be_bytes(&self) -> Vec<u8> {
                     (*self as $s).to_be_bytes().to_vec()
                 }
             }

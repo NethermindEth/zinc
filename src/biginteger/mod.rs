@@ -788,16 +788,39 @@ impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
 }
 
 // Only returns the absolute value for the integer
-impl<const N: usize> From<Int<N>> for BigInt<N> {
-    fn from(value: Int<N>) -> Self {
-        let abs = value.abs();
-        BigInt::from(*abs.as_words())
+impl<const M: usize, const N: usize> From<Int<M>> for BigInt<N> {
+    fn from(value: Int<M>) -> Self {
+        Self::from(&value)
     }
 }
-impl<const N: usize> From<&Int<N>> for BigInt<N> {
-    fn from(value: &Int<N>) -> Self {
+impl<const M: usize, const N: usize> From<&Int<M>> for BigInt<N> {
+    fn from(value: &Int<M>) -> Self {
         let abs = value.abs();
-        BigInt::from(*abs.as_words())
+        let words = abs.to_words();
+        let min_width = M.min(N);
+
+        let mut result = [0u64; N];
+        result[..min_width].copy_from_slice(&words[..min_width]);
+
+        BigInt(result)
+    }
+}
+
+impl<const M: usize, const N: usize> From<BigInt<N>> for Int<M> {
+    fn from(value: BigInt<N>) -> Int<M> {
+        (&value).into()
+    }
+}
+
+impl<const M: usize, const N: usize> From<&BigInt<N>> for Int<M> {
+    fn from(value: &BigInt<N>) -> Int<M> {
+        let words = value.to_words();
+        let min_width = M.min(N);
+
+        let mut result = [0u64; M];
+        result[..min_width].copy_from_slice(&words[..min_width]);
+
+        Int::from_words(result)
     }
 }
 

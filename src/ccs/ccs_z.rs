@@ -131,12 +131,11 @@ impl<const I: usize> CCS_Z<I> {
     }
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for CCS_Z<I> {
-    type Cfg = ConfigRef<'cfg, N>;
+impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>> for CCS_Z<I> {
     type Output = CCS_F<RandomField<'cfg, N>>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
-        match config.pointer() {
+    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
+        match config_ref.pointer() {
             Some(config_ptr) => CCS_F {
                 m: self.m,
                 n: self.n,
@@ -147,7 +146,7 @@ impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for CCS_
                 s: self.s,
                 s_prime: self.s_prime,
                 S: self.S.clone(),
-                c: self.c.iter().map(|c| c.map_to_field(config)).collect(),
+                c: self.c.iter().map(|c| c.map_to_field(config_ref)).collect(),
                 config: AtomicPtr::new(config_ptr),
             },
             None => panic!("FieldConfig cannot be null"),
@@ -160,21 +159,20 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Statement_Z<I> {
-    type Cfg = ConfigRef<'cfg, N>;
+impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>> for Statement_Z<I> {
     type Output = Statement_F<RandomField<'cfg, N>>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
         Self::Output {
             constraints: self
                 .constraints
                 .iter()
-                .map(|m| m.map_to_field(config))
+                .map(|m| m.map_to_field(config_ref))
                 .collect(),
             public_input: self
                 .public_input
                 .iter()
-                .map(|i| i.map_to_field(config))
+                .map(|i| i.map_to_field(config_ref))
                 .collect(),
         }
     }
@@ -193,13 +191,16 @@ impl<const N: usize> Witness_Z<N> {
     }
 }
 
-impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Witness_Z<N> {
-    type Cfg = ConfigRef<'cfg, N>;
+impl<'cfg, const N: usize> FieldMap<RandomField<'cfg, N>> for Witness_Z<N> {
     type Output = Witness_F<RandomField<'cfg, N>>;
 
-    fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
+    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
         Witness_F {
-            w_ccs: self.w_ccs.iter().map(|i| i.map_to_field(config)).collect(),
+            w_ccs: self
+                .w_ccs
+                .iter()
+                .map(|i| i.map_to_field(config_ref))
+                .collect(),
         }
     }
 }

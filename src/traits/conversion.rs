@@ -1,3 +1,5 @@
+use crate::traits::Field;
+
 /// A trait for converting from little-endian and big-endian byte slices into a concrete type.
 pub trait FromBytes: Sized {
     /// Constructs an instance from a little-endian byte slice.
@@ -7,8 +9,7 @@ pub trait FromBytes: Sized {
     fn from_bytes_be(bytes: &[u8]) -> Option<Self>;
 }
 
-pub trait FieldMap<C> {
-    type Cfg: Copy;
+pub trait FieldMap<F: Field> {
     type Output;
-    fn map_to_field(&self, config: C) -> Self::Output;
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output;
 }

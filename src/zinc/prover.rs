@@ -16,12 +16,12 @@ use crate::{
         ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
     },
     field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension,
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    traits::FieldMap,
+    traits::{Field, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
@@ -65,16 +65,15 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
             Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
-        let (spartan_proof, r_y) =
-            SpartanProver::<I, RandomField<'cfg, N>, ConfigRef<'cfg, N>, FieldConfig<N>>::prove(
-                self,
-                &statement_f,
-                &z_ccs,
-                &z_mle,
-                &ccs_f,
-                transcript,
-                config,
-            )?;
+        let (spartan_proof, r_y) = SpartanProver::<I, RandomField<'cfg, N>>::prove(
+            self,
+            &statement_f,
+            &z_ccs,
+            &z_mle,
+            &ccs_f,
+            transcript,
+            config,
+        )?;
 
         // Commit to z_mle and prove its evaluation at v
         let zip_proof =
@@ -88,7 +87,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<const I: usize, F: Clone + Send + Sync, Cr, C> {
+pub trait SpartanProver<const I: usize, F: Field> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -113,14 +112,13 @@ pub trait SpartanProver<const I: usize, F: Clone + Send + Sync, Cr, C> {
         statement_f: &Statement_F<F>,
         z_ccs: &[F],
         z_mle: &DenseMultilinearExtensionZ<I>,
-        ccs_f: &CCS_F<F, C>,
+        ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: Cr,
+        config: F::Cr,
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>)>;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
-    SpartanProver<I, RandomField<'cfg, N>, ConfigRef<'cfg, N>, FieldConfig<N>>
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanProver<I, RandomField<'cfg, N>>
     for ZincProver<I, N, S>
 {
     fn prove(
@@ -128,7 +126,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
         statement_f: &Statement_F<RandomField<'cfg, N>>,
         z_ccs: &[RandomField<'cfg, N>],
         z_mle: &DenseMultilinearExtensionZ<I>,
-        ccs_f: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
+        ccs_f: &CCS_F<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
     ) -> SpartanResult<(
@@ -163,7 +161,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
 impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
     pub type DenseMleF<'cfg> = DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>;
     pub type DenseMleZ = DenseMultilinearExtensionZ<I>;
-    pub type CcsF<'cfg> = CCS_F<RandomField<'cfg, N>, FieldConfig<N>>;
+    pub type CcsF<'cfg> = CCS_F<RandomField<'cfg, N>>;
 
     pub type StatementF<'cfg> = Statement_F<RandomField<'cfg, N>>;
 

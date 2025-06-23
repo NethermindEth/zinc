@@ -2,7 +2,7 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use ark_ff::{One, UniformRand, Zero};
+use ark_ff::UniformRand;
 use ark_std::{
     rand,
     sync::atomic::{AtomicPtr, Ordering},
@@ -14,10 +14,10 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::{
     ccs::error::CSError as Error,
     field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field_config::ConfigRef,
     poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension},
     sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse, SparseMatrix},
-    traits::FieldMap,
+    traits::{Field, FieldMap},
 };
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
@@ -25,14 +25,9 @@ use crate::{
 /// ## Type Parameters
 ///
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
-pub trait Arith {
-    type Scalar: Clone + Send + Sync;
+pub trait Arith<F: Field> {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
-    fn check_relation(
-        &self,
-        M: &[SparseMatrix<Self::Scalar>],
-        z: &[Self::Scalar],
-    ) -> Result<(), Error>;
+    fn check_relation(&self, M: &[SparseMatrix<F>], z: &[F]) -> Result<(), Error>;
 
     /// Returns the bytes that represent the parameters, that is, the matrices sizes, the amount of
     /// public inputs, etc, without the matrices/polynomials values.
@@ -42,7 +37,7 @@ pub trait Arith {
 /// CCS represents the Customizable Constraint Systems structure defined in
 /// the [CCS paper](https://eprint.iacr.org/2023/552)
 #[derive(Debug)]
-pub struct CCS_F<F, C> {
+pub struct CCS_F<F: Field> {
     /// m: number of rows in M_i (such that M_i \in F^{m, n})
     pub m: usize,
     /// n = |z|, number of cols in M_i
@@ -64,18 +59,13 @@ pub struct CCS_F<F, C> {
     /// vector of coefficients
     pub c: Vec<F>,
     /// The field the constraint system operates in
-    pub config: AtomicPtr<C>,
+    pub config: AtomicPtr<F::C>,
 }
 
-impl<'cfg, const N: usize> Arith for CCS_F<RandomField<'cfg, N>, FieldConfig<N>> {
-    type Scalar = RandomField<'cfg, N>;
+impl<F: Field> Arith<F> for CCS_F<F> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
-    fn check_relation(
-        &self,
-        M: &[SparseMatrix<Self::Scalar>],
-        z: &[Self::Scalar],
-    ) -> Result<(), Error> {
-        let mut result = vec![Self::Scalar::zero(); self.m];
+    fn check_relation(&self, M: &[SparseMatrix<F>], z: &[F]) -> Result<(), Error> {
+        let mut result = vec![F::zero(); self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.m,
@@ -90,14 +80,13 @@ impl<'cfg, const N: usize> Arith for CCS_F<RandomField<'cfg, N>, FieldConfig<N>>
         }
         for i in 0..self.q {
             // extract the needed M_j matrices out of S_i
-            let vec_M_j: Vec<&SparseMatrix<Self::Scalar>> =
-                self.S[i].iter().map(|j| &M[*j]).collect();
+            let vec_M_j: Vec<&SparseMatrix<F>> = self.S[i].iter().map(|j| &M[*j]).collect();
 
             // complete the hadamard chain
-            let mut hadamard_result = vec![Self::Scalar::one(); self.m];
+            let mut hadamard_result = vec![F::one(); self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, Self::Scalar::zero());
+                res.resize(self.m, F::zero());
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
@@ -142,7 +131,7 @@ impl<'cfg, const N: usize> Statement_F<RandomField<'cfg, N>> {
         &self,
         num_rows: usize,
         num_cols: usize,
-        ccs: &CCS_F<RandomField<N>, FieldConfig<N>>,
+        ccs: &CCS_F<RandomField<N>>,
         evals: &[Self::Scalar],
     ) -> Vec<Vec<Self::Scalar>> {
         assert_eq!(num_rows, ccs.n);
@@ -254,9 +243,7 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigRef<N>) -> Vec<Random
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_F<const N: usize>(
-    config: ConfigRef<N>,
-) -> CCS_F<RandomField<N>, FieldConfig<N>> {
+pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<RandomField<N>> {
     use ark_std::{log2, ops::Neg};
 
     use crate::traits::FieldMap;

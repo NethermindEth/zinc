@@ -1,7 +1,6 @@
 #![allow(unused)]
 
-use ark_std::Zero;
-use ark_std::{vec, vec::Vec};
+use ark_std::{vec, vec::Vec, Zero};
 
 /// Sets a = a + b + carry, and returns the new carry.
 #[inline(always)]

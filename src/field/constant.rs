@@ -1,8 +1,10 @@
-use crate::biginteger::BigInt;
-use crate::field::RandomField;
-use crate::field::RandomField::Raw;
 use ark_ff::{One, Zero};
 use zeroize::Zeroize;
+
+use crate::{
+    biginteger::BigInt,
+    field::{RandomField, RandomField::Raw},
+};
 
 impl<const N: usize> Zero for RandomField<'_, N> {
     fn zero() -> Self {
@@ -54,15 +56,16 @@ impl<const N: usize> Zeroize for RandomField<'_, N> {
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::{One, Zero};
+    use ark_std::str::FromStr;
+    use zeroize::Zeroize;
+
     use crate::{
         biginteger::BigInt,
         create_bigint, create_random_field,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
     };
-    use ark_ff::{One, Zero};
-    use ark_std::str::FromStr;
-    use zeroize::Zeroize;
 
     #[test]
     fn test_zero_creation() {

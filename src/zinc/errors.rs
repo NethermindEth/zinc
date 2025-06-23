@@ -2,8 +2,9 @@
 use ark_std::string::String;
 use thiserror::Error;
 
-use crate::poly::ArithErrors;
-use crate::{ccs::error::CSError, sumcheck::SumCheckError, zip::Error as ZipError};
+use crate::{
+    ccs::error::CSError, poly::ArithErrors, sumcheck::SumCheckError, zip::Error as ZipError,
+};
 
 #[derive(Debug, Error)]
 pub enum ZincError {

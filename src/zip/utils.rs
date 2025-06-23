@@ -1,7 +1,8 @@
-use ark_std::ops::{Add, Mul};
-use ark_std::vec;
-use ark_std::vec::Vec;
-
+use ark_std::{
+    ops::{Add, Mul},
+    vec,
+    vec::Vec,
+};
 use crypto_bigint::Int;
 use num_integer::Integer;
 

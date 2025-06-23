@@ -3,16 +3,17 @@
 
 // Adapted for rings by Nethermind
 
-use crate::field_config::ConfigRef;
 use ark_ff::{One, UniformRand, Zero};
 use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 
 use super::RefCounter;
-use crate::poly::{get_batched_nv, ArithErrors};
 pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField,
+    field_config::ConfigRef,
+    poly::{get_batched_nv, ArithErrors},
     poly_f::mle::MultilinearExtension,
+    traits::FieldMap,
 };
 
 /// Sample a random list of multilinear polynomials.

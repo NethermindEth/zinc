@@ -1,14 +1,13 @@
-use crate::biginteger::BigInt;
-use crate::field::RandomField;
-use crate::field::RandomField::Raw;
-use crate::field_config::ConfigRef;
-use crate::primitives::{Abs, Unsigned};
-use crate::traits::FromBytes;
-use ark_std::cmp::Ordering;
-use ark_std::mem::transmute_copy;
-use ark_std::vec::Vec;
-use ark_std::Zero;
+use ark_std::{cmp::Ordering, mem::transmute_copy, vec::Vec, Zero};
 use crypto_bigint::{Int, NonZero, Uint};
+
+use crate::{
+    biginteger::BigInt,
+    field::{RandomField, RandomField::Raw},
+    field_config::ConfigRef,
+    primitives::{Abs, Unsigned},
+    traits::{FieldMap, FromBytes},
+};
 
 impl<const N: usize> From<u128> for RandomField<'_, N> {
     fn from(value: u128) -> Self {
@@ -67,12 +66,6 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
         Self::from_bigint(config, value?)
     }
-}
-
-pub trait FieldMap<C> {
-    type Cfg: Copy;
-    type Output;
-    fn map_to_field(&self, config: C) -> Self::Output;
 }
 
 // Implementation of FieldMap for signed integers
@@ -301,12 +294,14 @@ impl<'cfg, const N: usize, T: FieldMap<ConfigRef<'cfg, N>>> FieldMap<ConfigRef<'
 
 #[cfg(test)]
 mod tests {
-    use crate::field::conversion::FieldMap;
-    use crate::field_config::{ConfigRef, FieldConfig};
-    use crate::traits::FromBytes;
-    use crate::{biginteger::BigInt, field::RandomField};
-    use ark_std::format;
-    use ark_std::str::FromStr;
+    use ark_std::{format, str::FromStr};
+
+    use crate::{
+        biginteger::BigInt,
+        field::RandomField,
+        field_config::{ConfigRef, FieldConfig},
+        traits::{FieldMap, FromBytes},
+    };
 
     fn test_from<'cfg, T: Clone, const N: usize>(value: T, value_str: &str)
     where
@@ -701,9 +696,10 @@ mod tests {
 
 #[cfg(test)]
 mod bigint_field_map_tests {
+    use ark_std::str::FromStr;
+
     use super::*;
     use crate::field_config::FieldConfig;
-    use ark_std::str::FromStr;
 
     #[test]
     fn test_bigint_smaller_than_field() {

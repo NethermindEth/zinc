@@ -5,13 +5,16 @@ use std::str::FromStr;
 use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
-
-use zinc::biginteger::BigInt;
-use zinc::field_config::ConfigRef;
-use zinc::sumcheck::utils::{rand_poly, rand_poly_comb_fn};
-use zinc::sumcheck::MLSumcheck;
-use zinc::transcript::KeccakTranscript;
-use zinc::{field::RandomField, field_config::FieldConfig};
+use zinc::{
+    biginteger::BigInt,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
+    sumcheck::{
+        utils::{rand_poly, rand_poly_comb_fn},
+        MLSumcheck,
+    },
+    transcript::KeccakTranscript,
+};
 
 fn run_sumcheck<'cfg, const N: usize>(config: ConfigRef<'cfg, N>) {
     let nvars = 20;

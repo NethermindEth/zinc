@@ -1,13 +1,10 @@
 //! Verifier
-use crate::field_config::ConfigRef;
 use ark_ff::One;
-use ark_std::boxed::Box;
-use ark_std::vec;
-use ark_std::vec::Vec;
+use ark_std::{boxed::Box, vec, vec::Vec};
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField, field_config::ConfigRef, traits::FieldMap,
     transcript::KeccakTranscript as Transcript,
 };
 

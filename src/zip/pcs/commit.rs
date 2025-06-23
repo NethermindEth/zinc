@@ -1,8 +1,10 @@
-use ark_std::iterable::Iterable;
-use ark_std::vec;
-use ark_std::vec::Vec;
+use ark_std::{iterable::Iterable, vec, vec::Vec};
 use crypto_bigint::Int;
 
+use super::{
+    structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
+    utils::{validate_input, MerkleTree},
+};
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     zip::{
@@ -10,11 +12,6 @@ use crate::{
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
-};
-
-use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
-    utils::{validate_input, MerkleTree},
 };
 
 impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>

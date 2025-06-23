@@ -1,17 +1,22 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
+use std::{
+    iter::{Product, Sum},
+    str::FromStr,
+};
+
 use ark_std::iterable::Iterable;
 use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use std::iter::{Product, Sum};
-use std::str::FromStr;
-use zinc::field::conversion::FieldMap;
-
-use zinc::field_config::ConfigRef;
-use zinc::{biginteger::BigInteger256, field::RandomField, field_config::FieldConfig};
+use zinc::{
+    biginteger::BigInteger256,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
+    traits::FieldMap,
+};
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let config =

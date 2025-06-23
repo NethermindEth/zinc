@@ -1,26 +1,22 @@
 #![allow(non_snake_case)]
-use crate::field_config::ConfigRef;
-use ark_std::borrow::Cow;
-use ark_std::vec::Vec;
-
-use ark_std::iterable::Iterable;
-
+use ark_std::{borrow::Cow, iterable::Iterable, vec::Vec};
 use itertools::izip;
 
+use super::{
+    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
+    utils::{left_point_to_tensor, validate_input, ColumnOpening},
+};
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField,
+    field_config::ConfigRef,
     poly_z::mle::DenseMultilinearExtension,
+    traits::FieldMap,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
         Error,
     },
-};
-
-use super::{
-    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
-    utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 
 impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>

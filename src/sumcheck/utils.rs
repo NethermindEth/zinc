@@ -5,7 +5,6 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
-use crate::field_config::ConfigRef;
 use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
@@ -13,17 +12,18 @@ use ark_std::{
     start_timer, vec,
     vec::Vec,
 };
-
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use crate::poly::ArithErrors;
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField,
+    field_config::ConfigRef,
+    poly::ArithErrors,
     poly_f::{
         mle::DenseMultilinearExtension,
         polynomials::{random_mle_list, RefCounter},
     },
+    traits::FieldMap,
 };
 
 #[allow(clippy::type_complexity)]

@@ -2,20 +2,20 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use ark_std::sync::atomic::AtomicPtr;
-use ark_std::vec;
-use ark_std::vec::Vec;
-
-use ark_std::log2;
-
-use super::ccs_f::{Statement_F, Witness_F, CCS_F};
-use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
-use crate::ccs::error::CSError as Error;
-use crate::field::conversion::FieldMap;
-use crate::field::RandomField;
-use crate::field_config::{ConfigRef, FieldConfig};
-use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
+use ark_std::{log2, sync::atomic::AtomicPtr, vec, vec::Vec};
 use crypto_bigint::{Int, Zero};
+
+use super::{
+    ccs_f::{Statement_F, Witness_F, CCS_F},
+    utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul},
+};
+use crate::{
+    ccs::error::CSError as Error,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
+    sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
+    traits::FieldMap,
+};
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
 pub trait Arith_Z<const I: usize> {
@@ -321,20 +321,18 @@ pub(crate) fn get_test_ccs_stuff_Z<const I: usize>(
 
 #[cfg(test)]
 mod tests {
-    use ark_std::str::FromStr;
-    use ark_std::vec::Vec;
+    use ark_std::{str::FromStr, vec::Vec};
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
-    use crate::field_config::ConfigRef;
     use crate::{
         biginteger::BigInt,
         ccs::{
             ccs_f::{Arith, Instance_F},
             ccs_z::CCS_Z,
         },
-        field::conversion::FieldMap,
-        field_config::FieldConfig,
+        field_config::{ConfigRef, FieldConfig},
         sparse_matrix::SparseMatrix,
+        traits::FieldMap,
     };
 
     #[test]

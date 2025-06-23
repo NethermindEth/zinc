@@ -22,12 +22,15 @@ use ark_std::{
     Zero,
 };
 use crypto_bigint::Int;
-
-use crate::const_helpers::SerBuffer;
-use crate::traits::FromBytes;
-use crate::{adc, field_config};
 use num_bigint::BigUint;
 use zeroize::Zeroize;
+
+use crate::{
+    adc,
+    const_helpers::SerBuffer,
+    field_config,
+    traits::{FromBytes, Integer},
+};
 
 #[macro_use]
 pub mod arithmetic;
@@ -627,6 +630,8 @@ impl<const N: usize> BigInt<N> {
         &mut self.0[N - 1]
     }
 }
+
+impl<const N: usize> Integer for BigInt<N> {}
 
 impl<const N: usize> UpperHex for BigInt<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

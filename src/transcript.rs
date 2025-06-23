@@ -1,11 +1,9 @@
-use crate::field_config::ConfigRef;
 use ark_std::vec::Vec;
 use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    biginteger::BigInt,
-    field::{conversion::FieldMap, RandomField},
+    biginteger::BigInt, field::RandomField, field_config::ConfigRef, traits::FieldMap,
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -203,8 +201,11 @@ mod tests {
     use ark_std::str::FromStr;
 
     use super::KeccakTranscript;
-    use crate::field_config::ConfigRef;
-    use crate::{biginteger::BigInt, field::conversion::FieldMap, field_config::FieldConfig};
+    use crate::{
+        biginteger::BigInt,
+        field_config::{ConfigRef, FieldConfig},
+        traits::FieldMap,
+    };
 
     #[test]
     fn test_keccak_transcript() {

@@ -1,14 +1,12 @@
 #![allow(non_snake_case)]
 
-use crate::field_config::ConfigRef;
-use crate::poly::alloc::string::ToString;
 use ark_ff::Zero;
-use ark_std::rand::Rng;
-use ark_std::vec;
-use ark_std::vec::Vec;
+use ark_std::{rand::Rng, vec, vec::Vec};
 use crypto_bigint::Random;
 
-use crate::{field::conversion::FieldMap, field::RandomField};
+use crate::{
+    field::RandomField, field_config::ConfigRef, poly::alloc::string::ToString, traits::FieldMap,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SparseMatrix<R1: Clone + Send + Sync> {

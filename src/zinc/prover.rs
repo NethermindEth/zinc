@@ -1,22 +1,6 @@
-use crate::field_config::{ConfigRef, FieldConfig};
 use ark_ff::Zero;
-use ark_std::sync::atomic::Ordering;
-use ark_std::vec::Vec;
+use ark_std::{sync::atomic::Ordering, vec::Vec};
 use crypto_bigint::Int;
-
-use crate::{
-    ccs::{
-        ccs_f::{Statement_F, CCS_F},
-        ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
-    },
-    field::{conversion::FieldMap, RandomField},
-    poly_f::mle::DenseMultilinearExtension,
-    poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
-    sparse_matrix::SparseMatrix,
-    sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    transcript::KeccakTranscript,
-    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
-};
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
@@ -25,6 +9,21 @@ use super::{
         calculate_Mz_mles, prepare_lin_sumcheck_polynomial, sumcheck_polynomial_comb_fn_1,
         SqueezeBeta, SqueezeGamma,
     },
+};
+use crate::{
+    ccs::{
+        ccs_f::{Statement_F, CCS_F},
+        ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
+    },
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
+    poly_f::mle::DenseMultilinearExtension,
+    poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
+    sparse_matrix::SparseMatrix,
+    sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
+    traits::FieldMap,
+    transcript::KeccakTranscript,
+    zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 pub type SpartanResult<T> = Result<T, SpartanError>;

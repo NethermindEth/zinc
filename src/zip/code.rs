@@ -1,21 +1,11 @@
 #![allow(non_snake_case)]
-use crate::field_config::ConfigRef;
 use ark_ff::Zero;
-use ark_std::vec::Vec;
+use ark_std::{collections::BTreeSet, fmt::Debug, iter, vec, vec::Vec};
 use crypto_bigint::Int;
-
-use crate::field::conversion::FieldMap;
-use crate::field::RandomField;
-use crate::zip::utils::expand;
-
-use ark_std::fmt::Debug;
-
-use ark_std::collections::BTreeSet;
-use ark_std::iter;
-use ark_std::vec;
 use itertools::Itertools;
 
 use super::pcs::structs::ZipTranscript;
+use crate::{field::RandomField, field_config::ConfigRef, traits::FieldMap, zip::utils::expand};
 const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
     fn row_len(&self) -> usize;

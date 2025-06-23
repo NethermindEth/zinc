@@ -1,23 +1,21 @@
 #![allow(non_snake_case)]
 
-use crate::field_config::ConfigRef;
 use ark_ff::Zero;
 use ark_std::vec::Vec;
 use bytemuck::cast_slice;
 use crypto_bigint::Int;
 
+use super::errors::{MleEvaluationError, SpartanError};
 use crate::{
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
-    field_config::FieldConfig,
+    field_config::{ConfigRef, FieldConfig},
     poly_f::mle::DenseMultilinearExtension,
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
     transcript::KeccakTranscript,
 };
-
-use super::errors::{MleEvaluationError, SpartanError};
 
 /// Prepare the main linearization polynomial.
 ///

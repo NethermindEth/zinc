@@ -1,18 +1,21 @@
 //! Prover
 
-use crate::field_config::ConfigRef;
-use ark_std::sync::atomic::{self, AtomicPtr};
-
-use ark_std::{cfg_into_iter, cfg_iter_mut, vec, vec::Vec};
+use ark_std::{
+    cfg_into_iter, cfg_iter_mut,
+    sync::atomic::{self, AtomicPtr},
+    vec,
+    vec::Vec,
+};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use crate::{
-    field::{conversion::FieldMap, RandomField},
-    poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
-};
-
 use super::{verifier::VerifierMsg, IPForMLSumcheck};
+use crate::{
+    field::RandomField,
+    field_config::ConfigRef,
+    poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
+    traits::FieldMap,
+};
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]

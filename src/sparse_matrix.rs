@@ -5,8 +5,6 @@ use ark_std::{rand::Rng, vec, vec::Vec};
 use crypto_bigint::Random;
 
 use crate::{
-    field::RandomField,
-    field_config::ConfigRef,
     poly::alloc::string::ToString,
     traits::{Field, FieldMap},
 };
@@ -38,17 +36,14 @@ impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for 
 
 // At the moment only using i128 for the sparse matrix, macro later if needed
 
-impl<
-        'cfg,
-        const N: usize,
-        T: FieldMap<RandomField<'cfg, N>, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
-    > FieldMap<RandomField<'cfg, N>> for SparseMatrix<T>
+impl<F: Field, T: FieldMap<F, Output = F> + Clone + Send + Sync + Copy> FieldMap<F>
+    for SparseMatrix<T>
 where
-    <T as FieldMap<RandomField<'cfg, N>>>::Output: Clone + Send + Sync,
+    <T as FieldMap<F>>::Output: Clone + Send + Sync,
 {
     type Output = SparseMatrix<T::Output>;
-    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
-        let mut matrix = SparseMatrix::<RandomField<N>> {
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+        let mut matrix = SparseMatrix::<F> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
             coeffs: Vec::new(),

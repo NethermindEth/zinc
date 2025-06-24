@@ -290,6 +290,8 @@ impl<'cfg, const N: usize> ConfigReference<Words<N>, BigInt<N>, FieldConfig<N>>
     fn pointer(&self) -> Option<*mut FieldConfig<N>> {
         self.0.map(|p| p as *const _ as *mut _)
     }
+
+    const NONE: Self = Self(None);
 }
 
 impl<const N: usize> PartialEq for ConfigRef<'_, N> {
@@ -306,10 +308,6 @@ impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigRef<'cfg, N> {
 
 unsafe impl<const N: usize> Sync for ConfigRef<'_, N> {}
 unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
-
-impl<const N: usize> ConfigRef<'_, N> {
-    pub const NONE: Self = Self(None);
-}
 
 #[cfg(test)]
 mod tests {

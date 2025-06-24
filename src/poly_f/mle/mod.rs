@@ -16,7 +16,7 @@ use ark_std::{
 ///
 /// Index represents a point, which is a vector in {0,1}^`num_vars` in little
 /// endian form. For example, `0b1011` represents `P(1,1,0,1)`
-pub trait MultilinearExtension<F, CR>:
+pub trait MultilinearExtension<F: Field>:
     Sized
     + Clone
     + Debug
@@ -35,7 +35,7 @@ pub trait MultilinearExtension<F, CR>:
 
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random.
-    fn rand<Rn: Rng>(num_vars: usize, config: CR, rng: &mut Rn) -> Self;
+    fn rand<Rn: Rng>(num_vars: usize, config: F::Cr, rng: &mut Rn) -> Self;
 
     /// Relabel the point by swapping `k` scalars from positions `a..a+k` to
     /// positions `b..b+k`, and from position `b..b+k` to position `a..a+k`
@@ -47,11 +47,11 @@ pub trait MultilinearExtension<F, CR>:
 
     /// Reduce the number of variables of `self` by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fix_variables(&mut self, partial_point: &[F], config: CR);
+    fn fix_variables(&mut self, partial_point: &[F], config: F::Cr);
 
     /// Creates a new object with the number of variables of `self` reduced by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fixed_variables(&self, partial_point: &[F], config: CR) -> Self;
+    fn fixed_variables(&self, partial_point: &[F], config: F::Cr) -> Self;
 
     /// Returns a list of evaluations over the domain, which is the boolean
     /// hypercube. The evaluations are in little-endian order.
@@ -69,3 +69,5 @@ pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {
 /// Exports
 pub use dense::DenseMultilinearExtension;
 pub use sparse::SparseMultilinearExtension;
+
+use crate::traits::Field;

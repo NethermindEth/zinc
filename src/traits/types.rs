@@ -1,10 +1,14 @@
 use ark_std::{
     fmt::Debug,
-    ops::{AddAssign, Index, IndexMut, Mul, Neg, Range, RangeTo, RemAssign},
+    ops::{
+        AddAssign, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub, SubAssign,
+    },
     UniformRand,
 };
-use crypto_bigint::NonZero;
+use crypto_bigint::{NonZero, Random};
 use num_traits::{One, Zero};
+
+use crate::traits::FieldMap;
 
 pub trait Field:
     Zero
@@ -21,8 +25,13 @@ pub trait Field:
     + Debug
     + for<'a> AddAssign<&'a Self>
     + UniformRand
+    + Sub<Self, Output = Self>
+    + MulAssign
+    + SubAssign
+    + Random
+    + AddAssign
 {
-    type I: Integer<Self::W> + From<Self::CryptoInt>;
+    type I: Integer<Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
     type C: Config<Self::W, Self::I>;
     type Cr: ConfigReference<Self::W, Self::I, Self::C>;
     type W: Words;
@@ -32,8 +41,10 @@ pub trait Field:
     fn without_config(value: Self::I) -> Self;
 }
 
-pub trait Integer<W: Words>: From<u64> + Debug {
+pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {
     fn to_words(&self) -> W;
+
+    fn one() -> Self;
 }
 pub trait Config<W: Words, I: Integer<W>> {
     fn modulus(&self) -> &I;
@@ -41,13 +52,16 @@ pub trait Config<W: Words, I: Integer<W>> {
 
     fn r2(&self) -> &I;
 }
-pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>: Copy + Clone {
+pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>:
+    Copy + Clone + PartialEq + Eq + Debug
+{
     fn reference(&self) -> Option<&C>;
 
     #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
     unsafe fn new(config_ptr: *mut C) -> Self;
 
     fn pointer(&self) -> Option<*mut C>;
+    const NONE: Self;
 }
 
 pub trait Words:

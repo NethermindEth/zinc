@@ -255,7 +255,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
-        traits::{Field, FieldMap, FromBytes},
+        traits::{ConfigReference, Field, FieldMap, FromBytes},
     };
 
     fn test_from<F: Field + From<T>, T: Clone>(value: T, value_str: &str)

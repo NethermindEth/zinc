@@ -1,6 +1,7 @@
 use ark_std::{
     fmt::Debug,
-    ops::{Index, IndexMut, Mul, Neg, Range, RangeTo, RemAssign},
+    ops::{AddAssign, Index, IndexMut, Mul, Neg, Range, RangeTo, RemAssign},
+    UniformRand,
 };
 use crypto_bigint::NonZero;
 use num_traits::{One, Zero};
@@ -18,6 +19,8 @@ pub trait Field:
     + for<'a> Mul<&'a Self, Output = Self>
     + Neg<Output = Self>
     + Debug
+    + for<'a> AddAssign<&'a Self>
+    + UniformRand
 {
     type I: Integer<Self::W> + From<Self::CryptoInt>;
     type C: Config<Self::W, Self::I>;
@@ -40,6 +43,11 @@ pub trait Config<W: Words, I: Integer<W>> {
 }
 pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>: Copy + Clone {
     fn reference(&self) -> Option<&C>;
+
+    #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
+    unsafe fn new(config_ptr: *mut C) -> Self;
+
+    fn pointer(&self) -> Option<*mut C>;
 }
 
 pub trait Words:

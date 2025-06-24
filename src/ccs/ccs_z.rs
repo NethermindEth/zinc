@@ -14,7 +14,7 @@ use crate::{
     field::RandomField,
     field_config::ConfigRef,
     sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
-    traits::FieldMap,
+    traits::{ConfigReference, FieldMap},
 };
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates

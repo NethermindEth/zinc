@@ -14,7 +14,7 @@ use crate::{
     field::RandomField,
     field_config::ConfigRef,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::FieldMap,
+    traits::{ConfigReference, FieldMap},
 };
 
 /// Prover Message

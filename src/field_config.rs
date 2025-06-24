@@ -282,6 +282,14 @@ impl<'cfg, const N: usize> ConfigReference<Words<N>, BigInt<N>, FieldConfig<N>>
     fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
         self.0
     }
+
+    unsafe fn new(config_ptr: *mut FieldConfig<N>) -> Self {
+        Self(Option::from(config_ptr.as_ref().unwrap()))
+    }
+
+    fn pointer(&self) -> Option<*mut FieldConfig<N>> {
+        self.0.map(|p| p as *const _ as *mut _)
+    }
 }
 
 impl<const N: usize> PartialEq for ConfigRef<'_, N> {
@@ -300,15 +308,6 @@ unsafe impl<const N: usize> Sync for ConfigRef<'_, N> {}
 unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
 
 impl<const N: usize> ConfigRef<'_, N> {
-    pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
-        self.0.map(|p| p as *const _ as *mut _)
-    }
-
-    #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
-    pub unsafe fn new(config_ptr: *mut FieldConfig<N>) -> Self {
-        Self(Option::from(config_ptr.as_ref().unwrap()))
-    }
-
     pub const NONE: Self = Self(None);
 }
 

@@ -632,6 +632,10 @@ impl<const N: usize> Integer<Words<N>> for BigInt<N> {
     fn to_words(&self) -> Words<N> {
         Words(self.0)
     }
+
+    fn one() -> Self {
+        Self::from(1u64)
+    }
 }
 
 impl<const N: usize> UpperHex for BigInt<N> {

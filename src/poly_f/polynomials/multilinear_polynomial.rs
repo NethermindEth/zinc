@@ -26,7 +26,7 @@ pub fn random_mle_list<'cfg, const N: usize, Rn: RngCore>(
     rng: &mut Rn,
     config: ConfigRef<'cfg, N>,
 ) -> (
-    Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>>,
+    Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>>>>,
     RandomField<'cfg, N>,
 ) {
     let start = start_timer!(|| "sample random mle list");
@@ -66,7 +66,7 @@ pub fn random_zero_mle_list<'cfg, const N: usize, Rn: RngCore>(
     degree: usize,
     rng: &mut Rn,
     config: ConfigRef<'cfg, N>,
-) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>>>> {
     let start = start_timer!(|| "sample random zero mle list");
 
     let mut multiplicands = Vec::with_capacity(degree);
@@ -107,7 +107,7 @@ pub fn identity_permutation_mles<const N: usize>(
     num_vars: usize,
     num_chunks: usize,
     config: ConfigRef<N>,
-) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<N>, ConfigRef<N>>>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<N>>>> {
     let mut res = vec![];
     for i in 0..num_chunks {
         let shift = (i * (1 << num_vars)) as u64;
@@ -143,7 +143,7 @@ pub fn random_permutation_mles<'cfg, const N: usize, Rn: RngCore>(
     num_chunks: usize,
     rng: &mut Rn,
     config: ConfigRef<'cfg, N>,
-) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>> {
+) -> Vec<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>>>> {
     let s_perm_vec = random_permutation(num_vars, num_chunks, rng, config);
     let mut res = vec![];
     let n = 1 << num_vars;
@@ -160,7 +160,7 @@ pub fn random_permutation_mles<'cfg, const N: usize, Rn: RngCore>(
 }
 
 pub fn evaluate_opt<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
@@ -169,10 +169,10 @@ pub fn evaluate_opt<'cfg, const N: usize>(
 }
 
 pub fn fix_variables<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     partial_point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+) -> DenseMultilinearExtension<RandomField<'cfg, N>> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"
@@ -185,7 +185,7 @@ pub fn fix_variables<'cfg, const N: usize>(
         poly = fix_one_variable_helper(&poly, nv - i, point);
     }
 
-    DenseMultilinearExtension::<RandomField<N>, ConfigRef<N>>::from_evaluations_slice(
+    DenseMultilinearExtension::<RandomField<N>>::from_evaluations_slice(
         nv - dim,
         &poly[..1 << (nv - dim)],
         config,
@@ -209,7 +209,7 @@ fn fix_one_variable_helper<'cfg, const N: usize>(
 }
 
 pub fn evaluate_no_par<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
 ) -> RandomField<'cfg, N> {
@@ -218,10 +218,10 @@ pub fn evaluate_no_par<'cfg, const N: usize>(
 }
 
 fn fix_variables_no_par<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     partial_point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+) -> DenseMultilinearExtension<RandomField<'cfg, N>> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"
@@ -242,14 +242,9 @@ fn fix_variables_no_par<'cfg, const N: usize>(
 /// merge a set of polynomials. Returns an error if the
 /// polynomials do not share a same number of nvs.
 pub fn merge_polynomials<'cfg, const N: usize>(
-    polynomials: &[RefCounter<
-        DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
-    >],
+    polynomials: &[RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>>>],
     config: ConfigRef<'cfg, N>,
-) -> Result<
-    RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
-    ArithErrors,
-> {
+) -> Result<RefCounter<DenseMultilinearExtension<RandomField<'cfg, N>>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
     for poly in polynomials.iter() {
         if nv != poly.num_vars() {
@@ -271,10 +266,10 @@ pub fn merge_polynomials<'cfg, const N: usize>(
 }
 
 pub fn fix_last_variables_no_par<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     partial_point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+) -> DenseMultilinearExtension<RandomField<'cfg, N>> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap(), config);
     for p in partial_point.iter().rev().skip(1) {
         res = fix_last_variable_no_par(&res, p, config);
@@ -283,10 +278,10 @@ pub fn fix_last_variables_no_par<'cfg, const N: usize>(
 }
 
 fn fix_last_variable_no_par<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     partial_point: &RandomField<'cfg, N>,
     config: ConfigRef<'cfg, N>,
-) -> DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+) -> DenseMultilinearExtension<RandomField<'cfg, N>> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
     let mut res = vec![RandomField::zero(); half_len];
@@ -297,10 +292,10 @@ fn fix_last_variable_no_par<'cfg, const N: usize>(
     DenseMultilinearExtension::from_evaluations_vec(nv - 1, res, config)
 }
 pub fn fix_last_variables<'cfg, const N: usize>(
-    poly: &DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+    poly: &DenseMultilinearExtension<RandomField<'cfg, N>>,
     partial_point: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+) -> DenseMultilinearExtension<RandomField<'cfg, N>> {
     assert!(
         partial_point.len() <= poly.num_vars,
         "invalid size of partial point"

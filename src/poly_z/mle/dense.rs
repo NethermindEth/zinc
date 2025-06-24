@@ -122,7 +122,7 @@ impl<const I: usize> DenseMultilinearExtension<I> {
 impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>>
     for DenseMultilinearExtension<I>
 {
-    type Output = DenseMultilinearExtensionF<RandomField<'cfg, N>, ConfigRef<'cfg, N>>;
+    type Output = DenseMultilinearExtensionF<RandomField<'cfg, N>>;
     fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,

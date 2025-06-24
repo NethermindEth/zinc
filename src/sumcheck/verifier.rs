@@ -4,7 +4,9 @@ use ark_std::{boxed::Box, vec, vec::Vec};
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    field::RandomField, field_config::ConfigRef, traits::FieldMap,
+    field::RandomField,
+    field_config::ConfigRef,
+    traits::{Field, FieldMap},
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -18,7 +20,7 @@ pub struct VerifierMsg<F> {
 }
 
 /// Verifier State
-pub struct VerifierState<F, Cr> {
+pub struct VerifierState<F: Field> {
     round: usize,
     nv: usize,
     max_multiplicands: usize,
@@ -28,7 +30,7 @@ pub struct VerifierState<F, Cr> {
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<F>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: Cr,
+    config: F::Cr,
 }
 
 /// Subclaim when verifier is convinced
@@ -40,13 +42,13 @@ pub struct SubClaim<F> {
     pub expected_evaluation: F,
 }
 
-impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
     /// initialize the verifier
     pub fn verifier_init(
         nvars: usize,
         degree: usize,
         config: ConfigRef<N>,
-    ) -> VerifierState<RandomField<N>, ConfigRef<N>> {
+    ) -> VerifierState<RandomField<N>> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -65,7 +67,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg,
     /// the last step.
     pub fn verify_round(
         prover_msg: ProverMsg<RandomField<'cfg, N>>,
-        verifier_state: &mut VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+        verifier_state: &mut VerifierState<RandomField<'cfg, N>>,
         transcript: &mut Transcript,
     ) -> VerifierMsg<RandomField<'cfg, N>> {
         if verifier_state.finished {
@@ -100,7 +102,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg,
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
     pub fn check_and_generate_subclaim(
-        verifier_state: VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+        verifier_state: VerifierState<RandomField<'cfg, N>>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
     ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {

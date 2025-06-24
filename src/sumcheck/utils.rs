@@ -5,7 +5,6 @@
 
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
-use ark_ff::{One, Zero};
 use ark_std::{
     cfg_iter_mut, end_timer,
     rand::{Rng, RngCore},
@@ -16,8 +15,6 @@ use ark_std::{
 use rayon::iter::*;
 
 use crate::{
-    field::RandomField,
-    field_config::ConfigRef,
     poly::ArithErrors,
     poly_f::{
         mle::DenseMultilinearExtension,
@@ -68,11 +65,7 @@ pub fn rand_poly<F: Field>(
     Ok(((mles, degree), products, sum))
 }
 
-pub fn rand_poly_comb_fn<'cfg, const N: usize>(
-    vals: &[RandomField<'cfg, N>],
-    products: &[(RandomField<'cfg, N>, Vec<usize>)],
-    config: ConfigRef<'cfg, N>,
-) -> RandomField<'cfg, N> {
+pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], config: F::Cr) -> F {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
         let mut term = *coef;
@@ -86,20 +79,17 @@ pub fn rand_poly_comb_fn<'cfg, const N: usize>(
 }
 
 /// Evaluate eq polynomial.
-pub fn eq_eval<'cfg, const N: usize>(
-    x: &[RandomField<'cfg, N>],
-    y: &[RandomField<'cfg, N>],
-) -> Result<RandomField<'cfg, N>, ArithErrors> {
+pub fn eq_eval<F: Field>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
     if x.len() != y.len() {
         return Err(ArithErrors::InvalidParameters(
             "x and y have different length".into(),
         ));
     }
     let start = start_timer!(|| "eq_eval");
-    let mut res = RandomField::one();
+    let mut res = F::one();
     for (&xi, &yi) in x.iter().zip(y.iter()) {
         let xi_yi = xi * yi;
-        res *= xi_yi + xi_yi - xi - yi + RandomField::one();
+        res *= xi_yi + xi_yi - xi - yi + F::one();
     }
     end_timer!(start);
     Ok(res)
@@ -111,10 +101,10 @@ pub fn eq_eval<'cfg, const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r<'cfg, const N: usize>(
-    r: &[RandomField<'cfg, N>],
-    config: ConfigRef<'cfg, N>,
-) -> Result<DenseMultilinearExtension<RandomField<'cfg, N>>, ArithErrors> {
+pub fn build_eq_x_r<F: Field>(
+    r: &[F],
+    config: F::Cr,
+) -> Result<DenseMultilinearExtension<F>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 
@@ -127,9 +117,7 @@ pub fn build_eq_x_r<'cfg, const N: usize>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r_vec<'cfg, const N: usize>(
-    r: &[RandomField<'cfg, N>],
-) -> Result<Vec<RandomField<'cfg, N>>, ArithErrors> {
+pub fn build_eq_x_r_vec<F: Field>(r: &[F]) -> Result<Vec<F>, ArithErrors> {
     // we build eq(x,r) from its evaluations
     // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
     // for example, with num_vars = 4, x is a binary vector of 4, then
@@ -150,15 +138,12 @@ pub fn build_eq_x_r_vec<'cfg, const N: usize>(
 /// A helper function to build eq(x, r) recursively.
 /// This function takes `r.len()` steps, and for each step it requires a maximum
 /// `r.len()-1` multiplications.
-fn build_eq_x_r_helper<'cfg, const N: usize>(
-    r: &[RandomField<'cfg, N>],
-    buf: &mut Vec<RandomField<'cfg, N>>,
-) -> Result<(), ArithErrors> {
+fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithErrors> {
     if r.is_empty() {
         return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
-        buf.push(RandomField::one() - r[0]);
+        buf.push(F::one() - r[0]);
         buf.push(r[0]);
     } else {
         build_eq_x_r_helper(&r[1..], buf)?;
@@ -175,7 +160,7 @@ fn build_eq_x_r_helper<'cfg, const N: usize>(
         // }
         // *buf = res;
 
-        let mut res = vec![RandomField::zero(); buf.len() << 1];
+        let mut res = vec![F::zero(); buf.len() << 1];
         cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
             let bi = buf[i >> 1];
             let tmp = r[0] * bi;

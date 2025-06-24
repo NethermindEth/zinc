@@ -39,6 +39,7 @@ pub trait Field:
     type CryptoUint: CryptoUint<Self::W, Int = Self::CryptoInt>;
     fn new_unchecked(config: Self::Cr, value: Self::I) -> Self;
     fn without_config(value: Self::I) -> Self;
+    fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self;
 }
 
 pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {

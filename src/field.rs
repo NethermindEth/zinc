@@ -212,34 +212,6 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(
-        rng: &mut R,
-        config: Self::Cfg,
-    ) -> Self {
-        loop {
-            let mut value = BigInt::rand(rng);
-            let modulus = config
-                .reference()
-                .expect("Field config cannot be none")
-                .modulus();
-            let shave_bits = 64 * N - modulus.num_bits() as usize;
-            // Mask away the unused bits at the beginning.
-            assert!(shave_bits <= 64);
-            let mask = if shave_bits == 64 {
-                0
-            } else {
-                u64::MAX >> shave_bits
-            };
-
-            let val = value.last_mut();
-            *val &= mask;
-
-            if value < *modulus {
-                return value.map_to_field(config);
-            }
-        }
-    }
-
     pub fn zero_with_config(config: Self::Cfg) -> Self {
         Initialized {
             config,
@@ -354,6 +326,31 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
 
     fn without_config(value: Self::I) -> Self {
         Raw { value }
+    }
+
+    fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self {
+        loop {
+            let mut value = BigInt::rand(rng);
+            let modulus = config
+                .reference()
+                .expect("Field config cannot be none")
+                .modulus();
+            let shave_bits = 64 * N - modulus.num_bits() as usize;
+            // Mask away the unused bits at the beginning.
+            assert!(shave_bits <= 64);
+            let mask = if shave_bits == 64 {
+                0
+            } else {
+                u64::MAX >> shave_bits
+            };
+
+            let val = value.last_mut();
+            *val &= mask;
+
+            if value < *modulus {
+                return value.map_to_field(config);
+            }
+        }
     }
 }
 

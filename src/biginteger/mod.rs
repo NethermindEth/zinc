@@ -4,6 +4,7 @@ use ark_ff::const_for;
 use ark_serialize::{
     CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError, Valid, Validate,
 };
+use ark_std::ops::{Index, IndexMut, Range, RangeTo};
 use ark_std::{
     borrow::Borrow,
     // convert::TryFrom,
@@ -303,10 +304,6 @@ impl<const N: usize> BigInt<N> {
     pub const fn montgomery_r2(&self) -> Self {
         let two_pow_n_times_64_square = crate::const_helpers::R2Buffer([0u64; N], [0u64; N], 1);
         const_modulo!(two_pow_n_times_64_square, self)
-    }
-
-    pub const fn to_words(&self) -> [u64; N] {
-        self.0
     }
 
     pub const fn has_spare_bit(&self) -> bool {
@@ -631,7 +628,11 @@ impl<const N: usize> BigInt<N> {
     }
 }
 
-impl<const N: usize> Integer for BigInt<N> {}
+impl<const N: usize> Integer<Words<N>> for BigInt<N> {
+    fn to_words(&self) -> Words<N> {
+        Words(self.0)
+    }
+}
 
 impl<const N: usize> UpperHex for BigInt<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -1118,6 +1119,63 @@ pub type BigInteger384 = BigInt<6>;
 pub type BigInteger448 = BigInt<7>;
 pub type BigInteger768 = BigInt<12>;
 pub type BigInteger832 = BigInt<13>;
+
+#[derive(Copy, Clone)]
+pub struct Words<const N: usize>(pub(crate) [u64; N]);
+
+impl<const N: usize> Default for Words<N> {
+    fn default() -> Self {
+        Self([0u64; N])
+    }
+}
+
+impl<const N: usize> crate::traits::Words for Words<N> {
+    fn num_words() -> usize {
+        N
+    }
+}
+
+impl<const N: usize> Index<usize> for Words<N> {
+    type Output = u64;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<const N: usize> IndexMut<usize> for Words<N> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl<const N: usize> Index<Range<usize>> for Words<N> {
+    type Output = [u64];
+
+    fn index(&self, index: Range<usize>) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<const N: usize> IndexMut<Range<usize>> for Words<N> {
+    fn index_mut(&mut self, index: Range<usize>) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl<const N: usize> Index<RangeTo<usize>> for Words<N> {
+    type Output = [u64];
+
+    fn index(&self, index: RangeTo<usize>) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl<const N: usize> IndexMut<RangeTo<usize>> for Words<N> {
+    fn index_mut(&mut self, index: RangeTo<usize>) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
 
 #[cfg(test)]
 mod tests {

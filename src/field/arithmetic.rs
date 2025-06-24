@@ -4,7 +4,7 @@ use ark_std::{
     ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-use crate::field::RandomField;
+use crate::{field::RandomField, traits::Config};
 
 macro_rules! impl_ops {
     (
@@ -189,8 +189,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 22);
-        let rhs = create_random_field!(config, 2);
+        let lhs: RandomField<1> = create_random_field!(config, 22);
+        let rhs: RandomField<1> = create_random_field!(config, 2);
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), BigInt::one());
@@ -201,8 +201,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 20);
-        let rhs = create_random_field!(config, 20);
+        let lhs: RandomField<1> = create_random_field!(config, 20);
+        let rhs: RandomField<1> = create_random_field!(config, 20);
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), create_bigint!(17));
@@ -213,8 +213,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 22);
-        let rhs = RandomField::one();
+        let lhs: RandomField<1> = create_random_field!(config, 22);
+        let rhs: RandomField<1> = RandomField::one();
 
         let sum = lhs + rhs;
         assert_eq!(sum.into_bigint(), BigInt::zero());
@@ -238,8 +238,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 2);
-        let rhs = create_random_field!(config, 22);
+        let lhs: RandomField<1> = create_random_field!(config, 2);
+        let rhs: RandomField<1> = create_random_field!(config, 22);
 
         let difference = lhs - rhs;
         assert_eq!(difference.into_bigint(), create_bigint!(3));
@@ -250,8 +250,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 20);
-        let rhs = create_random_field!(config, 20);
+        let lhs: RandomField<1> = create_random_field!(config, 20);
+        let rhs: RandomField<1> = create_random_field!(config, 20);
 
         let difference = lhs - rhs;
         assert_eq!(difference.into_bigint(), BigInt::zero());
@@ -262,7 +262,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 2);
+        let lhs: RandomField<1> = create_random_field!(config, 2);
         let rhs = RandomField::one();
         let res = lhs - rhs;
         let mut expected = lhs;
@@ -275,8 +275,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 10);
-        let rhs = create_random_field!(config, 7);
+        let mut lhs: RandomField<1> = create_random_field!(config, 10);
+        let rhs: RandomField<1> = create_random_field!(config, 7);
 
         lhs -= rhs;
 
@@ -288,8 +288,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 3);
-        let rhs = create_random_field!(config, 7);
+        let mut lhs: RandomField<1> = create_random_field!(config, 3);
+        let rhs: RandomField<1> = create_random_field!(config, 7);
 
         lhs -= rhs;
 
@@ -301,8 +301,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 22);
-        let rhs = create_random_field!(config, 2);
+        let lhs: RandomField<1> = create_random_field!(config, 22);
+        let rhs: RandomField<1> = create_random_field!(config, 2);
 
         let product = lhs * rhs;
         assert_eq!(product.into_bigint(), create_bigint!(21));
@@ -313,7 +313,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 20);
+        let lhs: RandomField<1> = create_random_field!(config, 20);
         let rhs: RandomField<1> = create_random_field!(config, 20);
 
         let product = lhs * rhs;
@@ -325,7 +325,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 22);
+        let lhs: RandomField<1> = create_random_field!(config, 22);
         let rhs = RandomField::zero();
 
         let product = lhs * rhs;
@@ -337,8 +337,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = RandomField::zero();
-        let rhs = create_random_field!(config, 22);
+        let lhs: RandomField<1> = RandomField::zero();
+        let rhs: RandomField<1> = create_random_field!(config, 22);
 
         let product = lhs * rhs;
         assert!(product.is_zero());
@@ -349,8 +349,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 5);
-        let rhs = create_random_field!(config, 4);
+        let mut lhs: RandomField<1> = create_random_field!(config, 5);
+        let rhs: RandomField<1> = create_random_field!(config, 4);
 
         lhs *= rhs;
 
@@ -362,8 +362,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 6);
-        let rhs = create_random_field!(config, 4);
+        let mut lhs: RandomField<1> = create_random_field!(config, 6);
+        let rhs: RandomField<1> = create_random_field!(config, 4);
 
         lhs *= rhs;
 
@@ -375,8 +375,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 22);
-        let rhs = create_random_field!(config, 2);
+        let lhs: RandomField<1> = create_random_field!(config, 22);
+        let rhs: RandomField<1> = create_random_field!(config, 2);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(11));
@@ -387,8 +387,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 20);
-        let rhs = create_random_field!(config, 20);
+        let lhs: RandomField<1> = create_random_field!(config, 20);
+        let rhs: RandomField<1> = create_random_field!(config, 20);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(1));
@@ -399,8 +399,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 17);
-        let rhs = create_random_field!(config, 4);
+        let lhs: RandomField<1> = create_random_field!(config, 17);
+        let rhs: RandomField<1> = create_random_field!(config, 4);
 
         let quotient = lhs / rhs;
         assert_eq!(quotient.into_bigint(), create_bigint!(10));
@@ -412,8 +412,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let lhs = create_random_field!(config, 17);
-        let rhs = create_random_field!(config, 0);
+        let lhs: RandomField<1> = create_random_field!(config, 17);
+        let rhs: RandomField<1> = create_random_field!(config, 0);
 
         let _sum = lhs / rhs;
     }
@@ -424,7 +424,7 @@ mod test {
             FieldConfig::new(BigInt::from_str("695962179703626800597079116051991347").unwrap());
         let config = ConfigRef::<4>::from(&config);
 
-        let a = create_random_field!(config, 3);
+        let a: RandomField<4> = create_random_field!(config, 3);
         let mut b = RandomField::one();
         b /= a;
         assert_eq!(
@@ -432,9 +432,9 @@ mod test {
             create_bigint!(4, 231987393234542266865693038683997116)
         );
 
-        let a = create_random_field!(config, 19382769832175);
+        let a: RandomField<4> = create_random_field!(config, 19382769832175);
 
-        let b = create_random_field!(config, 97133987132135);
+        let b: RandomField<4> = create_random_field!(config, 97133987132135);
 
         assert_eq!(
             create_bigint!(4, 243043087159742188419721163456177516),
@@ -447,7 +447,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 15);
+        let lhs: RandomField<1> = create_random_field!(config, 15);
         let rhs = create_random_field!(config, 3);
 
         #[allow(clippy::op_ref)] // This implementation could be removed?
@@ -461,7 +461,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let lhs = create_random_field!(config, 9);
+        let lhs: RandomField<1> = create_random_field!(config, 9);
         let rhs = create_random_field!(config, 3);
 
         #[allow(clippy::op_ref)] // This implementation could be removed?
@@ -475,8 +475,8 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let mut lhs = create_random_field!(config, 15);
-        let rhs = create_random_field!(config, 3);
+        let mut lhs: RandomField<1> = create_random_field!(config, 15);
+        let rhs: RandomField<1> = create_random_field!(config, 3);
 
         lhs /= rhs;
 
@@ -489,7 +489,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 15);
+        let mut lhs: RandomField<1> = create_random_field!(config, 15);
         let rhs = RandomField::zero();
 
         lhs /= rhs;
@@ -500,7 +500,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let mut lhs = create_random_field!(config, 18);
+        let mut lhs: RandomField<1> = create_random_field!(config, 18);
         let mut rhs = create_random_field!(config, 3);
 
         lhs /= &mut rhs;
@@ -513,7 +513,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let operand = create_random_field!(config, 22);
+        let operand: RandomField<1> = create_random_field!(config, 22);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), create_bigint!(1));
@@ -524,7 +524,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
 
-        let operand = create_random_field!(config, 17);
+        let operand: RandomField<1> = create_random_field!(config, 17);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), create_bigint!(6));
@@ -535,7 +535,7 @@ mod test {
         let config = FieldConfig::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::<1>::from(&config);
 
-        let operand = create_random_field!(config, 0);
+        let operand: RandomField<1> = create_random_field!(config, 0);
         let negated = -operand;
 
         assert_eq!(negated.into_bigint(), BigInt::zero());

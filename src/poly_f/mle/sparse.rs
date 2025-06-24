@@ -454,7 +454,7 @@ fn precompute_eq<'cfg, const N: usize>(
 ) -> Vec<RandomField<'cfg, N>> {
     let dim = g.len();
     let mut dp = vec![RandomField::zero(); 1 << dim];
-    dp[0] = BigInt::<N>::one().map_to_field(config) - g[0];
+    dp[0] = <BigInt<N> as FieldMap<RandomField<N>>>::map_to_field(&BigInt::one(), config) - g[0];
     dp[1] = g[0];
     for i in 1..dim {
         for b in 0..1 << i {

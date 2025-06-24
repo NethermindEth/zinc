@@ -14,10 +14,11 @@ use zinc::{
     biginteger::BigInt,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::FieldMap,
+    traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
+
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<

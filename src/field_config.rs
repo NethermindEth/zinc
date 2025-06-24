@@ -1,5 +1,5 @@
 use crate::{
-    biginteger::BigInt,
+    biginteger::{BigInt, Words},
     traits::{Config, ConfigReference},
 };
 
@@ -75,15 +75,6 @@ impl<const N: usize> FieldConfig<N> {
             a.add_with_carry(&self.modulus);
         }
         a.sub_with_borrow(b);
-    }
-
-    pub fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
-        let (mut lo, mut hi) = a.mul_naive(b);
-
-        // Montgomery reduction
-        let carry = a.montogomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
-
-        self.reduce_modulus(a, carry);
     }
 
     fn reduce_modulus(&self, a: &mut BigInt<{ N }>, carry: bool) {
@@ -169,18 +160,8 @@ impl<const N: usize> FieldConfig<N> {
     }
 
     #[inline]
-    pub fn modulus(&self) -> &BigInt<N> {
-        &self.modulus
-    }
-
-    #[inline]
     pub fn r(&self) -> &BigInt<N> {
         &self.r
-    }
-
-    #[inline]
-    pub fn r2(&self) -> &BigInt<N> {
-        &self.r2
     }
 
     #[inline]
@@ -189,7 +170,24 @@ impl<const N: usize> FieldConfig<N> {
     }
 }
 
-impl<const N: usize> Config<BigInt<N>> for FieldConfig<N> {}
+impl<const N: usize> Config<Words<N>, BigInt<N>> for FieldConfig<N> {
+    fn modulus(&self) -> &BigInt<N> {
+        &self.modulus
+    }
+
+    fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+        let (mut lo, mut hi) = a.mul_naive(b);
+
+        // Montgomery reduction
+        let carry = a.montogomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
+
+        self.reduce_modulus(a, carry);
+    }
+
+    fn r2(&self) -> &BigInt<N> {
+        &self.r2
+    }
+}
 
 impl<const N: usize> ark_std::fmt::Debug for FieldConfig<N> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
@@ -278,7 +276,13 @@ impl<const N: usize> From<FieldConfig<N>> for DebugFieldConfig {
 #[derive(Debug, Copy, Clone, Eq)]
 pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
-impl<const N: usize> ConfigReference<BigInt<N>, FieldConfig<N>> for ConfigRef<'_, N> {}
+impl<'cfg, const N: usize> ConfigReference<Words<N>, BigInt<N>, FieldConfig<N>>
+    for ConfigRef<'cfg, N>
+{
+    fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
+        self.0
+    }
+}
 
 impl<const N: usize> PartialEq for ConfigRef<'_, N> {
     fn eq(&self, other: &Self) -> bool {
@@ -295,13 +299,9 @@ impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigRef<'cfg, N> {
 unsafe impl<const N: usize> Sync for ConfigRef<'_, N> {}
 unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
 
-impl<'cfg, const N: usize> ConfigRef<'cfg, N> {
+impl<const N: usize> ConfigRef<'_, N> {
     pub fn pointer(&self) -> Option<*mut FieldConfig<N>> {
         self.0.map(|p| p as *const _ as *mut _)
-    }
-
-    pub fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
-        self.0
     }
 
     #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
@@ -317,7 +317,10 @@ mod tests {
     use ark_std::str::FromStr;
 
     use super::FieldConfig;
-    use crate::biginteger::{BigInteger128, BigInteger256};
+    use crate::{
+        biginteger::{BigInteger128, BigInteger256},
+        traits::Config,
+    };
 
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]

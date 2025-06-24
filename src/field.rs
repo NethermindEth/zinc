@@ -1,9 +1,13 @@
 #![allow(non_snake_case)]
 
 use ark_ff::UniformRand;
-use crypto_bigint::Random;
+use crypto_bigint::{Int, Random, Uint};
 
-use crate::{biginteger::BigInt, field_config::FieldConfig, traits::FieldMap};
+use crate::{
+    biginteger::BigInt,
+    field_config::FieldConfig,
+    traits::{Config, ConfigReference, FieldMap},
+};
 
 pub mod arithmetic;
 pub mod comparison;
@@ -24,6 +28,7 @@ pub enum RandomField<'cfg, const N: usize> {
 use RandomField::*;
 
 use crate::{
+    biginteger::Words,
     field_config::{ConfigRef, DebugFieldConfig},
     traits::Field,
 };
@@ -283,14 +288,10 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn new_unchecked(config: Self::Cfg, value: BigInt<N>) -> Self {
-        Initialized { config, value }
-    }
-
     /// Convert from `BigInteger` to `RandomField`
     ///
     /// If `BigInteger` is greater then field modulus return `None`
-    pub fn from_bigint(config: Self::Cfg, value: BigInt<N>) -> Option<Self> {
+    pub fn from_bigint(config: ConfigRef<N>, value: BigInt<N>) -> Option<RandomField<N>> {
         let config_ref = match config.reference() {
             Some(config) => config,
             None => return Some(Raw { value }),
@@ -300,14 +301,13 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             None
         } else {
             let mut r = value;
-
             config_ref.mul_assign(&mut r, config_ref.r2());
 
-            Some(Self::new_unchecked(Self::Cfg::from(config_ref), r))
+            Some(RandomField::new_unchecked(config, r))
         }
     }
 
-    pub fn from_i64(value: i64, config: Self::Cfg) -> Option<Self> {
+    pub fn from_i64(value: i64, config: ConfigRef<N>) -> Option<RandomField<N>> {
         let config_ref = match config.reference() {
             Some(config) => config,
             None => {
@@ -318,11 +318,10 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         if BigInt::from(value.unsigned_abs()) >= *config_ref.modulus() {
             None
         } else {
-            let mut r = (value.unsigned_abs()).into();
+            let mut r = value.unsigned_abs().into();
+            config_ref.mul_assign(&mut r, config_ref.r2());
 
-            (*config_ref).mul_assign(&mut r, config_ref.r2());
-
-            let mut elem = Self::new_unchecked(Self::Cfg::from(config_ref), r);
+            let mut elem = RandomField::new_unchecked(config, r);
             if value.is_negative() {
                 elem = -elem;
             }
@@ -345,6 +344,17 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
     type I = BigInt<N>;
     type C = FieldConfig<N>;
     type Cr = ConfigRef<'cfg, N>;
+    type W = Words<N>;
+    type CryptoInt = Int<N>;
+    type CryptoUint = Uint<N>;
+
+    fn new_unchecked(config: ConfigRef<'cfg, N>, value: BigInt<N>) -> Self {
+        Initialized { config, value }
+    }
+
+    fn without_config(value: Self::I) -> Self {
+        Raw { value }
+    }
 }
 
 impl<const N: usize> UniformRand for RandomField<'_, N> {

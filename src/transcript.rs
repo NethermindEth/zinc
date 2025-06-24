@@ -3,7 +3,10 @@ use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    biginteger::BigInt, field::RandomField, field_config::ConfigRef, traits::FieldMap,
+    biginteger::BigInt,
+    field::RandomField,
+    field_config::ConfigRef,
+    traits::{Config, ConfigReference, FieldMap},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -88,10 +91,10 @@ impl KeccakTranscript {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<'cfg, const N: usize>(
         &mut self,
-        config: ConfigRef<'cfg, N>,
+        config_ref: ConfigRef<'cfg, N>,
     ) -> RandomField<'cfg, N> {
         let (lo, hi) = self.get_challenge_limbs();
-        let config = config.reference().expect("Field config cannot be none");
+        let config = config_ref.reference().expect("Field config cannot be none");
         let modulus = config.modulus();
         let challenge_num_bits = modulus.num_bits() - 1;
         if N == 1 {
@@ -99,8 +102,8 @@ impl KeccakTranscript {
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(ConfigRef::from(config));
-            challenge.set_config(ConfigRef::from(config));
+            let mut challenge: RandomField<N> = truncated_lo.map_to_field(config_ref);
+            challenge.set_config(config_ref);
             return challenge;
         }
         if challenge_num_bits < 128 {
@@ -108,17 +111,19 @@ impl KeccakTranscript {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge = truncated_lo.map_to_field(ConfigRef::from(config));
-            challenge.set_config(ConfigRef::from(config));
+            let mut challenge: RandomField<N> = truncated_lo.map_to_field(config_ref);
+            challenge.set_config(config_ref);
             challenge
         } else if challenge_num_bits >= 256 {
-            let two_to_128 =
+            let two_to_128: RandomField<N> =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(ConfigRef::from(config));
+                    .map_to_field(config_ref);
 
-            let mut challenge = lo.map_to_field(ConfigRef::from(config))
-                + two_to_128 * hi.map_to_field(ConfigRef::from(config));
-            challenge.set_config(ConfigRef::from(config));
+            let mut challenge: RandomField<N> =
+                <u128 as FieldMap<RandomField<N>>>::map_to_field(&lo, config_ref)
+                    + two_to_128
+                        * <u128 as FieldMap<RandomField<N>>>::map_to_field(&hi, config_ref);
+            challenge.set_config(config_ref);
             challenge
         } else {
             let hi_bits_to_keep = challenge_num_bits - 128;
@@ -126,13 +131,18 @@ impl KeccakTranscript {
 
             let truncated_hi = hi & hi_mask;
 
-            let two_to_128 =
+            let two_to_128: RandomField<N> =
                 BigInt::<N>::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                    .map_to_field(ConfigRef::from(config));
+                    .map_to_field(config_ref);
 
-            let mut ret = lo.map_to_field(ConfigRef::from(config))
-                + two_to_128 * truncated_hi.map_to_field(ConfigRef::from(config));
-            ret.set_config(ConfigRef::from(config));
+            let mut ret: RandomField<N> =
+                <u128 as FieldMap<RandomField<N>>>::map_to_field(&lo, config_ref)
+                    + two_to_128
+                        * <u128 as FieldMap<RandomField<N>>>::map_to_field(
+                            &truncated_hi,
+                            config_ref,
+                        );
+            ret.set_config(config_ref);
             ret
         }
     }

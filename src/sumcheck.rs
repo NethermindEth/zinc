@@ -145,6 +145,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::ConfigReference,
         transcript::KeccakTranscript,
     };
 

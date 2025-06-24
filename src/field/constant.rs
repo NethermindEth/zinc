@@ -77,7 +77,7 @@ mod tests {
     fn test_set_zero() {
         let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
-        let mut elem = create_random_field!(config, 7);
+        let mut elem: RandomField<1> = create_random_field!(config, 7);
         elem.set_zero();
         assert!(elem.is_zero());
     }
@@ -92,7 +92,7 @@ mod tests {
     fn test_set_one() {
         let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
-        let mut elem = create_random_field!(config, 5);
+        let mut elem: RandomField<1> = create_random_field!(config, 5);
         elem.set_one();
         assert!(elem.is_one());
     }
@@ -135,7 +135,7 @@ mod tests {
     fn test_zeroize() {
         let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
         let config = ConfigRef::from(&config);
-        let mut elem = create_random_field!(config, 12);
+        let mut elem: RandomField<1> = create_random_field!(config, 12);
         elem.zeroize();
         assert!(elem.is_zero());
     }

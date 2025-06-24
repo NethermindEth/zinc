@@ -25,7 +25,7 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
 
     let bigint = BigInteger256::from_str("695962179703").unwrap();
 
-    let field_elem = bigint.map_to_field(field_config);
+    let field_elem: RandomField<4> = bigint.map_to_field(field_config);
     group.bench_with_input(
         BenchmarkId::new("Multiply", "Random128BitFieldElement"),
         &field_elem,

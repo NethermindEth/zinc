@@ -215,7 +215,7 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
     //  - for len <= 33 with i128
     //  - for len >  33 with BigInt
     if p_i.len() <= 20 {
-        let mut last_denom = u64_factorial(len - 1).map_to_field(config);
+        let mut last_denom: RandomField<N> = u64_factorial(len - 1).map_to_field(config);
 
         last_denom.set_config(config);
 
@@ -224,16 +224,16 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res = (-ratio_numerator as u64).map_to_field(config);
+                let mut res: RandomField<N> = (-ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res = (ratio_numerator as u64).map_to_field(config);
+                let mut res: RandomField<N> = (ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f = ratio_enumerator.map_to_field(config);
+            let mut ratio_enumerator_f: RandomField<N> = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
             let x = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
@@ -247,22 +247,22 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
             }
         }
     } else if p_i.len() <= 33 {
-        let last_denom = u128_factorial(len - 1).map_to_field(config);
+        let last_denom: RandomField<N> = u128_factorial(len - 1).map_to_field(config);
         let mut ratio_numerator = 1i128;
         let mut ratio_enumerator = 1u128;
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res = (-ratio_numerator as u128).map_to_field(config);
+                let mut res: RandomField<N> = (-ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res = (ratio_numerator as u128).map_to_field(config);
+                let mut res: RandomField<N> = (ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f = ratio_enumerator.map_to_field(config);
+            let mut ratio_enumerator_f: RandomField<N> = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
             let x: RandomField<N> =
@@ -287,11 +287,11 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {
-                let mut denom_up_factor = ((len - i) as u64).map_to_field(config);
+                let mut denom_up_factor: RandomField<N> = ((len - i) as u64).map_to_field(config);
                 denom_up_factor.set_config(config);
                 denom_up *= -denom_up_factor;
 
-                let mut denom_down_factor = (i as u64).map_to_field(config);
+                let mut denom_down_factor: RandomField<N> = (i as u64).map_to_field(config);
                 denom_down_factor.set_config(config);
                 denom_down *= denom_down_factor;
             }
@@ -304,9 +304,9 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
 fn field_factorial<const N: usize>(a: usize, config: ConfigRef<N>) -> RandomField<N> {
-    let mut res = RandomField::one();
-    for i in 1..=a {
-        res *= (i as u64).map_to_field(config);
+    let mut res: RandomField<N> = RandomField::one();
+    for i in 1..=(a as u64) {
+        res *= <u64 as FieldMap<RandomField<N>>>::map_to_field(&i, config);
     }
     res
 }

@@ -11,8 +11,6 @@ use rayon::iter::*;
 
 use super::{verifier::VerifierMsg, IPForMLSumcheck};
 use crate::{
-    field::RandomField,
-    field_config::ConfigRef,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{ConfigReference, Field, FieldMap},
 };
@@ -38,13 +36,13 @@ pub struct ProverState<F: Field> {
     pub round: usize,
 }
 
-impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+impl<F: Field> IPForMLSumcheck<F> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
     pub fn prover_init(
-        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>,
+        mles: Vec<DenseMultilinearExtension<F>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<RandomField<'cfg, N>> {
+    ) -> ProverState<F> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
@@ -62,11 +60,11 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg,
     ///
     /// Adapted Jolt's sumcheck implementation
     pub fn prove_round(
-        prover_state: &mut ProverState<RandomField<'cfg, N>>,
-        v_msg: &Option<VerifierMsg<RandomField<'cfg, N>>>,
-        comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
-        config: ConfigRef<'cfg, N>,
-    ) -> ProverMsg<RandomField<'cfg, N>> {
+        prover_state: &mut ProverState<F>,
+        v_msg: &Option<VerifierMsg<F>>,
+        comb_fn: impl Fn(&[F]) -> F + Send + Sync,
+        config: F::Cr,
+    ) -> ProverMsg<F> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");
@@ -81,7 +79,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg,
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(&[r], unsafe {
-                    ConfigRef::new(atomic_config.load(atomic::Ordering::Relaxed))
+                    F::Cr::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });
         } else if prover_state.round > 0 {

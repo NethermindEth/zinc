@@ -152,7 +152,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     pub fn squeeze_challenge_idx(&mut self, config: ConfigRef<N>, cap: usize) -> usize {
-        let challenge = self.fs_transcript.get_challenge(config);
+        let challenge: RandomField<N> = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
         num % cap

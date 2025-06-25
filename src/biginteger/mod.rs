@@ -519,20 +519,6 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn num_bits(&self) -> u32 {
-        let mut ret = N as u32 * 64;
-        for i in self.0.iter().rev() {
-            let leading = i.leading_zeros();
-            ret -= leading;
-            if leading != 64 {
-                break;
-            }
-        }
-
-        ret
-    }
-
-    #[inline]
     pub fn get_bit(&self, i: usize) -> bool {
         if i >= 64 * N {
             false
@@ -541,23 +527,6 @@ impl<const N: usize> BigInt<N> {
             let bit = i - (64 * limb);
             (self.0[limb] & (1 << bit)) != 0
         }
-    }
-
-    #[inline]
-    pub fn from_bits_be(bits: &[bool]) -> Self {
-        let mut bits = bits.to_vec();
-        bits.reverse();
-        Self::from_bits_le(&bits)
-    }
-
-    pub fn from_bits_le(bits: &[bool]) -> Self {
-        let mut res = Self::zero();
-        for (bits64, res_i) in bits.chunks(64).zip(&mut res.0) {
-            for (i, bit) in bits64.iter().enumerate() {
-                *res_i |= (*bit as u64) << i;
-            }
-        }
-        res
     }
 
     #[inline]
@@ -635,6 +604,37 @@ impl<const N: usize> Integer<Words<N>> for BigInt<N> {
 
     fn one() -> Self {
         Self::one()
+    }
+
+    #[inline]
+    fn from_bits_be(bits: &[bool]) -> Self {
+        let mut bits = bits.to_vec();
+        bits.reverse();
+        Self::from_bits_le(&bits)
+    }
+
+    fn from_bits_le(bits: &[bool]) -> Self {
+        let mut res = Self::zero();
+        for (bits64, res_i) in bits.chunks(64).zip(&mut res.0) {
+            for (i, bit) in bits64.iter().enumerate() {
+                *res_i |= (*bit as u64) << i;
+            }
+        }
+        res
+    }
+
+    #[inline]
+    fn num_bits(&self) -> u32 {
+        let mut ret = N as u32 * 64;
+        for i in self.0.iter().rev() {
+            let leading = i.leading_zeros();
+            ret -= leading;
+            if leading != 64 {
+                break;
+            }
+        }
+
+        ret
     }
 }
 

@@ -3,21 +3,22 @@ use ark_std::string::String;
 use thiserror::Error;
 
 use crate::{
-    ccs::error::CSError, poly::ArithErrors, sumcheck::SumCheckError, zip::Error as ZipError,
+    ccs::error::CSError, poly::ArithErrors, sumcheck::SumCheckError, traits::Field,
+    zip::Error as ZipError,
 };
 
 #[derive(Debug, Error)]
-pub enum ZincError {
+pub enum ZincError<F: Field> {
     #[error("spartan error: {0}")]
-    SpartanError(#[from] SpartanError),
+    SpartanError(#[from] SpartanError<F>),
     #[error("field config error")]
     FieldConfigError,
 }
 
 #[derive(Debug, Error)]
-pub enum SpartanError {
+pub enum SpartanError<F: Field> {
     #[error("sum check failed at linearization step: {0}")]
-    SumCheckError(#[from] SumCheckError),
+    SumCheckError(#[from] SumCheckError<F>),
     #[error("parameters error: {0}")]
     ParametersError(String),
     #[error("constraint system related error: {0}")]

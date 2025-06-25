@@ -30,7 +30,7 @@ use RandomField::*;
 use crate::{
     biginteger::Words,
     field_config::{ConfigRef, DebugFieldConfig},
-    traits::Field,
+    traits::{Field, Integer},
 };
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
@@ -219,33 +219,6 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn set_config(&mut self, config: Self::Cfg) {
-        self.with_raw_value_mut_or(
-            |value| {
-                // Ideally we should do something like:
-                //
-                // ```
-                // let modulus: BigInt<N> = unsafe { (*config).modulus };
-                // *value = *value % modulus;
-                // ```
-                //
-                // but we don't have `mod` out of the box.
-                // So let's hope we don't exceed the modulus.
-
-                // TODO: prettify this
-
-                *value = *Self::from_bigint(config, *value)
-                    .expect("Should not end up with a None here.")
-                    .value();
-            },
-            (),
-        );
-
-        let value = ark_std::mem::take(self.value_mut());
-
-        *self = Initialized { config, value }
-    }
-
     /// Config setter that can be used after a `RandomField::rand(...)` call.
     pub fn set_config_owned(mut self, config: Self::Cfg) -> Self {
         self.set_config(config);
@@ -319,6 +292,7 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
     type W = Words<N>;
     type CryptoInt = Int<N>;
     type CryptoUint = Uint<N>;
+    type DebugField = DebugRandomField;
 
     fn new_unchecked(config: ConfigRef<'cfg, N>, value: BigInt<N>) -> Self {
         Initialized { config, value }
@@ -351,6 +325,33 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
                 return value.map_to_field(config);
             }
         }
+    }
+
+    fn set_config(&mut self, config: Self::Cr) {
+        self.with_raw_value_mut_or(
+            |value| {
+                // Ideally we should do something like:
+                //
+                // ```
+                // let modulus: BigInt<N> = unsafe { (*config).modulus };
+                // *value = *value % modulus;
+                // ```
+                //
+                // but we don't have `mod` out of the box.
+                // So let's hope we don't exceed the modulus.
+
+                // TODO: prettify this
+
+                *value = *Self::from_bigint(config, *value)
+                    .expect("Should not end up with a None here.")
+                    .value();
+            },
+            (),
+        );
+
+        let value = ark_std::mem::take(self.value_mut());
+
+        *self = Initialized { config, value }
     }
 }
 

@@ -4,11 +4,11 @@ use thiserror::Error;
 
 use self::verifier::SubClaim;
 use crate::{
-    field::{DebugRandomField, RandomField},
+    field::RandomField,
     field_config::ConfigRef,
     poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension,
-    traits::FieldMap,
+    traits::{Field, FieldMap},
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -19,16 +19,16 @@ pub mod verifier;
 /// Interactive Proof for Multilinear Sumcheck
 pub struct IPForMLSumcheck<F>(PhantomData<F>);
 #[derive(Error, Debug)]
-pub enum SumCheckError {
+pub enum SumCheckError<F: Field> {
     #[error("univariate polynomial evaluation error")]
     EvaluationError(ArithErrors),
     #[error("incorrect sumcheck sum. Expected `{0}`. Received `{1}`")]
-    SumCheckFailed(Box<DebugRandomField>, Box<DebugRandomField>),
+    SumCheckFailed(Box<F::DebugField>, Box<F::DebugField>),
     #[error("max degree exceeded")]
     MaxDegreeExceeded,
 }
 
-impl From<ArithErrors> for SumCheckError {
+impl<F: Field> From<ArithErrors> for SumCheckError<F> {
     fn from(arith_error: ArithErrors) -> Self {
         Self::EvaluationError(arith_error)
     }
@@ -104,7 +104,7 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
         claimed_sum: RandomField<'cfg, N>,
         proof: &SumcheckProof<RandomField<'cfg, N>>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {
+    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError<RandomField<'cfg, N>>> {
         let (nvars_field, degree_field) = if N == 1 {
             (
                 (nvars as u64).map_to_field(config),

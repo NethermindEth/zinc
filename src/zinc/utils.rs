@@ -56,7 +56,10 @@ pub fn prepare_lin_sumcheck_polynomial<'cfg, const N: usize>(
     S: &[Vec<usize>],
     beta_s: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> Result<(Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>, usize), SpartanError> {
+) -> Result<
+    (Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>, usize),
+    SpartanError<RandomField<'cfg, N>>,
+> {
     let len = 1 + c
         .iter()
         .enumerate()

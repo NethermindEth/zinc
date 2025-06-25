@@ -1,7 +1,8 @@
 use ark_std::{
     fmt::Debug,
     ops::{
-        AddAssign, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub, SubAssign,
+        AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub,
+        SubAssign,
     },
     UniformRand,
 };
@@ -30,6 +31,7 @@ pub trait Field:
     + SubAssign
     + Random
     + AddAssign
+    + Div<Self, Output = Self>
 {
     type I: Integer<Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
     type C: Config<Self::W, Self::I>;
@@ -37,15 +39,21 @@ pub trait Field:
     type W: Words;
     type CryptoInt: CryptoInt<Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
     type CryptoUint: CryptoUint<Self::W, Int = Self::CryptoInt>;
+    type DebugField: Debug + From<Self>;
     fn new_unchecked(config: Self::Cr, value: Self::I) -> Self;
     fn without_config(value: Self::I) -> Self;
     fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self;
+    fn set_config(&mut self, config: Self::Cr);
 }
 
 pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {
     fn to_words(&self) -> W;
 
     fn one() -> Self;
+    fn from_bits_be(bits: &[bool]) -> Self;
+
+    fn from_bits_le(bits: &[bool]) -> Self;
+    fn num_bits(&self) -> u32;
 }
 pub trait Config<W: Words, I: Integer<W>> {
     fn modulus(&self) -> &I;

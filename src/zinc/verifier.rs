@@ -20,7 +20,7 @@ use crate::{
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
-pub trait Verifier<const I: usize, F, Cr> {
+pub trait Verifier<const I: usize, F: Field, Cr> {
     fn verify(
         &self,
         cm_i: &Statement_Z<I>,
@@ -28,7 +28,7 @@ pub trait Verifier<const I: usize, F, Cr> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: Cr,
-    ) -> Result<(), ZincError>
+    ) -> Result<(), ZincError<F>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
@@ -45,7 +45,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<(), ZincError>
+    ) -> Result<(), ZincError<RandomField<'cfg, N>>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
@@ -104,7 +104,7 @@ pub trait SpartanVerifier<F: Field> {
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
         config: F::Cr,
-    ) -> Result<VerificationPoints<F>, SpartanError>;
+    ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
 impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomField<'cfg, N>>
@@ -116,7 +116,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomFie
         ccs: &CCS_F<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<VerificationPoints<RandomField<'cfg, N>>, SpartanError> {
+    ) -> Result<VerificationPoints<RandomField<'cfg, N>>, SpartanError<RandomField<'cfg, N>>> {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
@@ -152,7 +152,8 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<N>>,
-    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
+    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<RandomField<'cfg, N>>>
+    {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s;
         let degree = ccs.d + 1;
@@ -175,7 +176,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         s: RandomField<'cfg, N>,
         proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>>,
-    ) -> Result<(), SpartanError> {
+    ) -> Result<(), SpartanError<RandomField<'cfg, N>>> {
         let e = eq_eval(point_r, beta_s)?;
         let should_equal_s = e * ccs // e * (\sum c_i * \Pi_{j \in S_i} u_j)
             .c
@@ -205,7 +206,8 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<'cfg, N>>,
         claimed_sum: RandomField<'cfg, N>,
-    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
+    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<RandomField<'cfg, N>>>
+    {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s_prime;
         let degree = 2;
@@ -242,7 +244,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         ccs: &CCS_F<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<(), SpartanError>
+    ) -> Result<(), SpartanError<RandomField<'cfg, N>>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,

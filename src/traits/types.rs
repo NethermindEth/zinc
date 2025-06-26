@@ -40,12 +40,12 @@ pub trait Field:
     + core::iter::Sum
     + for<'a> MulAssign<&'a Self>
 {
-    type I: Integer<Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
-    type C: Config<Self::W, Self::I>;
-    type Cr: ConfigReference<Self::W, Self::I, Self::C>;
+    type I: Integer<W = Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
+    type C: Config<I = Self::I>;
+    type Cr: ConfigReference<C = Self::C>;
     type W: Words;
-    type CryptoInt: CryptoInt<Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
-    type CryptoUint: CryptoUint<Self::W, Int = Self::CryptoInt>;
+    type CryptoInt: CryptoInt<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
+    type CryptoUint: CryptoUint<W = Self::W, Int = Self::CryptoInt>;
     type DebugField: Debug + From<Self> + Send + Sync;
     fn new_unchecked(config: Self::Cr, value: Self::I) -> Self;
     fn without_config(value: Self::I) -> Self;
@@ -56,35 +56,36 @@ pub trait Field:
     fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript);
 }
 
-pub trait Integer<W: Words>: From<u64> + From<u32> + Debug + FromBytes + Copy {
-    fn to_words(&self) -> W;
+pub trait Integer: From<u64> + From<u32> + Debug + FromBytes + Copy {
+    type W: Words;
+    fn to_words(&self) -> Self::W;
 
     fn one() -> Self;
     fn from_bits_be(bits: &[bool]) -> Self;
 
     fn from_bits_le(bits: &[bool]) -> Self;
     fn num_bits(&self) -> u32;
-    fn new(words: W) -> Self;
+    fn new(words: Self::W) -> Self;
     fn to_bytes_be(self) -> Vec<u8>;
 
     fn to_bytes_le(self) -> Vec<u8>;
 }
-pub trait Config<W: Words, I: Integer<W>>: PartialEq + Eq {
-    fn modulus(&self) -> &I;
-    fn mul_assign(&self, a: &mut I, b: &I);
+pub trait Config: PartialEq + Eq {
+    type I: Integer;
+    fn modulus(&self) -> &Self::I;
+    fn mul_assign(&self, a: &mut Self::I, b: &Self::I);
 
-    fn r2(&self) -> &I;
-    fn new(modulus: I) -> Self;
+    fn r2(&self) -> &Self::I;
+    fn new(modulus: Self::I) -> Self;
 }
-pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>:
-    Copy + Clone + PartialEq + Eq + Debug + Send + Sync
-{
-    fn reference(&self) -> Option<&C>;
+pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync {
+    type C: Config;
+    fn reference(&self) -> Option<&Self::C>;
 
     #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
-    unsafe fn new(config_ptr: *mut C) -> Self;
+    unsafe fn new(config_ptr: *mut Self::C) -> Self;
 
-    fn pointer(&self) -> Option<*mut C>;
+    fn pointer(&self) -> Option<*mut Self::C>;
     const NONE: Self;
 }
 
@@ -101,15 +102,17 @@ pub trait Words:
     fn num_words() -> usize;
 }
 
-pub trait CryptoInt<W: Words>: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
-    type Uint: CryptoUint<W>;
-    fn from_words(words: W) -> Self;
+pub trait CryptoInt: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
+    type W: Words;
+    type Uint: CryptoUint<W = Self::W>;
+    fn from_words(words: Self::W) -> Self;
 }
-pub trait CryptoUint<W: Words>:
+pub trait CryptoUint:
     crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
 {
-    type Int: CryptoInt<W>;
-    fn from_words(words: W) -> Self;
+    type W: Words;
+    type Int: CryptoInt<W = Self::W>;
+    fn from_words(words: Self::W) -> Self;
     fn as_int(&self) -> Self::Int;
-    fn to_words(self) -> W;
+    fn to_words(self) -> Self::W;
 }

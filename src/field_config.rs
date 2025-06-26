@@ -1,5 +1,5 @@
 use crate::{
-    biginteger::{BigInt, Words},
+    biginteger::BigInt,
     traits::{Config, ConfigReference},
 };
 
@@ -158,7 +158,8 @@ impl<const N: usize> FieldConfig<N> {
     }
 }
 
-impl<const N: usize> Config<Words<N>, BigInt<N>> for FieldConfig<N> {
+impl<const N: usize> Config for FieldConfig<N> {
+    type I = BigInt<N>;
     fn modulus(&self) -> &BigInt<N> {
         &self.modulus
     }
@@ -276,9 +277,8 @@ impl<const N: usize> From<FieldConfig<N>> for DebugFieldConfig {
 #[derive(Debug, Copy, Clone, Eq)]
 pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
-impl<'cfg, const N: usize> ConfigReference<Words<N>, BigInt<N>, FieldConfig<N>>
-    for ConfigRef<'cfg, N>
-{
+impl<'cfg, const N: usize> ConfigReference for ConfigRef<'cfg, N> {
+    type C = FieldConfig<N>;
     fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
         self.0
     }

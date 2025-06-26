@@ -120,10 +120,10 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge<I: CryptoInt<W>, W: Words>(&mut self) -> I {
-        let mut words = W::default();
+    pub fn get_integer_challenge<I: CryptoInt>(&mut self) -> I {
+        let mut words = I::W::default();
 
-        for i in 0..W::num_words() {
+        for i in 0..I::W::num_words() {
             let mut challenge = [0u8; 8];
             challenge.copy_from_slice(self.get_random_bytes(8).as_slice());
             self.hasher.update([0x12]);
@@ -135,7 +135,7 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
-    pub fn get_integer_challenges<I: CryptoInt<W>, W: Words>(&mut self, n: usize) -> Vec<I> {
+    pub fn get_integer_challenges<I: CryptoInt>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {

@@ -585,7 +585,8 @@ impl<const N: usize> BigInt<N> {
     }
 }
 
-impl<const N: usize> Integer<Words<N>> for BigInt<N> {
+impl<const N: usize> Integer for BigInt<N> {
+    type W = Words<N>;
     fn to_words(&self) -> Words<N> {
         Words(self.0)
     }

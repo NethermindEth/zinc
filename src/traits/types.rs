@@ -6,10 +6,10 @@ use ark_std::{
     },
     UniformRand,
 };
-use crypto_bigint::{NonZero, Random};
+use crypto_bigint::{NonZero, Random, RandomMod};
 use num_traits::{One, Zero};
 
-use crate::traits::FieldMap;
+use crate::traits::{FieldMap, FromBytes};
 
 pub trait Field:
     Zero
@@ -54,6 +54,7 @@ pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {
 
     fn from_bits_le(bits: &[bool]) -> Self;
     fn num_bits(&self) -> u32;
+    fn new(words: W) -> Self;
 }
 pub trait Config<W: Words, I: Integer<W>> {
     fn modulus(&self) -> &I;
@@ -90,8 +91,11 @@ pub trait CryptoInt<W: Words>: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
     type Uint: CryptoUint<W>;
     fn from_words(words: W) -> Self;
 }
-pub trait CryptoUint<W: Words>: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
+pub trait CryptoUint<W: Words>:
+    crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
+{
     type Int: CryptoInt<W>;
     fn from_words(words: W) -> Self;
     fn as_int(&self) -> Self::Int;
+    fn to_words(self) -> W;
 }

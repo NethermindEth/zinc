@@ -479,6 +479,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     /// Helper macro to create a field config with a given modulus

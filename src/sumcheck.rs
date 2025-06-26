@@ -140,7 +140,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
-        traits::{ConfigReference, Field},
+        traits::{Config, ConfigReference, Field},
         transcript::KeccakTranscript,
     };
 

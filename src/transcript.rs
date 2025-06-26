@@ -179,7 +179,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
-        traits::FieldMap,
+        traits::{Config, FieldMap},
     };
 
     #[test]

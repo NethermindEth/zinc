@@ -331,7 +331,7 @@ mod tests {
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
         sparse_matrix::SparseMatrix,
-        traits::FieldMap,
+        traits::{Config, FieldMap},
     };
 
     #[test]

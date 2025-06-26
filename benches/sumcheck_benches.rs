@@ -13,6 +13,7 @@ use zinc::{
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck,
     },
+    traits::Config,
     transcript::KeccakTranscript,
 };
 

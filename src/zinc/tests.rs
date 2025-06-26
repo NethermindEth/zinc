@@ -6,7 +6,7 @@ use crate::{
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
-    traits::ConfigReference,
+    traits::{Config, ConfigReference},
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,

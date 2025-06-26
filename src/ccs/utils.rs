@@ -82,7 +82,7 @@ mod tests {
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
         sparse_matrix::dense_matrix_to_sparse,
-        traits::FieldMap,
+        traits::{Config, FieldMap},
     };
 
     const N: usize = 3;

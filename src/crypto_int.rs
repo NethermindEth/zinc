@@ -5,14 +5,16 @@ use crate::{
     traits::{CryptoInt, CryptoUint, FromBytes},
 };
 
-impl<const N: usize> CryptoInt<crate::biginteger::Words<N>> for Int<N> {
+impl<const N: usize> CryptoInt for Int<N> {
+    type W = crate::biginteger::Words<N>;
     type Uint = Uint<N>;
 
     fn from_words(words: Words<N>) -> Self {
         Self::from_words(words.0)
     }
 }
-impl<const N: usize> CryptoUint<crate::biginteger::Words<N>> for Uint<N> {
+impl<const N: usize> CryptoUint for Uint<N> {
+    type W = crate::biginteger::Words<N>;
     type Int = Int<N>;
 
     fn from_words(words: Words<N>) -> Self {

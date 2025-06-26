@@ -2,7 +2,7 @@ use crypto_bigint::{Int, Uint};
 
 use crate::{
     biginteger::Words,
-    traits::{CryptoInt, CryptoUint},
+    traits::{CryptoInt, CryptoUint, FromBytes},
 };
 
 impl<const N: usize> CryptoInt<crate::biginteger::Words<N>> for Int<N> {
@@ -21,5 +21,19 @@ impl<const N: usize> CryptoUint<crate::biginteger::Words<N>> for Uint<N> {
 
     fn as_int(&self) -> Self::Int {
         self.as_int()
+    }
+
+    fn to_words(self) -> Words<N> {
+        Words(self.to_words())
+    }
+}
+
+impl<const N: usize> FromBytes for Uint<N> {
+    fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
+        Some(Self::from_le_slice(bytes))
+    }
+
+    fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
+        Some(Self::from_be_slice(bytes))
     }
 }

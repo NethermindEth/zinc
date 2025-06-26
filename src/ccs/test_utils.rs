@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
+
 use ark_ff::One;
-use ark_std::{log2, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
+use ark_std::{log2, marker::PhantomData, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
 use crypto_bigint::{Int, Random};
 
 use super::{
@@ -90,7 +91,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<F: Field>(
 fn get_dummy_ccs_Z_from_z<const N: usize>(
     z: &[Int<N>],
     pub_io_len: usize,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+) -> (CCS_Z<Int<N>>, Statement_Z<Int<N>>, Witness_Z<Int<N>>) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
@@ -102,6 +103,7 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1, -1],
+        _phantom: PhantomData,
     };
 
     let A = create_dummy_identity_sparse_matrix_Z(z.len(), z.len());
@@ -161,7 +163,12 @@ fn get_dummy_ccs_F_from_z<F: Field>(
 pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
     n: usize,
     rng: &mut impl Rng,
-) -> (Vec<Int<N>>, CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+) -> (
+    Vec<Int<N>>,
+    CCS_Z<Int<N>>,
+    Statement_Z<Int<N>>,
+    Witness_Z<Int<N>>,
+) {
     let mut z: Vec<_> = (0..n).map(|_| Int::<N>::random(rng)).collect();
     let pub_io_len = 1;
     z[pub_io_len] = Int::<N>::one();

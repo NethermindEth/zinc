@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use ark_std::log2;
 use crypto_bigint::Int;
-use zinc::{field_config::ConfigRef, zinc::prelude::*};
+use zinc::{field::RandomField, field_config::ConfigRef, zinc::prelude::*};
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
@@ -33,9 +33,8 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<INT_LIMBS, FIELD_LIMBS, _> {
-        data: PhantomData::<ZipSpec1>,
-    };
+    let verifier =
+        ZincVerifier::<INT_LIMBS, RandomField<FIELD_LIMBS>, ZipSpec1> { data: PhantomData };
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier

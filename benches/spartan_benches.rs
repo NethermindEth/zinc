@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{marker::PhantomData, str::FromStr};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zinc::{
@@ -75,9 +75,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
         data: std::marker::PhantomData::<ZipSpec1>,
     };
 
-    let verifier = ZincVerifier::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
-    };
+    let verifier = ZincVerifier::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;

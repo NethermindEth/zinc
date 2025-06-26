@@ -2,6 +2,7 @@ use ark_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
     sumcheck,
+    traits::Field,
     zip::{code::ZipSpec, pcs::structs::MultilinearZipCommitment},
 };
 
@@ -42,9 +43,9 @@ where
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<const I: usize, const N: usize, S>
+pub struct ZincVerifier<const I: usize, F: Field, S>
 where
     S: ZipSpec,
 {
-    pub data: PhantomData<S>,
+    pub data: PhantomData<(F, S)>,
 }

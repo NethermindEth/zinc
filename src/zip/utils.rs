@@ -8,13 +8,13 @@ use num_integer::Integer;
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
 where
-    T: Copy + Mul<Output = T> + Add<Output = T> + Default + 'a + 'b,
+    T: Clone + Mul<Output = T> + Add<Output = T> + Default + 'a + 'b,
     L: IntoIterator<Item = &'a T>,
     R: IntoIterator<Item = &'b T>,
 {
     lhs.into_iter()
         .zip(rhs)
-        .map(|(lhs, rhs)| *lhs * *rhs)
+        .map(|(lhs, rhs)| lhs.clone() * rhs.clone())
         .reduce(|acc, product| acc + product)
         .unwrap_or_default()
 }
@@ -74,7 +74,7 @@ where
 // [t_0]^T * M]
 pub(super) fn combine_rows<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
 where
-    F: Copy
+    F: Clone
         + Default
         + Send
         + Sync

@@ -43,7 +43,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
             .into_iter()
             .map(|(i, v): &(usize, F)| {
                 assert!(*i < bit_mask, "index out of range");
-                (*i, *v)
+                (*i, v.clone())
             })
             .collect();
         Self {
@@ -55,7 +55,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
     }
     pub fn evaluate(&self, point: &[F], config: F::Cr) -> F {
         assert!(point.len() == self.num_vars);
-        self.fixed_variables(point, config)[0]
+        self.fixed_variables(point, config)[0].clone()
     }
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random. The number of nonzero entries is
@@ -84,7 +84,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {
             if *v != F::zero() {
-                buf.push((*arg, *v));
+                buf.push((*arg, v.clone()));
             }
         }
         let evaluations = hashmap_to_treemap(&map);
@@ -109,7 +109,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
         for (row_i, row) in m.coeffs.iter().enumerate() {
             for (val, col_i) in row {
                 let index = row_i * n_cols + col_i;
-                v.push((index, *val));
+                v.push((index, val.clone()));
             }
         }
 
@@ -127,7 +127,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
         let v_sparse = v
             .iter()
             .enumerate()
-            .map(|(i, v_i)| (i, *v_i))
+            .map(|(i, v_i)| (i, v_i.clone()))
             .collect::<Vec<(usize, F)>>();
         SparseMultilinearExtension::<F>::from_evaluations(n_vars, &v_sparse, config)
     }
@@ -160,7 +160,7 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
         }
         assert!(a + k <= b, "overlapped swap window is not allowed");
         let ev: Vec<_> = cfg_iter!(self.evaluations)
-            .map(|(&i, &v)| (swap_bits(i, a, b, k), v))
+            .map(|(&i, v)| (swap_bits(i, a, b, k), v.clone()))
             .collect();
         Self {
             num_vars: self.num_vars,
@@ -195,7 +195,7 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
             let mut result = HashMap::new();
             for src_entry in last.iter() {
                 let old_idx = *src_entry.0;
-                let gz = pre[old_idx & ((1 << dim) - 1)];
+                let gz = pre[old_idx & ((1 << dim) - 1)].clone();
                 let new_idx = old_idx >> dim;
                 let dst_entry = result.entry(new_idx).or_insert(F::zero());
                 *dst_entry += gz * src_entry.1;
@@ -219,8 +219,8 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
         let mut evaluations: Vec<_> = (0..1 << self.num_vars).map(|_| F::zero()).collect();
         self.evaluations
             .iter()
-            .map(|(&i, &v)| {
-                evaluations[i] = v;
+            .map(|(&i, v)| {
+                evaluations[i] = v.clone();
             })
             .last();
         evaluations
@@ -272,8 +272,8 @@ impl<F: Field> Add for &SparseMultilinearExtension<F> {
         );
         // simply merge the evaluations
         let mut evaluations = HashMap::new();
-        for (&i, &v) in self.evaluations.iter().chain(rhs.evaluations.iter()) {
-            *evaluations.entry(i).or_insert(F::zero()) += &v;
+        for (&i, v) in self.evaluations.iter().chain(rhs.evaluations.iter()) {
+            *evaluations.entry(i).or_insert(F::zero()) += v;
         }
         let evaluations: Vec<_> = evaluations
             .into_iter()
@@ -312,7 +312,7 @@ impl<F: Field> AddAssign<(F, &Self)> for SparseMultilinearExtension<F> {
             );
         }
         let ev: Vec<_> = cfg_iter!(other.evaluations)
-            .map(|(i, v)| (*i, r * v))
+            .map(|(i, v)| (*i, r.clone() * v))
             .collect();
         let other = Self {
             num_vars: other.num_vars,
@@ -328,7 +328,7 @@ impl<F: Field> Neg for SparseMultilinearExtension<F> {
 
     fn neg(self) -> Self {
         let ev: Vec<_> = cfg_iter!(self.evaluations)
-            .map(|(i, v)| (*i, -*v))
+            .map(|(i, v)| (*i, -v.clone()))
             .collect();
         Self::Output {
             num_vars: self.num_vars,
@@ -386,27 +386,27 @@ impl<F: Field> Index<usize> for SparseMultilinearExtension<F> {
 
 /// Utilities
 fn tuples_to_treemap<F: Field>(tuples: &[(usize, F)]) -> BTreeMap<usize, F> {
-    BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, *v)))
+    BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, v.clone())))
 }
 
 fn treemap_to_hashmap<F: Field>(map: &BTreeMap<usize, F>) -> HashMap<usize, F> {
-    HashMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
+    HashMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
 }
 fn hashmap_to_treemap<F: Field>(map: &HashMap<usize, F>) -> BTreeMap<usize, F> {
-    BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
+    BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
 }
 
 // precompute  f(x) = eq(g,x)
 fn precompute_eq<F: Field>(g: &[F], config: F::Cr) -> Vec<F> {
     let dim = g.len();
     let mut dp = vec![F::zero(); 1 << dim];
-    dp[0] = <F::I as FieldMap<F>>::map_to_field(&F::I::one(), config) - g[0];
-    dp[1] = g[0];
+    dp[0] = <F::I as FieldMap<F>>::map_to_field(&F::I::one(), config) - g[0].clone();
+    dp[1] = g[0].clone();
     for i in 1..dim {
         for b in 0..1 << i {
-            let prev = dp[b];
-            dp[b + (1 << i)] = prev * g[i];
-            dp[b] = prev - dp[b + (1 << i)];
+            let prev = dp[b].clone();
+            dp[b + (1 << i)] = prev.clone() * &g[i];
+            dp[b] = prev - dp[b + (1 << i)].clone();
         }
     }
     dp

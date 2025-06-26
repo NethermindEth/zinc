@@ -179,7 +179,7 @@ impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             .c
             .iter()
             .enumerate()
-            .map(|(i, &c)| c * ccs.S[i].iter().map(|&j| &proof.V_s[j]).product::<F>()) // c_i * \Pi_{j \in S_i} u_j
+            .map(|(i, c)| c.clone() * ccs.S[i].iter().map(|&j| &proof.V_s[j]).product::<F>()) // c_i * \Pi_{j \in S_i} u_j
             .sum::<F>(); // \sum c_i * \Pi_{j \in S_i} u_j
 
         if should_equal_s != s {
@@ -251,7 +251,7 @@ impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             &param,
             &zip_proof.z_comm,
             r_y,
-            zip_proof.v,
+            zip_proof.v.clone(),
             &mut pcs_transcript,
             config,
         )?;
@@ -272,7 +272,7 @@ impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Check final verification equation
-        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * zip_proof.v;
+        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * &zip_proof.v;
         if V_x_gamma != verification_points.e_y {
             return Err(SpartanError::PCSVerificationError(
                 "linear combination of powers of gamma and V_x != e_y".into(),

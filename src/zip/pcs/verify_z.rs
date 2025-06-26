@@ -56,7 +56,7 @@ where
         Int<K>: FieldMap<F, Output = F>,
     {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
+            Self::verify(vp, comm, &points[i], eval.clone(), transcript, field)?;
         }
         Ok(())
     }

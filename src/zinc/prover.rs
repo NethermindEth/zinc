@@ -270,7 +270,7 @@ where
                         .iter()
                         .rev()
                         .fold(F::zero(), |mut lin_comb, eval_vec| {
-                            lin_comb *= gamma;
+                            lin_comb *= &gamma;
                             lin_comb += &eval_vec[i];
                             lin_comb
                         })
@@ -285,7 +285,7 @@ where
 
         sumcheck_2_mles.push(evals_mle);
         sumcheck_2_mles.push(z_mle.clone());
-        let comb_fn_2 = |vals: &[F]| -> F { vals[0] * vals[1] };
+        let comb_fn_2 = |vals: &[F]| -> F { vals[0].clone() * &vals[1] };
 
         Self::generate_sumcheck_proof(transcript, sumcheck_2_mles, ccs.s, 2, comb_fn_2, config)
     }

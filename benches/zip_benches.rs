@@ -89,8 +89,8 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ =
-                        BenchZip::commit::<FIELD_LIMBS>(&params, &poly).expect("Failed to commit");
+                    let _ = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly)
+                        .expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -110,7 +110,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, _) = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).unwrap();
+    let (data, _) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
@@ -147,7 +147,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, commitment) = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).unwrap();
+    let (data, commitment) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
     let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::new();

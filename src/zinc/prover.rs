@@ -340,9 +340,9 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         let param =
             MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =
-            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit::<N>(
-                &param, z_mle,
-            )?;
+            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit::<
+                RandomField<N>,
+            >(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),

@@ -6,8 +6,8 @@ use super::{
     utils::{validate_input, MerkleTree},
 };
 use crate::{
-    field::RandomField,
     poly_z::mle::DenseMultilinearExtension,
+    traits::Field,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         utils::{div_ceil, num_threads, parallelize_iter},
@@ -21,11 +21,11 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn commit<const N: usize>(
+    pub fn commit<F: Field>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input::<I, RandomField<N>>("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
         let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());
@@ -51,13 +51,13 @@ where
         ))
     }
     #[allow(clippy::type_complexity)]
-    pub fn batch_commit<'a, const N: usize>(
+    pub fn batch_commit<'a, F: Field>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
     ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
         polys
             .iter()
-            .map(|poly| Self::commit::<N>(pp, poly))
+            .map(|poly| Self::commit::<F>(pp, poly))
             .collect()
     }
 

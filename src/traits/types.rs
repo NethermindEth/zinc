@@ -101,9 +101,10 @@ pub trait Words:
     fn num_words() -> usize;
 }
 
-pub trait CryptoInt: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
+pub trait CryptoInt: crypto_bigint::Zero + PartialOrd + RemAssign<NonZero<Self>> {
     type W: Words;
     type Uint: CryptoUint<W = Self::W>;
+    type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
     fn from_words(words: Self::W) -> Self;
 }
 pub trait CryptoUint:

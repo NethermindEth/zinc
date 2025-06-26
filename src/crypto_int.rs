@@ -13,6 +13,10 @@ impl<const N: usize> CryptoInt for Int<N> {
     fn from_words(words: Words<N>) -> Self {
         Self::from_words(words.0)
     }
+
+    fn from_i64(value: i64) -> Self {
+        Self::from_i64(value)
+    }
 }
 impl<const N: usize> CryptoUint for Uint<N> {
     type W = crate::biginteger::Words<N>;

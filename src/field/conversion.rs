@@ -156,7 +156,7 @@ where
     fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
         let local_type_bigint = T::I::from(self);
         let res = local_type_bigint.map_to_field(config_ref);
-        if self < &T::zero() {
+        if self < &<T as Zero>::zero() {
             return -res;
         }
         res

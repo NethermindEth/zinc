@@ -36,8 +36,7 @@ impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for 
 
 // At the moment only using i128 for the sparse matrix, macro later if needed
 
-impl<F: Field, T: FieldMap<F, Output = F> + Clone + Send + Sync + Copy> FieldMap<F>
-    for SparseMatrix<T>
+impl<F: Field, T: FieldMap<F, Output = F> + Clone + Send + Sync> FieldMap<F> for SparseMatrix<T>
 where
     <T as FieldMap<F>>::Output: Clone + Send + Sync,
 {

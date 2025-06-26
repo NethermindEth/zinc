@@ -4,12 +4,16 @@ use ark_std::{
         AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub,
         SubAssign,
     },
+    vec::Vec,
     UniformRand,
 };
 use crypto_bigint::{NonZero, Random, RandomMod};
 use num_traits::{One, Zero};
 
-use crate::traits::{FieldMap, FromBytes};
+use crate::{
+    traits::{FieldMap, FromBytes},
+    transcript::KeccakTranscript,
+};
 
 pub trait Field:
     Zero
@@ -44,9 +48,12 @@ pub trait Field:
     fn without_config(value: Self::I) -> Self;
     fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self;
     fn set_config(&mut self, config: Self::Cr);
+    fn value(&self) -> &Self::I;
+    fn value_mut(&mut self) -> &mut Self::I;
+    fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript);
 }
 
-pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {
+pub trait Integer<W: Words>: From<u64> + From<u32> + Debug + FromBytes + Copy {
     fn to_words(&self) -> W;
 
     fn one() -> Self;
@@ -55,6 +62,9 @@ pub trait Integer<W: Words>: From<u64> + From<u32> + Debug {
     fn from_bits_le(bits: &[bool]) -> Self;
     fn num_bits(&self) -> u32;
     fn new(words: W) -> Self;
+    fn to_bytes_be(self) -> Vec<u8>;
+
+    fn to_bytes_le(self) -> Vec<u8>;
 }
 pub trait Config<W: Words, I: Integer<W>> {
     fn modulus(&self) -> &I;
@@ -63,7 +73,7 @@ pub trait Config<W: Words, I: Integer<W>> {
     fn r2(&self) -> &I;
 }
 pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>:
-    Copy + Clone + PartialEq + Eq + Debug
+    Copy + Clone + PartialEq + Eq + Debug + Send + Sync
 {
     fn reference(&self) -> Option<&C>;
 

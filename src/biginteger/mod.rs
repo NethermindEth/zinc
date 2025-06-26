@@ -530,18 +530,6 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn to_bytes_be(self) -> Vec<u8> {
-        let mut le_bytes = self.to_bytes_le();
-        le_bytes.reverse();
-        le_bytes
-    }
-
-    #[inline]
-    pub fn to_bytes_le(self) -> Vec<u8> {
-        self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
-    }
-
-    #[inline]
     pub fn montogomery_reduction(
         &mut self,
         lo: &mut Self,
@@ -639,6 +627,18 @@ impl<const N: usize> Integer<Words<N>> for BigInt<N> {
 
     fn new(words: Words<N>) -> Self {
         Self(words.0)
+    }
+
+    #[inline]
+    fn to_bytes_be(self) -> Vec<u8> {
+        let mut le_bytes = self.to_bytes_le();
+        le_bytes.reverse();
+        le_bytes
+    }
+
+    #[inline]
+    fn to_bytes_le(self) -> Vec<u8> {
+        self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
 }
 

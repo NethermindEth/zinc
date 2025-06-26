@@ -4,6 +4,7 @@ use zeroize::Zeroize;
 use crate::{
     biginteger::BigInt,
     field::{RandomField, RandomField::Raw},
+    traits::Field,
 };
 
 impl<const N: usize> Zero for RandomField<'_, N> {

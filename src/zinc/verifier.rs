@@ -20,14 +20,14 @@ use crate::{
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
-pub trait Verifier<const I: usize, F: Field, Cr> {
+pub trait Verifier<const I: usize, F: Field> {
     fn verify(
         &self,
         cm_i: &Statement_Z<I>,
         proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: Cr,
+        config: F::Cr,
     ) -> Result<(), ZincError<F>>
     where
         [(); 2 * I]:,
@@ -35,8 +35,8 @@ pub trait Verifier<const I: usize, F: Field, Cr> {
         [(); 8 * I]:;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
-    Verifier<I, RandomField<'cfg, N>, ConfigRef<'cfg, N>> for ZincVerifier<I, N, S>
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Verifier<I, RandomField<'cfg, N>>
+    for ZincVerifier<I, RandomField<'cfg, N>, S>
 {
     fn verify(
         &self,
@@ -108,7 +108,7 @@ pub trait SpartanVerifier<F: Field> {
 }
 
 impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomField<'cfg, N>>
-    for ZincVerifier<I, N, S>
+    for ZincVerifier<I, RandomField<'cfg, N>, S>
 {
     fn verify(
         &self,
@@ -146,8 +146,8 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomFie
     }
 }
 
-impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
-    fn verify_linearization_proof<'cfg>(
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomField<'cfg, N>, S> {
+    fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
@@ -170,7 +170,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
 
-    fn verify_linearization_claim<'cfg>(
+    fn verify_linearization_claim(
         beta_s: &[RandomField<'cfg, N>],
         point_r: &[RandomField<'cfg, N>],
         s: RandomField<'cfg, N>,
@@ -200,7 +200,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         Ok(())
     }
 
-    fn verify_second_sumcheck_proof<'cfg>(
+    fn verify_second_sumcheck_proof(
         &self,
         proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
@@ -224,7 +224,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
 
-    fn lin_comb_V_s<'cfg>(
+    fn lin_comb_V_s(
         gamma: &RandomField<'cfg, N>,
         V_s: &[RandomField<'cfg, N>],
     ) -> RandomField<'cfg, N> {
@@ -236,7 +236,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         res
     }
 
-    fn verify_pcs_proof<'cfg>(
+    fn verify_pcs_proof(
         &self,
         cm_i: &Statement_F<RandomField<'cfg, N>>,
         zip_proof: &ZipProof<I, RandomField<'cfg, N>>,

@@ -1,4 +1,4 @@
-use ark_std::str::FromStr;
+use ark_std::{marker::PhantomData, str::FromStr};
 use crypto_bigint::{Int, Zero};
 
 use crate::{
@@ -81,9 +81,7 @@ fn test_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let verifier = ZincVerifier::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");
@@ -130,9 +128,7 @@ fn test_dummy_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let verifier = ZincVerifier::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
     config.reference().expect("Field config cannot be none");
     let res = SpartanVerifier::<RandomField<N>>::verify(
@@ -179,8 +175,8 @@ fn test_failing_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
+    let verifier = ZincVerifier::<I, RandomField<N>, ZipSpec1> {
+        data: ark_std::marker::PhantomData,
     };
     let mut verifier_transcript = KeccakTranscript::new();
 

@@ -7,9 +7,7 @@ use super::{
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    field::RandomField as F,
-    field_config::ConfigRef,
-    traits::FieldMap,
+    traits::{Field, FieldMap},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
@@ -24,15 +22,19 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn verify<'cfg, const N: usize>(
+    pub fn verify<F: Field>(
         vp: &Self::VerifierParam,
         comm: &Self::Commitment,
-        point: &[F<'cfg, N>],
-        eval: F<'cfg, N>,
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
-        validate_input::<I, N>("verify", vp.num_vars(), [], [point])?;
+        point: &[F],
+        eval: F,
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<L>: FieldMap<F, Output = F>,
+        Int<K>: FieldMap<F, Output = F>,
+    {
+        validate_input::<I, F>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
 
@@ -41,25 +43,29 @@ where
         Ok(())
     }
 
-    pub fn batch_verify_z<'cfg, 'a, const N: usize>(
+    pub fn batch_verify_z<'a, F: Field>(
         vp: &Self::VerifierParam,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<I>>,
-        points: &[Vec<F<'cfg, N>>],
-        evals: &[F<'cfg, N>],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
+        points: &[Vec<F>],
+        evals: &[F],
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<L>: FieldMap<F, Output = F>,
+        Int<K>: FieldMap<F, Output = F>,
+    {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], *eval, transcript, field)?;
         }
         Ok(())
     }
 
-    pub(super) fn verify_testing<const N: usize>(
+    pub(super) fn verify_testing<F: Field>(
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<N>,
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr,
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
@@ -127,14 +133,18 @@ where
         Ok(())
     }
 
-    fn verify_evaluation_z<'cfg, const N: usize>(
+    fn verify_evaluation_z<F: Field>(
         vp: &Self::VerifierParam,
-        point: &[F<'cfg, N>],
-        eval: F<'cfg, N>,
+        point: &[F],
+        eval: F,
         columns_opened: &[(usize, Vec<Int<K>>)],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<L>: FieldMap<F, Output = F>,
+        Int<K>: FieldMap<F, Output = F>,
+    {
         let q_0_combined_row = transcript
             .read_field_elements(<Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()), field)?;
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);
@@ -160,14 +170,17 @@ where
         Ok(())
     }
 
-    fn verify_proximity_q_0<'cfg, const N: usize>(
-        q_0: &Vec<F<'cfg, N>>,
-        encoded_q_0_combined_row: &[F<'cfg, N>],
+    fn verify_proximity_q_0<F: Field>(
+        q_0: &Vec<F>,
+        encoded_q_0_combined_row: &[F],
         column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<K>: FieldMap<F, Output = F>,
+    {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);
             inner_product(q_0, &column_entries)

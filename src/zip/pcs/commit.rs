@@ -6,6 +6,7 @@ use super::{
     utils::{validate_input, MerkleTree},
 };
 use crate::{
+    field::RandomField,
     poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
@@ -24,7 +25,7 @@ where
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input::<I, N>("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<I, RandomField<N>>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
         let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());

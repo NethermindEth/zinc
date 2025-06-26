@@ -1,8 +1,11 @@
 use ark_ff::{One, Zero};
 
-use crate::field::{
-    RandomField,
-    RandomField::{Initialized, Raw},
+use crate::{
+    field::{
+        RandomField,
+        RandomField::{Initialized, Raw},
+    },
+    traits::Field,
 };
 
 impl<const N: usize> PartialEq for RandomField<'_, N> {

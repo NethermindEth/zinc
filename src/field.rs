@@ -31,6 +31,7 @@ use crate::{
     biginteger::Words,
     field_config::{ConfigRef, DebugFieldConfig},
     traits::{Field, Integer},
+    transcript::KeccakTranscript,
 };
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
@@ -129,22 +130,6 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
                 config.reference().expect("Field config cannot be none"),
                 value,
             ),
-        }
-    }
-
-    #[inline(always)]
-    pub fn value(&self) -> &BigInt<N> {
-        match self {
-            Raw { value } => value,
-            Initialized { value, .. } => value,
-        }
-    }
-
-    #[inline(always)]
-    pub fn value_mut(&mut self) -> &mut BigInt<N> {
-        match self {
-            Raw { value } => value,
-            Initialized { value, .. } => value,
         }
     }
 
@@ -352,6 +337,43 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
         let value = ark_std::mem::take(self.value_mut());
 
         *self = Initialized { config, value }
+    }
+
+    #[inline(always)]
+    fn value(&self) -> &BigInt<N> {
+        match self {
+            Raw { value } => value,
+            Initialized { value, .. } => value,
+        }
+    }
+
+    #[inline(always)]
+    fn value_mut(&mut self) -> &mut BigInt<N> {
+        match self {
+            Raw { value } => value,
+            Initialized { value, .. } => value,
+        }
+    }
+
+    fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript) {
+        match self {
+            Raw { value } => {
+                transcript.absorb(&[0x1]);
+                transcript.absorb(&value.to_bytes_be());
+                transcript.absorb(&[0x3])
+            }
+            Initialized { config, value } => {
+                let config = config.reference().expect("Field config cannot be none");
+
+                transcript.absorb(&[0x3]);
+                transcript.absorb(&config.modulus().to_bytes_be());
+                transcript.absorb(&[0x5]);
+
+                transcript.absorb(&[0x1]);
+                transcript.absorb(&value.to_bytes_be());
+                transcript.absorb(&[0x3])
+            }
+        }
     }
 }
 

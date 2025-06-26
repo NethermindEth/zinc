@@ -3,7 +3,6 @@ use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    field::RandomField,
     traits::{Config, ConfigReference, Field, FieldMap, Integer, Words},
     zip::pcs::structs::ZipTranscript,
 };
@@ -46,28 +45,11 @@ impl KeccakTranscript {
         result
     }
 
-    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
-        match v {
-            RandomField::Raw { value } => {
-                self.absorb(&[0x1]);
-                self.absorb(&value.to_bytes_be());
-                self.absorb(&[0x3])
-            }
-            RandomField::Initialized { config, value } => {
-                let config = config.reference().expect("Field config cannot be none");
-
-                self.absorb(&[0x3]);
-                self.absorb(&config.modulus().to_bytes_be());
-                self.absorb(&[0x5]);
-
-                self.absorb(&[0x1]);
-                self.absorb(&value.to_bytes_be());
-                self.absorb(&[0x3])
-            }
-        }
+    pub fn absorb_random_field<F: Field>(&mut self, v: &F) {
+        v.absorb_into_transcript(self)
     }
 
-    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
+    pub fn absorb_slice<F: Field>(&mut self, slice: &[F]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }

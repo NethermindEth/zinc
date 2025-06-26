@@ -1,7 +1,7 @@
 use ark_std::{
     fmt::Debug,
     ops::{
-        AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub,
+        Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub,
         SubAssign,
     },
     vec::Vec,
@@ -136,13 +136,27 @@ pub trait Words:
 
 /// Trait for cryptographic integer types.
 pub trait CryptoInt:
-    crypto_bigint::Zero + PartialOrd + RemAssign<NonZero<Self>> + Clone + Send + Sync
+    Zero
+    + crypto_bigint::Zero
+    + PartialOrd
+    + RemAssign<NonZero<Self>>
+    + Clone
+    + Add<Output = Self>
+    + Mul<Output = Self>
+    + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Mul<&'a Self, Output = Self>
+    + From<i64>
+    + Default
+    + Random
+    + Send
+    + Sync
 {
     type W: Words;
     type Uint: CryptoUint<W = Self::W>;
     type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
+    fn from_i64(value: i64) -> Self;
 }
 
 /// Trait for cryptographic unsigned integer types.

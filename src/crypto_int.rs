@@ -1,13 +1,14 @@
 use crypto_bigint::{Int, Uint};
 
 use crate::{
-    biginteger::Words,
+    biginteger::{BigInt, Words},
     traits::{CryptoInt, CryptoUint, FromBytes},
 };
 
 impl<const N: usize> CryptoInt for Int<N> {
     type W = crate::biginteger::Words<N>;
     type Uint = Uint<N>;
+    type I = BigInt<N>;
 
     fn from_words(words: Words<N>) -> Self {
         Self::from_words(words.0)

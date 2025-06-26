@@ -35,11 +35,11 @@ pub struct ZincProof<const I: usize, F> {
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
-pub struct ZincProver<const I: usize, const N: usize, S>
+pub struct ZincProver<const I: usize, F: Field, S>
 where
     S: ZipSpec,
 {
-    pub data: PhantomData<S>,
+    pub data: PhantomData<(F, S)>,
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.

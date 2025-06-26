@@ -24,9 +24,9 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<I, N, _> {
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> {
         // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
-        data: std::marker::PhantomData::<ZipSpec1>,
+        data: PhantomData,
     };
 
     for size in [12, 13, 14, 15, 16] {
@@ -34,7 +34,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
@@ -71,9 +71,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<I, N, _> {
-        data: std::marker::PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let verifier = ZincVerifier::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
@@ -83,7 +81,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
         let mut prover_transcript = KeccakTranscript::new();
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");

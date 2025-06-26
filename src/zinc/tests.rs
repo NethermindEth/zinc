@@ -29,13 +29,13 @@ fn test_dummy_spartan_prover() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
-            .expect("Failed to prepare for random field PIOP");
+        ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config,
+        )
+        .expect("Failed to prepare for random field PIOP");
 
     let proof = SpartanProver::<I, RandomField<N>>::prove(
         &prover,
@@ -62,13 +62,13 @@ fn test_spartan_verifier() {
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
-            .expect("Failed to prepare for random field PIOP");
+        ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config,
+        )
+        .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
         &prover,
@@ -109,13 +109,13 @@ fn test_dummy_spartan_verifier() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
-            .expect("Failed to prepare for random field PIOP");
+        ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config,
+        )
+        .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
         &prover,
@@ -156,13 +156,13 @@ fn test_failing_spartan_verifier() {
     wit.w_ccs[3] = Int::<I>::zero();
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<I, N, _> {
-        data: ark_std::marker::PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<I, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<I, N, ZipSpec1>::prepare_for_random_field_piop(&statement, &wit, &ccs, config)
-            .expect("Failed to prepare for random field PIOP");
+        ZincProver::<I, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config,
+        )
+        .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
         &prover,

@@ -10,9 +10,7 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<INT_LIMBS, FIELD_LIMBS, _> {
-        data: PhantomData::<ZipSpec1>,
-    };
+    let prover = ZincProver::<INT_LIMBS, RandomField<FIELD_LIMBS>, ZipSpec1> { data: PhantomData };
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);

@@ -36,6 +36,9 @@ pub trait Field:
     + Random
     + AddAssign
     + Div<Self, Output = Self>
+    + for<'a> core::iter::Product<&'a Self>
+    + core::iter::Sum
+    + for<'a> MulAssign<&'a Self>
 {
     type I: Integer<Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
     type C: Config<Self::W, Self::I>;
@@ -43,7 +46,7 @@ pub trait Field:
     type W: Words;
     type CryptoInt: CryptoInt<Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
     type CryptoUint: CryptoUint<Self::W, Int = Self::CryptoInt>;
-    type DebugField: Debug + From<Self>;
+    type DebugField: Debug + From<Self> + Send + Sync;
     fn new_unchecked(config: Self::Cr, value: Self::I) -> Self;
     fn without_config(value: Self::I) -> Self;
     fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self;
@@ -66,7 +69,7 @@ pub trait Integer<W: Words>: From<u64> + From<u32> + Debug + FromBytes + Copy {
 
     fn to_bytes_le(self) -> Vec<u8>;
 }
-pub trait Config<W: Words, I: Integer<W>> {
+pub trait Config<W: Words, I: Integer<W>>: PartialEq + Eq {
     fn modulus(&self) -> &I;
     fn mul_assign(&self, a: &mut I, b: &I);
 

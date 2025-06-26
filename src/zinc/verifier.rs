@@ -1,5 +1,5 @@
-use ark_ff::Zero;
 use ark_std::{boxed::Box, vec::Vec};
+use crypto_bigint::Int;
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
@@ -7,12 +7,11 @@ use super::{
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
 use crate::{
+    biginteger::BigInt,
     ccs::{
         ccs_f::{Statement_F, CCS_F},
         ccs_z::{Statement_Z, CCS_Z},
     },
-    field::RandomField,
-    field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
     traits::{ConfigReference, Field, FieldMap},
@@ -35,23 +34,29 @@ pub trait Verifier<const I: usize, F: Field> {
         [(); 8 * I]:;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Verifier<I, RandomField<'cfg, N>>
-    for ZincVerifier<I, RandomField<'cfg, N>, S>
+// TODO
+impl<const I: usize, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
+where
+    Int<{ 2 * I }>: FieldMap<F, Output = F>,
+    Int<{ 4 * I }>: FieldMap<F, Output = F>,
+    for<'a> Int<I>: From<&'a F::I>,
+    F::I: From<Int<I>>,
+    for<'a> F::CryptoInt: From<&'a BigInt<I>>,
 {
     fn verify(
         &self,
         statement: &Statement_Z<I>,
-        proof: ZincProof<I, RandomField<'cfg, N>>,
+        proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<(), ZincError<RandomField<'cfg, N>>>
+        config: F::Cr,
+    ) -> Result<(), ZincError<F>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
         [(); 8 * I]:,
     {
-        if draw_random_field::<I, RandomField<N>>(&statement.public_input, transcript)
+        if draw_random_field::<I, F>(&statement.public_input, transcript)
             != *config.reference().unwrap()
         {
             return Err(ZincError::FieldConfigError);
@@ -60,14 +65,9 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Verifier<I, RandomField<'
         let ccs_F = ccs.map_to_field(config);
         let statement_f = statement.map_to_field(config);
 
-        let verification_points = SpartanVerifier::<RandomField<N>>::verify(
-            self,
-            &proof.spartan_proof,
-            &ccs_F,
-            transcript,
-            config,
-        )
-        .map_err(ZincError::SpartanError)?;
+        let verification_points =
+            SpartanVerifier::<F>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
+                .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
             &statement_f,
@@ -107,16 +107,14 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomField<'cfg, N>>
-    for ZincVerifier<I, RandomField<'cfg, N>, S>
-{
+impl<const I: usize, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
     fn verify(
         &self,
-        proof: &SpartanProof<RandomField<'cfg, N>>,
-        ccs: &CCS_F<RandomField<'cfg, N>>,
+        proof: &SpartanProof<F>,
+        ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<VerificationPoints<RandomField<'cfg, N>>, SpartanError<RandomField<'cfg, N>>> {
+        config: F::Cr,
+    ) -> Result<VerificationPoints<F>, SpartanError<F>> {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
@@ -127,7 +125,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomFie
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
-        let gamma: RandomField<'cfg, N> = transcript.squeeze_gamma_challenge(config);
+        let gamma: F = transcript.squeeze_gamma_challenge(config);
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -146,14 +144,13 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<RandomFie
     }
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomField<'cfg, N>, S> {
+impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
     fn verify_linearization_proof(
         &self,
-        proof: &SumcheckProof<RandomField<'cfg, N>>,
+        proof: &SumcheckProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<RandomField<N>>,
-    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<RandomField<'cfg, N>>>
-    {
+        ccs: &CCS_F<F>,
+    ) -> Result<(Vec<F>, F), SpartanError<F>> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s;
         let degree = ccs.d + 1;
@@ -162,33 +159,28 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomFie
             transcript,
             nvars,
             degree,
-            RandomField::zero(),
+            F::zero(),
             proof,
-            unsafe { ConfigRef::new(*ccs.config.as_ptr()) },
+            unsafe { F::Cr::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
 
     fn verify_linearization_claim(
-        beta_s: &[RandomField<'cfg, N>],
-        point_r: &[RandomField<'cfg, N>],
-        s: RandomField<'cfg, N>,
-        proof: &SpartanProof<RandomField<'cfg, N>>,
-        ccs: &CCS_F<RandomField<'cfg, N>>,
-    ) -> Result<(), SpartanError<RandomField<'cfg, N>>> {
+        beta_s: &[F],
+        point_r: &[F],
+        s: F,
+        proof: &SpartanProof<F>,
+        ccs: &CCS_F<F>,
+    ) -> Result<(), SpartanError<F>> {
         let e = eq_eval(point_r, beta_s)?;
         let should_equal_s = e * ccs // e * (\sum c_i * \Pi_{j \in S_i} u_j)
             .c
             .iter()
             .enumerate()
-            .map(|(i, &c)| {
-                c * ccs.S[i]
-                    .iter()
-                    .map(|&j| &proof.V_s[j])
-                    .product::<RandomField<N>>()
-            }) // c_i * \Pi_{j \in S_i} u_j
-            .sum::<RandomField<N>>(); // \sum c_i * \Pi_{j \in S_i} u_j
+            .map(|(i, &c)| c * ccs.S[i].iter().map(|&j| &proof.V_s[j]).product::<F>()) // c_i * \Pi_{j \in S_i} u_j
+            .sum::<F>(); // \sum c_i * \Pi_{j \in S_i} u_j
 
         if should_equal_s != s {
             return Err(SpartanError::SumCheckError(SumCheckFailed(
@@ -202,12 +194,11 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomFie
 
     fn verify_second_sumcheck_proof(
         &self,
-        proof: &SumcheckProof<RandomField<'cfg, N>>,
+        proof: &SumcheckProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<RandomField<'cfg, N>>,
-        claimed_sum: RandomField<'cfg, N>,
-    ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError<RandomField<'cfg, N>>>
-    {
+        ccs: &CCS_F<F>,
+        claimed_sum: F,
+    ) -> Result<(Vec<F>, F), SpartanError<F>> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s_prime;
         let degree = 2;
@@ -218,17 +209,14 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomFie
             degree,
             claimed_sum,
             proof,
-            unsafe { ConfigRef::new(*ccs.config.as_ptr()) },
+            unsafe { F::Cr::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
 
-    fn lin_comb_V_s(
-        gamma: &RandomField<'cfg, N>,
-        V_s: &[RandomField<'cfg, N>],
-    ) -> RandomField<'cfg, N> {
-        let mut res = RandomField::zero();
+    fn lin_comb_V_s(gamma: &F, V_s: &[F]) -> F {
+        let mut res = F::zero();
         for V_i in V_s.iter().rev() {
             res *= gamma;
             res += V_i;
@@ -238,17 +226,19 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, RandomFie
 
     fn verify_pcs_proof(
         &self,
-        cm_i: &Statement_F<RandomField<'cfg, N>>,
-        zip_proof: &ZipProof<I, RandomField<'cfg, N>>,
-        verification_points: &VerificationPoints<RandomField<'cfg, N>>,
-        ccs: &CCS_F<RandomField<'cfg, N>>,
+        cm_i: &Statement_F<F>,
+        zip_proof: &ZipProof<I, F>,
+        verification_points: &VerificationPoints<F>,
+        ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<(), SpartanError<RandomField<'cfg, N>>>
+        config: F::Cr,
+    ) -> Result<(), SpartanError<F>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
         [(); 8 * I]:,
+        Int<{ 2 * I }>: FieldMap<F, Output = F>,
+        Int<{ 4 * I }>: FieldMap<F, Output = F>,
     {
         let param =
             MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::setup(

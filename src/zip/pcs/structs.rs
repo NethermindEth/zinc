@@ -12,7 +12,7 @@ use crate::{
 // L is the width of elements in the encoding matrices
 // K is the width of elements in the code
 // M is the width of elements in linear combination of code rows
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MultilinearZip<
     const N: usize,
     const L: usize,
@@ -20,21 +20,7 @@ pub struct MultilinearZip<
     const M: usize,
     S: ZipSpec,
     T: ZipTranscript<L>,
->(PhantomData<S>, PhantomData<T>);
-
-impl<
-        const N: usize,
-        const L: usize,
-        const K: usize,
-        const M: usize,
-        S: ZipSpec,
-        T: ZipTranscript<L>,
-    > Clone for MultilinearZip<N, L, K, M, S, T>
-{
-    fn clone(&self) -> Self {
-        Self(PhantomData, PhantomData)
-    }
-}
+>(PhantomData<(S, T)>);
 
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<const N: usize, const L: usize> {

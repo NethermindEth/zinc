@@ -107,7 +107,7 @@ where
             for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges::<I>(pp.num_rows());
+                    .get_integer_challenges(pp.num_rows());
                 let coeffs = coeffs.iter().map(expand::<I, M>);
 
                 let evals = poly.evaluations.iter().map(expand::<I, M>);

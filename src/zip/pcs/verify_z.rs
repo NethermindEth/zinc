@@ -75,7 +75,7 @@ where
             for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(vp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges::<I>(vp.num_rows());
+                    .get_integer_challenges(vp.num_rows());
 
                 let combined_row: Vec<Int<M>> = transcript
                     .read_integers(<Zip<I, L> as LinearCodes<I, L>>::row_len(vp.zip()))?;

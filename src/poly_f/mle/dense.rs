@@ -34,7 +34,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
 
     pub fn evaluate(&self, point: &[F], config: F::Cr) -> Option<F> {
         if point.len() == self.num_vars {
-            Some(self.fixed_variables(point, config)[0])
+            Some(self.fixed_variables(point, config)[0].clone())
         } else {
             None
         }
@@ -77,7 +77,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
-                v[(padded_rows * *col_i) + row_i] = *val;
+                v[(padded_rows * *col_i) + row_i] = val.clone();
             }
         }
 
@@ -151,13 +151,13 @@ impl<F: Field> MultilinearExtension<F> for DenseMultilinearExtension<F> {
         let dim = partial_point.len();
 
         for i in 1..dim + 1 {
-            let r = partial_point[i - 1];
+            let r = partial_point[i - 1].clone();
             for b in 0..1 << (nv - i) {
-                let left = poly[b << 1];
-                let right = poly[(b << 1) + 1];
-                let a = right - left;
+                let left = poly[b << 1].clone();
+                let right = poly[(b << 1) + 1].clone();
+                let a = right - left.clone();
                 if !a.is_zero() {
-                    poly[b] = left + r * a;
+                    poly[b] = left + r.clone() * a;
                 } else {
                     poly[b] = left;
                 };
@@ -224,7 +224,7 @@ impl<F: Field> Add for &DenseMultilinearExtension<F> {
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| *a + *b)
+            .map(|(a, b)| a.clone() + b.clone())
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result, self.config)
@@ -268,7 +268,7 @@ impl<F: Field> AddAssign<(F, &Self)> for DenseMultilinearExtension<F> {
         if self.is_zero() {
             *self = other.clone();
 
-            cfg_iter_mut!(self.evaluations).for_each(|a| a.mul_assign(r));
+            cfg_iter_mut!(self.evaluations).for_each(|a| a.mul_assign(&r));
 
             return;
         }
@@ -289,7 +289,7 @@ impl<F: Field> AddAssign<(F, &Self)> for DenseMultilinearExtension<F> {
 
         cfg_iter_mut!(self.evaluations)
             .zip(cfg_iter!(other.evaluations))
-            .for_each(|(a, b)| a.add_assign(&(r * b)));
+            .for_each(|(a, b)| a.add_assign(&(r.clone() * b)));
     }
 }
 
@@ -297,7 +297,7 @@ impl<F: Field> Neg for DenseMultilinearExtension<F> {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
-        cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.neg());
+        cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.clone().neg());
 
         self
     }
@@ -333,7 +333,7 @@ impl<F: Field> Sub for &DenseMultilinearExtension<F> {
         );
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| *a - *b)
+            .map(|(a, b)| a.clone() - b.clone())
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result, self.config)
@@ -364,7 +364,7 @@ impl<F: Field> SubAssign<&Self> for DenseMultilinearExtension<F> {
 
         cfg_iter_mut!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .for_each(|(a, b)| a.sub_assign(*b));
+            .for_each(|(a, b)| a.sub_assign(b.clone()));
     }
 }
 
@@ -372,7 +372,7 @@ impl<F: Field> Mul<F> for DenseMultilinearExtension<F> {
     type Output = Self;
 
     fn mul(mut self, rhs: F) -> Self::Output {
-        self.evaluations.iter_mut().for_each(|x| *x *= rhs);
+        self.evaluations.iter_mut().for_each(|x| *x *= &rhs);
 
         self
     }
@@ -380,7 +380,7 @@ impl<F: Field> Mul<F> for DenseMultilinearExtension<F> {
 
 impl<F: Field> MulAssign<F> for DenseMultilinearExtension<F> {
     fn mul_assign(&mut self, rhs: F) {
-        self.evaluations.iter_mut().for_each(|x| *x *= rhs);
+        self.evaluations.iter_mut().for_each(|x| *x *= &rhs);
     }
 }
 
@@ -388,7 +388,7 @@ impl<F: Field> Sub<F> for DenseMultilinearExtension<F> {
     type Output = Self;
 
     fn sub(mut self, rhs: F) -> Self::Output {
-        self.evaluations.iter_mut().for_each(|x| *x -= rhs);
+        self.evaluations.iter_mut().for_each(|x| *x -= rhs.clone());
 
         self
     }

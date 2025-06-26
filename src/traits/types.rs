@@ -21,7 +21,6 @@ pub trait Field:
     + PartialEq
     + One
     + Clone
-    + Copy
     + Default
     + Sync
     + Send

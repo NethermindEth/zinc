@@ -5,7 +5,11 @@ use crypto_bigint::Int;
 use itertools::Itertools;
 
 use super::pcs::structs::ZipTranscript;
-use crate::{field::RandomField, field_config::ConfigRef, traits::FieldMap, zip::utils::expand};
+use crate::{
+    traits::{Field, FieldMap},
+    zip::utils::expand,
+};
+
 const INVERSE_RATE: usize = 2;
 pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
     fn row_len(&self) -> usize;
@@ -63,11 +67,10 @@ impl<const I: usize, const L: usize> Zip<I, L> {
         }
     }
 
-    pub fn encode_f<'cfg, const N: usize>(
-        &self,
-        row: &[RandomField<'cfg, N>],
-        field: ConfigRef<'cfg, N>,
-    ) -> Vec<RandomField<'cfg, N>> {
+    pub fn encode_f<F: Field>(&self, row: &[F], field: F::Cr) -> Vec<F>
+    where
+        Int<L>: FieldMap<F, Output = F>,
+    {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -225,14 +228,17 @@ impl<const L: usize> SparseMatrixZ<L> {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<'cfg, const N: usize> {
+pub struct SparseMatrixF<F: Field> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, RandomField<'cfg, N>)>,
+    cells: Vec<(usize, F)>,
 }
 
-impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
-    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: ConfigRef<'cfg, N>) -> Self {
-        let cells_f: Vec<(usize, RandomField<'cfg, N>)> = sparse_matrix
+impl<F: Field> SparseMatrixF<F> {
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: F::Cr) -> Self
+    where
+        Int<L>: FieldMap<F, Output = F>,
+    {
+        let cells_f: Vec<(usize, F)> = sparse_matrix
             .cells
             .iter()
             .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
@@ -243,23 +249,23 @@ impl<'cfg, const N: usize> SparseMatrixF<'cfg, N> {
         }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, RandomField<'cfg, N>)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, F)]> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul(&self, vector: &[RandomField<'cfg, N>]) -> Vec<RandomField<'cfg, N>> {
+    fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![RandomField::zero(); self.dimension.n];
+        let mut result = vec![F::zero(); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = RandomField::zero();
+            let mut sum = F::zero();
             for (column, coeff) in cells.iter() {
-                sum += &(*coeff * vector[*column]);
+                sum += &(coeff.clone() * &vector[*column]);
             }
             result[row_idx] = sum;
         });

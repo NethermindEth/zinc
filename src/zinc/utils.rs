@@ -77,21 +77,21 @@ pub fn prepare_lin_sumcheck_polynomial<F: Field>(
 
 pub(crate) fn sumcheck_polynomial_comb_fn_1<F: Field>(vals: &[F], ccs: &CCS_F<F>) -> F {
     let mut result = F::zero();
-    'outer: for (i, &c) in ccs.c.iter().enumerate() {
+    'outer: for (i, c) in ccs.c.iter().enumerate() {
         if c.is_zero() {
             continue;
         }
-        let mut term = c;
+        let mut term = c.clone();
         for &j in &ccs.S[i] {
             if vals[j].is_zero() {
                 continue 'outer;
             }
-            term *= vals[j];
+            term *= &vals[j];
         }
         result += &term;
     }
     // eq() is the last term added
-    result * vals[vals.len() - 1]
+    result * &vals[vals.len() - 1]
 }
 
 pub(crate) trait SqueezeBeta<F: Field> {

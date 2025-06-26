@@ -42,7 +42,7 @@ pub struct SumcheckProof<F>(Vec<ProverMsg<F>>);
 impl<F: Field> MLSumcheck<F> {
     /// extract sum from the proof
     pub fn extract_sum(proof: &SumcheckProof<F>) -> F {
-        proof.0[0].evaluations[0] + proof.0[0].evaluations[1]
+        proof.0[0].evaluations[0].clone() + proof.0[0].evaluations[1].clone()
     }
 
     /// This function does the same thing as `prove`, but it uses cryptographic sponge as the transcript/to generate the

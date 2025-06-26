@@ -46,7 +46,7 @@ fn main() {
         .expect("Proof verification failed");
 }
 
-fn get_ccs<const N: usize>() -> CCS_Z<N> {
+fn get_ccs<const N: usize>() -> CCS_Z<Int<N>> {
     let m = 4;
     let n = 6;
     CCS_Z {
@@ -60,11 +60,12 @@ fn get_ccs<const N: usize>() -> CCS_Z<N> {
         s_prime: log2(n) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1, -1],
+        _phantom: PhantomData,
     }
 }
 
 #[allow(non_snake_case)]
-fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<N> {
+fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<Int<N>> {
     let A = to_Z_matrix(vec![
         vec![1, 0, 0, 0, 0, 0],
         vec![0, 0, 0, 1, 0, 0],
@@ -91,7 +92,7 @@ fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<N> {
     }
 }
 
-fn get_witness<const N: usize>(input: i64) -> Witness_Z<N> {
+fn get_witness<const N: usize>(input: i64) -> Witness_Z<Int<N>> {
     Witness_Z::new(vec![
         Int::<N>::from_i64(input * input * input + input + 5), // x^3 + x + 5
         Int::<N>::from_i64(input * input),                     // x^2
@@ -100,7 +101,9 @@ fn get_witness<const N: usize>(input: i64) -> Witness_Z<N> {
     ])
 }
 
-fn get_ccs_stuff<const N: usize>(input: i64) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+fn get_ccs_stuff<const N: usize>(
+    input: i64,
+) -> (CCS_Z<Int<N>>, Statement_Z<Int<N>>, Witness_Z<Int<N>>) {
     let mut ccs = get_ccs();
     let mut statement = get_ccs_statement(input);
     let matrices = statement.constraints.clone();

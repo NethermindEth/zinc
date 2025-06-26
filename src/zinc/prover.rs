@@ -30,10 +30,10 @@ pub type ZincResult<T, F> = Result<T, ZincError<F>>;
 pub trait Prover<const I: usize, F: Field> {
     fn prove(
         &self,
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
+        statement: &Statement_Z<Int<I>>,
+        wit: &Witness_Z<Int<I>>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> Result<ZincProof<I, F>, ZincError<F>>
     where
@@ -50,10 +50,10 @@ where
 {
     fn prove(
         &self,
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
+        statement: &Statement_Z<Int<I>>,
+        wit: &Witness_Z<Int<I>>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> ZincResult<ZincProof<I, F>, F>
     where
@@ -173,9 +173,9 @@ where
 
     #[allow(clippy::type_complexity)] // TODO refactor this out
     pub fn prepare_for_random_field_piop(
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
-        ccs: &CCS_Z<I>,
+        statement: &Statement_Z<Int<I>>,
+        wit: &Witness_Z<Int<I>>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> SpartanResult<(Vec<F>, Self::DenseMleZ, Self::CcsF, Self::StatementF), F> {
         // z_ccs vector, i.e. concatenation x || 1 || w.
@@ -208,9 +208,9 @@ where
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
-        ccs: &CCS_Z<I>,
+        statement: &Statement_Z<Int<I>>,
+        wit: &Witness_Z<Int<I>>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> (Vec<F>, Self::DenseMleZ) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);

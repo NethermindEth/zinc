@@ -135,7 +135,9 @@ pub trait Words:
 }
 
 /// Trait for cryptographic integer types.
-pub trait CryptoInt: crypto_bigint::Zero + PartialOrd + RemAssign<NonZero<Self>> {
+pub trait CryptoInt:
+    crypto_bigint::Zero + PartialOrd + RemAssign<NonZero<Self>> + Clone + Send + Sync
+{
     type W: Words;
     type Uint: CryptoUint<W = Self::W>;
     type I: Integer<W = Self::W> + for<'a> From<&'a Self>;

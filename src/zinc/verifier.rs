@@ -22,10 +22,10 @@ use crate::{
 pub trait Verifier<const I: usize, F: Field> {
     fn verify(
         &self,
-        cm_i: &Statement_Z<I>,
+        cm_i: &Statement_Z<Int<I>>,
         proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> Result<(), ZincError<F>>
     where
@@ -45,10 +45,10 @@ where
 {
     fn verify(
         &self,
-        statement: &Statement_Z<I>,
+        statement: &Statement_Z<Int<I>>,
         proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
     ) -> Result<(), ZincError<F>>
     where

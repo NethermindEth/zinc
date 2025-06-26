@@ -320,6 +320,7 @@ mod tests {
         ccs::test_utils::get_dummy_ccs_F_from_z_length,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     #[test]

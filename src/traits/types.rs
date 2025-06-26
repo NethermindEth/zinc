@@ -71,6 +71,7 @@ pub trait Config<W: Words, I: Integer<W>> {
     fn mul_assign(&self, a: &mut I, b: &I);
 
     fn r2(&self) -> &I;
+    fn new(modulus: I) -> Self;
 }
 pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>:
     Copy + Clone + PartialEq + Eq + Debug + Send + Sync

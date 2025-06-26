@@ -51,7 +51,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> Verifier<I, RandomField<'
         [(); 4 * I]:,
         [(); 8 * I]:,
     {
-        if draw_random_field::<I, N>(&statement.public_input, transcript)
+        if draw_random_field::<I, RandomField<N>>(&statement.public_input, transcript)
             != *config.reference().unwrap()
         {
             return Err(ZincError::FieldConfigError);

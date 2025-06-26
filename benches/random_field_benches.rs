@@ -15,7 +15,7 @@ use zinc::{
     biginteger::BigInteger256,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
-    traits::FieldMap,
+    traits::{Config, FieldMap},
 };
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {

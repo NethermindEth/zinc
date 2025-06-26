@@ -16,7 +16,7 @@ fn main() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<INT_LIMBS, FIELD_LIMBS>(
+    let field_config = draw_random_field::<INT_LIMBS, RandomField<FIELD_LIMBS>>(
         &statement.public_input,
         &mut prover_transcript,
     );

@@ -419,6 +419,7 @@ mod tests {
     use crate::{
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     // Function to convert usize to a binary vector of Ring elements.

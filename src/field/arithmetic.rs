@@ -182,6 +182,7 @@ mod test {
         create_bigint, create_random_field,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     #[test]

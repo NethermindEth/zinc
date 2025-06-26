@@ -16,7 +16,7 @@ use zinc::{
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{ConfigReference, FieldMap},
+    traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{
         code::{LinearCodes, Zip, ZipSpec1},

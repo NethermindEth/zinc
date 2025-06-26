@@ -6,7 +6,7 @@ use zinc::{
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
-    traits::ConfigReference,
+    traits::{Config, ConfigReference},
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,

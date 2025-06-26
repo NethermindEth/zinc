@@ -9,11 +9,12 @@ use super::errors::{MleEvaluationError, SpartanError};
 use crate::{
     ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
     field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension,
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
+    traits::{Config, Field},
     transcript::KeccakTranscript,
 };
 
@@ -175,14 +176,14 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<const I: usize, const N: usize>(
+pub fn draw_random_field<const I: usize, F: Field>(
     public_inputs: &[Int<I>],
     transcript: &mut KeccakTranscript,
-) -> FieldConfig<N> {
+) -> F::C {
     for input in public_inputs {
         transcript.absorb(cast_slice(input.as_words()));
     }
     // Method for efficient random prime sampling not yet implemented
     // Fixing the random prime q for now
-    FieldConfig::new(get_prime::<RandomField<N>>(transcript))
+    F::C::new(get_prime::<F>(transcript))
 }

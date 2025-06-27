@@ -112,7 +112,7 @@ where
     pub type Param = MultilinearZipParams<I, L>;
     pub type ProverParam = MultilinearZipParams<I, L>;
     pub type VerifierParam = MultilinearZipParams<I, L>;
-    pub type Polynomial = DenseMultilinearExtensionZ<I>;
+    pub type Polynomial = DenseMultilinearExtensionZ<Int<I>>;
     pub type Data = MultilinearZipData<I, K>;
     pub type Commitment = MultilinearZipCommitment<I>;
     pub type CommitmentChunk = Output<Keccak256>;

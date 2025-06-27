@@ -8,7 +8,7 @@ use ark_std::{
     UniformRand,
 };
 use crypto_bigint::{NonZero, Random, RandomMod};
-use num_traits::{One, Zero};
+use num_traits::{ConstZero, One, Zero};
 
 use crate::{
     traits::{FieldMap, FromBytes},
@@ -137,20 +137,26 @@ pub trait Words:
 /// Trait for cryptographic integer types.
 pub trait CryptoInt:
     Zero
+    + ConstZero
     + One
     + crypto_bigint::Zero
     + PartialOrd
+    + PartialEq
+    + Eq
     + RemAssign<NonZero<Self>>
     + Clone
     + Add<Output = Self>
     + Mul<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
+    + for<'a> AddAssign<&'a Self>
+    + for<'a> Sub<&'a Self, Output = Self>
     + From<i64>
     + Default
     + Random
     + Send
     + Sync
+    + Debug
 {
     type W: Words;
     type Uint: CryptoUint<W = Self::W>;

@@ -47,7 +47,7 @@ where
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
     pub fn batch_open<'a, F: Field>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<Int<I>>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
         points: &[Vec<F>],
         transcript: &mut PcsTranscript<F>,

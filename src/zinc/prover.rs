@@ -112,7 +112,7 @@ pub trait SpartanProver<const I: usize, F: Field> {
         &self,
         statement_f: &Statement_F<F>,
         z_ccs: &[F],
-        z_mle: &DenseMultilinearExtensionZ<I>,
+        z_mle: &DenseMultilinearExtensionZ<Int<I>>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
         config: F::Cr,
@@ -129,7 +129,7 @@ where
         &self,
         statement_f: &Statement_F<F>,
         z_ccs: &[F],
-        z_mle: &DenseMultilinearExtensionZ<I>,
+        z_mle: &DenseMultilinearExtensionZ<Int<I>>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
         config: F::Cr,
@@ -166,7 +166,7 @@ where
     F::I: From<Int<I>>,
 {
     pub type DenseMleF = DenseMultilinearExtension<F>;
-    pub type DenseMleZ = DenseMultilinearExtensionZ<I>;
+    pub type DenseMleZ = DenseMultilinearExtensionZ<Int<I>>;
     pub type CcsF = CCS_F<F>;
 
     pub type StatementF = Statement_F<F>;

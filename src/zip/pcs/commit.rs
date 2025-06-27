@@ -53,7 +53,7 @@ where
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a, F: Field>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<Int<I>>>,
     ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
         polys
             .iter()

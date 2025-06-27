@@ -54,13 +54,17 @@ pub struct MultilinearZipData<const N: usize, const K: usize> {
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipCommitment<const N: usize> {
+pub struct MultilinearZipCommitment<I: CryptoInt> {
     /// Roots of the merkle tree of each row
     roots: Vec<Output<Keccak256>>,
+    phantom: PhantomData<I>,
 }
-impl<const N: usize> MultilinearZipCommitment<N> {
-    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<N> {
-        MultilinearZipCommitment { roots }
+impl<I: CryptoInt> MultilinearZipCommitment<I> {
+    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<I> {
+        MultilinearZipCommitment {
+            roots,
+            phantom: PhantomData,
+        }
     }
     pub fn roots(&self) -> &[Output<Keccak256>] {
         &self.roots
@@ -115,7 +119,7 @@ where
     pub type VerifierParam = MultilinearZipParams<I, L>;
     pub type Polynomial = DenseMultilinearExtensionZ<Int<I>>;
     pub type Data = MultilinearZipData<I, K>;
-    pub type Commitment = MultilinearZipCommitment<I>;
+    pub type Commitment = MultilinearZipCommitment<Int<I>>;
     pub type CommitmentChunk = Output<Keccak256>;
 
     pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {

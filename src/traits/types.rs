@@ -137,6 +137,7 @@ pub trait Words:
 /// Trait for cryptographic integer types.
 pub trait CryptoInt:
     Zero
+    + One
     + crypto_bigint::Zero
     + PartialOrd
     + RemAssign<NonZero<Self>>

@@ -149,7 +149,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
+impl<const L: usize> ZipTranscript<Int<L>> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> Int<L> {
         let byte = self.get_random_bytes(1)[0];
         // cancels all bits and depends only on whether the random byte LSB is 0 or 1

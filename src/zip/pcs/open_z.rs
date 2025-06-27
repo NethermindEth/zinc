@@ -22,7 +22,7 @@ impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
     MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript<L>,
+    T: ZipTranscript<Int<L>>,
 {
     pub fn open<F: Field>(
         pp: &Self::ProverParam,

@@ -40,7 +40,7 @@ impl<const I: usize, const L: usize> Zip<I, L> {
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<L>>(
+    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<Int<L>>>(
         num_vars: usize,
         n_0: usize,
         transcript: &mut T,
@@ -128,7 +128,7 @@ pub trait ZipSpec: Debug {
         n * INVERSE_RATE
     }
 
-    fn matrices<const L: usize, T: ZipTranscript<L>>(
+    fn matrices<const L: usize, T: ZipTranscript<Int<L>>>(
         rows: usize,
         cols: usize,
         density: usize,
@@ -187,7 +187,7 @@ pub struct SparseMatrixZ<const L: usize> {
 }
 
 impl<const L: usize> SparseMatrixZ<L> {
-    fn new<T: ZipTranscript<L>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
+    fn new<T: ZipTranscript<Int<L>>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             transcript.sample_unique_columns(0..dimension.m, &mut columns, dimension.d);

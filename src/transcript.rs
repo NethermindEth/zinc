@@ -149,7 +149,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
+impl<const L: usize> ZipTranscript<Int<L>> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> Int<L> {
         self.get_integer_challenge()
     }

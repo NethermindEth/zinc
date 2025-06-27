@@ -5,6 +5,7 @@ use sha3::{digest::Output, Keccak256};
 use super::utils::MerkleTree;
 use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
+    traits::CryptoInt,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
 
@@ -19,7 +20,7 @@ pub struct MultilinearZip<
     const K: usize,
     const M: usize,
     S: ZipSpec,
-    T: ZipTranscript<L>,
+    T: ZipTranscript<Int<L>>,
 >(PhantomData<(S, T)>);
 
 #[derive(Clone, Debug)]
@@ -94,8 +95,8 @@ impl<const N: usize, const K: usize> MultilinearZipData<N, K> {
     }
 }
 
-pub trait ZipTranscript<const L: usize> {
-    fn get_encoding_element(&mut self) -> Int<L>;
+pub trait ZipTranscript<I: CryptoInt> {
+    fn get_encoding_element(&mut self) -> I;
     fn sample_unique_columns(
         &mut self,
         range: ark_std::ops::Range<usize>,
@@ -107,7 +108,7 @@ impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
     MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript<L>,
+    T: ZipTranscript<Int<L>>,
 {
     pub type Param = MultilinearZipParams<I, L>;
     pub type ProverParam = MultilinearZipParams<I, L>;

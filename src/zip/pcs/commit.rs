@@ -27,8 +27,8 @@ where
     ) -> Result<(Self::Data, Self::Commitment), Error> {
         validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
-        let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());
+        let row_len = <Zip<I, L> as LinearCodes<Int<I>, Int<M>>>::row_len(pp.zip());
+        let codeword_len = <Zip<I, L> as LinearCodes<Int<I>, Int<M>>>::codeword_len(pp.zip());
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);

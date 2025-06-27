@@ -11,7 +11,7 @@ use crate::{
 };
 
 const INVERSE_RATE: usize = 2;
-pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
+pub trait LinearCodes<In: CryptoInt, Im: CryptoInt>: Sync + Send {
     fn row_len(&self) -> usize;
 
     fn codeword_len(&self) -> usize;
@@ -20,7 +20,7 @@ pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
 
     fn num_proximity_testing(&self) -> usize;
 
-    fn encode(&self, input: &[Int<N>]) -> Vec<Int<M>>;
+    fn encode(&self, input: &[In]) -> Vec<Im>;
 }
 
 #[derive(Clone, Debug)]
@@ -89,7 +89,7 @@ impl<const I: usize, const L: usize> Zip<I, L> {
     }
 }
 
-impl<const N: usize, const M: usize, const L: usize> LinearCodes<N, M> for Zip<N, L> {
+impl<const N: usize, const M: usize, const L: usize> LinearCodes<Int<N>, Int<M>> for Zip<N, L> {
     fn row_len(&self) -> usize {
         self.row_len
     }

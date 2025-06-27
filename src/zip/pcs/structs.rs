@@ -125,7 +125,7 @@ where
 
         MultilinearZipParams {
             num_vars,
-            num_rows: ((1 << num_vars) / <Zip<I, L> as LinearCodes<I, M>>::row_len(&zip))
+            num_rows: ((1 << num_vars) / <Zip<I, L> as LinearCodes<Int<I>, Int<M>>>::row_len(&zip))
                 .next_power_of_two(),
             zip,
         }

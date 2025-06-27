@@ -2,7 +2,7 @@ use ark_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
     sumcheck,
-    traits::Field,
+    traits::{CryptoInt, Field},
     zip::{code::ZipSpec, pcs::structs::MultilinearZipCommitment},
 };
 
@@ -23,29 +23,29 @@ pub struct SpartanProof<F> {
     pub V_s: Vec<F>,
 }
 
-pub struct ZipProof<const I: usize, F> {
+pub struct ZipProof<I: CryptoInt, F> {
     pub z_comm: MultilinearZipCommitment<I>,
     pub v: F,
     pub pcs_proof: Vec<u8>,
 }
 
-pub struct ZincProof<const I: usize, F> {
+pub struct ZincProof<I: CryptoInt, F> {
     pub spartan_proof: SpartanProof<F>,
     pub zip_proof: ZipProof<I, F>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
-pub struct ZincProver<const I: usize, F: Field, S>
+pub struct ZincProver<I: CryptoInt, F: Field, S>
 where
     S: ZipSpec,
 {
-    pub data: PhantomData<(F, S)>,
+    pub data: PhantomData<(I, F, S)>,
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<const I: usize, F: Field, S>
+pub struct ZincVerifier<I: CryptoInt, F: Field, S>
 where
     S: ZipSpec,
 {
-    pub data: PhantomData<(F, S)>,
+    pub data: PhantomData<(I, F, S)>,
 }

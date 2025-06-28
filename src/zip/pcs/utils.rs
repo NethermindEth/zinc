@@ -226,7 +226,7 @@ pub struct ColumnOpening {}
 impl ColumnOpening {
     pub fn open_at_column<F: Field, const I: usize, const M: usize>(
         column: usize,
-        commit_data: &MultilinearZipData<I, M>,
+        commit_data: &MultilinearZipData<Int<I>, Int<M>>,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {

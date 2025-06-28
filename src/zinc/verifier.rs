@@ -240,14 +240,25 @@ impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<Int<I>, F, S> {
         Int<{ 2 * I }>: FieldMap<F, Output = F>,
         Int<{ 4 * I }>: FieldMap<F, Output = F>,
     {
-        let param =
-            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::setup(
-                ccs.m, transcript,
-            );
+        let param = MultilinearZip::<
+            Int<I>,
+            Int<{ 2 * I }>,
+            Int<{ 4 * I }>,
+            Int<{ 8 * I }>,
+            S,
+            KeccakTranscript,
+        >::setup(ccs.m, transcript);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::verify(
+        MultilinearZip::<
+            Int<I>,
+            Int<{ 2 * I }>,
+            Int<{ 4 * I }>,
+            Int<{ 8 * I }>,
+            S,
+            KeccakTranscript,
+        >::verify(
             &param,
             &zip_proof.z_comm,
             r_y,

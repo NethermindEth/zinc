@@ -3,8 +3,9 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use crypto_bigint::Int;
 use num_integer::Integer;
+
+use crate::traits::{CryptoInt, Words};
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
 where
@@ -106,24 +107,13 @@ where
 
     combined_row
 }
-pub(super) fn expand<const N: usize, const M: usize>(narrow_int: &Int<N>) -> Int<M> {
+pub(super) fn expand<N: CryptoInt, M: CryptoInt + for<'a> From<&'a N>>(narrow_int: &N) -> M {
     assert!(
-        N <= M,
+        N::W::num_words() <= M::W::num_words(),
         "Cannot squeeze a wide integer into a narrow integer."
     );
-    let mut words: [u64; M] = [0; M];
-    words[..N].copy_from_slice(&narrow_int.to_words());
 
-    let sign_extension = if narrow_int < &Int::<N>::ZERO {
-        u64::MAX
-    } else {
-        0
-    };
-    for word in &mut words[N..] {
-        *word = sign_extension;
-    }
-
-    Int::<M>::from_words(words)
+    M::from(narrow_int)
 }
 
 #[cfg(test)]
@@ -144,7 +134,7 @@ mod test {
     fn test_expand_normal() {
         let input_words = [1u64, 2u64];
         let input = Int::<2>::from_words(input_words);
-        let expanded = expand::<2, 4>(&input);
+        let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [1u64, 2u64, 0u64, 0u64];
         assert_eq!(expanded.to_words(), expected_words);
@@ -154,7 +144,7 @@ mod test {
     fn test_expand_identity() {
         let input_words = [42u64, 99u64];
         let input = Int::<2>::from_words(input_words);
-        let expanded = expand::<2, 2>(&input);
+        let expanded = expand::<Int<2>, Int<2>>(&input);
 
         let expected_words = [42u64, 99u64];
         assert_eq!(expanded.to_words(), expected_words);
@@ -165,13 +155,13 @@ mod test {
     fn test_expand_invalid() {
         let input = Int::<4>::from_words([1, 2, 3, 4]);
         // N = 4, M = 2 → should panic
-        let _ = expand::<4, 2>(&input);
+        let _ = expand::<Int<4>, Int<2>>(&input);
     }
 
     #[test]
     fn test_expand_zero_padding() {
         let input = Int::<1>::from_words([123]);
-        let expanded = expand::<1, 3>(&input);
+        let expanded = expand::<Int<1>, Int<3>>(&input);
 
         let expected_words = [123u64, 0u64, 0u64];
         assert_eq!(expanded.to_words(), expected_words);
@@ -180,7 +170,7 @@ mod test {
     #[test]
     fn test_expand_all_zeros() {
         let input = Int::<2>::from_words([0u64, 0u64]);
-        let expanded = expand::<2, 4>(&input);
+        let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [0u64, 0u64, 0u64, 0u64];
         assert_eq!(expanded.to_words(), expected_words);
@@ -189,7 +179,7 @@ mod test {
     fn test_expand_negative_number_identity() {
         // Example negative number in two's complement for 2 words
         let negative_val = Int::<2>::from_words([!0u64, !0u64]); // -1
-        let expanded = expand::<2, 2>(&negative_val);
+        let expanded = expand::<Int<2>, Int<2>>(&negative_val);
 
         assert_eq!(expanded, Int::<2>::ZERO - Int::<2>::ONE);
     }
@@ -203,10 +193,10 @@ mod test {
             positive_val = Int::<2>::ZERO - positive_val;
         }
 
-        let expanded_positive = expand::<2, 4>(&positive_val);
+        let expanded_positive = expand::<Int<2>, Int<4>>(&positive_val);
 
         let negative_val = Int::<2>::ZERO - positive_val;
-        let expanded_negative = expand::<2, 4>(&negative_val);
+        let expanded_negative = expand::<Int<2>, Int<4>>(&negative_val);
 
         let expected_negative = Int::<4>::ZERO - expanded_positive;
 

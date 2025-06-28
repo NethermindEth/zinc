@@ -10,6 +10,7 @@ use ark_std::test_rng;
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
+use crypto_bigint::Int;
 use zinc::{
     biginteger::BigInt,
     field::RandomField,
@@ -23,10 +24,10 @@ use zinc::{
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<
-    INT_LIMBS,
-    { 2 * INT_LIMBS },
-    { 4 * INT_LIMBS },
-    { 8 * INT_LIMBS },
+    Int<INT_LIMBS>,
+    Int<{ 2 * INT_LIMBS }>,
+    Int<{ 4 * INT_LIMBS }>,
+    Int<{ 8 * INT_LIMBS }>,
     ZipSpec1,
     KeccakTranscript,
 >;

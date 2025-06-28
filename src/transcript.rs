@@ -1,5 +1,4 @@
 use ark_std::vec::Vec;
-use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
@@ -149,8 +148,8 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<Int<L>> for KeccakTranscript {
-    fn get_encoding_element(&mut self) -> Int<L> {
+impl<I: CryptoInt> ZipTranscript<I> for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> I {
         self.get_integer_challenge()
     }
 

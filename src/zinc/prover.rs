@@ -303,23 +303,29 @@ where
         [(); 8 * I]:,
     {
         let param =
-            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, _>::setup(ccs.m, transcript);
-        let (z_data, z_comm) =
-            MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::commit::<F>(
-                &param, z_mle,
-            )?;
+            MultilinearZip::<Int<I>, Int<{ 2 * I }>, Int<{ 4 * I }>, Int<{ 8 * I }>, S, _>::setup(
+                ccs.m, transcript,
+            );
+        let (z_data, z_comm) = MultilinearZip::<
+            Int<I>,
+            Int<{ 2 * I }>,
+            Int<{ 4 * I }>,
+            Int<{ 8 * I }>,
+            S,
+            KeccakTranscript,
+        >::commit::<F>(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<I, { 2 * I }, { 4 * I }, { 8 * I }, S, KeccakTranscript>::open(
-            &param,
-            z_mle,
-            &z_data,
-            r_y,
-            config,
-            &mut pcs_transcript,
-        )?;
+        MultilinearZip::<
+            Int<I>,
+            Int<{ 2 * I }>,
+            Int<{ 4 * I }>,
+            Int<{ 8 * I }>,
+            S,
+            KeccakTranscript,
+        >::open(&param, z_mle, &z_data, r_y, config, &mut pcs_transcript)?;
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok(ZipProof {

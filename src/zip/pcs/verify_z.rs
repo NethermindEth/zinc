@@ -17,7 +17,7 @@ use crate::{
 };
 
 impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<I, L, K, M, S, T>
+    MultilinearZip<Int<I>, Int<L>, Int<K>, Int<M>, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<Int<L>>,
@@ -68,20 +68,25 @@ where
         field: F::Cr,
     ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows =
-            Vec::with_capacity(
-                <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_proximity_testing(vp.zip()),
-            );
+        let mut encoded_combined_rows = Vec::with_capacity(<Zip<Int<I>, Int<L>> as LinearCodes<
+            Int<I>,
+            Int<L>,
+        >>::num_proximity_testing(
+            vp.zip()
+        ));
         if vp.num_rows() > 1 {
-            for _ in 0..<Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_proximity_testing(vp.zip())
-            {
+            for _ in 0..<Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::num_proximity_testing(
+                vp.zip(),
+            ) {
                 let coeffs = transcript
                     .fs_transcript
                     .get_integer_challenges(vp.num_rows());
 
-                let combined_row: Vec<Int<M>> = transcript.read_integers(
-                    <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::row_len(vp.zip()),
-                )?;
+                let combined_row: Vec<Int<M>> =
+                    transcript
+                        .read_integers(
+                            <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::row_len(vp.zip()),
+                        )?;
 
                 let encoded_combined_row: Vec<Int<M>> = vp.zip().encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
@@ -89,12 +94,14 @@ where
         }
 
         let mut columns_opened: Vec<(usize, Vec<Int<K>>)> = Vec::with_capacity(
-            <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_column_opening(vp.zip()),
+            <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::num_column_opening(vp.zip()),
         );
-        for _ in 0..<Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_column_opening(vp.zip()) {
+        for _ in
+            0..<Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::num_column_opening(vp.zip())
+        {
             let column_idx = transcript.squeeze_challenge_idx(
                 field,
-                <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::codeword_len(vp.zip()),
+                <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::codeword_len(vp.zip()),
             );
             let column_values = transcript.read_integers(vp.num_rows())?;
 
@@ -123,11 +130,14 @@ where
         num_rows: usize,
     ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let coeffs: Vec<_> = coeffs.iter().map(expand::<I, M>).collect();
-            let column_entries: Vec<_> = column_entries.iter().map(expand::<K, M>).collect();
+            let coeffs: Vec<_> = coeffs.iter().map(expand::<Int<I>, Int<M>>).collect();
+            let column_entries: Vec<_> = column_entries
+                .iter()
+                .map(expand::<Int<K>, Int<M>>)
+                .collect();
             inner_product(coeffs.iter(), column_entries.iter())
         } else {
-            expand::<K, M>(&column_entries[0])
+            expand::<Int<K>, Int<M>>(&column_entries[0])
         };
 
         if column_entries_comb != encoded_combined_row[column] {
@@ -149,7 +159,7 @@ where
         Int<K>: FieldMap<F, Output = F>,
     {
         let q_0_combined_row = transcript.read_field_elements(
-            <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::row_len(vp.zip()),
+            <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<L>>>::row_len(vp.zip()),
             field,
         )?;
         let encoded_combined_row = vp.zip().encode_f(&q_0_combined_row, field);

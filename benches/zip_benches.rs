@@ -28,10 +28,10 @@ use zinc::{
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<
-    INT_LIMBS,
-    { 2 * INT_LIMBS },
-    { 4 * INT_LIMBS },
-    { 8 * INT_LIMBS },
+    Int<INT_LIMBS>,
+    Int<{ 2 * INT_LIMBS }>,
+    Int<{ 4 * INT_LIMBS }>,
+    Int<{ 8 * INT_LIMBS }>,
     ZipSpec1,
     KeccakTranscript,
 >;
@@ -46,11 +46,11 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
 
-            let row_len = <Zip<INT_LIMBS, {2*INT_LIMBS}> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::row_len(params.zip());
-            let codeword_len = <Zip<INT_LIMBS, {2*INT_LIMBS}> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::codeword_len(params.zip());
+            let row_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::row_len(params.zip());
+            let codeword_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::codeword_len(params.zip());
             b.iter(|| {
-                    let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
-                })
+                let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
+            })
         },
     );
 }

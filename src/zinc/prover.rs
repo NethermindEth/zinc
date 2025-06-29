@@ -19,7 +19,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    traits::{ConfigReference, Field, FieldMap},
+    traits::{ConfigReference, CryptoInt, Field, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
@@ -66,7 +66,7 @@ where
             Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
-        let (spartan_proof, r_y) = SpartanProver::<I, F>::prove(
+        let (spartan_proof, r_y) = SpartanProver::<Int<I>, F>::prove(
             self,
             &statement_f,
             &z_ccs,
@@ -88,7 +88,7 @@ where
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<const I: usize, F: Field> {
+pub trait SpartanProver<I: CryptoInt, F: Field> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -112,14 +112,14 @@ pub trait SpartanProver<const I: usize, F: Field> {
         &self,
         statement_f: &Statement_F<F>,
         z_ccs: &[F],
-        z_mle: &DenseMultilinearExtensionZ<Int<I>>,
+        z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
         config: F::Cr,
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<Int<I>, F, S>
+impl<const I: usize, F: Field, S: ZipSpec> SpartanProver<Int<I>, F> for ZincProver<Int<I>, F, S>
 where
     for<'a> Int<I>: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a BigInt<I>>, // TODO

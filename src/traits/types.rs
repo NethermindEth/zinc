@@ -163,6 +163,7 @@ pub trait CryptoInt:
     type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
+    fn as_words(&self) -> &[u64];
     fn from_i64(value: i64) -> Self;
 }
 

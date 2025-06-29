@@ -6,13 +6,12 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use crypto_bigint::Int;
 use sha3::{digest::Output, Keccak256};
 
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
     poly::alloc::string::ToString,
-    traits::{Field, FromBytes, Integer, Words},
+    traits::{CryptoInt, Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 
@@ -95,7 +94,7 @@ impl<F: Field> PcsTranscript<F> {
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
     }
 
-    pub fn write_integer<const M: usize>(&mut self, int: &Int<M>) -> Result<(), Error> {
+    pub fn write_integer<M: CryptoInt>(&mut self, int: &M) -> Result<(), Error> {
         for &word in int.as_words().iter() {
             let bytes = word.to_le_bytes();
             self.stream
@@ -104,17 +103,17 @@ impl<F: Field> PcsTranscript<F> {
         }
         Ok(())
     }
-    pub fn write_integers<const M: usize>(&mut self, ints: &[Int<M>]) -> Result<(), Error> {
+    pub fn write_integers<M: CryptoInt>(&mut self, ints: &[M]) -> Result<(), Error> {
         for int in ints {
             self.write_integer(int)?;
         }
         Ok(())
     }
 
-    pub fn read_integer<const M: usize>(&mut self) -> Result<Int<M>, Error> {
-        let mut words = [0u64; M];
+    pub fn read_integer<M: CryptoInt>(&mut self) -> Result<M, Error> {
+        let mut words = M::W::default();
 
-        for word in &mut words {
+        for word in words[0..M::W::num_words()].iter_mut() {
             let mut buf = [0u8; 8];
             self.stream
                 .read_exact(&mut buf)
@@ -122,10 +121,10 @@ impl<F: Field> PcsTranscript<F> {
 
             *word = u64::from_le_bytes(buf);
         }
-        Ok(Int::<M>::from_words(words))
+        Ok(M::from_words(words))
     }
 
-    pub fn read_integers<const M: usize>(&mut self, n: usize) -> Result<Vec<Int<M>>, Error> {
+    pub fn read_integers<M: CryptoInt>(&mut self, n: usize) -> Result<Vec<M>, Error> {
         (0..n)
             .map(|_| self.read_integer())
             .collect::<Result<Vec<_>, _>>()

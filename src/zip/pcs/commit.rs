@@ -25,7 +25,7 @@ where
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<Int<I>, F>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<M>>>::row_len(pp.zip());
         let codeword_len =

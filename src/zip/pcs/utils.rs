@@ -8,7 +8,7 @@ use crate::{
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    traits::Field,
+    traits::{CryptoInt, Field},
     zip::{
         pcs_transcript::PcsTranscript,
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
@@ -25,10 +25,10 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, const I: usize, F: Field + 'a>(
+pub(super) fn validate_input<'a, I: CryptoInt + 'a, F: Field + 'a>(
     function: &str,
     param_num_vars: usize,
-    polys: impl Iterable<Item = &'a MLE_Z<Int<I>>>,
+    polys: impl Iterable<Item = &'a MLE_Z<I>>,
     points: impl Iterable<Item = &'a [F]>,
 ) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
@@ -224,9 +224,9 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<F: Field, const I: usize, const M: usize>(
+    pub fn open_at_column<F: Field, I: CryptoInt, M: CryptoInt>(
         column: usize,
-        commit_data: &MultilinearZipData<Int<I>, Int<M>>,
+        commit_data: &MultilinearZipData<I, M>,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {

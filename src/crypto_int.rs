@@ -14,6 +14,10 @@ impl<const N: usize> CryptoInt for Int<N> {
         Self::from_words(words.0)
     }
 
+    fn as_words(&self) -> &[u64] {
+        self.as_words()
+    }
+
     fn from_i64(value: i64) -> Self {
         Self::from_i64(value)
     }

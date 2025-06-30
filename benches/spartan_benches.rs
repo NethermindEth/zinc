@@ -1,6 +1,6 @@
-use std::str::FromStr;
+use ark_std::{hint::black_box, str::FromStr};
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,

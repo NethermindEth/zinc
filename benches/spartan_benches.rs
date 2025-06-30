@@ -1,11 +1,10 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
-    field_config::FieldConfig,
+    field_config::{ConfigRef, FieldConfig},
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,

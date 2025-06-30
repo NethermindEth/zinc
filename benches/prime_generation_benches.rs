@@ -8,8 +8,7 @@ use criterion::{
 
 use zinc::biginteger::BigInt;
 
-use zinc::prime_gen;
-use zinc::transcript::KeccakTranscript;
+use zinc::{prime_gen, transcript::KeccakTranscript};
 
 fn bench_prime_generation(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let hasher = KeccakTranscript::new();

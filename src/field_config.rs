@@ -225,6 +225,42 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 
 impl<const N: usize> Eq for FieldConfig<N> {}
 
+#[allow(dead_code)]
+#[derive(Debug)]
+pub struct DebugFieldConfig {
+    /// The modulus of the field.
+    modulus: num_bigint::BigInt,
+
+    /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
+    /// `R = M % Self::MODULUS`.
+    r: num_bigint::BigInt,
+
+    /// R2 = R^2 % Self::MODULUS
+    r2: num_bigint::BigInt,
+
+    /// INV = -MODULUS^{-1} mod 2^64
+    inv: u64,
+
+    /// Does the modulus have a spare unused bit
+    ///
+    /// This condition applies if
+    /// (a) `Self::MODULUS[N-1] >> 63 == 0`
+    #[doc(hidden)]
+    modulus_has_spare_bit: bool,
+}
+
+impl<const N: usize> From<FieldConfig<N>> for DebugFieldConfig {
+    fn from(value: FieldConfig<N>) -> Self {
+        Self {
+            modulus: value.modulus.into(),
+            r: value.r.into(),
+            r2: value.r2.into(),
+            inv: value.inv,
+            modulus_has_spare_bit: value.modulus_has_spare_bit,
+        }
+    }
+}
+
 /// A wrapper around an optional reference to a `FieldConfig`.
 ///
 /// This struct is used to represent a pointer to a `FieldConfig` instance,

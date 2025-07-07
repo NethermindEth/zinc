@@ -6,17 +6,17 @@ use crate::poly::ArithErrors;
 use crate::{ccs::error::CSError, sumcheck::SumCheckError, zip::Error as ZipError};
 
 #[derive(Debug, Error)]
-pub enum ZincError<const N: usize> {
+pub enum ZincError {
     #[error("spartan error: {0}")]
-    SpartanError(#[from] SpartanError<N>),
+    SpartanError(#[from] SpartanError),
     #[error("field config error")]
     FieldConfigError,
 }
 
 #[derive(Debug, Error)]
-pub enum SpartanError<const N: usize> {
+pub enum SpartanError {
     #[error("sum check failed at linearization step: {0}")]
-    SumCheckError(#[from] SumCheckError<N>),
+    SumCheckError(#[from] SumCheckError),
     #[error("parameters error: {0}")]
     ParametersError(String),
     #[error("constraint system related error: {0}")]

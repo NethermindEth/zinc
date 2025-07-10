@@ -1,18 +1,17 @@
 #![allow(non_snake_case)]
 use ark_ff::One;
-use ark_std::vec::Vec;
-use ark_std::{log2, rand::Rng};
-use ark_std::{sync::atomic::AtomicPtr, vec};
+use ark_std::{log2, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
 use crypto_bigint::{Int, Random};
 
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
-use crate::field_config::{ConfigRef, FieldConfig};
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
     sparse_matrix::SparseMatrix,
+    traits::FieldMap,
 };
 
 pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(

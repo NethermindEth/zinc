@@ -1,21 +1,23 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
-use criterion::{criterion_group, criterion_main, BenchmarkGroup, Criterion};
-use std::str::FromStr;
-use std::time::{Duration, Instant};
-use zinc::field::conversion::FieldMap;
-use zinc::transcript::KeccakTranscript;
+use std::{
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 use ark_std::test_rng;
-use criterion::measurement::WallTime;
-use zinc::biginteger::BigInt;
-
-use zinc::field_config::{ConfigRef, FieldConfig};
-use zinc::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
-use zinc::zip::code::ZipSpec1;
-use zinc::zip::pcs::structs::MultilinearZip;
-use zinc::zip::pcs_transcript::PcsTranscript;
+use criterion::{
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+};
+use zinc::{
+    biginteger::BigInt,
+    field_config::{ConfigRef, FieldConfig},
+    poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
+    traits::FieldMap,
+    transcript::KeccakTranscript,
+    zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
+};
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<

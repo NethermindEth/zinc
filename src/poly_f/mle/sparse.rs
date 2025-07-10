@@ -1,26 +1,22 @@
-use crate::field_config::ConfigRef;
 use ark_ff::{UniformRand, Zero};
-
-use crate::biginteger::BigInt;
-use crate::field::conversion::FieldMap;
-use crate::sparse_matrix::SparseMatrix;
-use ark_std::rand::Rng;
 use ark_std::{
     cfg_iter,
     collections::BTreeMap,
     log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
+    rand::Rng,
     vec,
     vec::Vec,
 };
+use hashbrown::HashMap;
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use crate::field::RandomField;
-
 use super::{swap_bits, MultilinearExtension};
-
-use hashbrown::HashMap;
+use crate::{
+    biginteger::BigInt, field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix,
+    traits::FieldMap,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseMultilinearExtension<F, CR> {
@@ -473,10 +469,10 @@ fn precompute_eq<'cfg, const N: usize>(
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use super::*;
-
-    use crate::field_config::FieldConfig;
     use ark_ff::Zero;
+
+    use super::*;
+    use crate::field_config::FieldConfig;
 
     // Function to convert usize to a binary vector of Ring elements.
     fn usize_to_binary_vector<const N: usize>(

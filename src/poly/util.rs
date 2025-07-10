@@ -3,11 +3,9 @@
 
 // Adapted for rings by Nethermind
 
-use crate::field_config::ConfigRef;
 use ark_std::{log2, vec::Vec};
 
-use crate::field::{conversion::FieldMap, RandomField};
-
+use crate::{field::RandomField, field_config::ConfigRef, traits::FieldMap};
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
     let mut res = Vec::with_capacity(num_var);
@@ -72,8 +70,9 @@ pub(crate) fn project(input: &[bool]) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use super::{bit_decompose, get_index, project};
     use ark_std::{rand::RngCore, test_rng};
+
+    use super::{bit_decompose, get_index, project};
 
     #[test]
     fn test_decomposition() {

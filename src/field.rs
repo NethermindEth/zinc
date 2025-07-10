@@ -1,10 +1,9 @@
 #![allow(non_snake_case)]
 
-use crate::field::conversion::FieldMap;
 use ark_ff::UniformRand;
 use crypto_bigint::Random;
 
-use crate::{biginteger::BigInt, field_config::FieldConfig};
+use crate::{biginteger::BigInt, field_config::FieldConfig, traits::FieldMap};
 
 pub mod arithmetic;
 pub mod comparison;
@@ -22,8 +21,12 @@ pub enum RandomField<'cfg, const N: usize> {
     },
 }
 
-use crate::field_config::{ConfigRef, DebugFieldConfig};
 use RandomField::*;
+
+use crate::{
+    field_config::{ConfigRef, DebugFieldConfig},
+    traits::Field,
+};
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
     pub type Cfg = ConfigRef<'cfg, N>;
@@ -338,6 +341,12 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     }
 }
 
+impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
+    type I = BigInt<N>;
+    type C = FieldConfig<N>;
+    type Cr = ConfigRef<'cfg, N>;
+}
+
 impl<const N: usize> UniformRand for RandomField<'_, N> {
     fn rand<R: ark_std::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         let value = BigInt::rand(rng);
@@ -434,12 +443,13 @@ impl ark_std::fmt::Display for DebugRandomField {
 
 #[cfg(test)]
 mod tests {
+    use ark_std::str::FromStr;
+
     use crate::{
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
     };
-    use ark_std::str::FromStr;
 
     /// Helper macro to create a field config with a given modulus
     #[macro_export]
@@ -476,7 +486,7 @@ mod tests {
     #[macro_export]
     macro_rules! create_random_field {
         ($config:expr, $value:expr) => {{
-            use $crate::field::conversion::FieldMap;
+            use $crate::traits::FieldMap;
             create_bigint!($value).map_to_field($config)
         }};
     }

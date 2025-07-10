@@ -1,6 +1,9 @@
-use crate::field::RandomField;
-use crate::field::RandomField::{Initialized, Raw};
 use ark_ff::{One, Zero};
+
+use crate::field::{
+    RandomField,
+    RandomField::{Initialized, Raw},
+};
 
 impl<const N: usize> PartialEq for RandomField<'_, N> {
     fn eq(&self, other: &Self) -> bool {

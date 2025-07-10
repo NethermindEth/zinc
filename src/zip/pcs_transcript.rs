@@ -1,21 +1,17 @@
 #![allow(non_snake_case)]
-use crate::field_config::ConfigRef;
-use crate::poly::alloc::string::ToString;
-use ark_std::io::{Cursor, Read, Write};
-use ark_std::vec;
-use ark_std::vec::Vec;
+use ark_std::{
+    io::{Cursor, Read, Write},
+    vec,
+    vec::Vec,
+};
 use crypto_bigint::Int;
+use sha3::{digest::Output, Keccak256};
 
-use sha3::digest::Output;
-use sha3::Keccak256;
-
-use crate::biginteger::BigInt;
-use crate::field::RandomField;
-use crate::traits::FromBytes;
-use crate::transcript::KeccakTranscript;
-
-use super::pcs::utils::MerkleProof;
-use super::Error;
+use super::{pcs::utils::MerkleProof, Error};
+use crate::{
+    biginteger::BigInt, field::RandomField, field_config::ConfigRef, poly::alloc::string::ToString,
+    traits::FromBytes, transcript::KeccakTranscript,
+};
 
 #[derive(Default, Clone)]
 pub struct PcsTranscript<const N: usize> {

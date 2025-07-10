@@ -1,13 +1,14 @@
 //! Provides operations used for working with constraint systems
 #![allow(non_snake_case)]
 
-use ark_std::ops::{Add, Mul};
-use ark_std::string::String;
-use ark_std::vec::Vec;
-
-use crate::sparse_matrix::SparseMatrix;
+use ark_std::{
+    ops::{Add, Mul},
+    string::String,
+    vec::Vec,
+};
 
 use super::error::CSError as Error;
+use crate::sparse_matrix::SparseMatrix;
 
 // Adds two ring vectors
 pub(crate) fn vec_add<R: Clone + Add<R, Output = R>>(a: &[R], b: &[R]) -> Result<Vec<R>, Error> {
@@ -46,8 +47,8 @@ pub(crate) fn hadamard<R: Clone + Mul<R, Output = R>>(a: &[R], b: &[R]) -> Resul
 
 pub(crate) fn mat_vec_mul<R>(M: &SparseMatrix<R>, z: &[R]) -> Result<Vec<R>, Error>
 where
-    R: Clone + Send + Sync + Mul<R, Output = R> + Add<Output = R> + Default,
-    for<'a> &'a R: Mul<&'a R, Output = R>,
+    R: Copy + Send + Sync + Mul<R, Output = R> + Add<Output = R> + Default,
+    for<'a> R: Mul<&'a R, Output = R>,
 {
     if M.n_cols != z.len() {
         return Err(Error::LengthsNotEqual(
@@ -63,7 +64,7 @@ where
     for row in &M.coeffs {
         let mut acc = R::default(); // Assuming Default gives the additive identity (e.g., 0)
         for (value, col_i) in row {
-            acc = acc + (value * &z[*col_i]);
+            acc = acc + (z[*col_i] * value);
         }
         result.push(acc);
     }
@@ -73,14 +74,15 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ark_std::str::FromStr;
-    use ark_std::vec;
+    use ark_std::{str::FromStr, vec};
 
     use super::*;
-    use crate::biginteger::BigInt;
-    use crate::field::conversion::FieldMap;
-    use crate::field_config::{ConfigRef, FieldConfig};
-    use crate::sparse_matrix::dense_matrix_to_sparse;
+    use crate::{
+        biginteger::BigInt,
+        field_config::{ConfigRef, FieldConfig},
+        sparse_matrix::dense_matrix_to_sparse,
+        traits::FieldMap,
+    };
 
     const N: usize = 3;
     fn get_config() -> FieldConfig<N> {

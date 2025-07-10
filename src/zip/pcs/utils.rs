@@ -1,21 +1,15 @@
-use crate::field_config::ConfigRef;
 use ark_ff::Zero;
-use ark_std::format;
-use ark_std::iterable::Iterable;
-use ark_std::vec;
-use ark_std::vec::Vec;
-
+use ark_std::{format, iterable::Iterable, vec, vec::Vec};
 use crypto_bigint::Int;
 use sha3::{digest::Output, Digest, Keccak256};
 
-use super::error::MerkleError;
-use super::structs::MultilinearZipData;
-use crate::field::RandomField;
-use crate::primitives::Signed;
+use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
-    field::RandomField as F,
+    field::{RandomField, RandomField as F},
+    field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
+    primitives::Signed,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
     zip::{
         pcs_transcript::PcsTranscript,
@@ -329,9 +323,10 @@ pub(super) fn left_point_to_tensor<'cfg, const N: usize>(
 
 #[cfg(test)]
 mod tests {
+    use crypto_bigint::Random;
+
     use super::*;
     use crate::zip::utils::combine_rows;
-    use crypto_bigint::Random;
 
     #[test]
     fn test_basic_combination() {

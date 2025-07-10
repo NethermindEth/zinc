@@ -1,6 +1,7 @@
-use crate::{biginteger::BigInt, transcript::KeccakTranscript};
 use crypto_bigint::{Integer, Odd, Uint};
 use crypto_primes::hazmat::MillerRabin;
+
+use crate::{biginteger::BigInt, transcript::KeccakTranscript};
 
 fn hash_int<const N: usize>(hasher: &mut KeccakTranscript) -> Uint<N> {
     let n_bytes = N * 8;

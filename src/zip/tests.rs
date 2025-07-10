@@ -1,17 +1,15 @@
-use crate::field_config::ConfigRef;
+use ark_ff::UniformRand;
+use ark_std::{str::FromStr, vec, vec::Vec};
+use crypto_bigint::Int;
+
 use crate::{
     biginteger::BigInt,
-    field::conversion::FieldMap,
-    field_config::FieldConfig,
+    field_config::{ConfigRef, FieldConfig},
     poly_z::mle::DenseMultilinearExtension,
+    traits::FieldMap,
     transcript::KeccakTranscript,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
-use ark_ff::UniformRand;
-use ark_std::str::FromStr;
-use ark_std::vec;
-use ark_std::vec::Vec;
-use crypto_bigint::Int;
 
 const I: usize = 1;
 const N: usize = 2;

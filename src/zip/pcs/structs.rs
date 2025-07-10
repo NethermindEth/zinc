@@ -1,16 +1,12 @@
-use ark_std::vec::Vec;
-use ark_std::{collections::BTreeSet, marker::PhantomData};
-
+use ark_std::{collections::BTreeSet, marker::PhantomData, vec::Vec};
 use crypto_bigint::Int;
-
 use sha3::{digest::Output, Keccak256};
 
+use super::utils::MerkleTree;
 use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
-
-use super::utils::MerkleTree;
 
 // N is the width of elements in witness/ polynomial evaluations on hypercube
 // L is the width of elements in the encoding matrices

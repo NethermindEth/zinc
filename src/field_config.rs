@@ -1,4 +1,7 @@
-use crate::biginteger::BigInt;
+use crate::{
+    biginteger::BigInt,
+    traits::{Config, ConfigReference},
+};
 
 #[macro_export]
 macro_rules! mac_with_carry {
@@ -186,6 +189,8 @@ impl<const N: usize> FieldConfig<N> {
     }
 }
 
+impl<const N: usize> Config<BigInt<N>> for FieldConfig<N> {}
+
 impl<const N: usize> ark_std::fmt::Debug for FieldConfig<N> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         write!(f, " Z_{}", self.modulus,)
@@ -273,6 +278,8 @@ impl<const N: usize> From<FieldConfig<N>> for DebugFieldConfig {
 #[derive(Debug, Copy, Clone, Eq)]
 pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
+impl<const N: usize> ConfigReference<BigInt<N>, FieldConfig<N>> for ConfigRef<'_, N> {}
+
 impl<const N: usize> PartialEq for ConfigRef<'_, N> {
     fn eq(&self, other: &Self) -> bool {
         self.reference() == other.reference()
@@ -309,9 +316,8 @@ impl<'cfg, const N: usize> ConfigRef<'cfg, N> {
 mod tests {
     use ark_std::str::FromStr;
 
-    use crate::biginteger::{BigInteger128, BigInteger256};
-
     use super::FieldConfig;
+    use crate::biginteger::{BigInteger128, BigInteger256};
 
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]

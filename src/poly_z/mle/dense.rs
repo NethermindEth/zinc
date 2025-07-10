@@ -1,8 +1,6 @@
-use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::Zero;
-
 use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
@@ -15,12 +13,10 @@ use crypto_bigint::{Int, Random};
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-use crate::field::RandomField;
-use crate::poly::ArithErrors;
 use crate::{
-    field::conversion::FieldMap,
+    field::RandomField, field_config::ConfigRef, poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
-    sparse_matrix::SparseMatrix,
+    sparse_matrix::SparseMatrix, traits::FieldMap,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

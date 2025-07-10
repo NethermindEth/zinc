@@ -1,22 +1,21 @@
 use ark_ff::Zero;
-use ark_std::boxed::Box;
-use ark_std::vec::Vec;
+use ark_std::{boxed::Box, vec::Vec};
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
     utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
 };
-use crate::field_config::ConfigRef;
 use crate::{
     ccs::{
         ccs_f::{Statement_F, CCS_F},
         ccs_z::{Statement_Z, CCS_Z},
     },
-    field::{conversion::FieldMap, RandomField},
-    field_config::FieldConfig,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
+    traits::FieldMap,
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };

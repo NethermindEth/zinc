@@ -1,17 +1,15 @@
-use ark_std::iterable::Iterable;
-use ark_std::vec::Vec;
-
+use ark_std::{iterable::Iterable, vec::Vec};
 use crypto_bigint::Int;
-
 use sha3::{digest::Output, Keccak256};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
-use crate::field_config::ConfigRef;
 use crate::{
-    field::{conversion::FieldMap, RandomField as F},
+    field::RandomField as F,
+    field_config::ConfigRef,
+    traits::FieldMap,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,

@@ -1,8 +1,6 @@
-use crate::field_config::ConfigRef;
 use core::ops::IndexMut;
 
 use ark_ff::{UniformRand, Zero};
-
 use ark_std::{
     borrow::ToOwned,
     cfg_iter, cfg_iter_mut, log2,
@@ -14,8 +12,7 @@ use ark_std::{
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-use crate::field::RandomField;
-use crate::sparse_matrix::SparseMatrix;
+use crate::{field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMultilinearExtension<F, CR> {

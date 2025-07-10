@@ -1,10 +1,10 @@
 mod dense;
 mod sparse;
 
-use ark_std::rand::Rng;
 use ark_std::{
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
+    rand::Rng,
     vec::Vec,
     Zero,
 };

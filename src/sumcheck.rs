@@ -1,16 +1,14 @@
-use crate::field_config::ConfigRef;
-use ark_std::boxed::Box;
-use ark_std::marker::PhantomData;
-use ark_std::vec::Vec;
+use ark_std::{boxed::Box, marker::PhantomData, vec::Vec};
 use prover::{ProverMsg, ProverState};
 use thiserror::Error;
 
 use self::verifier::SubClaim;
-use crate::field::DebugRandomField;
-use crate::poly::ArithErrors;
 use crate::{
-    field::{conversion::FieldMap, RandomField},
+    field::{DebugRandomField, RandomField},
+    field_config::ConfigRef,
+    poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension,
+    traits::FieldMap,
     transcript::KeccakTranscript as Transcript,
 };
 
@@ -136,19 +134,17 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
 #[cfg(test)]
 mod tests {
 
-    use ark_std::str::FromStr;
-
-    use ark_std::rand;
-
+    use ark_std::{rand, str::FromStr};
     use rand::Rng;
 
     use super::{
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck, SumcheckProof,
     };
-    use crate::field_config::ConfigRef;
     use crate::{
-        biginteger::BigInt, field::RandomField, field_config::FieldConfig,
+        biginteger::BigInt,
+        field::RandomField,
+        field_config::{ConfigRef, FieldConfig},
         transcript::KeccakTranscript,
     };
 

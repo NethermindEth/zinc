@@ -1,22 +1,20 @@
 use ark_ff::{UniformRand, Zero};
-use crypto_bigint::{Int, Random};
-
-use crate::sparse_matrix::SparseMatrix;
-use ark_std::rand::Rng;
 use ark_std::{
     cfg_iter,
     collections::BTreeMap,
     log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},
+    rand::Rng,
     vec,
     vec::Vec,
 };
+use crypto_bigint::{Int, Random};
+use hashbrown::HashMap;
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-
-use hashbrown::HashMap;
+use crate::sparse_matrix::SparseMatrix;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseMultilinearExtension<const I: usize> {

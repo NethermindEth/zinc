@@ -1,13 +1,11 @@
 use ark_std::str::FromStr;
-
 use crypto_bigint::{Int, Zero};
 
-use crate::field::RandomField;
-use crate::field_config::ConfigRef;
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
-    field_config::FieldConfig,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,

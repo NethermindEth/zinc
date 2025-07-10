@@ -1,5 +1,4 @@
-use ark_std::marker::PhantomData;
-use ark_std::vec::Vec;
+use ark_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
     sumcheck,

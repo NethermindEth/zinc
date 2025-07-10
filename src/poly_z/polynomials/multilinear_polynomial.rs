@@ -3,10 +3,11 @@
 
 // Adapted for rings by Nethermind
 
-use crate::poly::{get_batched_nv, ArithErrors, RefCounter};
-pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 use crypto_bigint::{Int, Random};
+
+use crate::poly::{get_batched_nv, ArithErrors, RefCounter};
+pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 
 /// Sample a random list of multilinear polynomials.
 /// Returns

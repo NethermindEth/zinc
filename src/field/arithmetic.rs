@@ -1,7 +1,10 @@
-use crate::field::RandomField;
 use ark_ff::{One, Zero};
-use ark_std::iter::Sum;
-use ark_std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use ark_std::{
+    iter::Sum,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
+
+use crate::field::RandomField;
 
 macro_rules! impl_ops {
     (
@@ -171,14 +174,15 @@ impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<'_, N> {
 
 #[cfg(test)]
 mod test {
+    use ark_ff::{One, Zero};
+    use ark_std::str::FromStr;
+
     use crate::{
         biginteger::BigInt,
         create_bigint, create_random_field,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
     };
-    use ark_ff::{One, Zero};
-    use ark_std::str::FromStr;
 
     #[test]
     fn test_add_wrapping_around_modulus() {

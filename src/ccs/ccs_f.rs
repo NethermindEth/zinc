@@ -2,21 +2,23 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use ark_std::sync::atomic::{AtomicPtr, Ordering};
-use ark_std::vec;
-use ark_std::vec::Vec;
-
 use ark_ff::{One, UniformRand, Zero};
-use ark_std::rand;
-
-use crate::ccs::error::CSError as Error;
-use crate::field::conversion::FieldMap;
-use crate::field_config::{ConfigRef, FieldConfig};
-use crate::poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension};
-use crate::sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse};
-use crate::{field::RandomField, sparse_matrix::SparseMatrix};
+use ark_std::{
+    rand,
+    sync::atomic::{AtomicPtr, Ordering},
+    vec,
+    vec::Vec,
+};
 
 use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
+use crate::{
+    ccs::error::CSError as Error,
+    field::RandomField,
+    field_config::{ConfigRef, FieldConfig},
+    poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension},
+    sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse, SparseMatrix},
+    traits::FieldMap,
+};
 
 /// A trait for defining the behaviour of an arithmetic constraint system.
 ///
@@ -255,9 +257,9 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigRef<N>) -> Vec<Random
 pub(crate) fn get_test_ccs_F<const N: usize>(
     config: ConfigRef<N>,
 ) -> CCS_F<RandomField<N>, FieldConfig<N>> {
-    use crate::field::conversion::FieldMap;
-    use ark_std::log2;
-    use ark_std::ops::Neg;
+    use ark_std::{log2, ops::Neg};
+
+    use crate::traits::FieldMap;
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -343,10 +345,10 @@ pub(crate) fn get_test_z_F<const N: usize>(
 #[cfg(test)]
 mod tests {
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
-    use crate::field_config::ConfigRef;
     use crate::{
-        biginteger::BigInt, ccs::test_utils::get_dummy_ccs_F_from_z_length,
-        field_config::FieldConfig,
+        biginteger::BigInt,
+        ccs::test_utils::get_dummy_ccs_F_from_z_length,
+        field_config::{ConfigRef, FieldConfig},
     };
 
     #[test]

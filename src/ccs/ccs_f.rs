@@ -173,9 +173,9 @@ pub struct Witness_F<F> {
 
 /// A representation of a linearised CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LWitness<'cfg, const N: usize> {
+pub struct LWitness<F, C> {
     /// `w_ccs` is the original CCS witness.
-    pub lw_ccs: DenseMultilinearExtension<'cfg, N>,
+    pub lw_ccs: DenseMultilinearExtension<F, C>,
 }
 
 impl<'cfg, const N: usize> Witness_F<RandomField<'cfg, N>> {
@@ -202,14 +202,14 @@ impl<'cfg, const N: usize> Witness_F<RandomField<'cfg, N>> {
 /// # Types
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
-pub trait Instance_F<const N: usize> {
+pub trait Instance_F<F> {
     type Scalar;
     type Cfg;
     /// Given a witness vector, produce a concatonation of the statement and the witness
     fn get_z_vector(&self, w: &[Self::Scalar], config: Self::Cfg) -> Vec<Self::Scalar>;
 }
 
-impl<'cfg, const N: usize> Instance_F<N> for Statement_F<RandomField<'cfg, N>> {
+impl<'cfg, const N: usize> Instance_F<RandomField<'cfg, N>> for Statement_F<RandomField<'cfg, N>> {
     type Scalar = RandomField<'cfg, N>;
     type Cfg = ConfigRef<'cfg, N>;
 

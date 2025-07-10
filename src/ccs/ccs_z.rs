@@ -12,7 +12,7 @@ use super::{
 use crate::{
     ccs::error::CSError as Error,
     field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field_config::ConfigRef,
     sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
     traits::FieldMap,
 };
@@ -133,7 +133,7 @@ impl<const I: usize> CCS_Z<I> {
 
 impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for CCS_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = CCS_F<RandomField<'cfg, N>, FieldConfig<N>>;
+    type Output = CCS_F<RandomField<'cfg, N>>;
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         match config.pointer() {

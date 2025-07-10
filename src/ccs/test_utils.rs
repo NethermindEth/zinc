@@ -8,10 +8,7 @@ use super::{
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
 use crate::{
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
-    sparse_matrix::SparseMatrix,
-    traits::FieldMap,
+    field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix, traits::FieldMap,
 };
 
 pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(
@@ -127,7 +124,7 @@ fn get_dummy_ccs_F_from_z<'cfg, const N: usize>(
     pub_io_len: usize,
     config: ConfigRef<'cfg, N>,
 ) -> (
-    CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
+    CCS_F<RandomField<'cfg, N>>,
     Statement_F<RandomField<'cfg, N>>,
     Witness_F<RandomField<'cfg, N>>,
 ) {
@@ -182,7 +179,7 @@ pub fn get_dummy_ccs_F_from_z_length<'cfg, const N: usize>(
     config: ConfigRef<'cfg, N>,
 ) -> (
     Vec<RandomField<'cfg, N>>,
-    CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
+    CCS_F<RandomField<'cfg, N>>,
     Statement_F<RandomField<'cfg, N>>,
     Witness_F<RandomField<'cfg, N>>,
 ) {

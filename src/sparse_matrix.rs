@@ -38,14 +38,13 @@ impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for 
 impl<
         'cfg,
         const N: usize,
-        T: FieldMap<ConfigRef<'cfg, N>, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
-    > FieldMap<ConfigRef<'cfg, N>> for SparseMatrix<T>
+        T: FieldMap<RandomField<'cfg, N>, Output = RandomField<'cfg, N>> + Clone + Send + Sync + Copy,
+    > FieldMap<RandomField<'cfg, N>> for SparseMatrix<T>
 where
-    <T as FieldMap<ConfigRef<'cfg, N>>>::Output: Clone + Send + Sync,
+    <T as FieldMap<RandomField<'cfg, N>>>::Output: Clone + Send + Sync,
 {
-    type Cfg = T::Cfg;
     type Output = SparseMatrix<T::Output>;
-    fn map_to_field(&self, config: ConfigRef<'cfg, N>) -> Self::Output {
+    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
         let mut matrix = SparseMatrix::<RandomField<N>> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
@@ -54,7 +53,7 @@ where
         for row in self.coeffs.iter() {
             let mut new_row = Vec::new();
             for (value, col) in row.iter() {
-                new_row.push((value.map_to_field(config), *col));
+                new_row.push((value.map_to_field(config_ref), *col));
             }
             matrix.coeffs.push(new_row);
         }

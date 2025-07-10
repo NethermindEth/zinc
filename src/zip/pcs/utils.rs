@@ -9,7 +9,6 @@ use crate::{
     field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
-    primitives::Signed,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
     zip::{
         pcs_transcript::PcsTranscript,
@@ -69,25 +68,6 @@ where
 // Define a new trait for converting to bytes
 pub trait ToBytes {
     fn to_bytes(&self) -> Vec<u8>;
-}
-
-// Macro to implement ToBytes for integer types
-// macro_rules! impl_to_bytes {
-//     ($($t:ty),*) => {
-//         $(
-//             impl ToBytes for $t {
-//                 fn to_bytes(&self) -> Vec<u8> {
-//                     self.to_be_bytes().to_vec()
-//                 }
-//             }
-//         )*
-//     }
-// }
-
-impl<T: Signed> ToBytes for T {
-    fn to_bytes(&self) -> Vec<u8> {
-        <Self as Signed>::to_be_bytes(self)
-    }
 }
 
 // Manual impl for generic type

@@ -244,7 +244,7 @@ pub fn to_F_vec<const N: usize>(z: Vec<u64>, config: ConfigRef<N>) -> Vec<Random
 
 #[cfg(test)]
 pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<RandomField<N>> {
-    use ark_std::{log2, ops::Neg};
+    use ark_std::log2;
 
     use crate::traits::FieldMap;
     // R1CS for: x^3 + x + 5 = y (example from article
@@ -254,19 +254,24 @@ pub(crate) fn get_test_ccs_F<const N: usize>(config: ConfigRef<N>) -> CCS_F<Rand
     let n = 6;
     match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
-        Some(config_ptr) => CCS_F {
-            m,
-            n,
-            l: 1,
-            t: 3,
-            q: 2,
-            d: 2,
-            s: log2(m) as usize,
-            s_prime: log2(n) as usize,
-            S: vec![vec![0, 1], vec![2]],
-            c: vec![1u32.map_to_field(config), (1u32.map_to_field(config)).neg()],
-            config: AtomicPtr::new(config_ptr),
-        },
+        Some(config_ptr) => {
+            let mut c: Vec<RandomField<N>> =
+                vec![1u32.map_to_field(config), 1u32.map_to_field(config)];
+            c[1] = -c[1];
+            CCS_F {
+                m,
+                n,
+                l: 1,
+                t: 3,
+                q: 2,
+                d: 2,
+                s: log2(m) as usize,
+                s_prime: log2(n) as usize,
+                S: vec![vec![0, 1], vec![2]],
+                c,
+                config: AtomicPtr::new(config_ptr),
+            }
+        }
     }
 }
 

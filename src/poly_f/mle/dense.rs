@@ -12,7 +12,9 @@ use ark_std::{
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-use crate::{field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix};
+use crate::{
+    field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix, traits::Field,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DenseMultilinearExtension<F, CR> {

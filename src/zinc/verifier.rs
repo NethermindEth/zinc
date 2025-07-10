@@ -15,7 +15,7 @@ use crate::{
     field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
-    traits::{Field, FieldMap},
+    traits::{ConfigReference, Field, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };

@@ -6,7 +6,7 @@ use crate::{
     biginteger::BigInt,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::DenseMultilinearExtension,
-    traits::FieldMap,
+    traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };

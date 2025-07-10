@@ -9,8 +9,12 @@ use sha3::{digest::Output, Keccak256};
 
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
-    biginteger::BigInt, field::RandomField, field_config::ConfigRef, poly::alloc::string::ToString,
-    traits::FromBytes, transcript::KeccakTranscript,
+    biginteger::BigInt,
+    field::RandomField,
+    field_config::ConfigRef,
+    poly::alloc::string::ToString,
+    traits::{Field, FromBytes},
+    transcript::KeccakTranscript,
 };
 
 #[derive(Default, Clone)]

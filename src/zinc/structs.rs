@@ -2,7 +2,6 @@ use ark_std::marker::PhantomData;
 use ark_std::vec::Vec;
 
 use crate::{
-    field::RandomField,
     sumcheck,
     zip::{code::ZipSpec, pcs::structs::MultilinearZipCommitment},
 };
@@ -15,24 +14,24 @@ use crate::{
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
 #[derive(Debug, Clone)]
-pub struct SpartanProof<'cfg, const N: usize> {
+pub struct SpartanProof<F> {
     /// A list of non-interactive sumcheck prover messages.  
     ///
     /// Sent in step 2 of linearization subprotocol.  
-    pub linearization_sumcheck: sumcheck::SumcheckProof<'cfg, N>,
-    pub second_sumcheck: sumcheck::SumcheckProof<'cfg, N>,
-    pub V_s: Vec<RandomField<'cfg, N>>,
+    pub linearization_sumcheck: sumcheck::SumcheckProof<F>,
+    pub second_sumcheck: sumcheck::SumcheckProof<F>,
+    pub V_s: Vec<F>,
 }
 
-pub struct ZipProof<'cfg, const I: usize, const N: usize> {
+pub struct ZipProof<const I: usize, F> {
     pub z_comm: MultilinearZipCommitment<I>,
-    pub v: RandomField<'cfg, N>,
+    pub v: F,
     pub pcs_proof: Vec<u8>,
 }
 
-pub struct ZincProof<'cfg, const I: usize, const N: usize> {
-    pub spartan_proof: SpartanProof<'cfg, N>,
-    pub zip_proof: ZipProof<'cfg, I, N>,
+pub struct ZincProof<const I: usize, F> {
+    pub spartan_proof: SpartanProof<F>,
+    pub zip_proof: ZipProof<I, F>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.

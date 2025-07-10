@@ -8,7 +8,7 @@ use ark_std::iterable::Iterable;
 use itertools::izip;
 
 use crate::{
-    field::{conversion::FieldMap, RandomField as F},
+    field::{conversion::FieldMap, RandomField},
     poly_z::mle::DenseMultilinearExtension,
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
@@ -33,7 +33,7 @@ where
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        point: &[F<'cfg, N>],
+        point: &[RandomField<'cfg, N>],
         field: ConfigRef<'cfg, N>,
         transcript: &mut PcsTranscript<N>,
     ) -> Result<(), Error> {
@@ -51,7 +51,7 @@ where
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
-        points: &[Vec<F<'cfg, N>>],
+        points: &[Vec<RandomField<'cfg, N>>],
         transcript: &mut PcsTranscript<N>,
         field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
@@ -65,7 +65,7 @@ where
     fn prove_evaluation_phase<'cfg, const N: usize>(
         pp: &Self::ProverParam,
         transcript: &mut PcsTranscript<N>,
-        point: &[F<'cfg, N>],
+        point: &[RandomField<'cfg, N>],
         poly: &Self::Polynomial,
         field: ConfigRef<'cfg, N>,
     ) -> Result<(), Error> {
@@ -80,7 +80,7 @@ where
         let q_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
             let combined_row = combine_rows(q_0, evaluations, row_len);
-            Cow::<Vec<F<N>>>::Owned(combined_row)
+            Cow::<Vec<RandomField<N>>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
             // We just return the evaluation row combination

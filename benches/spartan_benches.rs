@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use zinc::field::RandomField;
 use zinc::field_config::ConfigRef;
 use zinc::{
     biginteger::BigInt,
@@ -43,7 +44,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
                 KeccakTranscript::new,
                 |mut prover_transcript| {
                     black_box(
-                        SpartanProver::<I, N>::prove(
+                        SpartanProver::<I, _, _, _>::prove(
                             &prover,
                             &statement_f,
                             &z_ccs,
@@ -89,7 +90,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
             )
             .expect("Failed to prepare for random field PIOP");
 
-        let (spartan_proof, _) = SpartanProver::<I, N>::prove(
+        let (spartan_proof, _) = SpartanProver::<I, _, _, _>::prove(
             &prover,
             &statement_f,
             &z_ccs,
@@ -99,18 +100,18 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
             config,
         )
         .expect("Failed to generate Spartan proof");
-
+        config.reference().expect("Field config cannot be none");
         group.bench_function(format!("n={}", n), |b| {
             b.iter_batched(
                 KeccakTranscript::new,
                 |mut verifier_transcript| {
                     black_box(
-                        SpartanVerifier::<N>::verify(
+                        SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
                             &verifier,
                             &spartan_proof,
                             &ccs_f,
                             &mut verifier_transcript,
-                            config.reference().expect("Field config cannot be none"),
+                            config,
                         )
                         .expect("Proof verification failed"),
                     )

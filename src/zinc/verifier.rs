@@ -21,14 +21,14 @@ use crate::{
     zip::{code::ZipSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
-pub trait Verifier<const I: usize, const N: usize> {
-    fn verify<'cfg>(
+pub trait Verifier<const I: usize, F, Cr> {
+    fn verify(
         &self,
         cm_i: &Statement_Z<I>,
-        proof: ZincProof<'cfg, I, N>,
+        proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: Cr,
     ) -> Result<(), ZincError>
     where
         [(); 2 * I]:,
@@ -36,30 +36,40 @@ pub trait Verifier<const I: usize, const N: usize> {
         [(); 8 * I]:;
 }
 
-impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier<I, N, S> {
-    fn verify<'cfg>(
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
+    Verifier<I, RandomField<'cfg, N>, ConfigRef<'cfg, N>> for ZincVerifier<I, N, S>
+{
+    fn verify(
         &self,
         statement: &Statement_Z<I>,
-        proof: ZincProof<'cfg, I, N>,
+        proof: ZincProof<I, RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<(), ZincError>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
         [(); 8 * I]:,
     {
-        if draw_random_field::<I, N>(&statement.public_input, transcript) != *config {
+        if draw_random_field::<I, N>(&statement.public_input, transcript)
+            != *config.reference().unwrap()
+        {
             return Err(ZincError::FieldConfigError);
         }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(ConfigRef::from(config));
-        let statement_f = statement.map_to_field(ConfigRef::from(config));
+        let ccs_F = ccs.map_to_field(config);
+        let statement_f = statement.map_to_field(config);
 
         let verification_points =
-            SpartanVerifier::<N>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
-                .map_err(ZincError::SpartanError)?;
+            SpartanVerifier::<RandomField<N>, ConfigRef<N>, FieldConfig<N>>::verify(
+                self,
+                &proof.spartan_proof,
+                &ccs_F,
+                transcript,
+                config,
+            )
+            .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
             &statement_f,
@@ -75,7 +85,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> Verifier<I, N> for ZincVerifier
 }
 
 /// Verifier for the Linearization subprotocol.
-pub trait SpartanVerifier<'cfg, const N: usize> {
+pub trait SpartanVerifier<F, Cr, C> {
     /// Verifies a proof for the linearization subprotocol.
     ///
     /// # Arguments
@@ -92,25 +102,26 @@ pub trait SpartanVerifier<'cfg, const N: usize> {
     ///
     fn verify(
         &self,
-        proof: &SpartanProof<'cfg, N>,
-        ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
+        proof: &SpartanProof<F>,
+        ccs: &CCS_F<F, C>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
-    ) -> Result<VerificationPoints<'cfg, N>, SpartanError>;
+        config: Cr,
+    ) -> Result<VerificationPoints<F>, SpartanError>;
 }
 
-impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
+impl<'cfg, const I: usize, const N: usize, S: ZipSpec>
+    SpartanVerifier<RandomField<'cfg, N>, ConfigRef<'cfg, N>, FieldConfig<N>>
     for ZincVerifier<I, N, S>
 {
     fn verify(
         &self,
-        proof: &SpartanProof<'cfg, N>,
+        proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
-    ) -> Result<VerificationPoints<'cfg, N>, SpartanError> {
+        config: ConfigRef<'cfg, N>,
+    ) -> Result<VerificationPoints<RandomField<'cfg, N>>, SpartanError> {
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, ConfigRef::from(config));
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -119,8 +130,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
-        let gamma: RandomField<'cfg, N> =
-            transcript.squeeze_gamma_challenge(ConfigRef::from(config));
+        let gamma: RandomField<'cfg, N> = transcript.squeeze_gamma_challenge(config);
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -142,7 +152,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanVerifier<'cfg, N>
 impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_linearization_proof<'cfg>(
         &self,
-        proof: &SumcheckProof<'cfg, N>,
+        proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<N>, FieldConfig<N>>,
     ) -> Result<(Vec<RandomField<'cfg, N>>, RandomField<'cfg, N>), SpartanError> {
@@ -166,7 +176,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
         beta_s: &[RandomField<'cfg, N>],
         point_r: &[RandomField<'cfg, N>],
         s: RandomField<'cfg, N>,
-        proof: &SpartanProof<'cfg, N>,
+        proof: &SpartanProof<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
     ) -> Result<(), SpartanError> {
         let e = eq_eval(point_r, beta_s)?;
@@ -194,7 +204,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
 
     fn verify_second_sumcheck_proof<'cfg>(
         &self,
-        proof: &SumcheckProof<'cfg, N>,
+        proof: &SumcheckProof<RandomField<'cfg, N>>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         claimed_sum: RandomField<'cfg, N>,
@@ -230,11 +240,11 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     fn verify_pcs_proof<'cfg>(
         &self,
         cm_i: &Statement_F<RandomField<'cfg, N>>,
-        zip_proof: &ZipProof<'cfg, I, N>,
-        verification_points: &VerificationPoints<'cfg, N>,
+        zip_proof: &ZipProof<I, RandomField<'cfg, N>>,
+        verification_points: &VerificationPoints<RandomField<'cfg, N>>,
         ccs: &CCS_F<RandomField<'cfg, N>, FieldConfig<N>>,
         transcript: &mut KeccakTranscript,
-        config: &'cfg FieldConfig<N>,
+        config: ConfigRef<'cfg, N>,
     ) -> Result<(), SpartanError>
     where
         [(); 2 * I]:,
@@ -262,12 +272,13 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
             .constraints
             .iter()
             .map(|M| {
-                let mle = DenseMultilinearExtension::from_matrix(M, ConfigRef::from(config));
-                mle.evaluate(&verification_points.rx_ry, ConfigRef::from(config))
-                    .ok_or(MleEvaluationError::IncorrectLength(
+                let mle = DenseMultilinearExtension::from_matrix(M, config);
+                mle.evaluate(&verification_points.rx_ry, config).ok_or(
+                    MleEvaluationError::IncorrectLength(
                         verification_points.rx_ry.len(),
                         mle.num_vars,
-                    ))
+                    ),
+                )
             })
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -283,8 +294,8 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincVerifier<I, N, S> {
     }
 }
 
-pub struct VerificationPoints<'cfg, const N: usize> {
-    pub rx_ry: Vec<RandomField<'cfg, N>>,
-    pub e_y: RandomField<'cfg, N>,
-    pub gamma: RandomField<'cfg, N>,
+pub struct VerificationPoints<F> {
+    pub rx_ry: Vec<F>,
+    pub e_y: F,
+    pub gamma: F,
 }

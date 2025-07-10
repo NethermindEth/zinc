@@ -16,17 +16,17 @@ use super::{verifier::VerifierMsg, IPForMLSumcheck};
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProverMsg<'cfg, const N: usize> {
+pub struct ProverMsg<F> {
     /// evaluations on P(0), P(1), P(2), ...
-    pub(crate) evaluations: Vec<RandomField<'cfg, N>>,
+    pub(crate) evaluations: Vec<F>,
 }
 
 /// Prover State
-pub struct ProverState<'cfg, const N: usize> {
+pub struct ProverState<F, Cr> {
     /// sampled randomness given by the verifier
-    pub randomness: Vec<RandomField<'cfg, N>>,
+    pub randomness: Vec<F>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
+    pub mles: Vec<DenseMultilinearExtension<F, Cr>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -35,13 +35,13 @@ pub struct ProverState<'cfg, const N: usize> {
     pub round: usize,
 }
 
-impl<const N: usize> IPForMLSumcheck<N> {
+impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
-    pub fn prover_init<'cfg>(
+    pub fn prover_init(
         mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<'cfg, N> {
+    ) -> ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
@@ -58,12 +58,12 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// receive message from verifier, generate prover message, and proceed to next round
     ///
     /// Adapted Jolt's sumcheck implementation
-    pub fn prove_round<'cfg>(
-        prover_state: &mut ProverState<'cfg, N>,
-        v_msg: &Option<VerifierMsg<'cfg, N>>,
+    pub fn prove_round(
+        prover_state: &mut ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+        v_msg: &Option<VerifierMsg<RandomField<'cfg, N>>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
-    ) -> ProverMsg<'cfg, N> {
+    ) -> ProverMsg<RandomField<'cfg, N>> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");

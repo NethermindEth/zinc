@@ -15,37 +15,41 @@ pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
 
 /// Verifier Message
 #[derive(Clone)]
-pub struct VerifierMsg<'cfg, const N: usize> {
+pub struct VerifierMsg<F> {
     /// randomness sampled by verifier
-    pub randomness: RandomField<'cfg, N>,
+    pub randomness: F,
 }
 
 /// Verifier State
-pub struct VerifierState<'cfg, const N: usize> {
+pub struct VerifierState<F, Cr> {
     round: usize,
     nv: usize,
     max_multiplicands: usize,
     finished: bool,
     /// a list storing the univariate polynomial in evaluation form sent by the prover at each round
-    polynomials_received: Vec<Vec<RandomField<'cfg, N>>>,
+    polynomials_received: Vec<Vec<F>>,
     /// a list storing the randomness sampled by the verifier at each round
-    randomness: Vec<RandomField<'cfg, N>>,
+    randomness: Vec<F>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: ConfigRef<'cfg, N>,
+    config: Cr,
 }
 
 /// Subclaim when verifier is convinced
 #[derive(Debug)]
-pub struct SubClaim<'cfg, const N: usize> {
+pub struct SubClaim<F> {
     /// the multi-dimensional point that this multilinear extension is evaluated to
-    pub point: Vec<RandomField<'cfg, N>>,
+    pub point: Vec<F>,
     /// the expected evaluation
-    pub expected_evaluation: RandomField<'cfg, N>,
+    pub expected_evaluation: F,
 }
 
-impl<const N: usize> IPForMLSumcheck<N> {
+impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: ConfigRef<N>) -> VerifierState<N> {
+    pub fn verifier_init(
+        nvars: usize,
+        degree: usize,
+        config: ConfigRef<N>,
+    ) -> VerifierState<RandomField<N>, ConfigRef<N>> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -62,11 +66,11 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Normally, this function should perform actual verification. Instead, `verify_round` only samples
     /// and stores randomness and perform verifications altogether in `check_and_generate_subclaim` at
     /// the last step.
-    pub fn verify_round<'cfg>(
-        prover_msg: ProverMsg<'cfg, N>,
-        verifier_state: &mut VerifierState<'cfg, N>,
+    pub fn verify_round(
+        prover_msg: ProverMsg<RandomField<'cfg, N>>,
+        verifier_state: &mut VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         transcript: &mut Transcript,
-    ) -> VerifierMsg<'cfg, N> {
+    ) -> VerifierMsg<RandomField<'cfg, N>> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
         }
@@ -98,11 +102,11 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// If the asserted sum is correct, then the multilinear polynomial evaluated at `subclaim.point`
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
-    pub fn check_and_generate_subclaim<'cfg>(
-        verifier_state: VerifierState<'cfg, N>,
+    pub fn check_and_generate_subclaim(
+        verifier_state: VerifierState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
         asserted_sum: RandomField<'cfg, N>,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<'cfg, N>, SumCheckError> {
+    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
         }
@@ -139,10 +143,10 @@ impl<const N: usize> IPForMLSumcheck<N> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round<'cfg>(
+    pub fn sample_round(
         transcript: &mut Transcript,
         config: ConfigRef<'cfg, N>,
-    ) -> VerifierMsg<'cfg, N> {
+    ) -> VerifierMsg<RandomField<'cfg, N>> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }

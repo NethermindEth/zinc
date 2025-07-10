@@ -10,7 +10,7 @@ use sha3::digest::Output;
 use sha3::Keccak256;
 
 use crate::biginteger::BigInt;
-use crate::field::RandomField as F;
+use crate::field::RandomField;
 use crate::traits::FromBytes;
 use crate::transcript::KeccakTranscript;
 
@@ -39,7 +39,7 @@ impl<const N: usize> PcsTranscript<N> {
         }
     }
 
-    pub fn common_field_element(&mut self, fe: &F<N>) {
+    pub fn common_field_element(&mut self, fe: &RandomField<N>) {
         self.fs_transcript.absorb_random_field(fe);
     }
 
@@ -59,7 +59,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     // TODO if we change this to an iterator we may be able to save some memory
-    pub fn write_field_elements(&mut self, elems: &[F<N>]) -> Result<(), Error> {
+    pub fn write_field_elements(&mut self, elems: &[RandomField<N>]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;
         }
@@ -71,7 +71,7 @@ impl<const N: usize> PcsTranscript<N> {
         &mut self,
         n: usize,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<Vec<F<'cfg, N>>, Error> {
+    ) -> Result<Vec<RandomField<'cfg, N>>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
@@ -80,20 +80,20 @@ impl<const N: usize> PcsTranscript<N> {
     pub fn read_field_element<'cfg>(
         &mut self,
         config: ConfigRef<'cfg, N>,
-    ) -> Result<F<'cfg, N>, Error> {
+    ) -> Result<RandomField<'cfg, N>, Error> {
         let mut bytes: Vec<u8> = vec![0; N * 8];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        let fe = F::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
+        let fe = RandomField::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
 
         self.common_field_element(&fe);
         Ok(fe)
     }
 
-    pub fn write_field_element(&mut self, fe: &F<N>) -> Result<(), Error> {
+    pub fn write_field_element(&mut self, fe: &RandomField<N>) -> Result<(), Error> {
         self.common_field_element(fe);
         let repr = fe.value().to_bytes_be();
         self.stream

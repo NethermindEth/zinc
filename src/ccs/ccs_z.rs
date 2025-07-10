@@ -13,7 +13,7 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::ccs::error::CSError as Error;
 use crate::field::conversion::FieldMap;
 use crate::field::RandomField;
-use crate::field_config::ConfigRef;
+use crate::field_config::{ConfigRef, FieldConfig};
 use crate::sparse_matrix::{dense_matrix_to_sparse, SparseMatrix};
 use crypto_bigint::{Int, Zero};
 
@@ -133,7 +133,7 @@ impl<const I: usize> CCS_Z<I> {
 
 impl<'cfg, const I: usize, const N: usize> FieldMap<ConfigRef<'cfg, N>> for CCS_Z<I> {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = CCS_F<'cfg, N>;
+    type Output = CCS_F<RandomField<'cfg, N>, FieldConfig<N>>;
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         match config.pointer() {
@@ -195,7 +195,7 @@ impl<const N: usize> Witness_Z<N> {
 
 impl<'cfg, const N: usize> FieldMap<ConfigRef<'cfg, N>> for Witness_Z<N> {
     type Cfg = ConfigRef<'cfg, N>;
-    type Output = Witness_F<'cfg, N>;
+    type Output = Witness_F<RandomField<'cfg, N>>;
 
     fn map_to_field(&self, config: Self::Cfg) -> Self::Output {
         Witness_F {

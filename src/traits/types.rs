@@ -7,7 +7,7 @@ use ark_std::{
     vec::Vec,
     UniformRand,
 };
-use crypto_bigint::{NonZero, Random, RandomMod};
+use crypto_bigint::Random;
 use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
@@ -176,15 +176,21 @@ pub trait CryptoInteger:
 }
 
 /// Trait for cryptographic unsigned integer types.
-pub trait CryptoUinteger:
-    crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
-{
+pub trait CryptoUinteger: Clone + FromBytes + One + for<'a> SubAssign<&'a Self> {
     type W: Words;
     type Int: CryptoInteger<W = Self::W>;
+    type PrimalityTest: PrimalityTest<Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     /// Converts to the signed integer type.
     fn as_int(&self) -> Self::Int;
     /// Converts to words.
     fn to_words(self) -> Self::W;
+    fn is_even(&self) -> bool;
+}
+
+pub trait PrimalityTest<U: CryptoUinteger> {
+    type Inner;
+    fn new(candidate: U) -> Self;
+    fn is_probably_prime(&self) -> bool;
 }

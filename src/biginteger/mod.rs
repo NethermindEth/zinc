@@ -30,7 +30,7 @@ use crate::{
     const_helpers::SerBuffer,
     crypto_int::CryptoInt,
     field_config,
-    traits::{CryptoInteger, FromBytes, Integer},
+    traits::{CryptoInteger, CryptoUinteger, FromBytes, Integer},
 };
 
 #[macro_use]

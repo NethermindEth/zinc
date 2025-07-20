@@ -6,12 +6,13 @@ use ark_std::{
 };
 use crypto_bigint::{
     subtle::{Choice, ConstantTimeEq},
-    Int, NonZero, Random, Uint,
+    Int, NonZero, Random,
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
     biginteger::{BigInt, Words},
+    crypto_int::uint::CryptoUint,
     traits::CryptoInteger,
     zip::pcs::utils::ToBytes,
 };
@@ -183,7 +184,7 @@ impl<const N: usize> ToBytes for CryptoInt<N> {
 
 impl<const N: usize> CryptoInteger for CryptoInt<N> {
     type W = crate::biginteger::Words<N>;
-    type Uint = Uint<N>;
+    type Uint = CryptoUint<N>;
     type I = BigInt<N>;
 
     fn from_words(words: Words<N>) -> Self {
@@ -199,6 +200,6 @@ impl<const N: usize> CryptoInteger for CryptoInt<N> {
     }
 
     fn abs(&self) -> Self::Uint {
-        self.0.abs()
+        CryptoUint(self.0.abs())
     }
 }

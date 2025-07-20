@@ -11,7 +11,7 @@ use zinc::{
         structs::{ZincProver, ZincVerifier},
         verifier::SpartanVerifier,
     },
-    zip::code::ZipSpec1,
+    zip::code::ZipLinearCodeSpec1,
 };
 
 fn benchmark_spartan_prover<const I: usize, const N: usize>(
@@ -22,7 +22,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_prover for {prime} prime"));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> {
+    let prover = ZincProver::<Int<I>, RandomField<N>, ZipLinearCodeSpec1> {
         // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
         data: PhantomData,
     };
@@ -31,11 +31,14 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
         let n = 1 << size;
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
 
-        let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
-                &statement, &wit, &ccs, config,
-            )
-            .expect("Failed to prepare for random field PIOP");
+        let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+            Int<I>,
+            RandomField<N>,
+            ZipLinearCodeSpec1,
+        >::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config
+        )
+        .expect("Failed to prepare for random field PIOP");
 
         group.bench_function(format!("n={n}"), |b| {
             b.iter_batched(
@@ -69,20 +72,23 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_verifier for {prime} prime"));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<Int<I>, RandomField<N>, ZipLinearCodeSpec1> { data: PhantomData };
 
-    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipLinearCodeSpec1> { data: PhantomData };
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
         let mut prover_transcript = KeccakTranscript::new();
 
-        let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
-                &statement, &wit, &ccs, config,
-            )
-            .expect("Failed to prepare for random field PIOP");
+        let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+            Int<I>,
+            RandomField<N>,
+            ZipLinearCodeSpec1,
+        >::prepare_for_random_field_piop(
+            &statement, &wit, &ccs, config
+        )
+        .expect("Failed to prepare for random field PIOP");
 
         let (spartan_proof, _) = SpartanProver::<Int<I>, _>::prove(
             &prover,

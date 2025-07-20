@@ -19,6 +19,6 @@ pub mod prelude {
             utils::draw_random_field,
             verifier::Verifier,
         },
-        zip::code::ZipSpec1,
+        zip::code::ZipLinearCodeSpec1,
     };
 }

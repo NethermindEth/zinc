@@ -8,7 +8,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{Field, Integer},
     zip::{
-        code::{LinearCodes, Zip},
+        code::{LinearCode, ZipLinearCode},
         pcs::{structs::MultilinearZipParams, utils::ToBytes},
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
@@ -19,9 +19,8 @@ impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
     M: for<'a> From<&'a I>,
     K: for<'a> From<&'a I> + ToBytes,
-    Zip<I, L>: LinearCodes<I, M> + LinearCodes<I, K>,
+    ZipLinearCode<I, L>: LinearCode<I, M> + LinearCode<I, K>,
 {
-    /// TODO: validate_input method requires a parameter points which is an iterable of type F
     pub fn commit<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtension<I>,
@@ -29,8 +28,8 @@ where
         validate_input::<I, F>("commit", pp.num_vars, [poly], None)?;
 
         // TODO(alex): Rework to avoid function call syntax
-        let row_len = LinearCodes::<I, M>::row_len(&pp.zip);
-        let codeword_len = LinearCodes::<I, M>::codeword_len(&pp.zip);
+        let row_len = LinearCode::<I, M>::row_len(&pp.linear_code);
+        let codeword_len = LinearCode::<I, M>::codeword_len(&pp.linear_code);
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -87,7 +86,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row.clone_from_slice(pp.zip.encode(evals).as_slice());
+                    row.clone_from_slice(pp.linear_code.encode(evals).as_slice());
                 }
             },
         );

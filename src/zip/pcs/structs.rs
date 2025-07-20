@@ -4,7 +4,7 @@ use sha3::{digest::Output, Keccak256};
 use super::utils::MerkleTree;
 use crate::{
     traits::Integer,
-    zip::code::{LinearCodes, Zip, ZipSpec},
+    zip::code::{LinearCode, ZipLinearCode, ZipLinearCodeSpec},
 };
 
 // N is the width of elements in witness/ polynomial evaluations on hypercube
@@ -25,7 +25,7 @@ pub struct MultilinearZip<N: Integer, L: Integer, K: Integer, M: Integer>(
 pub struct MultilinearZipParams<N: Integer, L: Integer> {
     pub num_vars: usize,
     pub num_rows: usize,
-    pub zip: Zip<N, L>,
+    pub linear_code: ZipLinearCode<N, L>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
@@ -76,21 +76,25 @@ pub trait ZipTranscript<I: Integer> {
 
 impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
-    Zip<I, L>: LinearCodes<I, M>,
+    ZipLinearCode<I, L>: LinearCode<I, M>,
 {
-    pub fn setup<S: ZipSpec, T: ZipTranscript<L>>(
+    pub fn setup<S: ZipLinearCodeSpec, T: ZipTranscript<L>>(
         poly_size: usize,
         transcript: &mut T,
     ) -> MultilinearZipParams<I, L> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
-        let num_rows = ((1 << num_vars) / zip.row_len()).next_power_of_two();
+        let linear_code = ZipLinearCode::new_multilinear::<S, T>(
+            num_vars,
+            20.min((1 << num_vars) - 1),
+            transcript,
+        );
+        let num_rows = ((1 << num_vars) / linear_code.row_len()).next_power_of_two();
 
         MultilinearZipParams {
             num_vars,
             num_rows,
-            zip,
+            linear_code,
         }
     }
 }

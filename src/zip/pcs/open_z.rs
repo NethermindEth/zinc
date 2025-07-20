@@ -10,7 +10,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{Field, FieldMap, Integer},
     zip::{
-        code::{LinearCodes, Zip},
+        code::{LinearCode, ZipLinearCode},
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
@@ -22,7 +22,7 @@ impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
     L: for<'a> From<&'a I> + for<'a> From<&'a L>,
     M: for<'a> From<&'a I>,
-    Zip<I, L>: LinearCodes<I, M>,
+    ZipLinearCode<I, L>: LinearCode<I, M>,
 {
     pub fn open<F: Field>(
         pp: &MultilinearZipParams<I, L>,
@@ -75,7 +75,7 @@ where
         I: FieldMap<F, Output = F>,
     {
         let num_rows = pp.num_rows;
-        let row_len = pp.zip.row_len();
+        let row_len = pp.linear_code.row_len();
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
@@ -105,20 +105,20 @@ where
         if pp.num_rows > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..pp.zip.num_proximity_testing() {
+            for _ in 0..pp.linear_code.num_proximity_testing() {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(pp.num_rows);
                 let coeffs = coeffs.iter().map(expand::<I, M>);
 
                 let evals = poly.evaluations.iter().map(expand::<I, M>);
-                let combined_row = combine_rows(coeffs, evals, pp.zip.row_len());
+                let combined_row = combine_rows(coeffs, evals, pp.linear_code.row_len());
 
                 transcript.write_integers(combined_row.iter())?;
             }
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..pp.zip.num_column_opening() {
-            let column = transcript.squeeze_challenge_idx(field, pp.zip.codeword_len());
+        for _ in 0..pp.linear_code.num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, pp.linear_code.codeword_len());
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
@@ -136,7 +136,7 @@ where
                 .rows
                 .iter()
                 .skip(column)
-                .step_by(pp.zip.codeword_len()),
+                .step_by(pp.linear_code.codeword_len()),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".into()))?;

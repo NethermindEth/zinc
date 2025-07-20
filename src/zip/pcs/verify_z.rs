@@ -8,7 +8,7 @@ use super::{
 use crate::{
     traits::{Field, FieldMap, Integer},
     zip::{
-        code::{LinearCodes, Zip},
+        code::{LinearCode, ZipLinearCode},
         pcs::{structs::MultilinearZipParams, utils::ToBytes},
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
@@ -20,7 +20,7 @@ impl<I: Integer, L: Integer, K: Integer + ToBytes, M: Integer> MultilinearZip<I,
 where
     L: for<'a> From<&'a I> + for<'a> From<&'a L>,
     M: for<'a> From<&'a I> + for<'a> From<&'a K> + for<'a> From<&'a L> + for<'a> From<&'a M>,
-    Zip<I, L>: LinearCodes<I, M>,
+    ZipLinearCode<I, L>: LinearCode<I, M>,
 {
     pub fn verify<F: Field>(
         vp: &MultilinearZipParams<I, L>,
@@ -69,23 +69,23 @@ where
         field: F::R,
     ) -> Result<Vec<(usize, Vec<K>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows = Vec::with_capacity(vp.zip.num_proximity_testing());
+        let mut encoded_combined_rows = Vec::with_capacity(vp.linear_code.num_proximity_testing());
 
         if vp.num_rows > 1 {
-            for _ in 0..vp.zip.num_proximity_testing() {
+            for _ in 0..vp.linear_code.num_proximity_testing() {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(vp.num_rows);
 
-                let combined_row: Vec<M> = transcript.read_integers(vp.zip.row_len())?;
+                let combined_row: Vec<M> = transcript.read_integers(vp.linear_code.row_len())?;
 
-                let encoded_combined_row: Vec<M> = vp.zip.encode_wide(&combined_row);
+                let encoded_combined_row: Vec<M> = vp.linear_code.encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
         let mut columns_opened: Vec<(usize, Vec<K>)> =
-            Vec::with_capacity(vp.zip.num_column_opening());
-        for _ in 0..vp.zip.num_column_opening() {
-            let column_idx = transcript.squeeze_challenge_idx(field, vp.zip.codeword_len());
+            Vec::with_capacity(vp.linear_code.num_column_opening());
+        for _ in 0..vp.linear_code.num_column_opening() {
+            let column_idx = transcript.squeeze_challenge_idx(field, vp.linear_code.codeword_len());
             let column_values = transcript.read_integers(vp.num_rows)?;
 
             for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
@@ -138,8 +138,8 @@ where
         L: FieldMap<F, Output = F>,
         K: FieldMap<F, Output = F>,
     {
-        let q_0_combined_row = transcript.read_field_elements(vp.zip.row_len(), field)?;
-        let encoded_combined_row = vp.zip.encode_f(&q_0_combined_row, field);
+        let q_0_combined_row = transcript.read_field_elements(vp.linear_code.row_len(), field)?;
+        let encoded_combined_row = vp.linear_code.encode_f(&q_0_combined_row, field);
 
         let (q_0, q_1) = point_to_tensor(vp.num_rows, point, field)?;
 

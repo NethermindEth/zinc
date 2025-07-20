@@ -10,7 +10,7 @@ use crate::{
 };
 
 const INVERSE_RATE: usize = 2;
-pub trait LinearCodes<In: Integer, Im: Integer>: Sync + Send {
+pub trait LinearCode<In: Integer, Im: Integer>: Sync + Send {
     fn row_len(&self) -> usize;
 
     fn codeword_len(&self) -> usize;
@@ -29,7 +29,7 @@ pub trait LinearCodes<In: Integer, Im: Integer>: Sync + Send {
 /// - `L`: The matrix element type. A larger cryptographic integer type used for sparse matrix
 ///   operations to prevent overflow during encoding. Must be at least as large as `I`.
 #[derive(Clone, Debug)]
-pub struct Zip<I: Integer, L: Integer> {
+pub struct ZipLinearCode<I: Integer, L: Integer> {
     /// Length of each input row before encoding
     row_len: usize,
 
@@ -51,21 +51,21 @@ pub struct Zip<I: Integer, L: Integer> {
     phantom: PhantomData<I>,
 }
 
-impl<I: Integer, L: Integer> Zip<I, L> {
-    pub fn proof_size<S: ZipSpec>(n_0: usize, c: usize, r: usize) -> usize {
+impl<I: Integer, L: Integer> ZipLinearCode<I, L> {
+    pub fn proof_size<S: ZipLinearCodeSpec>(n_0: usize, c: usize, r: usize) -> usize {
         let log2_q = I::W::num_words();
         // Number of low-degree tests
         let num_ldt = S::num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    /// Creates a new Zip instance for multilinear polynomials.
+    /// Creates a new linear code instance for multilinear polynomials.
     ///
     /// # Parameters
     /// - `num_vars`: Number of variables in the multilinear polynomial
     /// - `n_0`: Number of rows in the matrix representation of the polynomial
     /// - `transcript`: Reference to a transcript for generating random challenges
-    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<L>>(
+    pub fn new_multilinear<S: ZipLinearCodeSpec, T: ZipTranscript<L>>(
         num_vars: usize,
         n_0: usize,
         transcript: &mut T,
@@ -143,7 +143,7 @@ impl<I: Integer, L: Integer> Zip<I, L> {
 }
 
 impl<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>, L: Integer>
-    LinearCodes<N, M> for Zip<N, L>
+    LinearCode<N, M> for ZipLinearCode<N, L>
 {
     fn row_len(&self) -> usize {
         self.row_len
@@ -166,7 +166,7 @@ impl<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>, L: Inte
     }
 }
 
-pub trait ZipSpec: Debug {
+pub trait ZipLinearCodeSpec: Debug {
     fn num_column_opening() -> usize {
         1000
     }
@@ -198,7 +198,7 @@ macro_rules! impl_spec_128 {
         $(
             #[derive(Debug)]
             pub struct $name;
-            impl ZipSpec for $name {
+            impl ZipLinearCodeSpec for $name {
 
             }
         )*
@@ -206,7 +206,7 @@ macro_rules! impl_spec_128 {
 }
 
 // Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
-impl_spec_128!((ZipSpec1,));
+impl_spec_128!((ZipLinearCodeSpec1,));
 
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMatrixDimension {

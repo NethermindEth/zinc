@@ -20,14 +20,12 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer},
     transcript::KeccakTranscript,
     zip::{
-        code::ZipSpec,
-        pcs::{
-            structs::{MultilinearZip, ZipTranscript},
-            utils::ToBytes,
-        },
+        code::ZipLinearCodeSpec,
+        pcs::{structs::MultilinearZip, utils::ToBytes},
         pcs_transcript::PcsTranscript,
     },
 };
+use crate::zip::pcs::structs::ZipTranscript;
 
 pub type SpartanResult<T, F> = Result<T, SpartanError<F>>;
 pub type ZincResult<T, F> = Result<T, ZincError<F>>;
@@ -48,7 +46,7 @@ pub trait Prover<I: Integer, F: Field> {
         KeccakTranscript: ZipTranscript<I2>;
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipLinearCodeSpec> Prover<I, F> for ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::B>,
     for<'a> F::I: From<&'a I::I>, // TODO
@@ -128,7 +126,7 @@ pub trait SpartanProver<I: Integer, F: Field> {
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipLinearCodeSpec> SpartanProver<I, F> for ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::B>,
     for<'a> F::I: From<&'a I::I>, // TODO
@@ -169,7 +167,7 @@ where
     }
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipLinearCodeSpec> ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::B>,
     for<'a> F::I: From<&'a I::I>, // TODO

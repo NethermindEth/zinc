@@ -15,7 +15,7 @@ fn main() {
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<INT_LIMBS, RandomField<FIELD_LIMBS>>(
+    let field_config = draw_random_field::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>>(
         &statement.public_input,
         &mut prover_transcript,
     );
@@ -23,7 +23,7 @@ fn main() {
     let config_ref = ConfigRef::from(&field_config);
 
     let proof = prover
-        .prove(
+        .prove::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
             &statement,
             &witness,
             &mut prover_transcript,
@@ -37,7 +37,7 @@ fn main() {
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier
-        .verify(
+        .verify::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
             &statement,
             proof,
             &mut verifier_transcript,

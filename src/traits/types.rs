@@ -157,6 +157,7 @@ pub trait CryptoInt:
     + Send
     + Sync
     + Debug
+    + for<'a> From<&'a Self>
 {
     type W: Words;
     type Uint: CryptoUint<W = Self::W>;

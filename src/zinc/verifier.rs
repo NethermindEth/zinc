@@ -1,5 +1,4 @@
 use ark_std::{boxed::Box, vec::Vec};
-use crypto_bigint::Int;
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
@@ -110,7 +109,7 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<Int<I>, F, S> {
+impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,

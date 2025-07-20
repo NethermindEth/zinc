@@ -1,26 +1,22 @@
 use ark_std::{iterable::Iterable, vec, vec::Vec};
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
     utils::{validate_input, MerkleTree},
 };
 use crate::{
-    poly_z::mle::{
-        DenseMultilinearExtension as DenseMultilinearExtensionZ, DenseMultilinearExtension,
-    },
+    poly_z::mle::DenseMultilinearExtension,
     traits::{Field, Integer},
     zip::{
-        code::{LinearCodes, Zip, ZipSpec},
+        code::{LinearCodes, Zip},
         pcs::{structs::MultilinearZipParams, utils::ToBytes},
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
+impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
     M: for<'a> From<&'a I>,
     K: for<'a> From<&'a I> + ToBytes,
     Zip<I, L>: LinearCodes<I, M> + LinearCodes<I, K>,
@@ -28,7 +24,7 @@ where
     /// TODO: validate_input method requires a parameter points which is an iterable of type F
     pub fn commit<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<I>,
     ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment), Error> {
         validate_input::<I, F>("commit", pp.num_vars, [poly], None)?;
 
@@ -75,7 +71,7 @@ where
         pp: &MultilinearZipParams<I, L>,
         codeword_len: usize,
         row_len: usize,
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<I>,
     ) -> Vec<K> {
         // assert_eq!(pp.num_rows, poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);

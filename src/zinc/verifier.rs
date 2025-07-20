@@ -258,11 +258,11 @@ impl<I: Integer, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             + for<'a> From<&'a I4>,
         KeccakTranscript: ZipTranscript<I2>,
     {
-        let param = MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::setup(ccs.m, transcript);
+        let param = MultilinearZip::<I, I2, I4, I8>::setup::<S, _>(ccs.m, transcript);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::verify(
+        MultilinearZip::<I, I2, I4, I8>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,

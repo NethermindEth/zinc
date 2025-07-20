@@ -323,14 +323,13 @@ where
         I2: Integer + for<'a> From<&'a I>,
         KeccakTranscript: ZipTranscript<I2>,
     {
-        let param = MultilinearZip::<I, I2, I4, I8, S, _>::setup(ccs.m, transcript);
-        let (z_data, z_comm) =
-            MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::commit::<F>(&param, &z_mle)?;
+        let param = MultilinearZip::<I, I2, I4, I8>::setup::<S, _>(ccs.m, transcript);
+        let (z_data, z_comm) = MultilinearZip::<I, I2, I4, I8>::commit::<F>(&param, &z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::open(
+        MultilinearZip::<I, I2, I4, I8>::open(
             &param,
             &z_mle,
             &z_data,

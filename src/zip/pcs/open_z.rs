@@ -3,16 +3,14 @@ use ark_std::{borrow::Cow, iterable::Iterable, vec::Vec};
 use itertools::izip;
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipData},
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    poly_z::mle::{
-        DenseMultilinearExtension as DenseMultilinearExtensionZ, DenseMultilinearExtension,
-    },
+    poly_z::mle::DenseMultilinearExtension,
     traits::{Field, FieldMap, Integer},
     zip::{
-        code::{LinearCodes, Zip, ZipSpec},
+        code::{LinearCodes, Zip},
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
@@ -20,17 +18,15 @@ use crate::{
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
+impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
     L: for<'a> From<&'a I> + for<'a> From<&'a L>,
     M: for<'a> From<&'a I>,
     Zip<I, L>: LinearCodes<I, M>,
 {
     pub fn open<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<I>,
         commit_data: &MultilinearZipData<K>,
         point: &[F],
         field: F::R,
@@ -72,7 +68,7 @@ where
         pp: &MultilinearZipParams<I, L>,
         transcript: &mut PcsTranscript<F>,
         point: &[F],
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<I>,
         field: F::R,
     ) -> Result<(), Error>
     where
@@ -101,10 +97,10 @@ where
 
     pub(super) fn prove_testing_phase<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<I>,
         commit_data: &MultilinearZipData<K>,
         transcript: &mut PcsTranscript<F>,
-        field: F::R, // This is only needed to called the transcript but we are getting integers not fields
+        field: F::R, // This is only needed to call the transcript, but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows > 1 {
             // If we can take linear combinations

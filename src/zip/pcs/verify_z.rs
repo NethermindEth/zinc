@@ -2,13 +2,13 @@ use ark_std::{iterable::Iterable, vec::Vec};
 use sha3::{digest::Output, Keccak256};
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipCommitment},
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
     traits::{Field, FieldMap, Integer},
     zip::{
-        code::{LinearCodes, Zip, ZipSpec},
+        code::{LinearCodes, Zip},
         pcs::{structs::MultilinearZipParams, utils::ToBytes},
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
@@ -16,11 +16,8 @@ use crate::{
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer + ToBytes, M: Integer, S, T>
-    MultilinearZip<I, L, K, M, S, T>
+impl<I: Integer, L: Integer, K: Integer + ToBytes, M: Integer> MultilinearZip<I, L, K, M>
 where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
     L: for<'a> From<&'a I> + for<'a> From<&'a L>,
     M: for<'a> From<&'a I> + for<'a> From<&'a K> + for<'a> From<&'a L> + for<'a> From<&'a M>,
     Zip<I, L>: LinearCodes<I, M>,

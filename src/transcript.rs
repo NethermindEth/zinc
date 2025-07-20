@@ -150,6 +150,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
+
 impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> I {
         let byte = self.get_random_bytes(1)[0];

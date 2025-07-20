@@ -12,14 +12,9 @@ use crate::{
 // K is the width of elements in the code
 // M is the width of elements in linear combination of code rows
 #[derive(Debug, Clone)]
-pub struct MultilinearZip<
-    N: Integer,
-    L: Integer,
-    K: Integer,
-    M: Integer,
-    S: ZipSpec,
-    T: ZipTranscript<L>,
->(PhantomData<(N, L, K, M, S, T)>);
+pub struct MultilinearZip<N: Integer, L: Integer, K: Integer, M: Integer>(
+    PhantomData<(N, L, K, M)>,
+);
 
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<N: Integer, L: Integer> {
@@ -88,21 +83,23 @@ pub trait ZipTranscript<I: Integer> {
         count: usize,
     ) -> usize;
 }
-impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
+
+impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
 where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
     Zip<I, L>: LinearCodes<I, M>,
 {
-    pub fn setup(poly_size: usize, transcript: &mut T) -> MultilinearZipParams<I, L> {
+    pub fn setup<S: ZipSpec, T: ZipTranscript<L>>(
+        poly_size: usize,
+        transcript: &mut T,
+    ) -> MultilinearZipParams<I, L> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
         let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
+        let num_rows = ((1 << num_vars) / zip.row_len()).next_power_of_two();
 
         MultilinearZipParams {
             num_vars,
-            num_rows: ((1 << num_vars) / <Zip<I, L> as LinearCodes<I, M>>::row_len(&zip))
-                .next_power_of_two(),
+            num_rows,
             zip,
         }
     }

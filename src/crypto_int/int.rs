@@ -1,6 +1,5 @@
 use ark_std::{
     cmp::Ordering,
-    fmt::Debug,
     ops::{Add, AddAssign, Mul, RemAssign, Sub},
     rand::RngCore,
     vec::Vec,
@@ -13,12 +12,12 @@ use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
     biginteger::{BigInt, Words},
-    traits::{CryptoInteger, CryptoUinteger, FromBytes},
+    traits::CryptoInteger,
     zip::pcs::utils::ToBytes,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct CryptoInt<const N: usize>(Int<N>);
+pub struct CryptoInt<const N: usize>(pub(crate) Int<N>);
 
 impl<const N: usize> Zero for CryptoInt<N> {
     #[inline]
@@ -128,18 +127,21 @@ impl<const N: usize> From<i64> for CryptoInt<N> {
         Self(Int::from(value))
     }
 }
+
 impl<const N: usize> From<i32> for CryptoInt<N> {
     #[inline]
     fn from(value: i32) -> Self {
         Self(Int::from(value))
     }
 }
+
 impl<const N: usize> From<i8> for CryptoInt<N> {
     #[inline]
     fn from(value: i8) -> Self {
         Self(Int::from(value))
     }
 }
+
 impl<const N: usize> From<u8> for CryptoInt<N> {
     #[inline]
     fn from(value: u8) -> Self {
@@ -198,32 +200,5 @@ impl<const N: usize> CryptoInteger for CryptoInt<N> {
 
     fn abs(&self) -> Self::Uint {
         self.0.abs()
-    }
-}
-
-impl<const N: usize> CryptoUinteger for Uint<N> {
-    type W = crate::biginteger::Words<N>;
-    type Int = CryptoInt<N>;
-
-    fn from_words(words: Words<N>) -> Self {
-        Self::from_words(words.0)
-    }
-
-    fn as_int(&self) -> Self::Int {
-        CryptoInt(self.as_int())
-    }
-
-    fn to_words(self) -> Words<N> {
-        Words(self.to_words())
-    }
-}
-
-impl<const N: usize> FromBytes for Uint<N> {
-    fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
-        Some(Self::from_le_slice(bytes))
-    }
-
-    fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
-        Some(Self::from_be_slice(bytes))
     }
 }

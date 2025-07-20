@@ -103,10 +103,22 @@ impl<F: Field> PcsTranscript<F> {
         }
         Ok(())
     }
-    pub fn write_integers<M: CryptoInt>(&mut self, ints: &[M]) -> Result<(), Error> {
-        for int in ints {
-            self.write_integer(int)?;
+    // pub fn write_integers<M: CryptoInt>(&mut self, ints: &[M]) -> Result<(), Error> {
+    //     for int in ints {
+    //         self.write_integer(int)?;
+    //     }
+    //     Ok(())
+    // }
+
+    pub fn write_integers<'a, M, I>(&mut self, ints: I) -> Result<(), Error>
+    where
+        M: CryptoInt + 'a,
+        I: Iterator<Item = &'a M>,
+    {
+        for i in ints {
+            self.write_integer(i)?;
         }
+
         Ok(())
     }
 

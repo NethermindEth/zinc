@@ -1,9 +1,10 @@
 use ark_std::{marker::PhantomData, str::FromStr};
-use crypto_bigint::{Int, Zero};
+use crypto_bigint::Zero;
 
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
+    crypto_int::CryptoInt,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     traits::{Config, ConfigReference},
@@ -29,15 +30,15 @@ fn test_dummy_spartan_prover() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+        ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
             &statement, &wit, &ccs, config,
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let proof = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let proof = SpartanProver::<CryptoInt<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -62,15 +63,15 @@ fn test_spartan_verifier() {
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+        ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
             &statement, &wit, &ccs, config,
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<CryptoInt<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -81,7 +82,7 @@ fn test_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let verifier = ZincVerifier::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");
@@ -109,15 +110,15 @@ fn test_dummy_spartan_verifier() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+        ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
             &statement, &wit, &ccs, config,
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<CryptoInt<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -128,7 +129,7 @@ fn test_dummy_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let verifier = ZincVerifier::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
     config.reference().expect("Field config cannot be none");
     let res = SpartanVerifier::<RandomField<N>>::verify(
@@ -152,19 +153,19 @@ fn test_failing_spartan_verifier() {
     let config = ConfigRef::from(&config);
     let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
     // Change the witness such that it is no longer valid
-    assert!(wit.w_ccs[3] != Int::<I>::zero());
-    wit.w_ccs[3] = Int::<I>::zero();
+    assert!(wit.w_ccs[3] != CryptoInt::<I>::zero());
+    wit.w_ccs[3] = CryptoInt::<I>::zero();
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+        ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
             &statement, &wit, &ccs, config,
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<CryptoInt<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -175,9 +176,7 @@ fn test_failing_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> {
-        data: ark_std::marker::PhantomData,
-    };
+    let verifier = ZincVerifier::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");

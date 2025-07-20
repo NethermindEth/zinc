@@ -11,7 +11,7 @@ use sha3::{digest::Output, Keccak256};
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
     poly::alloc::string::ToString,
-    traits::{CryptoInt, Field, FromBytes, Integer, Words},
+    traits::{CryptoInteger, Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 
@@ -94,7 +94,7 @@ impl<F: Field> PcsTranscript<F> {
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
     }
 
-    pub fn write_integer<M: CryptoInt>(&mut self, int: &M) -> Result<(), Error> {
+    pub fn write_integer<M: CryptoInteger>(&mut self, int: &M) -> Result<(), Error> {
         for &word in int.as_words().iter() {
             let bytes = word.to_le_bytes();
             self.stream
@@ -112,7 +112,7 @@ impl<F: Field> PcsTranscript<F> {
 
     pub fn write_integers<'a, M, I>(&mut self, ints: I) -> Result<(), Error>
     where
-        M: CryptoInt + 'a,
+        M: CryptoInteger + 'a,
         I: Iterator<Item = &'a M>,
     {
         for i in ints {
@@ -122,7 +122,7 @@ impl<F: Field> PcsTranscript<F> {
         Ok(())
     }
 
-    pub fn read_integer<M: CryptoInt>(&mut self) -> Result<M, Error> {
+    pub fn read_integer<M: CryptoInteger>(&mut self) -> Result<M, Error> {
         let mut words = M::W::default();
 
         for word in words[0..M::W::num_words()].iter_mut() {
@@ -136,7 +136,7 @@ impl<F: Field> PcsTranscript<F> {
         Ok(M::from_words(words))
     }
 
-    pub fn read_integers<M: CryptoInt>(&mut self, n: usize) -> Result<Vec<M>, Error> {
+    pub fn read_integers<M: CryptoInteger>(&mut self, n: usize) -> Result<Vec<M>, Error> {
         (0..n)
             .map(|_| self.read_integer())
             .collect::<Result<Vec<_>, _>>()

@@ -17,7 +17,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    traits::{ConfigReference, CryptoInt, Field, FieldMap},
+    traits::{ConfigReference, CryptoInteger, Field, FieldMap},
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
@@ -29,7 +29,7 @@ use crate::{
 pub type SpartanResult<T, F> = Result<T, SpartanError<F>>;
 pub type ZincResult<T, F> = Result<T, ZincError<F>>;
 
-pub trait Prover<I: CryptoInt, F: Field> {
+pub trait Prover<I: CryptoInteger, F: Field> {
     fn prove<I2, I4, I8>(
         &self,
         statement: &Statement_Z<I>,
@@ -39,12 +39,12 @@ pub trait Prover<I: CryptoInt, F: Field> {
         config: F::Cr,
     ) -> Result<ZincProof<I, F>, ZincError<F>>
     where
-        I8: CryptoInt + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: CryptoInt + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: CryptoInt + for<'a> From<&'a I>;
+        I8: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2>,
+        I4: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
+        I2: CryptoInteger + for<'a> From<&'a I>;
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
+impl<I: CryptoInteger, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a I::I>, // TODO
@@ -60,9 +60,9 @@ where
         config: F::Cr,
     ) -> ZincResult<ZincProof<I, F>, F>
     where
-        I8: CryptoInt + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: CryptoInt + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: CryptoInt + for<'a> From<&'a I>,
+        I8: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2>,
+        I4: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
+        I2: CryptoInteger + for<'a> From<&'a I>,
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
@@ -92,7 +92,7 @@ where
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<I: CryptoInt, F: Field> {
+pub trait SpartanProver<I: CryptoInteger, F: Field> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -123,7 +123,7 @@ pub trait SpartanProver<I: CryptoInt, F: Field> {
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
+impl<I: CryptoInteger, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a I::I>, // TODO
@@ -164,7 +164,7 @@ where
     }
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> ZincProver<I, F, S>
+impl<I: CryptoInteger, F: Field, S: ZipSpec> ZincProver<I, F, S>
 where
     for<'a> I: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a I::I>, // TODO
@@ -304,9 +304,9 @@ where
         config: F::Cr,
     ) -> SpartanResult<ZipProof<I, F>, F>
     where
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I>,
-        I4: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,
-        I2: CryptoInt + for<'a> From<&'a I>,
+        I8: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I>,
+        I4: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,
+        I2: CryptoInteger + for<'a> From<&'a I>,
     {
         let param = MultilinearZip::<I, I2, I4, I8, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =

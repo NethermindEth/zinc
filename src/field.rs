@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use ark_ff::UniformRand;
-use crypto_bigint::{Int, Random, Uint};
+use crypto_bigint::{Random, Uint};
 
 use crate::{
     biginteger::BigInt,
@@ -29,6 +29,7 @@ use RandomField::*;
 
 use crate::{
     biginteger::Words,
+    crypto_int::CryptoInt,
     field_config::{ConfigRef, DebugFieldConfig},
     traits::{Field, Integer},
     transcript::KeccakTranscript,
@@ -275,7 +276,7 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
     type C = FieldConfig<N>;
     type Cr = ConfigRef<'cfg, N>;
     type W = Words<N>;
-    type CryptoInt = Int<N>;
+    type CryptoInt = CryptoInt<N>;
     type CryptoUint = Uint<N>;
     type DebugField = DebugRandomField;
 

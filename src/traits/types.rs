@@ -8,11 +8,12 @@ use ark_std::{
     UniformRand,
 };
 use crypto_bigint::{NonZero, Random, RandomMod};
-use num_traits::{ConstZero, One, Zero};
+use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
     traits::{FieldMap, FromBytes},
     transcript::KeccakTranscript,
+    zip::pcs::utils::ToBytes,
 };
 
 /// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
@@ -50,9 +51,9 @@ pub trait Field:
     /// Word representation type.
     type W: Words;
     /// Cryptographic integer type.
-    type CryptoInt: CryptoInt<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
+    type CryptoInt: CryptoInteger<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
     /// Cryptographic unsigned integer type.
-    type CryptoUint: CryptoUint<W = Self::W, Int = Self::CryptoInt>;
+    type CryptoUint: CryptoUinteger<W = Self::W, Int = Self::CryptoInt>;
     /// Debug representation for the field.
     type DebugField: Debug + From<Self> + Send + Sync;
     /// Creates a new field element from config and value, without checking.
@@ -135,15 +136,16 @@ pub trait Words:
 }
 
 /// Trait for cryptographic integer types.
-pub trait CryptoInt:
+pub trait CryptoInteger:
     Zero
     + ConstZero
     + One
+    + ConstOne
     + crypto_bigint::Zero
     + PartialOrd
     + PartialEq
     + Eq
-    + RemAssign<NonZero<Self>>
+    + RemAssign<Self>
     + Clone
     + Add<Output = Self>
     + Mul<Output = Self>
@@ -152,28 +154,33 @@ pub trait CryptoInt:
     + for<'a> AddAssign<&'a Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + From<i64>
+    + From<i32>
+    + From<i8>
+    + From<u8>
     + Default
     + Random
     + Send
     + Sync
     + Debug
     + for<'a> From<&'a Self>
+    + ToBytes
 {
     type W: Words;
-    type Uint: CryptoUint<W = Self::W>;
+    type Uint: CryptoUinteger<W = Self::W>;
     type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     fn as_words(&self) -> &[u64];
     fn from_i64(value: i64) -> Self;
+    fn abs(&self) -> Self::Uint;
 }
 
 /// Trait for cryptographic unsigned integer types.
-pub trait CryptoUint:
+pub trait CryptoUinteger:
     crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
 {
     type W: Words;
-    type Int: CryptoInt<W = Self::W>;
+    type Int: CryptoInteger<W = Self::W>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     /// Converts to the signed integer type.

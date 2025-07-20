@@ -1,18 +1,17 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
-use std::{
+use ark_std::{
     str::FromStr,
+    test_rng,
     time::{Duration, Instant},
 };
-
-use ark_std::test_rng;
 use criterion::{
     criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
-use crypto_bigint::Int;
 use zinc::{
     biginteger::BigInt,
+    crypto_int::CryptoInt,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
@@ -24,10 +23,10 @@ use zinc::{
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<
-    Int<INT_LIMBS>,
-    Int<{ 2 * INT_LIMBS }>,
-    Int<{ 4 * INT_LIMBS }>,
-    Int<{ 8 * INT_LIMBS }>,
+    CryptoInt<INT_LIMBS>,
+    CryptoInt<{ 2 * INT_LIMBS }>,
+    CryptoInt<{ 4 * INT_LIMBS }>,
+    CryptoInt<{ 8 * INT_LIMBS }>,
     ZipSpec1,
     KeccakTranscript,
 >;

@@ -2,7 +2,7 @@ use crypto_bigint::{Integer as CryptoInteger, Odd};
 use crypto_primes::hazmat::MillerRabin;
 
 use crate::{
-    traits::{CryptoUint, Field, FromBytes, Integer, Words},
+    traits::{CryptoUinteger, Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 

@@ -6,7 +6,7 @@ use super::{
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    traits::{CryptoInt, Field, FieldMap},
+    traits::{CryptoInteger, Field, FieldMap},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs::utils::ToBytes,
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-impl<I: CryptoInt, L: CryptoInt, K: CryptoInt + ToBytes, M: CryptoInt, S, T>
+impl<I: CryptoInteger, L: CryptoInteger, K: CryptoInteger + ToBytes, M: CryptoInteger, S, T>
     MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,

@@ -10,7 +10,7 @@ use crate::{
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
-    traits::{Config, CryptoInt, Field},
+    traits::{Config, CryptoInteger, Field},
     transcript::KeccakTranscript,
 };
 
@@ -158,7 +158,7 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<I: CryptoInt, F: Field>(
+pub fn draw_random_field<I: CryptoInteger, F: Field>(
     public_inputs: &[I],
     transcript: &mut KeccakTranscript,
 ) -> F::C {

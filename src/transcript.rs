@@ -2,7 +2,7 @@ use ark_std::vec::Vec;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    traits::{Config, ConfigReference, CryptoInt, Field, FieldMap, Integer, Words},
+    traits::{Config, ConfigReference, CryptoInteger, Field, FieldMap, Integer, Words},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -119,7 +119,7 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge<I: CryptoInt>(&mut self) -> I {
+    pub fn get_integer_challenge<I: CryptoInteger>(&mut self) -> I {
         let mut words = I::W::default();
 
         for i in 0..I::W::num_words() {
@@ -134,7 +134,7 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
-    pub fn get_integer_challenges<I: CryptoInt>(&mut self, n: usize) -> Vec<I> {
+    pub fn get_integer_challenges<I: CryptoInteger>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
@@ -148,7 +148,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<I: CryptoInt> ZipTranscript<I> for KeccakTranscript {
+impl<I: CryptoInteger> ZipTranscript<I> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> I {
         self.get_integer_challenge()
     }

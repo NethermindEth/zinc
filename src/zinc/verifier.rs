@@ -12,7 +12,7 @@ use crate::{
     },
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
-    traits::{ConfigReference, CryptoInt, Field, FieldMap},
+    traits::{ConfigReference, CryptoInteger, Field, FieldMap},
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-pub trait Verifier<I: CryptoInt, F: Field> {
+pub trait Verifier<I: CryptoInteger, F: Field> {
     fn verify<I2, I4, I8>(
         &self,
         cm_i: &Statement_Z<I>,
@@ -31,13 +31,13 @@ pub trait Verifier<I: CryptoInt, F: Field> {
         config: F::Cr,
     ) -> Result<(), ZincError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>;
+        I2: CryptoInteger + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: CryptoInteger + FieldMap<F, Output = F> + ToBytes,
+        I8: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>;
 }
 
 // TODO
-impl<I: CryptoInt, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
+impl<I: CryptoInteger, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
 where
     for<'a> I: From<&'a F::I>,
     F::I: From<I>,
@@ -54,9 +54,9 @@ where
         config: F::Cr,
     ) -> Result<(), ZincError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
+        I2: CryptoInteger + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: CryptoInteger + FieldMap<F, Output = F> + ToBytes,
+        I8: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
     {
         if draw_random_field::<I, F>(&statement.public_input, transcript)
             != *config.reference().unwrap()
@@ -109,7 +109,7 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
+impl<I: CryptoInteger, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
@@ -146,7 +146,7 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, 
     }
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
+impl<I: CryptoInteger, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,
@@ -236,9 +236,9 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
         config: F::Cr,
     ) -> Result<(), SpartanError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
+        I2: CryptoInteger + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: CryptoInteger + FieldMap<F, Output = F> + ToBytes,
+        I8: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
     {
         let param = MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::setup(ccs.m, transcript);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);

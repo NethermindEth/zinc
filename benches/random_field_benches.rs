@@ -1,12 +1,11 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
-use std::{
+use ark_std::{
     iter::{Product, Sum},
+    iterable::Iterable,
     str::FromStr,
 };
-
-use ark_std::iterable::Iterable;
 use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,

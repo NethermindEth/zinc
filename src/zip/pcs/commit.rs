@@ -84,7 +84,8 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row.clone_from_slice(pp.linear_code.encode(evals).as_slice());
+                    let encoded: Vec<K> = pp.linear_code.encode(evals);
+                    row.clone_from_slice(encoded.as_slice());
                 }
             },
         );

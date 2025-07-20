@@ -1,4 +1,4 @@
-use ark_std::{iterable::Iterable, vec, vec::Vec};
+use ark_std::{vec, vec::Vec};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
@@ -25,7 +25,7 @@ where
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtension<I>,
     ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment), Error> {
-        validate_input::<I, F>("commit", pp.num_vars, [poly], None)?;
+        validate_input("commit", pp.num_vars, [poly], None::<&[F]>)?;
 
         // TODO(alex): Rework to avoid function call syntax
         let row_len = LinearCode::<I, M>::row_len(&pp.linear_code);
@@ -51,14 +51,12 @@ where
             MultilinearZipCommitment { roots },
         ))
     }
+
     #[allow(clippy::type_complexity)]
-    pub fn batch_commit<'a, F: Field>(
+    pub fn batch_commit<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment)>, Error>
-    where
-        I: 'a,
-    {
+        polys: &[DenseMultilinearExtension<I>],
+    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment)>, Error> {
         polys
             .iter()
             .map(|poly| Self::commit::<F>(pp, poly))

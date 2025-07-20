@@ -1,5 +1,5 @@
 #![allow(non_snake_case)]
-use ark_std::{borrow::Cow, iterable::Iterable, vec::Vec};
+use ark_std::{borrow::Cow, vec::Vec};
 use itertools::izip;
 
 use super::{
@@ -45,17 +45,16 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a, F: Field>(
+    pub fn batch_open<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<K>>,
+        polys: &[DenseMultilinearExtension<I>],
+        comms: &[MultilinearZipData<K>],
         points: &[Vec<F>],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
     ) -> Result<(), Error>
     where
-        I: FieldMap<F, Output = F> + 'a,
-        K: 'a,
+        I: FieldMap<F, Output = F>,
     {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;

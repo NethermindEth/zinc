@@ -212,3 +212,19 @@ impl<const N: usize> Integer for Int<N> {
         Uint(self.0.abs())
     }
 }
+
+use crate::traits::ZipTypes;
+
+pub struct RandomFieldZipTypes<const N: usize>();
+
+impl<const N: usize> ZipTypes for RandomFieldZipTypes<N>
+where
+    [(); 2 * N]:,
+    [(); 4 * N]:,
+    [(); 8 * N]:,
+{
+    type N = Int<N>;
+    type L = Int<{ 2 * N }>;
+    type K = Int<{ 4 * N }>;
+    type M = Int<{ 8 * N }>;
+}

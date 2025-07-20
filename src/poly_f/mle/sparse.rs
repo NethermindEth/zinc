@@ -79,7 +79,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
             while map.contains_key(&index) {
                 index = usize::rand(rng) & ((1 << num_vars) - 1);
             }
-            map.entry(index).or_insert(F::rand(rng));
+            map.entry(index).or_insert(F::random(rng));
         }
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {

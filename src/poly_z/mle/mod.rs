@@ -16,7 +16,7 @@ use ark_std::{
 ///
 /// Index represents a point, which is a vector in {0,1}^`num_vars` in little
 /// endian form. For example, `0b1011` represents `P(1,1,0,1)`
-pub trait MultilinearExtension<I: CryptoInt>:
+pub trait MultilinearExtension<I: CryptoInteger>:
     Sized
     + Clone
     + Debug
@@ -71,4 +71,4 @@ pub use dense::build_eq_x_r;
 pub use dense::DenseMultilinearExtension;
 pub use sparse::SparseMultilinearExtension;
 
-use crate::traits::CryptoInt;
+use crate::traits::CryptoInteger;

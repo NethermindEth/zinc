@@ -1,9 +1,8 @@
 use ark_std::vec::Vec;
-use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    traits::{Config, ConfigReference, CryptoInt, Field, FieldMap, Integer, Words},
+    traits::{Config, ConfigReference, CryptoInteger, Field, FieldMap, Integer, Words},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -120,7 +119,7 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge<I: CryptoInt>(&mut self) -> I {
+    pub fn get_integer_challenge<I: CryptoInteger>(&mut self) -> I {
         let mut words = I::W::default();
 
         for i in 0..I::W::num_words() {
@@ -135,7 +134,7 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
-    pub fn get_integer_challenges<I: CryptoInt>(&mut self, n: usize) -> Vec<I> {
+    pub fn get_integer_challenges<I: CryptoInteger>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
@@ -149,12 +148,12 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<Int<L>> for KeccakTranscript {
-    fn get_encoding_element(&mut self) -> Int<L> {
+impl<I: CryptoInteger> ZipTranscript<I> for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> I {
         let byte = self.get_random_bytes(1)[0];
         // cancels all bits and depends only on whether the random byte LSB is 0 or 1
         let bit = byte & 1;
-        Int::<L>::from(bit as i8)
+        I::from(bit as i8)
     }
 
     fn sample_unique_columns(

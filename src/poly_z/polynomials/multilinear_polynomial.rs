@@ -8,14 +8,14 @@ use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
 use crate::{
     poly::{get_batched_nv, ArithErrors, RefCounter},
-    traits::CryptoInt,
+    traits::CryptoInteger,
 };
 
 /// Sample a random list of multilinear polynomials.
 /// Returns
 /// - the list of polynomials,
 /// - its sum of polynomial evaluations over the boolean hypercube.
-pub fn random_mle_list<Rn: RngCore, I: CryptoInt>(
+pub fn random_mle_list<Rn: RngCore, I: CryptoInteger>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
@@ -48,7 +48,7 @@ pub fn random_mle_list<Rn: RngCore, I: CryptoInt>(
 }
 
 // Build a randomize list of mle-s whose sum is zero.
-pub fn random_zero_mle_list<I: CryptoInt, Rn: RngCore>(
+pub fn random_zero_mle_list<I: CryptoInteger, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
@@ -81,7 +81,7 @@ pub fn identity_permutation(num_vars: usize, num_chunks: usize) -> Vec<i64> {
 }
 
 /// A list of MLEs that represents an identity permutation
-pub fn identity_permutation_mles<I: CryptoInt>(
+pub fn identity_permutation_mles<I: CryptoInteger>(
     num_vars: usize,
     num_chunks: usize,
 ) -> Vec<RefCounter<DenseMultilinearExtension<I>>> {
@@ -98,7 +98,7 @@ pub fn identity_permutation_mles<I: CryptoInt>(
     res
 }
 
-pub fn random_permutation<Rn: RngCore, I: CryptoInt>(
+pub fn random_permutation<Rn: RngCore, I: CryptoInteger>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
@@ -114,7 +114,7 @@ pub fn random_permutation<Rn: RngCore, I: CryptoInt>(
 }
 
 /// A list of MLEs that represent a random permutation
-pub fn random_permutation_mles<Rn: RngCore, I: CryptoInt>(
+pub fn random_permutation_mles<Rn: RngCore, I: CryptoInteger>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
@@ -133,12 +133,12 @@ pub fn random_permutation_mles<Rn: RngCore, I: CryptoInt>(
     res
 }
 
-pub fn evaluate_opt<I: CryptoInt>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
+pub fn evaluate_opt<I: CryptoInteger>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
     fix_variables(poly, point).evaluations[0].clone()
 }
 
-pub fn fix_variables<I: CryptoInt>(
+pub fn fix_variables<I: CryptoInteger>(
     poly: &DenseMultilinearExtension<I>,
     partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
@@ -157,7 +157,7 @@ pub fn fix_variables<I: CryptoInt>(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_one_variable_helper<I: CryptoInt>(data: &[I], nv: usize, point: &I) -> Vec<I> {
+fn fix_one_variable_helper<I: CryptoInteger>(data: &[I], nv: usize, point: &I) -> Vec<I> {
     let mut res = vec![I::ZERO; 1 << (nv - 1)];
 
     // evaluate single variable of partial point from left to right
@@ -169,12 +169,12 @@ fn fix_one_variable_helper<I: CryptoInt>(data: &[I], nv: usize, point: &I) -> Ve
     res
 }
 
-pub fn evaluate_no_par<I: CryptoInt>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
+pub fn evaluate_no_par<I: CryptoInteger>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
     fix_variables_no_par(poly, point).evaluations[0].clone()
 }
 
-fn fix_variables_no_par<I: CryptoInt>(
+fn fix_variables_no_par<I: CryptoInteger>(
     poly: &DenseMultilinearExtension<I>,
     partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
@@ -197,7 +197,7 @@ fn fix_variables_no_par<I: CryptoInt>(
 
 /// merge a set of polynomials. Returns an error if the
 /// polynomials do not share a same number of nvs.
-pub fn merge_polynomials<I: CryptoInt>(
+pub fn merge_polynomials<I: CryptoInteger>(
     polynomials: &[RefCounter<DenseMultilinearExtension<I>>],
 ) -> Result<RefCounter<DenseMultilinearExtension<I>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
@@ -220,7 +220,7 @@ pub fn merge_polynomials<I: CryptoInt>(
     ))
 }
 
-pub fn fix_last_variables_no_par<I: CryptoInt>(
+pub fn fix_last_variables_no_par<I: CryptoInteger>(
     poly: &DenseMultilinearExtension<I>,
     partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
@@ -231,7 +231,7 @@ pub fn fix_last_variables_no_par<I: CryptoInt>(
     res
 }
 
-fn fix_last_variable_no_par<I: CryptoInt>(
+fn fix_last_variable_no_par<I: CryptoInteger>(
     poly: &DenseMultilinearExtension<I>,
     partial_point: &I,
 ) -> DenseMultilinearExtension<I> {
@@ -245,7 +245,7 @@ fn fix_last_variable_no_par<I: CryptoInt>(
     }
     DenseMultilinearExtension::from_evaluations_vec(nv - 1, res)
 }
-pub fn fix_last_variables<I: CryptoInt>(
+pub fn fix_last_variables<I: CryptoInteger>(
     poly: &DenseMultilinearExtension<I>,
     partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
@@ -264,7 +264,7 @@ pub fn fix_last_variables<I: CryptoInt>(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_last_variable_helper<I: CryptoInt>(data: &[I], nv: usize, point: &I) -> Vec<I> {
+fn fix_last_variable_helper<I: CryptoInteger>(data: &[I], nv: usize, point: &I) -> Vec<I> {
     let half_len = 1 << (nv - 1);
     let mut res = vec![I::ZERO; half_len];
 

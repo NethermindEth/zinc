@@ -179,8 +179,8 @@ impl<F: Field> Witness_F<F> {
     /// # Arguments
     /// * `rng` is a mutable reference to the random number generator.
     /// * `w_ccs_len` is the length of the non-decomposed witness (a.k.a. the CCS witness).
-    pub fn rand<Rng: rand::Rng + ?Sized>(rng: &mut Rng, w_ccs_len: usize) -> Self {
-        Self::new((0..w_ccs_len).map(|_| F::rand(rng)).collect())
+    pub fn random<Rng: rand::Rng + ?Sized>(rng: &mut Rng, w_ccs_len: usize) -> Self {
+        Self::new((0..w_ccs_len).map(|_| F::random(rng)).collect())
     }
 }
 

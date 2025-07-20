@@ -22,15 +22,15 @@ use ark_std::{
     vec::Vec,
     Zero,
 };
-use crypto_bigint::Int;
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 use crate::{
     adc,
     const_helpers::SerBuffer,
+    crypto_int::CryptoInt,
     field_config,
-    traits::{FromBytes, Integer},
+    traits::{CryptoInteger, CryptoUinteger, FromBytes, Integer},
 };
 
 #[macro_use]
@@ -798,13 +798,13 @@ impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
 }
 
 // Only returns the absolute value for the integer
-impl<const M: usize, const N: usize> From<Int<M>> for BigInt<N> {
-    fn from(value: Int<M>) -> Self {
+impl<const M: usize, const N: usize> From<CryptoInt<M>> for BigInt<N> {
+    fn from(value: CryptoInt<M>) -> Self {
         Self::from(&value)
     }
 }
-impl<const M: usize, const N: usize> From<&Int<M>> for BigInt<N> {
-    fn from(value: &Int<M>) -> Self {
+impl<const M: usize, const N: usize> From<&CryptoInt<M>> for BigInt<N> {
+    fn from(value: &CryptoInt<M>) -> Self {
         let abs = value.abs();
         let words = abs.to_words();
         let min_width = M.min(N);
@@ -816,21 +816,21 @@ impl<const M: usize, const N: usize> From<&Int<M>> for BigInt<N> {
     }
 }
 
-impl<const M: usize, const N: usize> From<BigInt<N>> for Int<M> {
-    fn from(value: BigInt<N>) -> Int<M> {
+impl<const M: usize, const N: usize> From<BigInt<N>> for CryptoInt<M> {
+    fn from(value: BigInt<N>) -> CryptoInt<M> {
         (&value).into()
     }
 }
 
-impl<const M: usize, const N: usize> From<&BigInt<N>> for Int<M> {
-    fn from(value: &BigInt<N>) -> Int<M> {
+impl<const M: usize, const N: usize> From<&BigInt<N>> for CryptoInt<M> {
+    fn from(value: &BigInt<N>) -> CryptoInt<M> {
         let words = value.to_words();
         let min_width = M.min(N);
 
         let mut result = [0u64; M];
         result[..min_width].copy_from_slice(&words[..min_width]);
 
-        Int::from_words(result)
+        CryptoInt::from_words(Words(result))
     }
 }
 

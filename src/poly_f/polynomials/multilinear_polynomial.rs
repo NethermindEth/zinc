@@ -70,7 +70,7 @@ pub fn random_zero_mle_list<F: Field, Rn: RngCore>(
     for _ in 0..1 << nv {
         multiplicands[0].push(F::zero());
         for e in multiplicands.iter_mut().skip(1) {
-            e.push(F::rand(rng));
+            e.push(F::random(rng));
         }
     }
 

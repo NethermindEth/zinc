@@ -8,10 +8,10 @@ use super::{
 };
 use crate::{
     sparse_matrix::SparseMatrix,
-    traits::{ConfigReference, CryptoInt, Field, FieldMap},
+    traits::{ConfigReference, CryptoInteger, Field, FieldMap},
 };
 
-pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInt>(
+pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInteger>(
     rows: usize,
     columns: usize,
 ) -> SparseMatrix<I> {
@@ -27,7 +27,7 @@ pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInt>(
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: CryptoInt>(
+pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: CryptoInteger>(
     rows: usize,
     columns: usize,
     witness: &[I],
@@ -86,7 +86,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<F: Field>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z<I: CryptoInt>(
+fn get_dummy_ccs_Z_from_z<I: CryptoInteger>(
     z: &[I],
     pub_io_len: usize,
 ) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {
@@ -158,7 +158,7 @@ fn get_dummy_ccs_F_from_z<F: Field>(
     (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_Z_from_z_length<I: CryptoInt>(
+pub fn get_dummy_ccs_Z_from_z_length<I: CryptoInteger>(
     n: usize,
     rng: &mut impl Rng,
 ) -> (Vec<I>, CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {

@@ -1,12 +1,13 @@
 use ark_std::{vec::Vec, Zero};
-use crypto_bigint::{Int, NonZero};
 
 use crate::{
     biginteger::BigInt,
+    crypto_int::CryptoInt,
     field::{RandomField, RandomField::Raw},
     field_config::ConfigRef,
     traits::{
-        Config, ConfigReference, CryptoInt, CryptoUint, Field, FieldMap, FromBytes, Integer, Words,
+        Config, ConfigReference, CryptoInteger, CryptoUinteger, Field, FieldMap, FromBytes,
+        Integer, Words,
     },
 };
 
@@ -93,8 +94,7 @@ macro_rules! impl_field_map_for_int {
                 let mut value = F::CryptoUint::from_words(words).as_int();
                 let modulus = F::CryptoInt::from_words(config.modulus().to_words());
 
-                value %= NonZero::new(modulus)
-                    .expect("Cannot reduce modulo zero: field modulus is zero");
+                value %= modulus;
                 let mut value = F::I::from(value);
                 config.mul_assign(&mut value, config.r2());
 
@@ -147,7 +147,7 @@ impl<F: Field> FieldMap<F> for &bool {
 }
 
 // Implementation for Int<N>
-impl<F: Field, T: CryptoInt> FieldMap<F> for T
+impl<F: Field, T: CryptoInteger> FieldMap<F> for T
 where
     T::I: FieldMap<F, Output = F>,
 {
@@ -166,8 +166,8 @@ where
 // Implementation of FieldMap for BigInt<N>
 impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
 where
-    for<'a> Int<M>: From<&'a F::I>,
-    F::I: From<Int<M>>,
+    for<'a> CryptoInt<M>: From<&'a F::I>,
+    F::I: From<CryptoInt<M>>,
     for<'a> F::CryptoInt: From<&'a BigInt<M>>,
 {
     type Output = F;
@@ -179,17 +179,15 @@ where
         };
 
         let mut value = if M > F::W::num_words() {
-            let modulus: Int<M> = config.modulus().into();
-            let mut value: Int<M> = self.into();
-            value %=
-                NonZero::new(modulus).expect("Cannot reduce modulo zero: field modulus is zero");
+            let modulus: CryptoInt<M> = config.modulus().into();
+            let mut value: CryptoInt<M> = self.into();
+            value %= modulus;
 
             F::I::from(value)
         } else {
             let modulus: F::CryptoInt = config.modulus().into();
             let mut value: F::CryptoInt = self.into();
-            value %=
-                NonZero::new(modulus).expect("Cannot reduce modulo zero: field modulus is zero");
+            value %= modulus;
 
             value.into()
         };

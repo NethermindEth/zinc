@@ -1,8 +1,7 @@
-use crypto_bigint::{Integer as CryptoInteger, Odd};
-use crypto_primes::hazmat::MillerRabin;
+use num_traits::One;
 
 use crate::{
-    traits::{CryptoUint, Field, FromBytes, Integer, Words},
+    traits::{types::PrimalityTest, CryptoUinteger, Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 
@@ -16,12 +15,14 @@ fn hash_int<F: Field>(hasher: &mut KeccakTranscript) -> F::CryptoUint {
 pub fn get_prime<F: Field>(hasher: &mut KeccakTranscript) -> F::I {
     let prime = loop {
         let mut prime_candidate: F::CryptoUint = hash_int::<F>(hasher);
-        if prime_candidate.is_even().unwrap_u8() == 1 {
-            prime_candidate -= F::CryptoUint::one();
+        if prime_candidate.is_even() {
+            prime_candidate -= &F::CryptoUint::one();
         }
-        let mr = MillerRabin::new(Odd::new(prime_candidate).unwrap());
+        let mr = <<F as Field>::CryptoUint as CryptoUinteger>::PrimalityTest::new(
+            prime_candidate.clone(),
+        );
 
-        if mr.test_base_two().is_probably_prime() {
+        if mr.is_probably_prime() {
             break prime_candidate;
         }
     };

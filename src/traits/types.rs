@@ -5,14 +5,14 @@ use ark_std::{
         SubAssign,
     },
     vec::Vec,
-    UniformRand,
 };
-use crypto_bigint::{NonZero, Random, RandomMod};
-use num_traits::{ConstZero, One, Zero};
+use crypto_bigint::Random;
+use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
     traits::{FieldMap, FromBytes},
     transcript::KeccakTranscript,
+    zip::pcs::utils::ToBytes,
 };
 
 /// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
@@ -30,7 +30,6 @@ pub trait Field:
     + Neg<Output = Self>
     + Debug
     + for<'a> AddAssign<&'a Self>
-    + UniformRand
     + Sub<Self, Output = Self>
     + MulAssign
     + SubAssign
@@ -50,9 +49,9 @@ pub trait Field:
     /// Word representation type.
     type W: Words;
     /// Cryptographic integer type.
-    type CryptoInt: CryptoInt<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
+    type CryptoInt: CryptoInteger<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
     /// Cryptographic unsigned integer type.
-    type CryptoUint: CryptoUint<W = Self::W, Int = Self::CryptoInt>;
+    type CryptoUint: CryptoUinteger<W = Self::W, Int = Self::CryptoInt>;
     /// Debug representation for the field.
     type DebugField: Debug + From<Self> + Send + Sync;
     /// Creates a new field element from config and value, without checking.
@@ -135,15 +134,16 @@ pub trait Words:
 }
 
 /// Trait for cryptographic integer types.
-pub trait CryptoInt:
+pub trait CryptoInteger:
     Zero
     + ConstZero
     + One
+    + ConstOne
     + crypto_bigint::Zero
     + PartialOrd
     + PartialEq
     + Eq
-    + RemAssign<NonZero<Self>>
+    + RemAssign<Self>
     + Clone
     + Add<Output = Self>
     + Mul<Output = Self>
@@ -152,32 +152,43 @@ pub trait CryptoInt:
     + for<'a> AddAssign<&'a Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + From<i64>
+    + From<i32>
+    + From<i8>
+    + From<u8>
     + Default
     + Random
     + Send
     + Sync
     + Debug
     + for<'a> From<&'a Self>
+    + ToBytes
 {
     type W: Words;
-    type Uint: CryptoUint<W = Self::W>;
+    type Uint: CryptoUinteger<W = Self::W>;
     type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     fn as_words(&self) -> &[u64];
     fn from_i64(value: i64) -> Self;
+    fn abs(&self) -> Self::Uint;
 }
 
 /// Trait for cryptographic unsigned integer types.
-pub trait CryptoUint:
-    crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
-{
+pub trait CryptoUinteger: Clone + FromBytes + One + for<'a> SubAssign<&'a Self> {
     type W: Words;
-    type Int: CryptoInt<W = Self::W>;
+    type Int: CryptoInteger<W = Self::W>;
+    type PrimalityTest: PrimalityTest<Self>;
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     /// Converts to the signed integer type.
     fn as_int(&self) -> Self::Int;
     /// Converts to words.
     fn to_words(self) -> Self::W;
+    fn is_even(&self) -> bool;
+}
+
+pub trait PrimalityTest<U: CryptoUinteger> {
+    type Inner;
+    fn new(candidate: U) -> Self;
+    fn is_probably_prime(&self) -> bool;
 }

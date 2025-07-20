@@ -129,7 +129,7 @@ impl<F: Field> MultilinearExtension<F> for DenseMultilinearExtension<F> {
     fn rand<Rn: rand::Rng>(num_vars: usize, config: F::Cr, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
-            (0..1 << num_vars).map(|_| F::rand(rng)).collect(),
+            (0..1 << num_vars).map(|_| F::random(rng)).collect(),
             config,
         )
     }

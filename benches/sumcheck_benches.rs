@@ -1,7 +1,6 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
-use std::str::FromStr;
-
+use ark_std::str::FromStr;
 use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };

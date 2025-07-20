@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
-    traits::{CryptoInt, Field, FieldMap},
+    traits::{CryptoInteger, Field, FieldMap},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
@@ -17,7 +17,8 @@ use crate::{
     },
 };
 
-impl<I: CryptoInt, L: CryptoInt, K: CryptoInt, M: CryptoInt, S, T> MultilinearZip<I, L, K, M, S, T>
+impl<I: CryptoInteger, L: CryptoInteger, K: CryptoInteger, M: CryptoInteger, S, T>
+    MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,

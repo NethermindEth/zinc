@@ -93,7 +93,7 @@ impl<I: Integer, L: Integer> Zip<I, L> {
         }
     }
 
-    /// Encodes a row of field elements using the Zip linear encoding scheme.
+    /// Encodes a row of field elements using this linear encoding scheme.
     ///
     /// This function is used when working with field elements directly and performs the encoding
     /// by first converting the sparse matrices to field elements.
@@ -117,7 +117,7 @@ impl<I: Integer, L: Integer> Zip<I, L> {
         code
     }
 
-    /// Encodes a row of cryptographic integers using the Zip linear encoding scheme.
+    /// Encodes a row of cryptographic integers using this linear encoding scheme.
     ///
     /// This function is optimized for the prover's context where we work with cryptographic integers.
     /// It's more efficient than `encode_f` as it avoids field conversions.
@@ -127,9 +127,12 @@ impl<I: Integer, L: Integer> Zip<I, L> {
     ///
     /// # Returns
     /// A vector of cryptographic integers representing the encoded row
-    pub(crate) fn encode_wide<M: Integer + for<'a> From<&'a L> + for<'a> From<&'a M>>(
+    pub(crate) fn encode_wide<
+        N: Integer,
+        M: Integer + for<'a> From<&'a L> + for<'a> From<&'a N>,
+    >(
         &self,
-        row: &[M],
+        row: &[N],
     ) -> Vec<M> {
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(self.a.mat_vec_mul(row));
@@ -159,11 +162,7 @@ impl<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>, L: Inte
     }
 
     fn encode(&self, row: &[N]) -> Vec<M> {
-        let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
-        code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
-
-        code
+        self.encode_wide(row)
     }
 }
 
@@ -188,8 +187,8 @@ pub trait ZipSpec: Debug {
     ) -> (SparseMatrixZ<L>, SparseMatrixZ<L>) {
         let dim = SparseMatrixDimension::new(rows, cols, density);
         (
-            SparseMatrixZ::new(dim, transcript),
-            SparseMatrixZ::new(dim, transcript),
+            SparseMatrixZ::sample_new(dim, transcript),
+            SparseMatrixZ::sample_new(dim, transcript),
         )
     }
 }
@@ -243,7 +242,12 @@ pub struct SparseMatrixZ<I: Integer> {
 }
 
 impl<L: Integer> SparseMatrixZ<L> {
-    fn new<T: ZipTranscript<L>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
+    /// Creates a new sparse matrix with the given dimension and samples its cells using the
+    /// provided transcript.
+    fn sample_new<T: ZipTranscript<L>>(
+        dimension: SparseMatrixDimension,
+        transcript: &mut T,
+    ) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             transcript.sample_unique_columns(0..dimension.m, &mut columns, dimension.d);
@@ -262,6 +266,7 @@ impl<L: Integer> SparseMatrixZ<L> {
         self.cells.chunks(self.dimension.d)
     }
 
+    /// Multiplies the sparse matrix by a vector of cryptographic integers.
     fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
         &self,
         vector: &[N],
@@ -286,6 +291,7 @@ impl<L: Integer> SparseMatrixZ<L> {
     }
 }
 
+/// Sparse matrix over a field.
 #[derive(Clone, Debug)]
 pub struct SparseMatrixF<F: Field> {
     dimension: SparseMatrixDimension,
@@ -312,6 +318,7 @@ impl<F: Field> SparseMatrixF<F> {
         self.cells.chunks(self.dimension.d)
     }
 
+    /// Multiplies the sparse matrix by a vector of cryptographic integers.
     fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
         assert_eq!(
             self.dimension.m,

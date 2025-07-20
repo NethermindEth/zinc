@@ -16,6 +16,11 @@ pub struct MultilinearZip<N: Integer, L: Integer, K: Integer, M: Integer>(
     PhantomData<(N, L, K, M)>,
 );
 
+/// Parameters for the Zip PCS.
+///
+/// # Type Parameters
+/// - `N`: Width of elements in witness/polynomial evaluations on hypercube.
+/// - `L`: Width of elements in the encoding matrices.
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<N: Integer, L: Integer> {
     pub num_vars: usize,
@@ -27,23 +32,16 @@ pub struct MultilinearZipParams<N: Integer, L: Integer> {
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipData<K: Integer> {
     /// The encoded rows of the polynomial matrix representation
-    rows: Vec<K>,
+    pub rows: Vec<K>,
     /// Merkle trees of each row
-    rows_merkle_trees: Vec<MerkleTree>,
+    pub rows_merkle_trees: Vec<MerkleTree>,
 }
+
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment {
     /// Roots of the merkle tree of each row
-    roots: Vec<Output<Keccak256>>,
-}
-impl MultilinearZipCommitment {
-    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment {
-        MultilinearZipCommitment { roots }
-    }
-    pub fn roots(&self) -> &[Output<Keccak256>] {
-        &self.roots
-    }
+    pub roots: Vec<Output<Keccak256>>,
 }
 
 impl<K: Integer> MultilinearZipData<K> {
@@ -52,14 +50,6 @@ impl<K: Integer> MultilinearZipData<K> {
             rows,
             rows_merkle_trees,
         }
-    }
-
-    pub fn rows(&self) -> &[K] {
-        &self.rows
-    }
-
-    pub fn rows_merkle_trees(&self) -> &[MerkleTree] {
-        &self.rows_merkle_trees
     }
 
     pub fn roots(&self) -> Vec<Output<Keccak256>> {

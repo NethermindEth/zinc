@@ -133,7 +133,7 @@ where
         // Write the elements in the squeezed column to the shared transcript
         transcript.write_integers(
             commit_data
-                .rows()
+                .rows
                 .iter()
                 .skip(column)
                 .step_by(pp.zip.codeword_len()),

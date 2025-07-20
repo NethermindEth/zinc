@@ -36,7 +36,7 @@ where
     {
         validate_input::<I, F>("verify", vp.num_vars, [], [point])?;
 
-        let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
+        let columns_opened = Self::verify_testing(vp, &comm.roots, transcript, field)?;
 
         Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
 

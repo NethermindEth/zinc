@@ -219,7 +219,7 @@ impl ColumnOpening {
         commit_data: &MultilinearZipData<M>,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
-        for row_merkle_tree in commit_data.rows_merkle_trees() {
+        for row_merkle_tree in commit_data.rows_merkle_trees.iter() {
             let merkle_path = MerkleProof::create_proof(row_merkle_tree, column)?;
             transcript
                 .write_merkle_proof(&merkle_path)

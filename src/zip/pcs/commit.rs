@@ -48,8 +48,8 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::<K>::new(rows, rows_merkle_trees),
-            MultilinearZipCommitment::new(roots),
+            MultilinearZipData::new(rows, rows_merkle_trees),
+            MultilinearZipCommitment { roots },
         ))
     }
     #[allow(clippy::type_complexity)]

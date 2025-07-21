@@ -1,5 +1,5 @@
 mod int;
 mod uint;
 
-pub use int::CryptoInt;
-pub use uint::CryptoUint;
+pub use int::Int;
+pub use uint::Uint;

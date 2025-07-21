@@ -2,7 +2,7 @@ use ark_std::{str::FromStr, vec, vec::Vec, UniformRand};
 
 use crate::{
     biginteger::BigInt,
-    crypto_int::CryptoInt,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::DenseMultilinearExtension,
@@ -15,10 +15,10 @@ const I: usize = 1;
 const N: usize = 2;
 
 type TestZip = MultilinearZip<
-    CryptoInt<I>,
-    CryptoInt<{ 2 * I }>,
-    CryptoInt<{ 4 * I }>,
-    CryptoInt<{ 8 * I }>,
+    Int<I>,
+    Int<{ 2 * I }>,
+    Int<{ 4 * I }>,
+    Int<{ 8 * I }>,
     ZipSpec1,
     KeccakTranscript,
 >;
@@ -28,7 +28,7 @@ fn test_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations: Vec<_> = (0..8).map(CryptoInt::<I>::from).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
 
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
@@ -43,7 +43,7 @@ fn test_failing_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations: Vec<_> = (0..16).map(CryptoInt::<I>::from).collect();
+    let evaluations: Vec<_> = (0..16).map(Int::<I>::from).collect();
     let n = 4;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -62,7 +62,7 @@ fn test_zip_opening() {
 
     let mut transcript = PcsTranscript::<RandomField<N>>::new();
 
-    let evaluations: Vec<_> = (0..8).map(CryptoInt::<I>::from).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -84,7 +84,7 @@ fn test_failing_zip_evaluation() {
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
-    let evaluations: Vec<_> = (0..8).map(CryptoInt::<I>::from).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -115,15 +115,13 @@ fn test_zip_evaluation() {
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
     let evaluations: Vec<_> = (0..(1 << n))
-        .map(|_| CryptoInt::<I>::from(i8::rand(&mut rng)))
+        .map(|_| Int::<I>::from(i8::rand(&mut rng)))
         .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
     let (data, comm) = TestZip::commit::<RandomField<N>>(&param, &mle).unwrap();
 
-    let point: Vec<_> = (0..n)
-        .map(|_| CryptoInt::<I>::from(i8::rand(&mut rng)))
-        .collect();
+    let point: Vec<_> = (0..n).map(|_| Int::<I>::from(i8::rand(&mut rng))).collect();
     let eval: F = mle.evaluate(&point).unwrap().map_to_field(config);
 
     let point = point.map_to_field(config);
@@ -148,11 +146,11 @@ fn test_zip_batch_evaluation() {
     let m = 10;
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
-    let evaluations: Vec<Vec<CryptoInt<I>>> = (0..m)
+    let evaluations: Vec<Vec<Int<I>>> = (0..m)
         .map(|_| {
             (0..(1 << n))
-                .map(|_| CryptoInt::<I>::from(i8::rand(&mut rng)))
-                .collect::<Vec<CryptoInt<I>>>()
+                .map(|_| Int::<I>::from(i8::rand(&mut rng)))
+                .collect::<Vec<Int<I>>>()
         })
         .collect();
 
@@ -163,9 +161,7 @@ fn test_zip_batch_evaluation() {
 
     let commitments: Vec<_> = TestZip::batch_commit::<RandomField<N>>(&param, &mles).unwrap();
     let (data, commitments): (Vec<_>, Vec<_>) = commitments.into_iter().unzip();
-    let point: Vec<_> = (0..n)
-        .map(|_| CryptoInt::<I>::from(i8::rand(&mut rng)))
-        .collect();
+    let point: Vec<_> = (0..n).map(|_| Int::<I>::from(i8::rand(&mut rng))).collect();
     let eval: Vec<_> = mles
         .iter()
         .map(|mle| mle.evaluate(&point).unwrap().map_to_field(config))

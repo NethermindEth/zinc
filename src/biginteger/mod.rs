@@ -28,9 +28,9 @@ use zeroize::Zeroize;
 use crate::{
     adc,
     const_helpers::SerBuffer,
-    crypto_int::CryptoInt,
+    crypto_int::Int,
     field_config,
-    traits::{CryptoInteger, CryptoUinteger, FromBytes, Integer},
+    traits::{BigInteger, FromBytes, Integer, Uinteger},
 };
 
 #[macro_use]
@@ -585,7 +585,7 @@ impl<const N: usize> BigInt<N> {
     }
 }
 
-impl<const N: usize> Integer for BigInt<N> {
+impl<const N: usize> BigInteger for BigInt<N> {
     type W = Words<N>;
     fn to_words(&self) -> Words<N> {
         Words(self.0)
@@ -798,13 +798,13 @@ impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
 }
 
 // Only returns the absolute value for the integer
-impl<const M: usize, const N: usize> From<CryptoInt<M>> for BigInt<N> {
-    fn from(value: CryptoInt<M>) -> Self {
+impl<const M: usize, const N: usize> From<Int<M>> for BigInt<N> {
+    fn from(value: Int<M>) -> Self {
         Self::from(&value)
     }
 }
-impl<const M: usize, const N: usize> From<&CryptoInt<M>> for BigInt<N> {
-    fn from(value: &CryptoInt<M>) -> Self {
+impl<const M: usize, const N: usize> From<&Int<M>> for BigInt<N> {
+    fn from(value: &Int<M>) -> Self {
         let abs = value.abs();
         let words = abs.to_words();
         let min_width = M.min(N);
@@ -816,21 +816,21 @@ impl<const M: usize, const N: usize> From<&CryptoInt<M>> for BigInt<N> {
     }
 }
 
-impl<const M: usize, const N: usize> From<BigInt<N>> for CryptoInt<M> {
-    fn from(value: BigInt<N>) -> CryptoInt<M> {
+impl<const M: usize, const N: usize> From<BigInt<N>> for Int<M> {
+    fn from(value: BigInt<N>) -> Int<M> {
         (&value).into()
     }
 }
 
-impl<const M: usize, const N: usize> From<&BigInt<N>> for CryptoInt<M> {
-    fn from(value: &BigInt<N>) -> CryptoInt<M> {
+impl<const M: usize, const N: usize> From<&BigInt<N>> for Int<M> {
+    fn from(value: &BigInt<N>) -> Int<M> {
         let words = value.to_words();
         let min_width = M.min(N);
 
         let mut result = [0u64; M];
         result[..min_width].copy_from_slice(&words[..min_width]);
 
-        CryptoInt::from_words(Words(result))
+        Int::from_words(Words(result))
     }
 }
 

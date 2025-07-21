@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
-    traits::{CryptoInteger, Field, FieldMap},
+    traits::{Field, FieldMap, Integer},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
@@ -17,8 +17,7 @@ use crate::{
     },
 };
 
-impl<I: CryptoInteger, L: CryptoInteger, K: CryptoInteger, M: CryptoInteger, S, T>
-    MultilinearZip<I, L, K, M, S, T>
+impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,
@@ -31,7 +30,7 @@ where
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         point: &[F],
-        field: F::Cr,
+        field: F::R,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error>
     where
@@ -53,7 +52,7 @@ where
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
         points: &[Vec<F>],
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         I: FieldMap<F, Output = F> + 'a,
@@ -71,7 +70,7 @@ where
         transcript: &mut PcsTranscript<F>,
         point: &[F],
         poly: &Self::Polynomial,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         I: FieldMap<F, Output = F>,
@@ -102,7 +101,7 @@ where
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr, // This is only needed to called the transcript but we are getting integers not fields
+        field: F::R, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations

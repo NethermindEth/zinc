@@ -6,24 +6,24 @@ use ark_std::{
 };
 use crypto_bigint::{
     subtle::{Choice, ConstantTimeEq},
-    Int, NonZero, Random,
+    Int as CryptoInt, NonZero, Random,
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
     biginteger::{BigInt, Words},
-    crypto_int::uint::CryptoUint,
-    traits::CryptoInteger,
+    crypto_int::uint::Uint,
+    traits::Integer,
     zip::pcs::utils::ToBytes,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct CryptoInt<const N: usize>(pub(crate) Int<N>);
+pub struct Int<const N: usize>(pub(crate) CryptoInt<N>);
 
-impl<const N: usize> Zero for CryptoInt<N> {
+impl<const N: usize> Zero for Int<N> {
     #[inline]
     fn zero() -> Self {
-        Self(Int::zero())
+        Self(CryptoInt::zero())
     }
 
     #[inline]
@@ -32,7 +32,7 @@ impl<const N: usize> Zero for CryptoInt<N> {
     }
 }
 
-impl<const N: usize> Add<Self> for CryptoInt<N> {
+impl<const N: usize> Add<Self> for Int<N> {
     type Output = Self;
 
     #[inline]
@@ -41,22 +41,22 @@ impl<const N: usize> Add<Self> for CryptoInt<N> {
     }
 }
 
-impl<const N: usize> ConstZero for CryptoInt<N> {
-    const ZERO: Self = Self(Int::ZERO);
+impl<const N: usize> ConstZero for Int<N> {
+    const ZERO: Self = Self(CryptoInt::ZERO);
 }
 
-impl<const N: usize> One for CryptoInt<N> {
+impl<const N: usize> One for Int<N> {
     #[inline]
     fn one() -> Self {
-        Self(Int::one())
+        Self(CryptoInt::one())
     }
 }
 
-impl<const N: usize> ConstOne for CryptoInt<N> {
-    const ONE: Self = Self(Int::ONE);
+impl<const N: usize> ConstOne for Int<N> {
+    const ONE: Self = Self(CryptoInt::ONE);
 }
 
-impl<const N: usize> Mul<Self> for CryptoInt<N> {
+impl<const N: usize> Mul<Self> for Int<N> {
     type Output = Self;
 
     #[inline]
@@ -65,21 +65,21 @@ impl<const N: usize> Mul<Self> for CryptoInt<N> {
     }
 }
 
-impl<const N: usize> ConstantTimeEq for CryptoInt<N> {
+impl<const N: usize> ConstantTimeEq for Int<N> {
     #[inline]
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
     }
 }
 
-impl<const N: usize> PartialOrd for CryptoInt<N> {
+impl<const N: usize> PartialOrd for Int<N> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.0.partial_cmp(&other.0)
     }
 }
 
-impl<const N: usize> RemAssign<Self> for CryptoInt<N> {
+impl<const N: usize> RemAssign<Self> for Int<N> {
     #[inline]
     fn rem_assign(&mut self, rhs: Self) {
         self.0.rem_assign(
@@ -88,7 +88,7 @@ impl<const N: usize> RemAssign<Self> for CryptoInt<N> {
     }
 }
 
-impl<'a, const N: usize> Add<&'a Self> for CryptoInt<N> {
+impl<'a, const N: usize> Add<&'a Self> for Int<N> {
     type Output = Self;
 
     #[inline]
@@ -97,7 +97,7 @@ impl<'a, const N: usize> Add<&'a Self> for CryptoInt<N> {
     }
 }
 
-impl<'a, const N: usize> Mul<&'a Self> for CryptoInt<N> {
+impl<'a, const N: usize> Mul<&'a Self> for Int<N> {
     type Output = Self;
 
     #[inline]
@@ -106,14 +106,14 @@ impl<'a, const N: usize> Mul<&'a Self> for CryptoInt<N> {
     }
 }
 
-impl<'a, const N: usize> AddAssign<&'a Self> for CryptoInt<N> {
+impl<'a, const N: usize> AddAssign<&'a Self> for Int<N> {
     #[inline]
     fn add_assign(&mut self, rhs: &'a Self) {
         self.0 += &rhs.0;
     }
 }
 
-impl<'a, const N: usize> Sub<&'a Self> for CryptoInt<N> {
+impl<'a, const N: usize> Sub<&'a Self> for Int<N> {
     type Output = Self;
 
     #[inline]
@@ -122,56 +122,56 @@ impl<'a, const N: usize> Sub<&'a Self> for CryptoInt<N> {
     }
 }
 
-impl<const N: usize> From<i64> for CryptoInt<N> {
+impl<const N: usize> From<i64> for Int<N> {
     #[inline]
     fn from(value: i64) -> Self {
-        Self(Int::from(value))
+        Self(CryptoInt::from(value))
     }
 }
 
-impl<const N: usize> From<i32> for CryptoInt<N> {
+impl<const N: usize> From<i32> for Int<N> {
     #[inline]
     fn from(value: i32) -> Self {
-        Self(Int::from(value))
+        Self(CryptoInt::from(value))
     }
 }
 
-impl<const N: usize> From<i8> for CryptoInt<N> {
+impl<const N: usize> From<i8> for Int<N> {
     #[inline]
     fn from(value: i8) -> Self {
-        Self(Int::from(value))
+        Self(CryptoInt::from(value))
     }
 }
 
-impl<const N: usize> From<u8> for CryptoInt<N> {
+impl<const N: usize> From<u8> for Int<N> {
     #[inline]
     fn from(value: u8) -> Self {
-        Self(Int::from(value as i8))
+        Self(CryptoInt::from(value as i8))
     }
 }
 
-impl<const N: usize> Default for CryptoInt<N> {
+impl<const N: usize> Default for Int<N> {
     #[inline]
     fn default() -> Self {
-        Self(Int::default())
+        Self(CryptoInt::default())
     }
 }
 
-impl<const N: usize> Random for CryptoInt<N> {
+impl<const N: usize> Random for Int<N> {
     #[inline]
     fn random(rng: &mut (impl RngCore + ?Sized)) -> Self {
-        Self(Int::random(rng))
+        Self(CryptoInt::random(rng))
     }
 }
 
-impl<'a, const N: usize, const M: usize> From<&'a CryptoInt<M>> for CryptoInt<N> {
+impl<'a, const N: usize, const M: usize> From<&'a Int<M>> for Int<N> {
     #[inline]
-    fn from(value: &'a CryptoInt<M>) -> Self {
-        Self(Int::from(&value.0))
+    fn from(value: &'a Int<M>) -> Self {
+        Self(CryptoInt::from(&value.0))
     }
 }
 
-impl<const N: usize> ToBytes for CryptoInt<N> {
+impl<const N: usize> ToBytes for Int<N> {
     // Manual impl for generic type
     fn to_bytes(&self) -> Vec<u8> {
         self.0
@@ -182,13 +182,13 @@ impl<const N: usize> ToBytes for CryptoInt<N> {
     }
 }
 
-impl<const N: usize> CryptoInteger for CryptoInt<N> {
-    type W = crate::biginteger::Words<N>;
-    type Uint = CryptoUint<N>;
+impl<const N: usize> Integer for Int<N> {
+    type W = Words<N>;
+    type Uint = Uint<N>;
     type I = BigInt<N>;
 
     fn from_words(words: Words<N>) -> Self {
-        Self(Int::from_words(words.0))
+        Self(CryptoInt::from_words(words.0))
     }
 
     fn as_words(&self) -> &[u64] {
@@ -196,10 +196,10 @@ impl<const N: usize> CryptoInteger for CryptoInt<N> {
     }
 
     fn from_i64(value: i64) -> Self {
-        Self(Int::from_i64(value))
+        Self(CryptoInt::from_i64(value))
     }
 
     fn abs(&self) -> Self::Uint {
-        CryptoUint(self.0.abs())
+        Uint(self.0.abs())
     }
 }

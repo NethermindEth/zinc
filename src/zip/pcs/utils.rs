@@ -7,7 +7,7 @@ use crate::{
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    traits::{CryptoInteger, Field},
+    traits::{Field, Integer},
     zip::{
         pcs_transcript::PcsTranscript,
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
@@ -24,7 +24,7 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, I: CryptoInteger + 'a, F: Field + 'a>(
+pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
     function: &str,
     param_num_vars: usize,
     polys: impl Iterable<Item = &'a MLE_Z<I>>,
@@ -214,7 +214,7 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<F: Field, I: CryptoInteger, M: CryptoInteger>(
+    pub fn open_at_column<F: Field, I: Integer, M: Integer>(
         column: usize,
         commit_data: &MultilinearZipData<I, M>,
         transcript: &mut PcsTranscript<F>,
@@ -249,7 +249,7 @@ impl ColumnOpening {
 pub(super) fn point_to_tensor<F: Field>(
     num_rows: usize,
     point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<(Vec<F>, Vec<F>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
@@ -275,7 +275,7 @@ pub(super) fn point_to_tensor<F: Field>(
 pub(super) fn left_point_to_tensor<F: Field>(
     num_rows: usize,
     point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<Vec<F>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
@@ -292,7 +292,7 @@ mod tests {
     use crypto_bigint::Random;
 
     use super::*;
-    use crate::{crypto_int::CryptoInt, zip::utils::combine_rows};
+    use crate::{crypto_int::Int, zip::utils::combine_rows};
 
     #[test]
     fn test_basic_combination() {
@@ -338,8 +338,8 @@ mod tests {
         let leaves_len = 1024;
         let mut rng = ark_std::test_rng();
         let leaves_data = (0..leaves_len)
-            .map(|_| CryptoInt::random(&mut rng))
-            .collect::<Vec<CryptoInt<N>>>();
+            .map(|_| Int::random(&mut rng))
+            .collect::<Vec<Int<N>>>();
 
         let merkle_depth = leaves_data.len().next_power_of_two().ilog2() as usize;
         let merkle_tree = MerkleTree::new(merkle_depth, &leaves_data);

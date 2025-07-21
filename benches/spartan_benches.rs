@@ -3,7 +3,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
-    crypto_int::CryptoInt,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     traits::{Config, ConfigReference},
@@ -24,7 +24,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> {
+    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> {
         // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
         data: PhantomData,
     };
@@ -34,7 +34,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
@@ -44,7 +44,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
                 KeccakTranscript::new,
                 |mut prover_transcript| {
                     black_box(
-                        SpartanProver::<CryptoInt<I>, _>::prove(
+                        SpartanProver::<Int<I>, _>::prove(
                             &prover,
                             &statement_f,
                             &z_ccs,
@@ -71,9 +71,9 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
-    let verifier = ZincVerifier::<CryptoInt<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
+    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
@@ -81,12 +81,12 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
         let mut prover_transcript = KeccakTranscript::new();
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<CryptoInt<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
+            ZincProver::<Int<I>, RandomField<N>, ZipSpec1>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
 
-        let (spartan_proof, _) = SpartanProver::<CryptoInt<I>, _>::prove(
+        let (spartan_proof, _) = SpartanProver::<Int<I>, _>::prove(
             &prover,
             &statement_f,
             &z_ccs,

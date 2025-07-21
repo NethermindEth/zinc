@@ -17,7 +17,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    traits::{ConfigReference, CryptoInteger, Field, FieldMap},
+    traits::{ConfigReference, Field, FieldMap, Integer},
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
@@ -32,27 +32,27 @@ use crate::{
 pub type SpartanResult<T, F> = Result<T, SpartanError<F>>;
 pub type ZincResult<T, F> = Result<T, ZincError<F>>;
 
-pub trait Prover<I: CryptoInteger, F: Field> {
+pub trait Prover<I: Integer, F: Field> {
     fn prove<I2, I4, I8>(
         &self,
         statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<ZincProof<I, F>, ZincError<F>>
     where
-        I8: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: CryptoInteger + for<'a> From<&'a I>,
+        I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
+        I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
+        I2: Integer + for<'a> From<&'a I>,
         KeccakTranscript: ZipTranscript<I2>;
 }
 
-impl<I: CryptoInteger, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
 where
-    for<'a> I: From<&'a F::I>,
-    for<'a> F::CryptoInt: From<&'a I::I>, // TODO
-    F::I: From<I>,
+    for<'a> I: From<&'a F::B>,
+    for<'a> F::I: From<&'a I::I>, // TODO
+    F::B: From<I>,
     I: FieldMap<F, Output = F>,
 {
     fn prove<I2, I4, I8>(
@@ -61,12 +61,12 @@ where
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> ZincResult<ZincProof<I, F>, F>
     where
-        I8: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: CryptoInteger + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: CryptoInteger + for<'a> From<&'a I>,
+        I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
+        I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
+        I2: Integer + for<'a> From<&'a I>,
         KeccakTranscript: ZipTranscript<I2>,
     {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
@@ -97,7 +97,7 @@ where
     }
 }
 /// Prover for the Spartan protocol
-pub trait SpartanProver<I: CryptoInteger, F: Field> {
+pub trait SpartanProver<I: Integer, F: Field> {
     /// Generates a proof for the spartan protocol
     ///
     /// # Arguments
@@ -124,15 +124,15 @@ pub trait SpartanProver<I: CryptoInteger, F: Field> {
         z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<I: CryptoInteger, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
 where
-    for<'a> I: From<&'a F::I>,
-    for<'a> F::CryptoInt: From<&'a I::I>, // TODO
-    F::I: From<I>,
+    for<'a> I: From<&'a F::B>,
+    for<'a> F::I: From<&'a I::I>, // TODO
+    F::B: From<I>,
     I: FieldMap<F, Output = F>,
 {
     fn prove(
@@ -142,7 +142,7 @@ where
         z_mle: &DenseMultilinearExtensionZ<I>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F> {
         // Do first Sumcheck
         let (sumcheck_proof_1, r_x, mz_mles) =
@@ -169,11 +169,11 @@ where
     }
 }
 
-impl<I: CryptoInteger, F: Field, S: ZipSpec> ZincProver<I, F, S>
+impl<I: Integer, F: Field, S: ZipSpec> ZincProver<I, F, S>
 where
-    for<'a> I: From<&'a F::I>,
-    for<'a> F::CryptoInt: From<&'a I::I>, // TODO
-    F::I: From<I>,
+    for<'a> I: From<&'a F::B>,
+    for<'a> F::I: From<&'a I::I>, // TODO
+    F::B: From<I>,
     I: FieldMap<F, Output = F>,
 {
     pub type DenseMleF = DenseMultilinearExtension<F>;
@@ -187,7 +187,7 @@ where
         statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(Vec<F>, Self::DenseMleZ, Self::CcsF, Self::StatementF), F> {
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, ccs, config);
@@ -203,7 +203,7 @@ where
         transcript: &mut KeccakTranscript,
         constraints: &[SparseMatrix<F>],
         ccs: &Self::CcsF,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(Vec<Self::DenseMleF>, usize, Vec<Self::DenseMleF>), F> {
         // Generate beta challenges from Step 1
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
@@ -222,7 +222,7 @@ where
         statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> (Vec<F>, Self::DenseMleZ) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
@@ -243,7 +243,7 @@ where
         transcript: &mut KeccakTranscript,
         statement: &Self::StatementF,
         ccs: &Self::CcsF,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(SumcheckProof<F>, Vec<F>, Vec<Self::DenseMleF>), F> {
         let (g_mles, g_degree, mz_mles) = {
             Self::construct_polynomial_g(z_ccs, transcript, &statement.constraints, ccs, config)?
@@ -261,7 +261,7 @@ where
         r_a: &[F],
         ccs: &Self::CcsF,
         statement: &Self::StatementF,
-        config: F::Cr,
+        config: F::R,
         z_mle: &Self::DenseMleF,
         transcript: &mut KeccakTranscript,
     ) -> SpartanResult<(SumcheckProof<F>, Vec<F>), F> {
@@ -291,7 +291,7 @@ where
 
         let evals_mle =
             DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
-                F::Cr::new(ccs.config.load(Ordering::Acquire))
+                F::R::new(ccs.config.load(Ordering::Acquire))
             });
 
         sumcheck_2_mles.push(evals_mle);
@@ -306,12 +306,12 @@ where
         ccs: &Self::CcsF,
         r_y: &[F],
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<ZipProof<I, F>, F>
     where
-        I8: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I>,
-        I4: CryptoInteger + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,
-        I2: CryptoInteger + for<'a> From<&'a I>,
+        I8: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I>,
+        I4: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,
+        I2: Integer + for<'a> From<&'a I>,
         KeccakTranscript: ZipTranscript<I2>,
     {
         let param = MultilinearZip::<I, I2, I4, I8, S, _>::setup(ccs.m, transcript);
@@ -341,7 +341,7 @@ where
     fn calculate_V_s(
         mz_mles: &[Self::DenseMleF],
         r_x: &[F],
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<Vec<F>, F> {
         let V_s: Result<Vec<F>, MleEvaluationError> = mz_mles
             .iter()
@@ -363,7 +363,7 @@ where
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[F]) -> F + Send + Sync,
-        config: F::Cr,
+        config: F::R,
     ) -> SpartanResult<(SumcheckProof<F>, Vec<F>), F> {
         let (sum_check_proof, prover_state) =
             MLSumcheck::prove_as_subprotocol(transcript, mles, nvars, degree, &comb_fn, config);

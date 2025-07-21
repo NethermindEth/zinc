@@ -2,12 +2,11 @@ use ark_std::{vec::Vec, Zero};
 
 use crate::{
     biginteger::BigInt,
-    crypto_int::CryptoInt,
+    crypto_int::Int,
     field::{RandomField, RandomField::Raw},
     field_config::ConfigRef,
     traits::{
-        Config, ConfigReference, CryptoInteger, CryptoUinteger, Field, FieldMap, FromBytes,
-        Integer, Words,
+        BigInteger, Config, ConfigReference, Field, FieldMap, FromBytes, Integer, Uinteger, Words,
     },
 };
 
@@ -76,7 +75,7 @@ macro_rules! impl_field_map_for_int {
         impl<F: Field> FieldMap<F> for $t {
             type Output = F;
 
-            fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+            fn map_to_field(&self, config_ref: F::R) -> Self::Output {
                 let config = match config_ref.reference() {
                     Some(config) => config,
                     None => {
@@ -91,11 +90,11 @@ macro_rules! impl_field_map_for_int {
                 if (ark_std::mem::size_of::<$t>() + 7) / 8 > 1 && F::W::num_words() > 1 {
                     words[1] = ((value as u128) >> 64) as u64;
                 }
-                let mut value = F::CryptoUint::from_words(words).as_int();
-                let modulus = F::CryptoInt::from_words(config.modulus().to_words());
+                let mut value = F::U::from_words(words).as_int();
+                let modulus = F::I::from_words(config.modulus().to_words());
 
                 value %= modulus;
-                let mut value = F::I::from(value);
+                let mut value = F::B::from(value);
                 config.mul_assign(&mut value, config.r2());
 
                 let mut r = F::new_unchecked(config_ref, value);
@@ -127,13 +126,13 @@ impl_field_map_for_int!(usize);
 impl<F: Field> FieldMap<F> for bool {
     type Output = F;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         let config = match config_ref.reference() {
             Some(config) => config,
             None => panic!("Cannot convert boolean to prime field element without a modulus"),
         };
 
-        let mut r = F::I::from(*self as u64);
+        let mut r = F::B::from(*self as u64);
         config.mul_assign(&mut r, config.r2());
         F::new_unchecked(config_ref, r)
     }
@@ -141,19 +140,19 @@ impl<F: Field> FieldMap<F> for bool {
 
 impl<F: Field> FieldMap<F> for &bool {
     type Output = F;
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         (*self).map_to_field(config_ref)
     }
 }
 
 // Implementation for Int<N>
-impl<F: Field, T: CryptoInteger> FieldMap<F> for T
+impl<F: Field, T: Integer> FieldMap<F> for T
 where
     T::I: FieldMap<F, Output = F>,
 {
     type Output = F;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         let local_type_bigint = T::I::from(self);
         let res = local_type_bigint.map_to_field(config_ref);
         if self < &<T as Zero>::zero() {
@@ -166,27 +165,27 @@ where
 // Implementation of FieldMap for BigInt<N>
 impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
 where
-    for<'a> CryptoInt<M>: From<&'a F::I>,
-    F::I: From<CryptoInt<M>>,
-    for<'a> F::CryptoInt: From<&'a BigInt<M>>,
+    for<'a> Int<M>: From<&'a F::B>,
+    F::B: From<Int<M>>,
+    for<'a> F::I: From<&'a BigInt<M>>,
 {
     type Output = F;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         let config = match config_ref.reference() {
             Some(config) => config,
             None => panic!("Cannot convert BigInt to prime field element without a modulus"),
         };
 
         let mut value = if M > F::W::num_words() {
-            let modulus: CryptoInt<M> = config.modulus().into();
-            let mut value: CryptoInt<M> = self.into();
+            let modulus: Int<M> = config.modulus().into();
+            let mut value: Int<M> = self.into();
             value %= modulus;
 
-            F::I::from(value)
+            F::B::from(value)
         } else {
-            let modulus: F::CryptoInt = config.modulus().into();
-            let mut value: F::CryptoInt = self.into();
+            let modulus: F::I = config.modulus().into();
+            let mut value: F::I = self.into();
             value %= modulus;
 
             value.into()
@@ -204,7 +203,7 @@ where
     BigInt<M>: FieldMap<F, Output = F>,
 {
     type Output = F;
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         (*self).map_to_field(config_ref)
     }
 }
@@ -214,7 +213,7 @@ where
 impl<F: Field, T: FieldMap<F>> FieldMap<F> for Vec<T> {
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
@@ -222,7 +221,7 @@ impl<F: Field, T: FieldMap<F>> FieldMap<F> for Vec<T> {
 impl<F: Field, T: FieldMap<F>> FieldMap<F> for &Vec<T> {
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
@@ -230,7 +229,7 @@ impl<F: Field, T: FieldMap<F>> FieldMap<F> for &Vec<T> {
 impl<F: Field, T: FieldMap<F>> FieldMap<F> for &[T] {
     type Output = Vec<T::Output>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
@@ -248,13 +247,13 @@ mod tests {
 
     fn test_from<F: Field + From<T>, T: Clone>(value: T, value_str: &str)
     where
-        F::I: FromStr,
-        <F::I as FromStr>::Err: Debug,
+        F::B: FromStr,
+        <F::B as FromStr>::Err: Debug,
     {
         let raw_element = F::from(value);
         assert_eq!(
             raw_element,
-            F::without_config(F::I::from_str(value_str).unwrap())
+            F::without_config(F::B::from_str(value_str).unwrap())
         )
     }
 

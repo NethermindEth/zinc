@@ -24,15 +24,15 @@ pub struct DenseMultilinearExtension<F: Field> {
     /// Number of variables
     pub num_vars: usize,
     /// Field in which the MLE is operating
-    pub config: F::Cr,
+    pub config: F::R,
 }
 
 impl<F: Field> DenseMultilinearExtension<F> {
-    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[F], config: F::Cr) -> Self {
+    pub fn from_evaluations_slice(num_vars: usize, evaluations: &[F], config: F::R) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
     }
 
-    pub fn evaluate(&self, point: &[F], config: F::Cr) -> Option<F> {
+    pub fn evaluate(&self, point: &[F], config: F::R) -> Option<F> {
         if point.len() == self.num_vars {
             Some(self.fixed_variables(point, config)[0].clone())
         } else {
@@ -40,7 +40,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
         }
     }
 
-    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<F>, config: F::Cr) -> Self {
+    pub fn from_evaluations_vec(num_vars: usize, evaluations: Vec<F>, config: F::R) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
             evaluations.len() <= 1 << num_vars,
@@ -65,7 +65,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
     }
 
     /// Returns the dense MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(matrix: &SparseMatrix<F>, config: F::Cr) -> Self {
+    pub fn from_matrix(matrix: &SparseMatrix<F>, config: F::R) -> Self {
         let n_vars: usize = (log2(matrix.nrows()) + log2(matrix.ncols())) as usize; // n_vars = s + s'
 
         // Matrices might need to get padded before turned into an MLE
@@ -86,7 +86,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
     }
 
     /// Takes n_vars and a dense slice and returns its dense MLE.
-    pub fn from_slice(n_vars: usize, v: &[F], config: F::Cr) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[F], config: F::R) -> Self {
         let v_padded: Vec<F> = if v.len() != (1 << n_vars) {
             // pad to 2^n_vars
             [
@@ -126,7 +126,7 @@ impl<F: Field> MultilinearExtension<F> for DenseMultilinearExtension<F> {
         self.num_vars
     }
 
-    fn rand<Rn: rand::Rng>(num_vars: usize, config: F::Cr, rng: &mut Rn) -> Self {
+    fn rand<Rn: rand::Rng>(num_vars: usize, config: F::R, rng: &mut Rn) -> Self {
         Self::from_evaluations_vec(
             num_vars,
             (0..1 << num_vars).map(|_| F::random(rng)).collect(),
@@ -140,7 +140,7 @@ impl<F: Field> MultilinearExtension<F> for DenseMultilinearExtension<F> {
         copy
     }
 
-    fn fix_variables(&mut self, partial_point: &[F], _config: F::Cr) {
+    fn fix_variables(&mut self, partial_point: &[F], _config: F::R) {
         assert!(
             partial_point.len() <= self.num_vars,
             "too many partial points"
@@ -168,7 +168,7 @@ impl<F: Field> MultilinearExtension<F> for DenseMultilinearExtension<F> {
         self.num_vars = nv - dim;
     }
 
-    fn fixed_variables(&self, partial_point: &[F], config: F::Cr) -> Self {
+    fn fixed_variables(&self, partial_point: &[F], config: F::R) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
@@ -184,7 +184,7 @@ impl<F: Field> Zero for DenseMultilinearExtension<F> {
         Self {
             num_vars: 0,
             evaluations: vec![F::zero()],
-            config: F::Cr::NONE,
+            config: F::R::NONE,
         }
     }
 

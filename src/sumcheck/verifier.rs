@@ -27,7 +27,7 @@ pub struct VerifierState<F: Field> {
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<F>,
     /// The configuration of the field that the sumcheck protocol is working in
-    config: F::Cr,
+    config: F::R,
 }
 
 /// Subclaim when verifier is convinced
@@ -41,7 +41,7 @@ pub struct SubClaim<F> {
 
 impl<F: Field> IPForMLSumcheck<F> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: F::Cr) -> VerifierState<F> {
+    pub fn verifier_init(nvars: usize, degree: usize, config: F::R) -> VerifierState<F> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -97,7 +97,7 @@ impl<F: Field> IPForMLSumcheck<F> {
     pub fn check_and_generate_subclaim(
         verifier_state: VerifierState<F>,
         asserted_sum: F,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<SubClaim<F>, SumCheckError<F>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
@@ -136,7 +136,7 @@ impl<F: Field> IPForMLSumcheck<F> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(transcript: &mut Transcript, config: F::Cr) -> VerifierMsg<F> {
+    pub fn sample_round(transcript: &mut Transcript, config: F::R) -> VerifierMsg<F> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }
@@ -147,7 +147,7 @@ impl<F: Field> IPForMLSumcheck<F> {
 /// p_i.len()-1 passing through the y-values in p_i at x = 0,..., p_i.len()-1
 /// and evaluate this  polynomial at `eval_at`. In other words, efficiently compute
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
-pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> F {
+pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F {
     // We will need these a few times
     let zero: F = 0u64.map_to_field(config);
     let one = 1u64.map_to_field(config);
@@ -293,7 +293,7 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> 
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<F: Field>(a: usize, config: F::Cr) -> F {
+fn field_factorial<F: Field>(a: usize, config: F::R) -> F {
     let mut res: F = F::one();
     for i in 1..=(a as u64) {
         res *= <u64 as FieldMap<F>>::map_to_field(&i, config);

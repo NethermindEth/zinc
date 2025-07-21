@@ -13,7 +13,7 @@ use crypto_bigint::Random;
 use itertools::Itertools;
 use zinc::{
     biginteger::BigInt,
-    crypto_int::CryptoInt,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
@@ -29,10 +29,10 @@ use zinc::{
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
 type BenchZip = MultilinearZip<
-    CryptoInt<INT_LIMBS>,
-    CryptoInt<{ 2 * INT_LIMBS }>,
-    CryptoInt<{ 4 * INT_LIMBS }>,
-    CryptoInt<{ 8 * INT_LIMBS }>,
+    Int<INT_LIMBS>,
+    Int<{ 2 * INT_LIMBS }>,
+    Int<{ 4 * INT_LIMBS }>,
+    Int<{ 8 * INT_LIMBS }>,
     ZipSpec1,
     KeccakTranscript,
 >;
@@ -47,8 +47,8 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
 
-            let row_len = <Zip<CryptoInt<INT_LIMBS>, CryptoInt<{2*INT_LIMBS}>> as LinearCodes<CryptoInt<INT_LIMBS>, CryptoInt<{8*INT_LIMBS}>>>::row_len(params.zip());
-            let codeword_len = <Zip<CryptoInt<INT_LIMBS>, CryptoInt<{2*INT_LIMBS}>> as LinearCodes<CryptoInt<INT_LIMBS>, CryptoInt<{8*INT_LIMBS}>>>::codeword_len(params.zip());
+            let row_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::row_len(params.zip());
+            let codeword_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::codeword_len(params.zip());
             b.iter(|| {
                 let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
             })
@@ -62,7 +62,7 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 
     let num_leaves = 1 << P;
     let leaves = (0..num_leaves)
-        .map(|_| CryptoInt::<INT_LIMBS>::random(&mut rng))
+        .map(|_| Int::<INT_LIMBS>::random(&mut rng))
         .collect_vec();
 
     group.bench_function(

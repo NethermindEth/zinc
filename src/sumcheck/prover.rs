@@ -14,7 +14,7 @@ use crate::{
     field::RandomField,
     field_config::ConfigRef,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{ConfigReference, FieldMap},
+    traits::{ConfigReference, Field, FieldMap},
 };
 
 /// Prover Message
@@ -25,11 +25,11 @@ pub struct ProverMsg<F> {
 }
 
 /// Prover State
-pub struct ProverState<F, Cr> {
+pub struct ProverState<F: Field> {
     /// sampled randomness given by the verifier
     pub randomness: Vec<F>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<F, Cr>>,
+    pub mles: Vec<DenseMultilinearExtension<F>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -41,10 +41,10 @@ pub struct ProverState<F, Cr> {
 impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
     pub fn prover_init(
-        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
+        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>> {
+    ) -> ProverState<RandomField<'cfg, N>> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
@@ -62,7 +62,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>, ConfigRef<'cfg,
     ///
     /// Adapted Jolt's sumcheck implementation
     pub fn prove_round(
-        prover_state: &mut ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+        prover_state: &mut ProverState<RandomField<'cfg, N>>,
         v_msg: &Option<VerifierMsg<RandomField<'cfg, N>>>,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,

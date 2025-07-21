@@ -23,24 +23,21 @@ use crate::{
         mle::DenseMultilinearExtension,
         polynomials::{random_mle_list, RefCounter},
     },
-    traits::FieldMap,
+    traits::{Field, FieldMap},
 };
 
 #[allow(clippy::type_complexity)]
-pub fn rand_poly<'cfg, const N: usize>(
+pub fn rand_poly<F: Field>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: ConfigRef<'cfg, N>,
+    config: F::Cr,
     rng: &mut impl RngCore,
 ) -> Result<
     (
-        (
-            Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
-            usize,
-        ),
-        Vec<(RandomField<'cfg, N>, Vec<usize>)>,
-        RandomField<'cfg, N>,
+        (Vec<DenseMultilinearExtension<F>>, usize),
+        Vec<(F, Vec<usize>)>,
+        F,
     ),
     ArithErrors,
 > {
@@ -58,7 +55,7 @@ pub fn rand_poly<'cfg, const N: usize>(
             .map(|p| RefCounter::into_inner(p).unwrap())
             .collect::<Vec<_>>();
 
-        let coefficient = RandomField::<N>::rand_with_config(rng, config);
+        let coefficient = F::rand_with_config(rng, config);
         mles.extend(product);
         sum += &(product_sum * coefficient);
 
@@ -117,7 +114,7 @@ pub fn eq_eval<'cfg, const N: usize>(
 pub fn build_eq_x_r<'cfg, const N: usize>(
     r: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> Result<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>, ArithErrors> {
+) -> Result<DenseMultilinearExtension<RandomField<'cfg, N>>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 

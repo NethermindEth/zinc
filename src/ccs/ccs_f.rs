@@ -147,8 +147,8 @@ impl<F: Field> Statement_F<F> {
 
 /// A representation of a linearised CCS statement
 #[derive(Debug, Clone, PartialEq)]
-pub struct LStatement<F, CR> {
-    constraints: Vec<SparseMultilinearExtension<F, CR>>,
+pub struct LStatement<F: Field> {
+    constraints: Vec<SparseMultilinearExtension<F>>,
     r: Vec<F>,
 }
 
@@ -161,9 +161,9 @@ pub struct Witness_F<F> {
 
 /// A representation of a linearised CCS witness.
 #[derive(Debug, Clone, PartialEq)]
-pub struct LWitness<F, C> {
+pub struct LWitness<F: Field> {
     /// `w_ccs` is the original CCS witness.
-    pub lw_ccs: DenseMultilinearExtension<F, C>,
+    pub lw_ccs: DenseMultilinearExtension<F>,
 }
 
 impl<F: Field> Witness_F<F> {
@@ -351,7 +351,7 @@ mod tests {
         let mut rng = ark_std::test_rng();
         let n = 1 << 13;
         let (z, ccs, statement, _) =
-            get_dummy_ccs_F_from_z_length::<N>(n, &mut rng, ConfigRef::from(&config));
+            get_dummy_ccs_F_from_z_length::<RandomField<N>>(n, &mut rng, ConfigRef::from(&config));
 
         let res = ccs.check_relation(&statement.constraints, &z);
         assert!(res.is_ok())

@@ -52,17 +52,11 @@ use crate::{
 pub fn prepare_lin_sumcheck_polynomial<'cfg, const N: usize>(
     c: &[RandomField<'cfg, N>],
     d: &usize,
-    M_mles: &[DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>],
+    M_mles: &[DenseMultilinearExtension<RandomField<'cfg, N>>],
     S: &[Vec<usize>],
     beta_s: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> Result<
-    (
-        Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
-        usize,
-    ),
-    SpartanError,
-> {
+) -> Result<(Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>, usize), SpartanError> {
     let len = 1 + c
         .iter()
         .enumerate()
@@ -143,7 +137,7 @@ pub(super) fn calculate_Mz_mles<'cfg, E, const N: usize>(
     ccs_s: usize,
     z_ccs: &[RandomField<'cfg, N>],
     config: ConfigRef<'cfg, N>,
-) -> Result<Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>, E>
+) -> Result<Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>, E>
 where
     E: From<MleEvaluationError> + From<CSError> + Sync + Send,
 {
@@ -158,7 +152,7 @@ fn to_mles_err<'cfg, const N: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
     config: ConfigRef<'cfg, N>,
-) -> Result<Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>, E>
+) -> Result<Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>, E>
 where
     I: IntoIterator<Item = Result<Vec<RandomField<'cfg, N>>, E1>>,
     E: From<MleEvaluationError> + From<E1>,

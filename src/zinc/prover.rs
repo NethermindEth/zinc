@@ -159,7 +159,7 @@ impl<'cfg, const I: usize, const N: usize, S: ZipSpec> SpartanProver<I, RandomFi
 }
 
 impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
-    pub type DenseMleF<'cfg> = DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>;
+    pub type DenseMleF<'cfg> = DenseMultilinearExtension<RandomField<'cfg, N>>;
     pub type DenseMleZ = DenseMultilinearExtensionZ<I>;
     pub type CcsF<'cfg> = CCS_F<RandomField<'cfg, N>>;
 
@@ -352,7 +352,7 @@ impl<const I: usize, const N: usize, S: ZipSpec> ZincProver<I, N, S> {
         let V_s: Result<Vec<RandomField<'cfg, N>>, MleEvaluationError> = mz_mles
             .iter()
             .map(
-                |mle: &DenseMultilinearExtension<RandomField<N>, ConfigRef<N>>| -> Result<RandomField<N>, MleEvaluationError> {
+                |mle: &DenseMultilinearExtension<RandomField<N>>| -> Result<RandomField<N>, MleEvaluationError> {
                     mle.evaluate(r_x, config)
                         .ok_or(MleEvaluationError::IncorrectLength(r_x.len(), mle.num_vars))
                 },

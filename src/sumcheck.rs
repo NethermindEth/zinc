@@ -52,14 +52,14 @@ impl<'cfg, const N: usize> MLSumcheck<'cfg, N> {
     /// Both of these allow this sumcheck to be better used as a part of a larger protocol.
     pub fn prove_as_subprotocol(
         transcript: &mut Transcript,
-        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>, ConfigRef<'cfg, N>>>,
+        mles: Vec<DenseMultilinearExtension<RandomField<'cfg, N>>>,
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[RandomField<'cfg, N>]) -> RandomField<'cfg, N> + Send + Sync,
         config: ConfigRef<'cfg, N>,
     ) -> (
         SumcheckProof<RandomField<'cfg, N>>,
-        ProverState<RandomField<'cfg, N>, ConfigRef<'cfg, N>>,
+        ProverState<RandomField<'cfg, N>>,
     ) {
         let (nvars_field, degree_field) = if N == 1 {
             (

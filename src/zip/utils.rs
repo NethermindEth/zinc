@@ -123,7 +123,6 @@ mod test {
     use num_traits::{ConstOne, ConstZero};
 
     use crate::{
-        biginteger::Words,
         crypto_int::Int,
         traits::Integer,
         zip::utils::{expand, inner_product},
@@ -139,7 +138,7 @@ mod test {
     #[test]
     fn test_expand_normal() {
         let input_words = [1u64, 2u64];
-        let input = Int::<2>::from_words(Words(input_words));
+        let input = Int::<2>::from(input_words);
         let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [1u64, 2u64, 0u64, 0u64];
@@ -148,8 +147,8 @@ mod test {
 
     #[test]
     fn test_expand_identity() {
-        let input_words = Words([42u64, 99u64]);
-        let input = Int::<2>::from_words(input_words);
+        let input_words = [42u64, 99u64];
+        let input = Int::<2>::from(input_words);
         let expanded = expand::<Int<2>, Int<2>>(&input);
 
         let expected_words = [42u64, 99u64];
@@ -159,14 +158,14 @@ mod test {
     #[test]
     #[should_panic(expected = "Cannot squeeze a wide integer into a narrow integer.")]
     fn test_expand_invalid() {
-        let input = Int::<4>::from_words(Words([1, 2, 3, 4]));
+        let input = Int::<4>::from([1, 2, 3, 4]);
         // N = 4, M = 2 → should panic
         let _ = expand::<Int<4>, Int<2>>(&input);
     }
 
     #[test]
     fn test_expand_zero_padding() {
-        let input = Int::<1>::from_words(Words([123]));
+        let input = Int::<1>::from([123]);
         let expanded = expand::<Int<1>, Int<3>>(&input);
 
         let expected_words = [123u64, 0u64, 0u64];
@@ -175,7 +174,7 @@ mod test {
 
     #[test]
     fn test_expand_all_zeros() {
-        let input = Int::<2>::from_words(Words([0u64, 0u64]));
+        let input = Int::<2>::from([0u64, 0u64]);
         let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [0u64, 0u64, 0u64, 0u64];
@@ -184,7 +183,7 @@ mod test {
     #[test]
     fn test_expand_negative_number_identity() {
         // Example negative number in two's complement for 2 words
-        let negative_val = Int::<2>::from_words(Words([!0u64, !0u64])); // -1
+        let negative_val = Int::<2>::from([!0u64, !0u64]); // -1
         let expanded = expand::<Int<2>, Int<2>>(&negative_val);
 
         assert_eq!(expanded, Int::<2>::ZERO - &Int::<2>::ONE);

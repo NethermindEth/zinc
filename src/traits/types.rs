@@ -1,8 +1,8 @@
 use ark_std::{
     fmt::Debug,
     ops::{
-        Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Sub,
-        SubAssign,
+        Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Shr,
+        Sub, SubAssign,
     },
     vec::Vec,
 };
@@ -71,7 +71,7 @@ pub trait Field:
 }
 
 /// Trait for integer types used as field element representations.
-pub trait BigInteger: From<u64> + From<u32> + Debug + FromBytes + Copy {
+pub trait BigInteger: From<u64> + From<u32> + Debug + FromBytes + Clone {
     type W: Words;
     /// Converts the integer to its word representation.
     fn to_words(&self) -> Self::W;
@@ -121,14 +121,15 @@ pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync {
 /// Trait for word-based representations of integers.
 pub trait Words:
     Default
-    + Index<usize, Output = u64>
+    + Index<usize, Output = Self::Word>
     + IndexMut<usize>
-    + Index<Range<usize>, Output = [u64]>
-    + IndexMut<Range<usize>, Output = [u64]>
-    + Index<RangeTo<usize>, Output = [u64]>
-    + IndexMut<RangeTo<usize>, Output = [u64]>
-    + Copy
+    + Index<Range<usize>, Output = [Self::Word]>
+    + IndexMut<Range<usize>, Output = [Self::Word]>
+    + Index<RangeTo<usize>, Output = [Self::Word]>
+    + IndexMut<RangeTo<usize>, Output = [Self::Word]>
+    + Clone
 {
+    type Word: PrimitiveConversions + Sized;
     /// Returns the number of words.
     fn num_words() -> usize;
 }
@@ -191,4 +192,88 @@ pub trait PrimalityTest<U: Uinteger> {
     type Inner;
     fn new(candidate: U) -> Self;
     fn is_probably_prime(&self) -> bool;
+}
+
+pub trait PrimitiveConversion<T> {
+    fn from_primitive(value: T) -> Self;
+}
+
+macro_rules! impl_single_primitive_conversion {
+    ($o:ty, $i:ty) => {
+        impl PrimitiveConversion<$i> for $o {
+            #[inline(always)]
+            fn from_primitive(value: $i) -> $o {
+                value as $o
+            }
+        }
+    };
+}
+
+macro_rules! impl_primitive_conversion {
+    ($o:ty) => {
+        impl_single_primitive_conversion!($o, u8);
+        impl_single_primitive_conversion!($o, u16);
+        impl_single_primitive_conversion!($o, u32);
+        impl_single_primitive_conversion!($o, u64);
+        impl_single_primitive_conversion!($o, u128);
+        impl_single_primitive_conversion!($o, usize);
+        impl_single_primitive_conversion!($o, i8);
+        impl_single_primitive_conversion!($o, i16);
+        impl_single_primitive_conversion!($o, i32);
+        impl_single_primitive_conversion!($o, i64);
+        impl_single_primitive_conversion!($o, i128);
+        impl_single_primitive_conversion!($o, isize);
+    };
+}
+
+impl_primitive_conversion!(u8);
+impl_primitive_conversion!(u16);
+impl_primitive_conversion!(u32);
+impl_primitive_conversion!(u64);
+impl_primitive_conversion!(u128);
+impl_primitive_conversion!(usize);
+impl_primitive_conversion!(i8);
+impl_primitive_conversion!(i16);
+impl_primitive_conversion!(i32);
+impl_primitive_conversion!(i64);
+impl_primitive_conversion!(i128);
+impl_primitive_conversion!(isize);
+
+pub trait PrimitiveConversions:
+    PrimitiveConversion<u8>
+    + PrimitiveConversion<u16>
+    + PrimitiveConversion<u32>
+    + PrimitiveConversion<u64>
+    + PrimitiveConversion<u128>
+    + PrimitiveConversion<usize>
+    + PrimitiveConversion<i8>
+    + PrimitiveConversion<i16>
+    + PrimitiveConversion<i32>
+    + PrimitiveConversion<i64>
+    + PrimitiveConversion<i128>
+    + PrimitiveConversion<isize>
+    + Shr<usize, Output = Self>
+{
+    fn bits() -> usize;
+}
+impl<T> PrimitiveConversions for T
+where
+    T: PrimitiveConversion<u8>
+        + PrimitiveConversion<u16>
+        + PrimitiveConversion<u32>
+        + PrimitiveConversion<u64>
+        + PrimitiveConversion<u128>
+        + PrimitiveConversion<usize>
+        + PrimitiveConversion<i8>
+        + PrimitiveConversion<i16>
+        + PrimitiveConversion<i32>
+        + PrimitiveConversion<i64>
+        + PrimitiveConversion<i128>
+        + PrimitiveConversion<isize>
+        + Shr<usize, Output = Self>,
+{
+    #[inline(always)]
+    fn bits() -> usize {
+        size_of::<Self>() * 8
+    }
 }

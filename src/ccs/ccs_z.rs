@@ -11,10 +11,8 @@ use super::{
 };
 use crate::{
     ccs::error::CSError as Error,
-    field::RandomField,
-    field_config::ConfigRef,
     sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
-    traits::{ConfigReference, FieldMap},
+    traits::{ConfigReference, Field, FieldMap},
 };
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
@@ -131,10 +129,10 @@ impl<const I: usize> CCS_Z<I> {
     }
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>> for CCS_Z<I> {
-    type Output = CCS_F<RandomField<'cfg, N>>;
+impl<F: Field, const I: usize> FieldMap<F> for CCS_Z<I> {
+    type Output = CCS_F<F>;
 
-    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
         match config_ref.pointer() {
             Some(config_ptr) => CCS_F {
                 m: self.m,
@@ -159,21 +157,16 @@ pub struct Statement_Z<const N: usize> {
     pub public_input: Vec<Int<N>>,
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>> for Statement_Z<I> {
-    type Output = Statement_F<RandomField<'cfg, N>>;
+impl<F: Field, const I: usize> FieldMap<F> for Statement_Z<I>
+where
+    Int<I>: FieldMap<F, Output = F>,
+{
+    type Output = Statement_F<F>;
 
-    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
         Self::Output {
-            constraints: self
-                .constraints
-                .iter()
-                .map(|m| m.map_to_field(config_ref))
-                .collect(),
-            public_input: self
-                .public_input
-                .iter()
-                .map(|i| i.map_to_field(config_ref))
-                .collect(),
+            constraints: self.constraints.map_to_field(config_ref),
+            public_input: self.public_input.map_to_field(config_ref),
         }
     }
 }
@@ -191,10 +184,14 @@ impl<const N: usize> Witness_Z<N> {
     }
 }
 
-impl<'cfg, const N: usize> FieldMap<RandomField<'cfg, N>> for Witness_Z<N> {
-    type Output = Witness_F<RandomField<'cfg, N>>;
+// TODO Refactor, it might have lost performance because it's generalized over Int<M>
+impl<F: Field, const M: usize> FieldMap<F> for Witness_Z<M>
+where
+    Int<M>: FieldMap<F, Output = F>,
+{
+    type Output = Witness_F<F>;
 
-    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
         Witness_F {
             w_ccs: self
                 .w_ccs
@@ -328,9 +325,10 @@ mod tests {
     use crate::{
         biginteger::BigInt,
         ccs::{
-            ccs_f::{Arith, Instance_F},
+            ccs_f::{Arith, Instance_F, CCS_F},
             ccs_z::CCS_Z,
         },
+        field::RandomField,
         field_config::{ConfigRef, FieldConfig},
         sparse_matrix::SparseMatrix,
         traits::FieldMap,
@@ -397,7 +395,7 @@ mod tests {
 
         let config_ptr = ConfigRef::from(&config);
 
-        let ccs_f = ccs.map_to_field(config_ptr);
+        let ccs_f: CCS_F<RandomField<N>> = ccs.map_to_field(config_ptr);
         let statement_f = statement.map_to_field(config_ptr);
         let witness_f = wit.map_to_field(config_ptr);
         let z_f = statement_f.get_z_vector(&witness_f, config_ptr);

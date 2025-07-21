@@ -14,9 +14,10 @@ use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
 use crate::{
-    field::RandomField, field_config::ConfigRef, poly::ArithErrors,
+    poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
-    sparse_matrix::SparseMatrix, traits::FieldMap,
+    sparse_matrix::SparseMatrix,
+    traits::{Field, FieldMap},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -119,11 +120,12 @@ impl<const I: usize> DenseMultilinearExtension<I> {
     }
 }
 
-impl<'cfg, const I: usize, const N: usize> FieldMap<RandomField<'cfg, N>>
-    for DenseMultilinearExtension<I>
+impl<F: Field, const I: usize> FieldMap<F> for DenseMultilinearExtension<I>
+where
+    Int<I>: FieldMap<F, Output = F>,
 {
-    type Output = DenseMultilinearExtensionF<RandomField<'cfg, N>>;
-    fn map_to_field(&self, config_ref: ConfigRef<'cfg, N>) -> Self::Output {
+    type Output = DenseMultilinearExtensionF<F>;
+    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,
             self.evaluations.map_to_field(config_ref),

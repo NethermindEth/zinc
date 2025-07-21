@@ -17,7 +17,7 @@ pub mod utils;
 pub mod verifier;
 
 /// Interactive Proof for Multilinear Sumcheck
-pub struct IPForMLSumcheck<F, Cr>(PhantomData<(F, Cr)>);
+pub struct IPForMLSumcheck<F>(PhantomData<F>);
 #[derive(Error, Debug)]
 pub enum SumCheckError {
     #[error("univariate polynomial evaluation error")]

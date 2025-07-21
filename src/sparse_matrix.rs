@@ -5,7 +5,10 @@ use ark_std::{rand::Rng, vec, vec::Vec};
 use crypto_bigint::Random;
 
 use crate::{
-    field::RandomField, field_config::ConfigRef, poly::alloc::string::ToString, traits::FieldMap,
+    field::RandomField,
+    field_config::ConfigRef,
+    poly::alloc::string::ToString,
+    traits::{Field, FieldMap},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -165,13 +168,13 @@ where
     r
 }
 
-pub fn compute_eval_table_sparse<'cfg, const N: usize>(
-    M: &SparseMatrix<RandomField<'cfg, N>>,
-    rx: &[RandomField<'cfg, N>],
+pub fn compute_eval_table_sparse<F: Field>(
+    M: &SparseMatrix<F>,
+    rx: &[F],
     num_rows: usize,
     num_cols: usize,
-    config: ConfigRef<'cfg, N>,
-) -> Vec<RandomField<'cfg, N>> {
+    config: F::Cr,
+) -> Vec<F> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(
         vec![0u32.map_to_field(config); num_cols],

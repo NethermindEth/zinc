@@ -8,7 +8,10 @@ use super::{
     ccs_z::{Statement_Z, Witness_Z, CCS_Z},
 };
 use crate::{
-    field::RandomField, field_config::ConfigRef, sparse_matrix::SparseMatrix, traits::FieldMap,
+    field::RandomField,
+    field_config::ConfigRef,
+    sparse_matrix::SparseMatrix,
+    traits::{ConfigReference, FieldMap},
 };
 
 pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(

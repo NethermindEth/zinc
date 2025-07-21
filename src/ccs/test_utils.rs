@@ -175,8 +175,10 @@ pub fn get_dummy_ccs_F_from_z_length<F: Field>(
     rng: &mut impl Rng,
     config: F::Cr,
 ) -> (Vec<F>, CCS_F<F>, Statement_F<F>, Witness_F<F>) {
-    let z: Vec<_> = (0..n).map(|_| F::rand_with_config(rng, config)).collect();
+    let mut z: Vec<_> = (0..n).map(|_| F::rand_with_config(rng, config)).collect();
     let pub_io_len = 1;
+    z[pub_io_len] = 1u64.map_to_field(config);
+
     let (ccs, statement, wit) = get_dummy_ccs_F_from_z(&z, pub_io_len, config);
 
     (z, ccs, statement, wit)

@@ -634,7 +634,7 @@ impl<const N: usize> Integer<Words<N>> for BigInt<N> {
     }
 
     fn one() -> Self {
-        Self::from(1u64)
+        Self::one()
     }
 }
 

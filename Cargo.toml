@@ -54,4 +54,6 @@ harness = false
 name = "prime_generation_benches"
 harness = false
 
-
+[[bench]]
+name = "zinc_benches"
+harness = false

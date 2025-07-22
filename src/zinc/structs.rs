@@ -22,12 +22,14 @@ pub struct SpartanProof<F> {
     pub V_s: Vec<F>,
 }
 
+#[derive(Clone)]
 pub struct ZipProof<const I: usize, F> {
     pub z_comm: MultilinearZipCommitment<I>,
     pub v: F,
     pub pcs_proof: Vec<u8>,
 }
 
+#[derive(Clone)]
 pub struct ZincProof<const I: usize, F> {
     pub spartan_proof: SpartanProof<F>,
     pub zip_proof: ZipProof<I, F>,

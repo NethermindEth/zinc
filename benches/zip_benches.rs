@@ -8,15 +8,20 @@ use std::{
 
 use ark_std::test_rng;
 use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
+use crypto_bigint::{Int, Random};
 use zinc::{
     biginteger::BigInt,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
-    zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
+    zip::{
+        code::{LinearCodes, Zip, ZipSpec1},
+        pcs::{structs::MultilinearZip, MerkleTree},
+        pcs_transcript::PcsTranscript,
+    },
 };
 
 const INT_LIMBS: usize = 1;
@@ -30,21 +35,61 @@ type BenchZip = MultilinearZip<
     KeccakTranscript,
 >;
 
-fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
+fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    group.bench_function(
+        format!("EncodeRows: Int<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
+        |b| {
+            let mut rng = test_rng();
+            let mut transcript = KeccakTranscript::new();
+            let params = BenchZip::setup(1 << P, &mut transcript);
+
+            let poly = DenseMultilinearExtension::rand(P, &mut rng);
+
+            let row_len = <Zip<INT_LIMBS, {2*INT_LIMBS}> as LinearCodes<INT_LIMBS, {8*INT_LIMBS}>>::row_len(params.zip());
+            let codeword_len = <Zip<INT_LIMBS, {2*INT_LIMBS}> as LinearCodes<INT_LIMBS, {8*INT_LIMBS}>>::codeword_len(params.zip());
+            b.iter(|| {
+                    let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
+                })
+        },
+    );
+}
+
+fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    use ark_std::test_rng;
+    let mut rng = test_rng();
+
+    let num_leaves = 1 << P;
+    let leaves: Vec<Int<INT_LIMBS>> = (0..num_leaves).map(|_| Int::random(&mut rng)).collect();
+
+    group.bench_function(
+        format!("MerkleRoot: Int<{INT_LIMBS}>, leaves=2^{P}, spec={spec}"),
+        |b| {
+            b.iter(|| {
+                let tree = MerkleTree::new(P, &leaves);
+                black_box(tree.root);
+            })
+        },
+    );
+}
+
+fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     let mut rng = test_rng();
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let params = BenchZip::setup(1 << P, &mut keccak_transcript);
 
     group.bench_function(
-        format!("Commit: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
+        format!(
+            "Commit: Int<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"
+        ),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = BenchZip::commit::<FIELD_LIMBS>(&params, &poly).expect("Failed to commit");
+                    let _ =
+                        BenchZip::commit::<FIELD_LIMBS>(&params, &poly).expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -148,16 +193,14 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 fn zip_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Zip");
 
-    commit::<12>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-    commit::<16>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
+    encode_rows::<12>(&mut group, 1);
+    encode_rows::<16>(&mut group, 1);
+
+    merkle_root::<12>(&mut group, 1);
+    merkle_root::<16>(&mut group, 1);
+
+    commit::<12>(&mut group, 1);
+    commit::<16>(&mut group, 1);
 
     open::<12>(
         &mut group,

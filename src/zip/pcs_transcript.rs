@@ -122,6 +122,7 @@ impl<F: Field> PcsTranscript<F> {
         }
         Ok(())
     }
+
     // pub fn write_integers<M: CryptoInt>(&mut self, ints: &[M]) -> Result<(), Error> {
     //     for int in ints {
     //         self.write_integer(int)?;

@@ -63,6 +63,7 @@ where
     }
 
     // Subprotocol functions
+
     fn prove_evaluation_phase<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         transcript: &mut PcsTranscript<F>,
@@ -76,8 +77,8 @@ where
         let num_rows = pp.num_rows;
         let row_len = pp.linear_code.row_len();
 
-        // We prove evaluations over the field,so integers need to be mapped to field elements first
-        let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
+        // We prove evaluations over the field, so integers need to be mapped to field elements first
+        let q_0 = left_point_to_tensor(num_rows, point, field)?;
 
         let evaluations = poly.evaluations.map_to_field(field);
 
@@ -109,6 +110,8 @@ where
                 let coeffs = coeffs.iter().map(expand::<I, M>);
 
                 let evals = poly.evaluations.iter().map(expand::<I, M>);
+
+                // u' in the Zinc paper
                 let combined_row = combine_rows(coeffs, evals, pp.linear_code.row_len());
 
                 transcript.write_integers(combined_row.iter())?;
@@ -129,16 +132,18 @@ where
         column: usize,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error> {
+        let column_values = commit_data
+            .rows
+            .iter()
+            .skip(column)
+            .step_by(pp.linear_code.codeword_len());
+
         // Write the elements in the squeezed column to the shared transcript
-        transcript.write_integers(
-            commit_data
-                .rows
-                .iter()
-                .skip(column)
-                .step_by(pp.linear_code.codeword_len()),
-        )?;
+        transcript.write_integers(column_values)?;
+
         ColumnOpening::open_at_column(column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".into()))?;
+
         Ok(())
     }
 }

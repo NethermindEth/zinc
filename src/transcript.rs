@@ -130,12 +130,14 @@ impl KeccakTranscript {
         }
     }
 
+    /// Generates pseudorandom field elements as challenges based on the current transcript state.
     pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::R) -> Vec<F> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge::<F>(config)));
         challenges
     }
 
+    /// Generates a pseudorandom [CryptoInteger] as a challenge based on the current transcript state.
     pub fn get_integer_challenge<I: Integer>(&mut self) -> I {
         let mut words = I::W::default();
 
@@ -151,10 +153,12 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
+    /// Generates pseudorandom [CryptoInt]s as challenges based on the current transcript state.
     pub fn get_integer_challenges<I: Integer>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
 
+    /// Generates a pseudorandom `usize` within the given range bounds based on the current transcript state.
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
         let challenge = self.hasher.clone().finalize();
 

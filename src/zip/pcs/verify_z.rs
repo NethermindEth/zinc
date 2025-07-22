@@ -69,7 +69,8 @@ where
         field: F::R,
     ) -> Result<Vec<(usize, Vec<K>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows = Vec::with_capacity(vp.linear_code.num_proximity_testing());
+        let mut encoded_combined_rows: Vec<(Vec<I>, Vec<M>)> =
+            Vec::with_capacity(vp.linear_code.num_proximity_testing());
 
         if vp.num_rows > 1 {
             for _ in 0..vp.linear_code.num_proximity_testing() {
@@ -84,6 +85,7 @@ where
 
         let mut columns_opened: Vec<(usize, Vec<K>)> =
             Vec::with_capacity(vp.linear_code.num_column_opening());
+
         for _ in 0..vp.linear_code.num_column_opening() {
             let column_idx = transcript.squeeze_challenge_idx(field, vp.linear_code.codeword_len());
             let column_values = transcript.read_integers(vp.num_rows)?;
@@ -102,6 +104,7 @@ where
             // TODO: Verify column opening is taking a long time.
             columns_opened.push((column_idx, column_values));
         }
+
         Ok(columns_opened)
     }
 
@@ -112,12 +115,12 @@ where
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
-        let column_entries_comb = if num_rows > 1 {
-            let coeffs: Vec<_> = coeffs.iter().map(expand::<I, M>).collect();
-            let column_entries: Vec<_> = column_entries.iter().map(expand::<K, M>).collect();
+        let column_entries_comb: M = if num_rows > 1 {
+            let coeffs: Vec<M> = coeffs.iter().map(expand::<I, M>).collect();
+            let column_entries: Vec<M> = column_entries.iter().map(expand::<K, M>).collect();
             inner_product(coeffs.iter(), column_entries.iter())
         } else {
-            expand::<K, M>(&column_entries[0])
+            expand(&column_entries[0])
         };
 
         if column_entries_comb != encoded_combined_row[column] {

@@ -61,7 +61,7 @@ where
     }
 
     /// Encodes the rows of the polynomial concatenating each encoded row
-    fn encode_rows(
+    pub fn encode_rows(
         pp: &Self::ProverParam,
         codeword_len: usize,
         row_len: usize,

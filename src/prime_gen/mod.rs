@@ -1,20 +1,23 @@
-use crypto_bigint::{Integer, Odd, Uint};
+use crypto_bigint::{Integer as CryptoInteger, Odd};
 use crypto_primes::hazmat::MillerRabin;
 
-use crate::{biginteger::BigInt, transcript::KeccakTranscript};
+use crate::{
+    traits::{CryptoUint, Field, FromBytes, Integer, Words},
+    transcript::KeccakTranscript,
+};
 
-fn hash_int<const N: usize>(hasher: &mut KeccakTranscript) -> Uint<N> {
-    let n_bytes = N * 8;
+fn hash_int<F: Field>(hasher: &mut KeccakTranscript) -> F::CryptoUint {
+    let n_bytes = F::W::num_words() * 8;
     let bytes = hasher.get_random_bytes(n_bytes);
     hasher.absorb(&bytes);
-    Uint::<N>::from_be_slice(&bytes)
+    F::CryptoUint::from_bytes_be(&bytes).expect("Failed to convert bytes to CryptoUint")
 }
 
-pub fn get_prime<const N: usize>(hasher: &mut KeccakTranscript) -> BigInt<N> {
+pub fn get_prime<F: Field>(hasher: &mut KeccakTranscript) -> F::I {
     let prime = loop {
-        let mut prime_candidate: Uint<N> = hash_int(hasher);
+        let mut prime_candidate: F::CryptoUint = hash_int::<F>(hasher);
         if prime_candidate.is_even().unwrap_u8() == 1 {
-            prime_candidate -= Uint::<N>::one();
+            prime_candidate -= F::CryptoUint::one();
         }
         let mr = MillerRabin::new(Odd::new(prime_candidate).unwrap());
 
@@ -22,17 +25,17 @@ pub fn get_prime<const N: usize>(hasher: &mut KeccakTranscript) -> BigInt<N> {
             break prime_candidate;
         }
     };
-    BigInt::new(prime.to_words())
+    F::I::new(prime.to_words())
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{prime_gen::get_prime, transcript::KeccakTranscript};
+    use crate::{field::RandomField, prime_gen::get_prime, transcript::KeccakTranscript};
 
     #[test]
     fn test_prime_generator() {
         let mut hasher = KeccakTranscript::new();
         const N: usize = 3;
-        get_prime::<N>(&mut hasher);
+        get_prime::<RandomField<N>>(&mut hasher);
     }
 }

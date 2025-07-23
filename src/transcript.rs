@@ -169,7 +169,10 @@ impl KeccakTranscript {
 }
 impl<const L: usize> ZipTranscript<L> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> Int<L> {
-        self.get_integer_challenge::<L>()
+        let byte = self.get_random_bytes(1)[0];
+        // cancels all bits and depends only on whether the random byte LSB is 0 or 1
+        let bit = byte & 1;
+        Int::<L>::from(bit as i8)
     }
 
     fn sample_unique_columns(

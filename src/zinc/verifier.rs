@@ -12,64 +12,46 @@ use crate::{
     },
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
-    traits::{ConfigReference, Field, FieldMap, Integer},
+    traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::ZipLinearCodeSpec,
-        pcs::{structs::MultilinearZip, utils::ToBytes},
+        code::{ZipLinearCode, ZipLinearCodeSpec},
+        pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
-use crate::zip::pcs::structs::ZipTranscript;
 
-pub trait Verifier<I: Integer, F: Field> {
-    fn verify<I2, I4, I8>(
+pub trait Verifier<I: Integer, F: Field, S: ZipLinearCodeSpec> {
+    fn verify(
         &self,
         cm_i: &Statement_Z<I>,
         proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> Result<(), ZincError<F>>
-    where
-        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: Integer + FieldMap<F, Output = F> + ToBytes,
-        I8: Integer
-            + for<'a> From<&'a I2>
-            + for<'a> From<&'a I>
-            + for<'a> From<&'a I4>
-            + for<'a> From<&'a I4>,
-        KeccakTranscript: ZipTranscript<I2>;
+    ) -> Result<(), ZincError<F>>;
 }
 
 // TODO
-impl<I: Integer, F: Field, S: ZipLinearCodeSpec> Verifier<I, F> for ZincVerifier<I, F, S>
+impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> Verifier<ZT::N, F, S> for ZincVerifier<ZT, F, S>
 where
-    for<'a> I: From<&'a F::B>,
-    F::B: From<I>,
-    for<'a> F::I: From<&'a I::I>,
-    I: FieldMap<F, Output = F>,
+    ZT::L: FieldMap<F, Output = F>,
+    ZT::K: FieldMap<F, Output = F>,
+    ZT::N: FieldMap<F, Output = F>,
+    for<'a> ZT::N: From<&'a F::I>,
+    for<'a> F::I: From<&'a ZT::N>,
+    for<'a> F::I: From<&'a <ZT::N as Integer>::I>,
     Self: SpartanVerifier<F>,
 {
-    fn verify<I2, I4, I8>(
+    fn verify(
         &self,
-        statement: &Statement_Z<I>,
+        statement: &Statement_Z<ZT::N>,
         proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<ZT::N>,
         config: F::R,
-    ) -> Result<(), ZincError<F>>
-    where
-        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: Integer + FieldMap<F, Output = F> + ToBytes,
-        I8: Integer
-            + for<'a> From<&'a I2>
-            + for<'a> From<&'a I>
-            + for<'a> From<&'a I4>
-            + for<'a> From<&'a I4>,
-        KeccakTranscript: ZipTranscript<I2>,
-    {
-        if draw_random_field::<I, F>(&statement.public_input, transcript)
+    ) -> Result<(), ZincError<F>> {
+        if draw_random_field::<ZT::N, F>(&statement.public_input, transcript)
             != *config.reference().unwrap()
         {
             return Err(ZincError::FieldConfigError);
@@ -82,7 +64,7 @@ where
             SpartanVerifier::<F>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
                 .map_err(ZincError::SpartanError)?;
 
-        self.verify_pcs_proof::<I2, I4, I8>(
+        self.verify_pcs_proof(
             &statement_f,
             &proof.zip_proof,
             &verification_points,
@@ -120,7 +102,7 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<I: Integer, F: Field, S: ZipLinearCodeSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
+impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> SpartanVerifier<F> for ZincVerifier<ZT, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
@@ -157,7 +139,7 @@ impl<I: Integer, F: Field, S: ZipLinearCodeSpec> SpartanVerifier<F> for ZincVeri
     }
 }
 
-impl<I: Integer, F: Field, S: ZipLinearCodeSpec> ZincVerifier<I, F, S> {
+impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> ZincVerifier<ZT, F, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,
@@ -237,7 +219,7 @@ impl<I: Integer, F: Field, S: ZipLinearCodeSpec> ZincVerifier<I, F, S> {
         res
     }
 
-    fn verify_pcs_proof<I2, I4, I8>(
+    fn verify_pcs_proof(
         &self,
         cm_i: &Statement_F<F>,
         zip_proof: &ZipProof<F>,
@@ -247,20 +229,15 @@ impl<I: Integer, F: Field, S: ZipLinearCodeSpec> ZincVerifier<I, F, S> {
         config: F::R,
     ) -> Result<(), SpartanError<F>>
     where
-        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: Integer + FieldMap<F, Output = F> + ToBytes,
-        I8: Integer
-            + for<'a> From<&'a I2>
-            + for<'a> From<&'a I>
-            + for<'a> From<&'a I4>
-            + for<'a> From<&'a I4>,
-        KeccakTranscript: ZipTranscript<I2>,
+        ZT::L: FieldMap<F, Output = F>,
+        ZT::K: FieldMap<F, Output = F>,
     {
-        let param = MultilinearZip::<I, I2, I4, I8>::setup::<S, _>(ccs.m, transcript);
+        let linear_code = ZipLinearCode::<ZT>::new(&self.lc_spec, ccs.m, transcript);
+        let param = MultilinearZip::<ZT, _>::setup(ccs.m, linear_code);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<I, I2, I4, I8>::verify(
+        MultilinearZip::<ZT, _>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,

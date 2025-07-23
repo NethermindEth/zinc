@@ -18,7 +18,7 @@ pub use biginteger::{
     BigInteger448, BigInteger64, BigInteger768, BigInteger832, Words,
 };
 pub use config::{ConfigRef, DebugFieldConfig, FieldConfig};
-pub use int::{Int, RandomFieldZipTypes};
+pub use int::Int;
 pub use uint::Uint;
 #[derive(Copy, Clone)]
 pub enum RandomField<'cfg, const N: usize> {

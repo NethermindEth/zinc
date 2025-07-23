@@ -1,8 +1,13 @@
 use ark_std::{log2, marker::PhantomData};
 use zinc::{
+    define_random_field_zip_types,
     field::{ConfigRef, Int, RandomField},
+    implement_random_field_zip_types,
     zinc::prelude::*,
 };
+
+define_random_field_zip_types!();
+implement_random_field_zip_types!(1);
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
@@ -10,9 +15,9 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipLinearCodeSpec1> {
-        data: PhantomData,
-    };
+    let prover = ZincProver::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
+        ZipLinearCodeSpec1,
+    );
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
@@ -24,7 +29,7 @@ fn main() {
     let config_ref = ConfigRef::from(&field_config);
 
     let proof = prover
-        .prove::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
+        .prove(
             &statement,
             &witness,
             &mut prover_transcript,
@@ -33,13 +38,13 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipLinearCodeSpec1> {
-        data: PhantomData,
-    };
+    let verifier = ZincVerifier::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
+        ZipLinearCodeSpec1,
+    );
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier
-        .verify::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
+        .verify(
             &statement,
             proof,
             &mut verifier_transcript,
@@ -100,7 +105,7 @@ fn get_witness<const N: usize>(input: i64) -> Witness_Z<Int<N>> {
         [
             input.pow(3) + input + 5, // x^3 + x + 5
             input.pow(2),             // x^2
-            input.pow(2) * input,     // x^2 * x
+            input.pow(3) * input,     // x^2 * x
             input.pow(3) + input,     // x^3 + x
         ]
         .iter()

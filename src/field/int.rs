@@ -213,18 +213,56 @@ impl<const N: usize> Integer for Int<N> {
     }
 }
 
-use crate::traits::ZipTypes;
+/// Defines a wrapper type suitable for implementing the `ZipTypes` trait with const generics.
+///
+/// # Usage
+/// - `define_random_field_zip_types!();`
+///   Expands to `pub struct RandomFieldZipTypes<const N: usize>();`
+///
+/// - `define_random_field_zip_types!(CustomName);`
+///   Expands to `pub struct CustomName<const N: usize>();`
+///
+/// This macro allows downstream crates to define their own local wrapper types for implementing traits, in compliance with Rust's orphan rule.
+#[macro_export]
+macro_rules! define_random_field_zip_types {
+    () => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct RandomFieldZipTypes<const N: usize>();
+    };
 
-pub struct RandomFieldZipTypes<const N: usize>();
+    ($name:ident) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name<const N: usize>();
+    };
+}
 
-impl<const N: usize> ZipTypes for RandomFieldZipTypes<N>
-where
-    [(); 2 * N]:,
-    [(); 4 * N]:,
-    [(); 8 * N]:,
-{
-    type N = Int<N>;
-    type L = Int<{ 2 * N }>;
-    type K = Int<{ 4 * N }>;
-    type M = Int<{ 8 * N }>;
+/// Implements the `ZipTypes` trait for a wrapper type and a specific const parameter.
+///
+/// # Usage
+/// - `implement_random_field_zip_types!(N);`
+///   Implements `ZipTypes` for `RandomFieldZipTypes<N>`.
+///
+/// - `implement_random_field_zip_types!(TypeName, N);`
+///   Implements `ZipTypes` for `TypeName<N>`.
+///
+/// This macro reduces boilerplate and ensures consistent associated type definitions for each implementation.
+#[macro_export]
+macro_rules! implement_random_field_zip_types {
+    ($N:expr) => {
+        impl $crate::traits::ZipTypes for RandomFieldZipTypes<$N> {
+            type N = $crate::field::Int<$N>;
+            type L = $crate::field::Int<{ 2 * $N }>;
+            type K = $crate::field::Int<{ 4 * $N }>;
+            type M = $crate::field::Int<{ 8 * $N }>;
+        }
+    };
+
+    ($name:ident, $N:expr) => {
+        impl $crate::traits::ZipTypes for $name<$N> {
+            type N = $crate::field::Int<$N>;
+            type L = $crate::field::Int<{ 2 * $N }>;
+            type K = $crate::field::Int<{ 4 * $N }>;
+            type M = $crate::field::Int<{ 8 * $N }>;
+        }
+    };
 }

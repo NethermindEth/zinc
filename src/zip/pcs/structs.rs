@@ -3,29 +3,23 @@ use sha3::{digest::Output, Keccak256};
 
 use super::utils::MerkleTree;
 use crate::{
-    traits::Integer,
-    zip::code::{LinearCode, ZipLinearCode, ZipLinearCodeSpec},
+    traits::{Integer, ZipTypes},
+    zip::code::LinearCode,
 };
 
-// N is the width of elements in witness/ polynomial evaluations on hypercube
-// L is the width of elements in the encoding matrices
-// K is the width of elements in the code
-// M is the width of elements in linear combination of code rows
-#[derive(Debug, Clone)]
-pub struct MultilinearZip<N: Integer, L: Integer, K: Integer, M: Integer>(
-    PhantomData<(N, L, K, M)>,
-);
+pub struct MultilinearZip<ZT: ZipTypes, LC: LinearCode<ZT>>(PhantomData<(ZT, LC)>);
 
 /// Parameters for the Zip PCS.
 ///
 /// # Type Parameters
 /// - `N`: Width of elements in witness/polynomial evaluations on hypercube.
-/// - `L`: Width of elements in the encoding matrices.
+/// - `M`: Width of elements in linear combination of code rows
 #[derive(Clone, Debug)]
-pub struct MultilinearZipParams<N: Integer, L: Integer> {
+pub struct MultilinearZipParams<ZT: ZipTypes, LC: LinearCode<ZT>> {
     pub num_vars: usize,
     pub num_rows: usize,
-    pub linear_code: ZipLinearCode<N, L>,
+    pub linear_code: LC,
+    phantom_data_zt: PhantomData<ZT>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
@@ -74,27 +68,17 @@ pub trait ZipTranscript<I: Integer> {
     ) -> usize;
 }
 
-impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
-where
-    ZipLinearCode<I, L>: LinearCode<I, M>,
-{
-    pub fn setup<S: ZipLinearCodeSpec, T: ZipTranscript<L>>(
-        poly_size: usize,
-        transcript: &mut T,
-    ) -> MultilinearZipParams<I, L> {
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
+    pub fn setup(poly_size: usize, linear_code: LC) -> MultilinearZipParams<ZT, LC> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let linear_code = ZipLinearCode::new_multilinear::<S, T>(
-            num_vars,
-            20.min((1 << num_vars) - 1),
-            transcript,
-        );
         let num_rows = ((1 << num_vars) / linear_code.row_len()).next_power_of_two();
 
         MultilinearZipParams {
             num_vars,
             num_rows,
             linear_code,
+            phantom_data_zt: PhantomData,
         }
     }
 }

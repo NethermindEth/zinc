@@ -1,24 +1,35 @@
 use ark_std::{vec, vec::Vec, UniformRand};
 
 use crate::{
-    big_int,
+    define_random_field_zip_types,
     field::{ConfigRef, Int, RandomField},
-    field_config,
+    field_config, implement_random_field_zip_types,
     poly_z::mle::DenseMultilinearExtension,
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
-    zip::{code::ZipLinearCodeSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
+    zip::{
+        code::{ZipLinearCode, ZipLinearCodeSpec1},
+        pcs::structs::MultilinearZip,
+        pcs_transcript::PcsTranscript,
+    },
 };
 
 const I: usize = 1;
 const N: usize = 2;
 
-type TestZip = MultilinearZip<Int<I>, Int<{ 2 * I }>, Int<{ 4 * I }>, Int<{ 8 * I }>>;
+define_random_field_zip_types!();
+implement_random_field_zip_types!(I);
+
+type ZT = RandomFieldZipTypes<I>;
+type LC = ZipLinearCode<ZT>;
+type TestZip<LC> = MultilinearZip<ZT, LC>;
 
 #[test]
 fn test_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(8, &mut transcript);
+    let poly_size = 8;
+    let linear_code: LC = ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut transcript);
+    let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
 
@@ -33,7 +44,9 @@ fn test_zip_commitment() {
 #[test]
 fn test_failing_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(8, &mut transcript);
+    let poly_size = 8;
+    let linear_code: LC = ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut transcript);
+    let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..16).map(Int::<I>::from).collect();
     let n = 4;
@@ -49,8 +62,11 @@ fn test_zip_opening() {
     let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
 
+    let poly_size = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(8, &mut keccak_transcript);
+    let linear_code: LC =
+        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let param = TestZip::setup(poly_size, linear_code);
 
     let mut transcript = PcsTranscript::<RandomField<N>>::new();
 
@@ -73,8 +89,11 @@ fn test_failing_zip_evaluation() {
     let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
 
+    let poly_size = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(8, &mut keccak_transcript);
+    let linear_code: LC =
+        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
@@ -104,8 +123,11 @@ fn test_zip_evaluation() {
     let mut rng = ark_std::test_rng();
 
     let n = 8;
+    let poly_size = 1 << n;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(1 << n, &mut keccak_transcript);
+    let linear_code: LC =
+        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let param = TestZip::setup(poly_size, linear_code);
     let evaluations: Vec<_> = (0..(1 << n))
         .map(|_| Int::<I>::from(i8::rand(&mut rng)))
         .collect();
@@ -136,8 +158,11 @@ fn test_zip_batch_evaluation() {
     let n = 8;
     // the number of polynomials we will batch verify;
     let m = 10;
+    let poly_size = 1 << n;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param = TestZip::setup::<ZipLinearCodeSpec1, _>(1 << n, &mut keccak_transcript);
+    let linear_code: LC =
+        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let param = TestZip::setup(poly_size, linear_code);
     let evaluations: Vec<Vec<Int<I>>> = (0..m)
         .map(|_| {
             (0..(1 << n))

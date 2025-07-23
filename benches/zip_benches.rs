@@ -12,7 +12,9 @@ use criterion::{
 use crypto_bigint::Random;
 use itertools::Itertools;
 use zinc::{
+    define_random_field_zip_types,
     field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
+    implement_random_field_zip_types,
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,
@@ -25,27 +27,29 @@ use zinc::{
 
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
-type BenchZip = MultilinearZip<
-    Int<INT_LIMBS>,
-    Int<{ 2 * INT_LIMBS }>,
-    Int<{ 4 * INT_LIMBS }>,
-    Int<{ 8 * INT_LIMBS }>,
->;
+
+define_random_field_zip_types!();
+implement_random_field_zip_types!(INT_LIMBS);
+
+type ZT = RandomFieldZipTypes<INT_LIMBS>;
+type BenchZip = MultilinearZip<ZT, ZipLinearCode<ZT>>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     group.bench_function(
         format!("EncodeRows: Int<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
         |b| {
             let mut rng = test_rng();
-            let mut transcript = KeccakTranscript::new();
-            let params = BenchZip::setup::<ZipLinearCodeSpec1, _>(1 << P, &mut transcript);
-
+            type T = KeccakTranscript;
+            let mut keccak_transcript = T::new();
+            let poly_size = 1 << P;
+            let linear_code =
+                ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+            let params = BenchZip::setup(poly_size, linear_code);
+            let row_len = params.linear_code.row_len();
+            let codeword_len = params.linear_code.codeword_len();
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
-
-            let row_len = <ZipLinearCode<Int<INT_LIMBS>, Int<{ 2 * INT_LIMBS }>> as LinearCode<Int<INT_LIMBS>, Int<{ 8 * INT_LIMBS }>>>::row_len(&params.linear_code);
-            let codeword_len = <ZipLinearCode<Int<INT_LIMBS>, Int<{ 2 * INT_LIMBS }>> as LinearCode<Int<INT_LIMBS>, Int<{ 8 * INT_LIMBS }>>>::codeword_len(&params.linear_code);
             b.iter(|| {
-                let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
+                let _ = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
             })
         },
     );
@@ -75,7 +79,10 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     let mut rng = test_rng();
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = BenchZip::setup::<ZipLinearCodeSpec1, _>(1 << P, &mut keccak_transcript);
+    let poly_size = 1 << P;
+    let linear_code =
+        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let params = BenchZip::setup(poly_size, linear_code);
 
     group.bench_function(
         format!(
@@ -105,7 +112,10 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = BenchZip::setup::<ZipLinearCodeSpec1, _>(1 << P, &mut keccak_transcript);
+    let poly_size = 1 << P;
+    let linear_code =
+        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
     let (data, _) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
@@ -142,7 +152,10 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
-    let params = BenchZip::setup::<ZipLinearCodeSpec1, _>(1 << P, &mut keccak_transcript);
+    let poly_size = 1 << P;
+    let linear_code =
+        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
     let (data, commitment) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();

@@ -188,22 +188,21 @@ pub trait Uinteger: Clone + FromBytes + One + for<'a> SubAssign<&'a Self> {
     fn is_even(&self) -> bool;
 }
 
-pub trait ZipTypes {
+pub trait ZipTypes: Send + Sync {
     /// Width of elements in witness/polynomial evaluations on hypercube
     type N: Integer;
 
     /// Width of elements in the encoding matrices
-    type L: Integer + for<'a> From<&'a Self::N> + for<'a> From<&'a Self::L>;
+    type L: Integer + for<'a> From<&'a Self::N>;
 
     /// Width of elements in the code
-    type K: Integer + for<'a> From<&'a Self::M>;
+    type K: Integer + for<'a> From<&'a Self::N> + for<'a> From<&'a Self::L>;
 
     /// Width of elements in linear combination of code rows
     type M: Integer
         + for<'a> From<&'a Self::N>
         + for<'a> From<&'a Self::L>
-        + for<'a> From<&'a Self::K>
-        + for<'a> From<&'a Self::M>;
+        + for<'a> From<&'a Self::K>;
 }
 
 pub trait PrimalityTest<U: Uinteger> {

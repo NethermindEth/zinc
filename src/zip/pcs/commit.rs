@@ -6,30 +6,24 @@ use super::{
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
-    traits::{Field, Integer},
+    traits::{Field, ZipTypes},
     zip::{
-        code::{LinearCode, ZipLinearCode},
-        pcs::{structs::MultilinearZipParams, utils::ToBytes},
+        code::LinearCode,
+        pcs::structs::MultilinearZipParams,
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer, M: Integer> MultilinearZip<I, L, K, M>
-where
-    M: for<'a> From<&'a I>,
-    K: for<'a> From<&'a I> + ToBytes,
-    ZipLinearCode<I, L>: LinearCode<I, M> + LinearCode<I, K>,
-{
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     pub fn commit<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtension<I>,
-    ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment), Error> {
+        pp: &MultilinearZipParams<ZT, LC>,
+        poly: &DenseMultilinearExtension<ZT::N>,
+    ) -> Result<(MultilinearZipData<ZT::K>, MultilinearZipCommitment), Error> {
         validate_input("commit", pp.num_vars, [poly], None::<&[F]>)?;
 
-        // TODO(alex): Rework to avoid function call syntax
-        let row_len = LinearCode::<I, M>::row_len(&pp.linear_code);
-        let codeword_len = LinearCode::<I, M>::codeword_len(&pp.linear_code);
+        let row_len = pp.linear_code.row_len();
+        let codeword_len = pp.linear_code.codeword_len();
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -54,9 +48,9 @@ where
 
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        polys: &[DenseMultilinearExtension<I>],
-    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment)>, Error> {
+        pp: &MultilinearZipParams<ZT, LC>,
+        polys: &[DenseMultilinearExtension<ZT::N>],
+    ) -> Result<Vec<(MultilinearZipData<ZT::K>, MultilinearZipCommitment)>, Error> {
         polys
             .iter()
             .map(|poly| Self::commit::<F>(pp, poly))
@@ -65,15 +59,15 @@ where
 
     /// Encodes the rows of the polynomial concatenating each encoded row
     pub fn encode_rows(
-        pp: &MultilinearZipParams<I, L>,
+        pp: &MultilinearZipParams<ZT, LC>,
         codeword_len: usize,
         row_len: usize,
-        poly: &DenseMultilinearExtension<I>,
-    ) -> Vec<K> {
+        poly: &DenseMultilinearExtension<ZT::N>,
+    ) -> Vec<ZT::K> {
         // assert_eq!(pp.num_rows, poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows, num_threads());
-        let mut encoded_rows = vec![K::default(); pp.num_rows * codeword_len];
+        let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -84,7 +78,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    let encoded: Vec<K> = pp.linear_code.encode(evals);
+                    let encoded: Vec<ZT::K> = pp.linear_code.encode_wide(evals);
                     row.clone_from_slice(encoded.as_slice());
                 }
             },

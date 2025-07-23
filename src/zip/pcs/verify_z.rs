@@ -6,24 +6,19 @@ use super::{
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    traits::{Field, FieldMap, Integer},
+    traits::{Field, FieldMap, ZipTypes},
     zip::{
-        code::{LinearCode, ZipLinearCode},
-        pcs::{structs::MultilinearZipParams, utils::ToBytes},
+        code::LinearCode,
+        pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
         Error,
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer + ToBytes, M: Integer> MultilinearZip<I, L, K, M>
-where
-    L: for<'a> From<&'a I> + for<'a> From<&'a L>,
-    M: for<'a> From<&'a I> + for<'a> From<&'a K> + for<'a> From<&'a L> + for<'a> From<&'a M>,
-    ZipLinearCode<I, L>: LinearCode<I, M>,
-{
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     pub fn verify<F: Field>(
-        vp: &MultilinearZipParams<I, L>,
+        vp: &MultilinearZipParams<ZT, LC>,
         comm: &MultilinearZipCommitment,
         point: &[F],
         eval: F,
@@ -31,10 +26,10 @@ where
         field: F::R,
     ) -> Result<(), Error>
     where
-        L: FieldMap<F, Output = F>,
-        K: FieldMap<F, Output = F>,
+        ZT::L: FieldMap<F, Output = F>,
+        ZT::K: FieldMap<F, Output = F>,
     {
-        validate_input::<I, F>("verify", vp.num_vars, [], [point])?;
+        validate_input::<ZT::N, F>("verify", vp.num_vars, [], [point])?;
 
         let columns_opened = Self::verify_testing(vp, &comm.roots, transcript, field)?;
 
@@ -44,7 +39,7 @@ where
     }
 
     pub fn batch_verify_z<'a, F: Field>(
-        vp: &MultilinearZipParams<I, L>,
+        vp: &MultilinearZipParams<ZT, LC>,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment>,
         points: &[Vec<F>],
         evals: &[F],
@@ -52,9 +47,9 @@ where
         field: F::R,
     ) -> Result<(), Error>
     where
-        L: FieldMap<F, Output = F>,
-        K: FieldMap<F, Output = F>,
-        I: 'a,
+        ZT::L: FieldMap<F, Output = F>,
+        ZT::K: FieldMap<F, Output = F>,
+        ZT::N: 'a,
     {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
             Self::verify(vp, comm, &points[i], eval.clone(), transcript, field)?;
@@ -62,28 +57,30 @@ where
         Ok(())
     }
 
+    #[allow(clippy::type_complexity)]
     pub(super) fn verify_testing<F: Field>(
-        vp: &MultilinearZipParams<I, L>,
+        vp: &MultilinearZipParams<ZT, LC>,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
-    ) -> Result<Vec<(usize, Vec<K>)>, Error> {
+    ) -> Result<Vec<(usize, Vec<ZT::K>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows: Vec<(Vec<I>, Vec<M>)> =
+        let mut encoded_combined_rows: Vec<(Vec<ZT::N>, Vec<ZT::M>)> =
             Vec::with_capacity(vp.linear_code.num_proximity_testing());
 
         if vp.num_rows > 1 {
             for _ in 0..vp.linear_code.num_proximity_testing() {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(vp.num_rows);
 
-                let combined_row: Vec<M> = transcript.read_integers(vp.linear_code.row_len())?;
+                let combined_row: Vec<ZT::M> =
+                    transcript.read_integers(vp.linear_code.row_len())?;
 
-                let encoded_combined_row: Vec<M> = vp.linear_code.encode_wide(&combined_row);
+                let encoded_combined_row: Vec<ZT::M> = vp.linear_code.encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
-        let mut columns_opened: Vec<(usize, Vec<K>)> =
+        let mut columns_opened: Vec<(usize, Vec<ZT::K>)> =
             Vec::with_capacity(vp.linear_code.num_column_opening());
 
         for _ in 0..vp.linear_code.num_column_opening() {
@@ -109,15 +106,16 @@ where
     }
 
     pub(super) fn verify_column_testing(
-        coeffs: &[I],
-        encoded_combined_row: &[M],
-        column_entries: &[K],
+        coeffs: &[ZT::N],
+        encoded_combined_row: &[ZT::M],
+        column_entries: &[ZT::K],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
-        let column_entries_comb: M = if num_rows > 1 {
-            let coeffs: Vec<M> = coeffs.iter().map(expand::<I, M>).collect();
-            let column_entries: Vec<M> = column_entries.iter().map(expand::<K, M>).collect();
+        let column_entries_comb: ZT::M = if num_rows > 1 {
+            let coeffs: Vec<ZT::M> = coeffs.iter().map(expand::<ZT::N, ZT::M>).collect();
+            let column_entries: Vec<ZT::M> =
+                column_entries.iter().map(expand::<ZT::K, ZT::M>).collect();
             inner_product(coeffs.iter(), column_entries.iter())
         } else {
             expand(&column_entries[0])
@@ -130,16 +128,16 @@ where
     }
 
     fn verify_evaluation_z<F: Field>(
-        vp: &MultilinearZipParams<I, L>,
+        vp: &MultilinearZipParams<ZT, LC>,
         point: &[F],
         eval: F,
-        columns_opened: &[(usize, Vec<K>)],
+        columns_opened: &[(usize, Vec<ZT::K>)],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
     ) -> Result<(), Error>
     where
-        L: FieldMap<F, Output = F>,
-        K: FieldMap<F, Output = F>,
+        ZT::L: FieldMap<F, Output = F>,
+        ZT::K: FieldMap<F, Output = F>,
     {
         let q_0_combined_row = transcript.read_field_elements(vp.linear_code.row_len(), field)?;
         let encoded_combined_row = vp.linear_code.encode_f(&q_0_combined_row, field);
@@ -168,13 +166,13 @@ where
     fn verify_proximity_q_0<F: Field>(
         q_0: &Vec<F>,
         encoded_q_0_combined_row: &[F],
-        column_entries: &[K],
+        column_entries: &[ZT::K],
         column: usize,
         num_rows: usize,
         field: F::R,
     ) -> Result<(), Error>
     where
-        K: FieldMap<F, Output = F>,
+        ZT::K: FieldMap<F, Output = F>,
     {
         let column_entries_comb = if num_rows > 1 {
             let column_entries = column_entries.map_to_field(field);

@@ -1,11 +1,8 @@
 //! Verifier
-use ark_ff::One;
 use ark_std::{boxed::Box, vec, vec::Vec};
 
 use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
 use crate::{
-    field::RandomField,
-    field_config::ConfigRef,
     traits::{Field, FieldMap},
     transcript::KeccakTranscript as Transcript,
 };
@@ -42,13 +39,9 @@ pub struct SubClaim<F> {
     pub expected_evaluation: F,
 }
 
-impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
+impl<F: Field> IPForMLSumcheck<F> {
     /// initialize the verifier
-    pub fn verifier_init(
-        nvars: usize,
-        degree: usize,
-        config: ConfigRef<N>,
-    ) -> VerifierState<RandomField<N>> {
+    pub fn verifier_init(nvars: usize, degree: usize, config: F::Cr) -> VerifierState<F> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -66,10 +59,10 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
     /// and stores randomness and perform verifications altogether in `check_and_generate_subclaim` at
     /// the last step.
     pub fn verify_round(
-        prover_msg: ProverMsg<RandomField<'cfg, N>>,
-        verifier_state: &mut VerifierState<RandomField<'cfg, N>>,
+        prover_msg: ProverMsg<F>,
+        verifier_state: &mut VerifierState<F>,
         transcript: &mut Transcript,
-    ) -> VerifierMsg<RandomField<'cfg, N>> {
+    ) -> VerifierMsg<F> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
         }
@@ -102,10 +95,10 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
     /// is `subclaim.expected_evaluation`. Otherwise, it is highly unlikely that those two will be equal.
     /// Larger field size guarantees smaller soundness error.
     pub fn check_and_generate_subclaim(
-        verifier_state: VerifierState<RandomField<'cfg, N>>,
-        asserted_sum: RandomField<'cfg, N>,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<SubClaim<RandomField<'cfg, N>>, SumCheckError> {
+        verifier_state: VerifierState<F>,
+        asserted_sum: F,
+        config: F::Cr,
+    ) -> Result<SubClaim<F>, SumCheckError<F>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
         }
@@ -142,10 +135,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(
-        transcript: &mut Transcript,
-        config: ConfigRef<'cfg, N>,
-    ) -> VerifierMsg<RandomField<'cfg, N>> {
+    pub fn sample_round(transcript: &mut Transcript, config: F::Cr) -> VerifierMsg<F> {
         VerifierMsg {
             randomness: transcript.get_challenge(config),
         }
@@ -156,11 +146,7 @@ impl<'cfg, const N: usize> IPForMLSumcheck<RandomField<'cfg, N>> {
 /// p_i.len()-1 passing through the y-values in p_i at x = 0,..., p_i.len()-1
 /// and evaluate this  polynomial at `eval_at`. In other words, efficiently compute
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
-pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
-    p_i: &[RandomField<'cfg, N>],
-    x: RandomField<'cfg, N>,
-    config: ConfigRef<'cfg, N>,
-) -> RandomField<'cfg, N> {
+pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> F {
     // We will need these a few times
     let zero = 0u64.map_to_field(config);
     let one = 1u64.map_to_field(config);
@@ -217,7 +203,7 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
     //  - for len <= 33 with i128
     //  - for len >  33 with BigInt
     if p_i.len() <= 20 {
-        let mut last_denom: RandomField<N> = u64_factorial(len - 1).map_to_field(config);
+        let mut last_denom: F = u64_factorial(len - 1).map_to_field(config);
 
         last_denom.set_config(config);
 
@@ -226,16 +212,16 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res: RandomField<N> = (-ratio_numerator as u64).map_to_field(config);
+                let mut res: F = (-ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res: RandomField<N> = (ratio_numerator as u64).map_to_field(config);
+                let mut res: F = (ratio_numerator as u64).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f: RandomField<N> = ratio_enumerator.map_to_field(config);
+            let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
             let x = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
@@ -249,26 +235,25 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
             }
         }
     } else if p_i.len() <= 33 {
-        let last_denom: RandomField<N> = u128_factorial(len - 1).map_to_field(config);
+        let last_denom: F = u128_factorial(len - 1).map_to_field(config);
         let mut ratio_numerator = 1i128;
         let mut ratio_enumerator = 1u128;
 
         for i in (0..len).rev() {
             let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res: RandomField<N> = (-ratio_numerator as u128).map_to_field(config);
+                let mut res: F = (-ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 -res
             } else {
-                let mut res: RandomField<N> = (ratio_numerator as u128).map_to_field(config);
+                let mut res: F = (ratio_numerator as u128).map_to_field(config);
                 res.set_config(config);
                 res
             };
 
-            let mut ratio_enumerator_f: RandomField<N> = ratio_enumerator.map_to_field(config);
+            let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
-            let x: RandomField<N> =
-                prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
+            let x: F = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
             res += &(p_i[i] * x);
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
@@ -280,7 +265,7 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
     } else {
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
-        let mut denom_up = field_factorial::<N>(len - 1, config);
+        let mut denom_up = field_factorial::<F>(len - 1, config);
         let mut denom_down = one;
 
         for i in (0..len).rev() {
@@ -289,11 +274,11 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {
-                let mut denom_up_factor: RandomField<N> = ((len - i) as u64).map_to_field(config);
+                let mut denom_up_factor: F = ((len - i) as u64).map_to_field(config);
                 denom_up_factor.set_config(config);
                 denom_up *= -denom_up_factor;
 
-                let mut denom_down_factor: RandomField<N> = (i as u64).map_to_field(config);
+                let mut denom_down_factor: F = (i as u64).map_to_field(config);
                 denom_down_factor.set_config(config);
                 denom_down *= denom_down_factor;
             }
@@ -305,10 +290,10 @@ pub(crate) fn interpolate_uni_poly<'cfg, const N: usize>(
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<const N: usize>(a: usize, config: ConfigRef<N>) -> RandomField<N> {
-    let mut res: RandomField<N> = RandomField::one();
+fn field_factorial<F: Field>(a: usize, config: F::Cr) -> F {
+    let mut res: F = F::one();
     for i in 1..=(a as u64) {
-        res *= <u64 as FieldMap<RandomField<N>>>::map_to_field(&i, config);
+        res *= <u64 as FieldMap<F>>::map_to_field(&i, config);
     }
     res
 }

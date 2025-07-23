@@ -7,10 +7,13 @@ use super::{
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    poly_z::mle::DenseMultilinearExtension,
+    poly_z::mle::{
+        DenseMultilinearExtension as DenseMultilinearExtensionZ, DenseMultilinearExtension,
+    },
     traits::{Field, FieldMap, Integer},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
+        pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
         Error,
@@ -26,9 +29,9 @@ where
     Zip<I, L>: LinearCodes<I, M>,
 {
     pub fn open<F: Field>(
-        pp: &Self::ProverParam,
-        poly: &Self::Polynomial,
-        commit_data: &Self::Data,
+        pp: &MultilinearZipParams<I, L>,
+        poly: &DenseMultilinearExtensionZ<I>,
+        commit_data: &MultilinearZipData<I, K>,
         point: &[F],
         field: F::R,
         transcript: &mut PcsTranscript<F>,
@@ -47,7 +50,7 @@ where
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
     pub fn batch_open<'a, F: Field>(
-        pp: &Self::ProverParam,
+        pp: &MultilinearZipParams<I, L>,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
         points: &[Vec<F>],
@@ -66,10 +69,10 @@ where
 
     // Subprotocol functions
     fn prove_evaluation_phase<F: Field>(
-        pp: &Self::ProverParam,
+        pp: &MultilinearZipParams<I, L>,
         transcript: &mut PcsTranscript<F>,
         point: &[F],
-        poly: &Self::Polynomial,
+        poly: &DenseMultilinearExtensionZ<I>,
         field: F::R,
     ) -> Result<(), Error>
     where
@@ -97,9 +100,9 @@ where
     }
 
     pub(super) fn prove_testing_phase<F: Field>(
-        pp: &Self::ProverParam,
-        poly: &Self::Polynomial,
-        commit_data: &Self::Data,
+        pp: &MultilinearZipParams<I, L>,
+        poly: &DenseMultilinearExtensionZ<I>,
+        commit_data: &MultilinearZipData<I, K>,
         transcript: &mut PcsTranscript<F>,
         field: F::R, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
@@ -135,7 +138,7 @@ where
     }
 
     pub(super) fn open_merkle_trees_for_column<F: Field>(
-        pp: &Self::ProverParam,
+        pp: &MultilinearZipParams<I, L>,
         commit_data: &MultilinearZipData<I, K>,
         column: usize,
         transcript: &mut PcsTranscript<F>,

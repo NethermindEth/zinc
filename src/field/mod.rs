@@ -36,8 +36,6 @@ use crate::{
 };
 
 impl<'cfg, const N: usize> RandomField<'cfg, N> {
-    pub type Cfg = ConfigRef<'cfg, N>;
-
     pub fn is_raw(&self) -> bool {
         matches!(self, Raw { .. })
     }
@@ -198,7 +196,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn zero_with_config(config: Self::Cfg) -> Self {
+    pub fn zero_with_config(config: ConfigRef<'cfg, N>) -> Self {
         Initialized {
             config,
             value: BigInt::zero(),
@@ -206,13 +204,13 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     }
 
     /// Config setter that can be used after a `RandomField::rand(...)` call.
-    pub fn set_config_owned(mut self, config: Self::Cfg) -> Self {
+    pub fn set_config_owned(mut self, config: ConfigRef<'cfg, N>) -> Self {
         self.set_config(config);
         self
     }
 
     #[inline(always)]
-    pub fn config_ptr(&self) -> Self::Cfg {
+    pub fn config_ptr(&self) -> ConfigRef<'cfg, N> {
         match self {
             Raw { .. } => ConfigRef::NONE,
             Initialized { config, .. } => *config,
@@ -397,7 +395,7 @@ impl<const N: usize> Random for RandomField<'_, N> {
 impl<const N: usize> ark_std::fmt::Debug for RandomField<'_, N> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
-            Raw { value } => write!(f, "{}, no config", value),
+            Raw { value } => write!(f, "{value}, no config"),
             self_ => write!(
                 f,
                 "{} in Z_{}",
@@ -413,7 +411,7 @@ impl<const N: usize> ark_std::fmt::Display for RandomField<'_, N> {
         // TODO: we should go back from Montgomery here.
         match self {
             Raw { value } => {
-                write!(f, "{}", value)
+                write!(f, "{value}")
             }
             self_ @ Initialized { .. } => {
                 write!(f, "{}", self_.into_bigint())
@@ -463,10 +461,10 @@ impl ark_std::fmt::Display for DebugRandomField {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
             Self::Raw { value } => {
-                write!(f, "{}", value)
+                write!(f, "{value}")
             }
             self_ @ Self::Initialized { .. } => {
-                write!(f, "{}", self_)
+                write!(f, "{self_}")
             }
         }
     }

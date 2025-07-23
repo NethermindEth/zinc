@@ -91,9 +91,7 @@ impl<F: Field> DenseMultilinearExtension<F> {
             // pad to 2^n_vars
             [
                 v.to_owned(),
-                ark_std::iter::repeat(F::zero())
-                    .take((1 << n_vars) - v.len())
-                    .collect(),
+                ark_std::iter::repeat_n(F::zero(), (1 << n_vars) - v.len()).collect(),
             ]
             .concat()
         } else {

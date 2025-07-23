@@ -26,7 +26,7 @@ type TestZip = MultilinearZip<
 #[test]
 fn test_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(8, &mut transcript);
+    let param = TestZip::setup(8, &mut transcript);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
 
@@ -41,7 +41,7 @@ fn test_zip_commitment() {
 #[test]
 fn test_failing_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(8, &mut transcript);
+    let param = TestZip::setup(8, &mut transcript);
 
     let evaluations: Vec<_> = (0..16).map(Int::<I>::from).collect();
     let n = 4;
@@ -58,7 +58,7 @@ fn test_zip_opening() {
     let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
+    let param = TestZip::setup(8, &mut keccak_transcript);
 
     let mut transcript = PcsTranscript::<RandomField<N>>::new();
 
@@ -82,7 +82,7 @@ fn test_failing_zip_evaluation() {
     let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
+    let param = TestZip::setup(8, &mut keccak_transcript);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
@@ -113,7 +113,7 @@ fn test_zip_evaluation() {
 
     let n = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
+    let param = TestZip::setup(1 << n, &mut keccak_transcript);
     let evaluations: Vec<_> = (0..(1 << n))
         .map(|_| Int::<I>::from(i8::rand(&mut rng)))
         .collect();
@@ -145,7 +145,7 @@ fn test_zip_batch_evaluation() {
     // the number of polynomials we will batch verify;
     let m = 10;
     let mut keccak_transcript = KeccakTranscript::new();
-    let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
+    let param = TestZip::setup(1 << n, &mut keccak_transcript);
     let evaluations: Vec<Vec<Int<I>>> = (0..m)
         .map(|_| {
             (0..(1 << n))

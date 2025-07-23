@@ -135,7 +135,7 @@ impl ark_std::fmt::Display for MerkleProof {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         writeln!(f, "Merkle Path:")?;
         for (i, hash) in self.merkle_path.iter().enumerate() {
-            writeln!(f, "Level {}: {:?}", i, hash)?;
+            writeln!(f, "Level {i}: {hash:?}")?;
         }
         Ok(())
     }

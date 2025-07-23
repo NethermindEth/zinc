@@ -9,7 +9,7 @@ use crate::{
     traits::{Field, FieldMap, Integer},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
-        pcs::utils::ToBytes,
+        pcs::{structs::MultilinearZipParams, utils::ToBytes},
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
         Error,
@@ -26,8 +26,8 @@ where
     Zip<I, L>: LinearCodes<I, M>,
 {
     pub fn verify<F: Field>(
-        vp: &Self::VerifierParam,
-        comm: &Self::Commitment,
+        vp: &MultilinearZipParams<I, L>,
+        comm: &MultilinearZipCommitment<I>,
         point: &[F],
         eval: F,
         transcript: &mut PcsTranscript<F>,
@@ -47,7 +47,7 @@ where
     }
 
     pub fn batch_verify_z<'a, F: Field>(
-        vp: &Self::VerifierParam,
+        vp: &MultilinearZipParams<I, L>,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment<I>>,
         points: &[Vec<F>],
         evals: &[F],
@@ -66,7 +66,7 @@ where
     }
 
     pub(super) fn verify_testing<F: Field>(
-        vp: &Self::VerifierParam,
+        vp: &MultilinearZipParams<I, L>,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
@@ -138,7 +138,7 @@ where
     }
 
     fn verify_evaluation_z<F: Field>(
-        vp: &Self::VerifierParam,
+        vp: &MultilinearZipParams<I, L>,
         point: &[F],
         eval: F,
         columns_opened: &[(usize, Vec<K>)],

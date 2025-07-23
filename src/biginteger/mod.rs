@@ -170,12 +170,12 @@ impl<const N: usize> BigInt<N> {
 
     #[doc(hidden)]
     pub const fn const_is_even(&self) -> bool {
-        self.0[0] % 2 == 0
+        self.0[0].is_multiple_of(2)
     }
 
     #[doc(hidden)]
     pub const fn const_is_odd(&self) -> bool {
-        self.0[0] % 2 == 1
+        !self.const_is_even()
     }
 
     #[doc(hidden)]

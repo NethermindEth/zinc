@@ -1,4 +1,5 @@
 /// Iterates over a slice of `u64` in *big-endian* order.
+#[allow(unused)]
 #[derive(Debug)]
 pub struct BitIteratorBE<Slice: AsRef<[u64]>> {
     s: Slice,
@@ -22,6 +23,7 @@ impl<Slice: AsRef<[u64]>> Iterator for BitIteratorBE<Slice> {
 }
 
 /// Iterates over a slice of `u64` in *little-endian* order.
+#[allow(unused)]
 #[derive(Debug)]
 pub struct BitIteratorLE<Slice: AsRef<[u64]>> {
     s: Slice,

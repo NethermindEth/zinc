@@ -123,14 +123,13 @@ pub struct Statement_F<F: Clone + Send + Sync> {
 }
 
 impl<F: Field> Statement_F<F> {
-    pub type Scalar = F;
     pub fn compute_eval_table_sparse(
         &self,
         num_rows: usize,
         num_cols: usize,
         ccs: &CCS_F<F>,
-        evals: &[Self::Scalar],
-    ) -> Vec<Vec<Self::Scalar>> {
+        evals: &[F],
+    ) -> Vec<Vec<F>> {
         assert_eq!(num_rows, ccs.n);
         assert!(num_cols > (ccs.m - ccs.l) - 1);
 

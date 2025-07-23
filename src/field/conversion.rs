@@ -88,7 +88,7 @@ macro_rules! impl_field_map_for_int {
 
                 words[0] = PrimitiveConversion::from_primitive(value);
 
-                if (ark_std::mem::size_of::<$t>() + 7) / 8 > 1 && F::W::num_words() > 1 {
+                if ark_std::mem::size_of::<$t>().div_ceil(8) > 1 && F::W::num_words() > 1 {
                     words[1] =
                         PrimitiveConversion::from_primitive(u128::from_primitive(value) >> 64);
                 }

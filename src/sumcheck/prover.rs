@@ -1,7 +1,7 @@
 //! Prover
 
 use ark_std::{
-    cfg_into_iter, cfg_iter_mut,
+    cfg_into_iter, cfg_iter_mut, slice,
     sync::atomic::{self, AtomicPtr},
     vec,
     vec::Vec,
@@ -78,7 +78,7 @@ impl<F: Field> IPForMLSumcheck<F> {
             let atomic_config =
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r.clone()], unsafe {
+                multiplicand.fix_variables(slice::from_ref(&r), unsafe {
                     F::R::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });

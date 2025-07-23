@@ -5,11 +5,13 @@ use super::{
     utils::{validate_input, MerkleTree},
 };
 use crate::{
-    poly_z::mle::DenseMultilinearExtension,
+    poly_z::mle::{
+        DenseMultilinearExtension as DenseMultilinearExtensionZ, DenseMultilinearExtension,
+    },
     traits::{Field, Integer},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
-        pcs::utils::ToBytes,
+        pcs::{structs::MultilinearZipParams, utils::ToBytes},
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
@@ -25,9 +27,9 @@ where
 {
     /// TODO: validate_input method requires a parameter points which is an iterable of type F
     pub fn commit<F: Field>(
-        pp: &Self::ProverParam,
-        poly: &Self::Polynomial,
-    ) -> Result<(Self::Data, Self::Commitment), Error> {
+        pp: &MultilinearZipParams<I, L>,
+        poly: &DenseMultilinearExtensionZ<I>,
+    ) -> Result<(MultilinearZipData<I, K>, MultilinearZipCommitment<I>), Error> {
         validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
 
         let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
@@ -55,9 +57,9 @@ where
     }
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a, F: Field>(
-        pp: &Self::ProverParam,
+        pp: &MultilinearZipParams<I, L>,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-    ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error>
+    ) -> Result<Vec<(MultilinearZipData<I, K>, MultilinearZipCommitment<I>)>, Error>
     where
         I: 'a,
     {
@@ -69,10 +71,10 @@ where
 
     /// Encodes the rows of the polynomial concatenating each encoded row
     pub fn encode_rows(
-        pp: &Self::ProverParam,
+        pp: &MultilinearZipParams<I, L>,
         codeword_len: usize,
         row_len: usize,
-        poly: &Self::Polynomial,
+        poly: &DenseMultilinearExtensionZ<I>,
     ) -> Vec<K> {
         // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);

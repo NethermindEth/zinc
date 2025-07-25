@@ -4,25 +4,22 @@
 use ark_std::{
     iter::{Product, Sum},
     iterable::Iterable,
-    str::FromStr,
 };
 use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
 use zinc::{
-    field::{BigInteger256, ConfigRef, FieldConfig, RandomField},
-    traits::{Config, FieldMap},
+    big_int,
+    field::{ConfigRef, RandomField},
+    field_config, random_field,
 };
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInteger256::from_str("695962179703626800597079116051991347").unwrap());
+    let config = field_config!(695962179703626800597079116051991347);
     let field_config = ConfigRef::from(&config);
 
-    let bigint = BigInteger256::from_str("695962179703").unwrap();
-
-    let field_elem: RandomField<4> = bigint.map_to_field(field_config);
+    let field_elem = random_field!(695962179703, 4, field_config);
     group.bench_with_input(
         BenchmarkId::new("Multiply", "Random128BitFieldElement"),
         &field_elem,

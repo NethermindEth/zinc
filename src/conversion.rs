@@ -130,7 +130,9 @@ mod tests {
     use ark_std::{fmt::Debug, format, str::FromStr};
 
     use crate::{
+        big_int,
         field::{BigInt, ConfigRef, FieldConfig, RandomField},
+        field_config,
         traits::{Config, ConfigReference, Field, FieldMap, FromBytes},
     };
 
@@ -192,11 +194,11 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_valid() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x05, 0, 0, 0, 0, 0, 0, 0];
-        let expected = BigInt::from_str("5").unwrap();
+        let expected = big_int!(5);
 
         let result = RandomField::<1>::from_bytes_le_with_config(config, &bytes).unwrap();
         assert_eq!(result.into_bigint(), expected);
@@ -225,7 +227,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_zero() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x00; 8]; // All zeros
@@ -240,7 +242,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_zero() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x00; 8]; // All zeros
@@ -255,7 +257,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_out_of_range() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101 (modulus is 23)
@@ -265,7 +267,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_out_of_range() {
-        let config = FieldConfig::new(BigInt::<32>::from_str("37129241769965749").unwrap());
+        let config = field_config!(37129241769965749);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x65, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 101
@@ -275,7 +277,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_exact_modulus() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x17, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]; // Value: 23 (modulus)
@@ -285,7 +287,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_exact_modulus() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17]; // Value: 23 (big-endian)
@@ -295,7 +297,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_le_with_config_leading_zeros() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0b0000_0001]; // Value: 1 with leading zeros
@@ -309,7 +311,7 @@ mod tests {
 
     #[test]
     fn converts_from_bytes_be_with_config_leading_zeros() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
 
         let bytes = [0x01]; //1 with leading zeros (big-endian);
@@ -415,7 +417,7 @@ mod tests {
     #[test]
     fn test_signed_integers_field_map() {
         let field = 18446744069414584321_u64;
-        let config = FieldConfig::new(BigInt::from_str("18446744069414584321").unwrap());
+        let config = field_config!(18446744069414584321);
         let config: ConfigRef<1> = ConfigRef::from(&config);
 
         // Test primitive types with full range
@@ -498,7 +500,7 @@ mod tests {
     #[test]
     fn test_unsigned_integers_field_map() {
         let field_1 = 18446744069414584321_u64;
-        let config_1 = FieldConfig::new(BigInt::from_str("18446744069414584321").unwrap());
+        let config_1 = field_config!(18446744069414584321);
         let config = ConfigRef::from(&config_1);
         // Test small types with full range
         test_unsigned_type_full_range!(u8, field_1, config, 1);
@@ -527,15 +529,16 @@ mod tests {
 
 #[cfg(test)]
 mod bigint_field_map_tests {
-    use ark_std::str::FromStr;
-
     use super::*;
-    use crate::field::{BigInt, ConfigRef, FieldConfig, RandomField};
+    use crate::{
+        big_int,
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
+    };
 
     #[test]
     fn test_bigint_smaller_than_field() {
         // Using a 2-limb field config with 1-limb BigInt
-        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 
@@ -551,15 +554,15 @@ mod bigint_field_map_tests {
 
     #[test]
     fn test_bigint_equal_size() {
-        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 
-        let value = BigInt::<2>::from_str("12345678901234567890").unwrap();
+        let value = big_int!(12345678901234567890, 2);
         let result: RandomField<2> = value.map_to_field(config_ptr);
 
         // The result should be the value modulo the field modulus
-        let expected = BigInt::<2>::from_str("12345678901234567890").unwrap();
+        let expected = big_int!(12345678901234567890);
         assert_eq!(
             result.into_bigint(),
             expected,
@@ -570,11 +573,11 @@ mod bigint_field_map_tests {
     #[test]
     fn test_bigint_larger_than_field() {
         // Using a 1-limb field config with 2-limb BigInt
-        let modulus = BigInt::<1>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 
-        let large_value = BigInt::<2>::from_str("123456789012345678901").unwrap();
+        let large_value = big_int!(123456789012345678901, 2);
         let result: RandomField<1> = large_value.map_to_field(config_ptr);
 
         let expected = BigInt::<1>::from(12776324595858172975u64);
@@ -587,7 +590,7 @@ mod bigint_field_map_tests {
 
     #[test]
     fn test_bigint_zero() {
-        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 
@@ -602,11 +605,11 @@ mod bigint_field_map_tests {
 
     #[test]
     fn test_bigint_reference() {
-        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 
-        let value = BigInt::<2>::from_str("12345").unwrap();
+        let value = big_int!(12345, 2);
         let result: RandomField<2> = value.map_to_field(config_ptr);
         let direct_result: RandomField<2> = value.map_to_field(config_ptr);
 
@@ -626,7 +629,7 @@ mod bigint_field_map_tests {
 
     #[test]
     fn test_bigint_max_value() {
-        let modulus = BigInt::<2>::from_str("18446744069414584321").unwrap();
+        let modulus = big_int!(18446744069414584321);
         let config = FieldConfig::new(modulus);
         let config_ptr = ConfigRef::from(&config);
 

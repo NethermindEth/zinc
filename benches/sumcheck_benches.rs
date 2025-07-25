@@ -1,16 +1,16 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
-use ark_std::str::FromStr;
 use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 use zinc::{
-    field::{BigInt, ConfigRef, FieldConfig, RandomField},
+    big_int,
+    field::{ConfigRef, RandomField},
+    field_config,
     sumcheck::{
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck,
     },
-    traits::Config,
     transcript::KeccakTranscript,
 };
 
@@ -40,8 +40,7 @@ fn run_sumcheck<'cfg, const N: usize>(config: ConfigRef<'cfg, N>) {
 }
 
 fn bench_sumcheck_1(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("312829638388039969874974628075306023441").unwrap());
+    let config = field_config!(312829638388039969874974628075306023441);
     let config = ConfigRef::from(&config);
 
     group.bench_with_input(
@@ -56,8 +55,7 @@ fn bench_sumcheck_1(group: &mut criterion::BenchmarkGroup<criterion::measurement
 }
 
 fn bench_sumcheck_2(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("322403673970412282254454204757070554431").unwrap());
+    let config = field_config!(322403673970412282254454204757070554431);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 2"),
@@ -70,8 +68,7 @@ fn bench_sumcheck_2(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_3(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("285377653308127403920843585487834553973").unwrap());
+    let config = field_config!(285377653308127403920843585487834553973);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 3"),
@@ -84,8 +81,7 @@ fn bench_sumcheck_3(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_4(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("233164262138933757225139946152020066289").unwrap());
+    let config = field_config!(233164262138933757225139946152020066289);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 4"),
@@ -98,8 +94,7 @@ fn bench_sumcheck_4(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_5(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("236731782032802149747299945609116943963").unwrap());
+    let config = field_config!(236731782032802149747299945609116943963);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 5"),
@@ -112,8 +107,7 @@ fn bench_sumcheck_5(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_6(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("219683254296065967274427818235999335877").unwrap());
+    let config = field_config!(219683254296065967274427818235999335877);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 6"),
@@ -127,8 +121,7 @@ fn bench_sumcheck_6(group: &mut criterion::BenchmarkGroup<criterion::measurement
 }
 
 fn bench_sumcheck_7(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("301671071065105344993631035132007692107").unwrap());
+    let config = field_config!(301671071065105344993631035132007692107);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 7"),
@@ -141,8 +134,7 @@ fn bench_sumcheck_7(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_8(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("198610996558066700123786608463974256119").unwrap());
+    let config = field_config!(198610996558066700123786608463974256119);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 8"),
@@ -155,8 +147,7 @@ fn bench_sumcheck_8(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_9(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("195037227084167124209519505146483700673").unwrap());
+    let config = field_config!(195037227084167124209519505146483700673);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 9"),
@@ -169,8 +160,7 @@ fn bench_sumcheck_9(group: &mut criterion::BenchmarkGroup<criterion::measurement
     );
 }
 fn bench_sumcheck_10(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config =
-        FieldConfig::new(BigInt::<3>::from_str("267885485539660112750009519228185107803").unwrap());
+    let config = field_config!(267885485539660112750009519228185107803);
     let config = ConfigRef::from(&config);
     group.bench_with_input(
         BenchmarkId::new("Sumcheck", "Prime 10"),

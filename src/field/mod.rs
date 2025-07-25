@@ -580,107 +580,62 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ark_std::str::FromStr;
-
     use crate::{
-        field::{
-            biginteger::BigInt,
-            config::{ConfigRef, FieldConfig},
-            RandomField,
-        },
-        traits::Config,
+        big_int,
+        field::{config::ConfigRef, RandomField},
+        field_config,
     };
-
-    /// Helper macro to create a field config with a given modulus
-    #[macro_export]
-    macro_rules! create_field_config {
-        ($N:expr, $modulus:expr) => {{
-            let bigint = BigInt::<$N>::from_str(stringify!($modulus))
-                .expect("Failed to parse modulus into BigInt");
-            let cfg = FieldConfig::new(bigint);
-            (cfg, ConfigRef::from(&cfg))
-        }};
-
-        ($modulus:expr) => {{
-            let bigint = BigInt::<1>::from_str(&$modulus.to_string())
-                .expect("Failed to parse modulus into BigInt");
-
-            let cfg = FieldConfig::new(bigint);
-            (cfg, ConfigRef::from(&cfg))
-        }};
-    }
-
-    /// Helper macro to create a BigInt with a given modulus
-    #[macro_export]
-    macro_rules! create_bigint {
-        ($N:expr, $value:expr) => {{
-            BigInt::<$N>::from_str(stringify!($value)).unwrap()
-        }};
-
-        ($value:expr) => {{
-            BigInt::<1>::from_str(stringify!($value)).unwrap()
-        }};
-    }
-
-    /// Helper macro to create a RandomField with config and value.
-    #[macro_export]
-    macro_rules! create_random_field {
-        ($config:expr, $value:expr) => {{
-            use $crate::traits::FieldMap;
-            create_bigint!($value).map_to_field($config)
-        }};
-    }
 
     #[test]
     fn test_with_raw_value_or_for_raw_variant() {
         let raw_field: RandomField<'_, 1> = RandomField::Raw {
-            value: create_bigint!(42),
+            value: big_int!(42),
         };
 
         assert_eq!(
-            raw_field.with_raw_value_or(|v| *v, create_bigint!(99)),
-            create_bigint!(42)
+            raw_field.with_raw_value_or(|v| *v, big_int!(99)),
+            big_int!(42)
         );
     }
 
     #[test]
     fn test_with_raw_value_or_for_initialized_variant() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
         let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
-            value: create_bigint!(10),
+            value: big_int!(10),
         };
 
         assert_eq!(
-            init_field.with_raw_value_or(|v| *v, create_bigint!(99)),
-            create_bigint!(99)
+            init_field.with_raw_value_or(|v| *v, big_int!(99)),
+            big_int!(99)
         );
     }
     #[test]
     fn test_with_init_value_or_initialized() {
-        let config = FieldConfig::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23);
         let config = ConfigRef::from(&config);
         let init_field: RandomField<'_, 1> = RandomField::Initialized {
             config,
-            value: create_bigint!(10),
+            value: big_int!(10),
         };
 
         assert_eq!(
-            init_field.with_init_value_or(|_, v| *v, create_bigint!(99)),
-            create_bigint!(10)
+            init_field.with_init_value_or(|_, v| *v, big_int!(99)),
+            big_int!(10)
         );
     }
 
     #[test]
     fn test_with_init_value_or_raw() {
         let raw_field: RandomField<'_, 1> = RandomField::Raw {
-            value: create_bigint!(42),
+            value: big_int!(42),
         };
 
         assert_eq!(
-            raw_field.with_init_value_or(|_, v| *v, create_bigint!(99)),
-            create_bigint!(99)
+            raw_field.with_init_value_or(|_, v| *v, big_int!(99)),
+            big_int!(99)
         );
     }
 }

@@ -324,17 +324,19 @@ pub(crate) fn get_test_ccs_stuff_Z<I: Integer>(
 
 #[cfg(test)]
 mod tests {
-    use ark_std::{str::FromStr, vec::Vec};
+    use ark_std::vec::Vec;
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
     use crate::{
+        big_int,
         ccs::{
             ccs_f::{Arith, Instance_F, CCS_F},
             ccs_z::CCS_Z,
         },
-        field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
+        field::{ConfigRef, Int, RandomField},
+        field_config,
         sparse_matrix::SparseMatrix,
-        traits::{Config, FieldMap},
+        traits::FieldMap,
     };
 
     #[test]
@@ -392,9 +394,7 @@ mod tests {
             .expect("Failed to check relation over Integer Ring");
 
         const N: usize = 3;
-        let config = FieldConfig::new(
-            BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap(),
-        );
+        let config = field_config!(312829638388039969874974628075306023441, N);
 
         let config_ptr = ConfigRef::from(&config);
 

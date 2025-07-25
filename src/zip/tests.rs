@@ -1,9 +1,11 @@
-use ark_std::{str::FromStr, vec, vec::Vec, UniformRand};
+use ark_std::{vec, vec::Vec, UniformRand};
 
 use crate::{
-    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
+    big_int,
+    field::{ConfigRef, Int, RandomField},
+    field_config,
     poly_z::mle::DenseMultilinearExtension,
-    traits::{Config, ConfigReference, FieldMap},
+    traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{code::ZipSpec1, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
@@ -51,7 +53,7 @@ fn test_failing_zip_commitment() {
 
 #[test]
 fn test_zip_opening() {
-    let config = FieldConfig::<N>::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
@@ -75,7 +77,7 @@ fn test_zip_opening() {
 #[test]
 fn test_failing_zip_evaluation() {
     type F<'cfg> = RandomField<'cfg, N>;
-    let config = FieldConfig::<N>::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
 
     let mut keccak_transcript = KeccakTranscript::new();
@@ -104,7 +106,7 @@ fn test_failing_zip_evaluation() {
 #[test]
 fn test_zip_evaluation() {
     type F<'cfg> = RandomField<'cfg, N>;
-    let config = FieldConfig::<N>::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
     let mut rng = ark_std::test_rng();
 
@@ -134,7 +136,7 @@ fn test_zip_evaluation() {
 #[test]
 fn test_zip_batch_evaluation() {
     type F<'cfg> = RandomField<'cfg, N>;
-    let config = FieldConfig::<N>::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+    let config = field_config!(57316695564490278656402085503, N);
     let config = ConfigRef::from(&config);
     let mut rng = ark_std::test_rng();
 

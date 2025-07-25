@@ -1,10 +1,12 @@
-use ark_std::{marker::PhantomData, str::FromStr};
+use ark_std::marker::PhantomData;
 use crypto_bigint::Zero;
 
 use crate::{
+    big_int,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
-    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
-    traits::{Config, ConfigReference},
+    field::{ConfigRef, Int, RandomField},
+    field_config,
+    traits::ConfigReference,
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,
@@ -20,8 +22,7 @@ fn test_dummy_spartan_prover() {
     const N: usize = 3;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
-    let config =
-        FieldConfig::new(BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap());
+    let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
 
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
@@ -53,8 +54,7 @@ fn test_spartan_verifier() {
     const I: usize = 1;
     const N: usize = 3;
     let input = 3;
-    let config =
-        FieldConfig::new(BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap());
+    let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
 
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
@@ -101,8 +101,7 @@ fn test_dummy_spartan_verifier() {
     const N: usize = 3;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
-    let config =
-        FieldConfig::new(BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap());
+    let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
@@ -145,8 +144,7 @@ fn test_failing_spartan_verifier() {
     const I: usize = 1;
     const N: usize = 3;
     let input = 3;
-    let config =
-        FieldConfig::new(BigInt::<N>::from_str("312829638388039969874974628075306023441").unwrap());
+    let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
     let (ccs, statement, mut wit, _) = get_test_ccs_stuff_Z(input);
     // Change the witness such that it is no longer valid

@@ -1,9 +1,10 @@
-use ark_std::{marker::PhantomData, str::FromStr};
+use ark_std::marker::PhantomData;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zinc::{
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
-    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
-    traits::{Config, ConfigReference},
+    field::{ConfigRef, Int, RandomField},
+    field_config,
+    traits::ConfigReference,
     transcript::KeccakTranscript,
     zinc::{
         prover::SpartanProver,
@@ -120,22 +121,18 @@ fn run_benches(c: &mut Criterion) {
     const INT_LIMBS: usize = 1;
     const FIELD_LIMBS: usize = 4;
     // Using a 256-bit prime field
-    let config = FieldConfig::new(
-        BigInt::<FIELD_LIMBS>::from_str(
-            "115792089237316195423570985008687907853269984665640564039457584007913129639747",
-        )
-        .unwrap(),
+    let config = field_config!(
+        115792089237316195423570985008687907853269984665640564039457584007913129639747,
+        4
     );
     let config = ConfigRef::from(&config);
 
     benchmark_spartan_prover::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
     benchmark_spartan_verifier::<INT_LIMBS, FIELD_LIMBS>(c, config, "256");
 
-    let stark_config = FieldConfig::new(
-        BigInt::<FIELD_LIMBS>::from_str(
-            "3618502788666131213697322783095070105623107215331596699973092056135872020481",
-        )
-        .unwrap(),
+    let stark_config = field_config!(
+        3618502788666131213697322783095070105623107215331596699973092056135872020481,
+        4
     );
     let stark_config = ConfigRef::from(&stark_config);
 

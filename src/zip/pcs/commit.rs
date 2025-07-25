@@ -21,6 +21,7 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
+    /// TODO: validate_input method requires a parameter points which is an iterable of type F
     pub fn commit<F: Field>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,

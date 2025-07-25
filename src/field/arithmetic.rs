@@ -172,6 +172,12 @@ impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<'_, N> {
     }
 }
 
+impl<'a, const N: usize> From<&'a Self> for RandomField<'_, N> {
+    fn from(value: &'a Self) -> Self {
+        *value
+    }
+}
+
 #[cfg(test)]
 mod test {
     use ark_ff::{One, Zero};

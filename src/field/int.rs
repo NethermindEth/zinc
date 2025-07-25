@@ -1,5 +1,6 @@
 use ark_std::{
     cmp::Ordering,
+    iter::Sum,
     ops::{Add, AddAssign, Mul, RemAssign, Sub},
     rand::RngCore,
     vec::Vec,
@@ -188,6 +189,15 @@ impl<const N: usize> ToBytes for Int<N> {
             .iter()
             .flat_map(|word| word.to_be_bytes())
             .collect()
+    }
+}
+
+impl<const N: usize> Sum for Int<N> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |mut acc, x| {
+            acc.add_assign(&x);
+            acc
+        })
     }
 }
 

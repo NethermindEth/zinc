@@ -15,13 +15,13 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{ZipLinearCode, ZipLinearCodeSpec},
+        code::{LinearCodeSpec, ZipLinearCode},
         pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
 
-pub trait Verifier<I: Integer, F: Field, S: ZipLinearCodeSpec> {
+pub trait Verifier<I: Integer, F: Field, S: LinearCodeSpec> {
     fn verify(
         &self,
         cm_i: &Statement_Z<I>,
@@ -33,7 +33,7 @@ pub trait Verifier<I: Integer, F: Field, S: ZipLinearCodeSpec> {
 }
 
 // TODO
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> Verifier<ZT::N, F, S> for ZincVerifier<ZT, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> Verifier<ZT::N, F, S> for ZincVerifier<ZT, F, S>
 where
     ZT::L: FieldMap<F, Output = F>,
     ZT::K: FieldMap<F, Output = F>,
@@ -102,7 +102,7 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> SpartanVerifier<F> for ZincVerifier<ZT, F, S> {
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanVerifier<F> for ZincVerifier<ZT, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
@@ -139,7 +139,7 @@ impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> SpartanVerifier<F> for ZincVe
     }
 }
 
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> ZincVerifier<ZT, F, S> {
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,

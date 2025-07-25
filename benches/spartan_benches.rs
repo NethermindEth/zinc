@@ -11,7 +11,7 @@ use zinc::{
         structs::{ZincProver, ZincVerifier},
         verifier::SpartanVerifier,
     },
-    zip::code::ZipLinearCodeSpec1,
+    zip::code::DefaultLinearCodeSpec,
 };
 
 const INT_LIMBS: usize = 1;
@@ -31,14 +31,14 @@ where
     let mut rng = ark_std::test_rng();
 
     // If we are keeping primes around 128 bits we should stay with N = 3 hardcoded
-    let prover = ZincProver::<ZT, F, _>::new(ZipLinearCodeSpec1);
+    let prover = ZincProver::<ZT, F, _>::new(DefaultLinearCodeSpec);
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
         let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<ZT, F, ZipLinearCodeSpec1>::prepare_for_random_field_piop(
+            ZincProver::<ZT, F, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");
@@ -77,9 +77,9 @@ where
     let mut group = c.benchmark_group(format!("spartan_verifier for {prime} prime"));
     let mut rng = ark_std::test_rng();
 
-    let prover = ZincProver::<ZT, F, _>::new(ZipLinearCodeSpec1);
+    let prover = ZincProver::<ZT, F, _>::new(DefaultLinearCodeSpec);
 
-    let verifier = ZincVerifier::<ZT, F, _>::new(ZipLinearCodeSpec1);
+    let verifier = ZincVerifier::<ZT, F, _>::new(DefaultLinearCodeSpec);
 
     for size in [12, 13, 14, 15, 16] {
         let n = 1 << size;
@@ -87,7 +87,7 @@ where
         let mut prover_transcript = KeccakTranscript::new();
 
         let (z_ccs, z_mle, ccs_f, statement_f) =
-            ZincProver::<ZT, F, ZipLinearCodeSpec1>::prepare_for_random_field_piop(
+            ZincProver::<ZT, F, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
                 &statement, &wit, &ccs, config,
             )
             .expect("Failed to prepare for random field PIOP");

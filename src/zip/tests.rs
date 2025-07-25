@@ -8,7 +8,7 @@ use crate::{
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{
-        code::{ZipLinearCode, ZipLinearCodeSpec1},
+        code::{DefaultLinearCodeSpec, ZipLinearCode},
         pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
@@ -28,7 +28,7 @@ type TestZip<LC> = MultilinearZip<ZT, LC>;
 fn test_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let poly_size = 8;
-    let linear_code: LC = ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
     let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
@@ -45,7 +45,7 @@ fn test_zip_commitment() {
 fn test_failing_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let poly_size = 8;
-    let linear_code: LC = ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
     let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..16).map(Int::<I>::from).collect();
@@ -64,8 +64,7 @@ fn test_zip_opening() {
 
     let poly_size = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let linear_code: LC =
-        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let param = TestZip::setup(poly_size, linear_code);
 
     let mut transcript = PcsTranscript::<RandomField<N>>::new();
@@ -91,8 +90,7 @@ fn test_failing_zip_evaluation() {
 
     let poly_size = 8;
     let mut keccak_transcript = KeccakTranscript::new();
-    let linear_code: LC =
-        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let param = TestZip::setup(poly_size, linear_code);
 
     let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
@@ -125,8 +123,7 @@ fn test_zip_evaluation() {
     let n = 8;
     let poly_size = 1 << n;
     let mut keccak_transcript = KeccakTranscript::new();
-    let linear_code: LC =
-        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let param = TestZip::setup(poly_size, linear_code);
     let evaluations: Vec<_> = (0..(1 << n))
         .map(|_| Int::<I>::from(i8::rand(&mut rng)))
@@ -160,8 +157,7 @@ fn test_zip_batch_evaluation() {
     let m = 10;
     let poly_size = 1 << n;
     let mut keccak_transcript = KeccakTranscript::new();
-    let linear_code: LC =
-        ZipLinearCode::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let param = TestZip::setup(poly_size, linear_code);
     let evaluations: Vec<Vec<Int<I>>> = (0..m)
         .map(|_| {

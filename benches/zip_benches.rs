@@ -19,7 +19,7 @@ use zinc::{
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{
-        code::{LinearCode, ZipLinearCode, ZipLinearCodeSpec1},
+        code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
         pcs::{structs::MultilinearZip, MerkleTree},
         pcs_transcript::PcsTranscript,
     },
@@ -32,7 +32,8 @@ define_random_field_zip_types!();
 implement_random_field_zip_types!(INT_LIMBS);
 
 type ZT = RandomFieldZipTypes<INT_LIMBS>;
-type BenchZip = MultilinearZip<ZT, ZipLinearCode<ZT>>;
+type LC = ZipLinearCode<ZT>;
+type BenchZip = MultilinearZip<ZT, LC>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     group.bench_function(
@@ -43,7 +44,7 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
             let mut keccak_transcript = T::new();
             let poly_size = 1 << P;
             let linear_code =
-                ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+                LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
             let params = BenchZip::setup(poly_size, linear_code);
             let row_len = params.linear_code.row_len();
             let codeword_len = params.linear_code.codeword_len();
@@ -81,7 +82,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
     let linear_code =
-        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+        ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let params = BenchZip::setup(poly_size, linear_code);
 
     group.bench_function(
@@ -113,8 +114,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
-    let linear_code =
-        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
@@ -153,8 +153,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
-    let linear_code =
-        ZipLinearCode::<ZT>::new(&ZipLinearCodeSpec1, poly_size, &mut keccak_transcript);
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);

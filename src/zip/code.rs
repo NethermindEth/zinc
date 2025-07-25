@@ -9,7 +9,6 @@ use crate::{
     zip::utils::expand,
 };
 
-const INVERSE_RATE: usize = 2;
 pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     /// Length of each input row before encoding
     fn row_len(&self) -> usize;
@@ -98,7 +97,7 @@ pub struct ZipLinearCode<ZT: ZipTypes> {
 }
 
 impl<ZT: ZipTypes> ZipLinearCode<ZT> {
-    pub fn new<S: ZipLinearCodeSpec, T: ZipTranscript<ZT::L>>(
+    pub fn new<S: LinearCodeSpec, T: ZipTranscript<ZT::L>>(
         spec: &S,
         poly_size: usize,
         transcript: &mut T,
@@ -114,7 +113,7 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
     /// - `num_vars`: Number of variables in the multilinear polynomial
     /// - `n_0`: Number of rows in the matrix representation of the polynomial
     /// - `transcript`: Reference to a transcript for generating random challenges
-    fn new_multilinear<S: ZipLinearCodeSpec, T: ZipTranscript<ZT::L>>(
+    fn new_multilinear<S: LinearCodeSpec, T: ZipTranscript<ZT::L>>(
         spec: &S,
         num_vars: usize,
         n_0: usize,
@@ -126,12 +125,12 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
 
         let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
 
-        let codeword_len = spec.codeword_len(row_len);
+        let codeword_len = row_len * spec.repetition_factor();
 
         let num_column_opening = spec.num_column_opening();
         let num_proximity_testing = spec.num_proximity_testing(log2_q, row_len, n_0);
 
-        let (a, b) = spec.matrices(codeword_len / 2, row_len, row_len / 2, transcript);
+        let (a, b) = Self::matrices(codeword_len / 2, row_len, row_len / 2, transcript);
         Self {
             row_len,
             codeword_len,
@@ -143,11 +142,24 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
         }
     }
 
-    pub fn proof_size<S: ZipLinearCodeSpec>(spec: S, n_0: usize, c: usize, r: usize) -> usize {
+    pub fn proof_size<S: LinearCodeSpec>(spec: S, n_0: usize, c: usize, r: usize) -> usize {
         let log2_q = <ZT::N as Integer>::W::num_words();
         // Number of low-degree tests
         let num_ldt = spec.num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + spec.num_column_opening() * r
+    }
+
+    fn matrices<L: Integer, T: ZipTranscript<L>>(
+        rows: usize,
+        cols: usize,
+        density: usize,
+        transcript: &mut T,
+    ) -> (SparseMatrixZ<L>, SparseMatrixZ<L>) {
+        let dim = SparseMatrixDimension::new(rows, cols, density);
+        (
+            SparseMatrixZ::sample_new(dim, transcript),
+            SparseMatrixZ::sample_new(dim, transcript),
+        )
     }
 }
 
@@ -173,6 +185,11 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
         In: Integer,
         Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
     {
+        debug_assert_eq!(
+            row.len(),
+            self.row_len,
+            "Row length must match the code's row length"
+        );
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(self.a.mat_vec_mul(row));
         code.extend(self.b.mat_vec_mul(row));
@@ -183,6 +200,11 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
     where
         ZT::L: FieldMap<F, Output = F>,
     {
+        debug_assert_eq!(
+            row.len(),
+            self.row_len,
+            "Row length must match the code's row length"
+        );
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
@@ -192,48 +214,32 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
     }
 }
 
-pub trait ZipLinearCodeSpec: Debug {
+pub trait LinearCodeSpec: Debug {
+    fn num_column_opening(&self) -> usize;
+
+    /// A.k.a. inverse rate, the ratio of codeword length to input row length.
+    /// Has to be at a power of 2.
+    fn repetition_factor(&self) -> usize;
+
+    fn num_proximity_testing(&self, _log2_q: usize, _n: usize, _n_0: usize) -> usize;
+}
+
+// Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
+#[derive(Debug)]
+pub struct DefaultLinearCodeSpec;
+impl LinearCodeSpec for DefaultLinearCodeSpec {
     fn num_column_opening(&self) -> usize {
         1000
+    }
+
+    fn repetition_factor(&self) -> usize {
+        2
     }
 
     fn num_proximity_testing(&self, _log2_q: usize, _n: usize, _n_0: usize) -> usize {
         1
     }
-
-    fn codeword_len(&self, n: usize) -> usize {
-        n * INVERSE_RATE
-    }
-
-    fn matrices<L: Integer, T: ZipTranscript<L>>(
-        &self,
-        rows: usize,
-        cols: usize,
-        density: usize,
-        transcript: &mut T,
-    ) -> (SparseMatrixZ<L>, SparseMatrixZ<L>) {
-        let dim = SparseMatrixDimension::new(rows, cols, density);
-        (
-            SparseMatrixZ::sample_new(dim, transcript),
-            SparseMatrixZ::sample_new(dim, transcript),
-        )
-    }
 }
-
-macro_rules! impl_spec_128 {
-    ($(($name:ident,)),*) => {
-        $(
-            #[derive(Debug)]
-            pub struct $name;
-            impl ZipLinearCodeSpec for $name {
-
-            }
-        )*
-    };
-}
-
-// Figure 2 in [GLSTW21](https://eprint.iacr.org/2021/1043.pdf).
-impl_spec_128!((ZipLinearCodeSpec1,));
 
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMatrixDimension {

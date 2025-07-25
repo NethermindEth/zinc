@@ -137,7 +137,7 @@ impl KeccakTranscript {
         challenges
     }
 
-    /// Generates a pseudorandom [CryptoInteger] as a challenge based on the current transcript state.
+    /// Generates a pseudorandom [Integer] as a challenge based on the current transcript state.
     pub fn get_integer_challenge<I: Integer>(&mut self) -> I {
         let mut words = I::W::default();
 

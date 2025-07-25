@@ -64,8 +64,6 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         row_len: usize,
         poly: &DenseMultilinearExtension<ZT::N>,
     ) -> Vec<ZT::K> {
-        // assert_eq!(pp.num_rows, poly.evaluations.len().isqrt());
-        assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows, num_threads());
         let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
 

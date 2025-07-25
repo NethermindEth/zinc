@@ -21,7 +21,7 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{ZipLinearCode, ZipLinearCodeSpec},
+        code::{LinearCodeSpec, ZipLinearCode},
         pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
@@ -41,7 +41,7 @@ pub trait Prover<I: Integer, F: Field> {
     ) -> Result<ZincProof<F>, ZincError<F>>;
 }
 
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> Prover<ZT::N, F> for ZincProver<ZT, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> Prover<ZT::N, F> for ZincProver<ZT, F, S>
 where
     for<'a> ZT::N: From<&'a F::I>,
     for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO
@@ -121,7 +121,7 @@ pub trait SpartanProver<I: Integer, F: Field> {
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> SpartanProver<ZT::N, F> for ZincProver<ZT, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanProver<ZT::N, F> for ZincProver<ZT, F, S>
 where
     for<'a> ZT::N: From<&'a F::I>,
     for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO
@@ -162,7 +162,7 @@ where
     }
 }
 
-impl<ZT: ZipTypes, F: Field, S: ZipLinearCodeSpec> ZincProver<ZT, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S>
 where
     for<'a> ZT::N: From<&'a F::I>,
     for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO

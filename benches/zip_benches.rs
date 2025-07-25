@@ -18,12 +18,9 @@ use zinc::{
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,
-    zip::{
-        code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
-        pcs::{structs::MultilinearZip, MerkleTree},
-        pcs_transcript::PcsTranscript,
-    },
+    zip::{code::DefaultLinearCodeSpec, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
+use zinc::zip::code::{LinearCode, ZipLinearCode};
 
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;

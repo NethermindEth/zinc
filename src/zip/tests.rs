@@ -7,11 +7,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
-    zip::{
-        code::{DefaultLinearCodeSpec, ZipLinearCode},
-        pcs::structs::MultilinearZip,
-        pcs_transcript::PcsTranscript,
-    },
+    zip::{code::{ZipLinearCode, DefaultLinearCodeSpec}, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
 };
 
 const I: usize = 1;

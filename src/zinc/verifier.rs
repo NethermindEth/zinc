@@ -15,7 +15,7 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{LinearCodeSpec, ZipLinearCode},
+        code::{ZipLinearCode, LinearCodeSpec},
         pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },

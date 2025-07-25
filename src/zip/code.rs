@@ -185,11 +185,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
         In: Integer,
         Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
     {
-        debug_assert_eq!(
-            row.len(),
-            self.row_len,
-            "Row length must match the code's row length"
-        );
+        debug_assert_eq!(row.len(), self.row_len, "Row length must match the code's row length");
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(self.a.mat_vec_mul(row));
         code.extend(self.b.mat_vec_mul(row));
@@ -310,7 +306,7 @@ impl<L: Integer> SparseMatrixZ<L> {
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![M::from_i64(0i64); self.dimension.n];
+        let mut result = vec![M::from(0i64); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
             let mut sum = M::ZERO;

@@ -15,9 +15,7 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
-        DefaultLinearCodeSpec,
-    );
+    let prover = ZincProver::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(DefaultLinearCodeSpec);
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
@@ -38,9 +36,8 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
-        DefaultLinearCodeSpec,
-    );
+    let verifier =
+        ZincVerifier::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(DefaultLinearCodeSpec);
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier

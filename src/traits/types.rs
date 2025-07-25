@@ -43,7 +43,7 @@ pub trait Field:
     /// Integer representation type for the field element.
     type B: BigInteger<W = Self::W> + From<Self::I> + FieldMap<Self, Output = Self>;
     /// Field configuration type.
-    type C: Config<I = Self::B>;
+    type C: Config<B = Self::B>;
     /// Reference to field configuration.
     type R: ConfigReference<C = Self::C>;
     /// Word representation type.
@@ -93,15 +93,15 @@ pub trait BigInteger: From<u64> + From<u32> + Debug + FromBytes + Clone {
 
 /// Trait for field configuration types.
 pub trait Config: PartialEq + Eq {
-    type I: BigInteger;
+    type B: BigInteger;
     /// Returns the modulus for the field.
-    fn modulus(&self) -> &Self::I;
+    fn modulus(&self) -> &Self::B;
     /// Multiplies two integers in the field.
-    fn mul_assign(&self, a: &mut Self::I, b: &Self::I);
+    fn mul_assign(&self, a: &mut Self::B, b: &Self::B);
     /// Returns the R^2 value for Montgomery reduction.
-    fn r2(&self) -> &Self::I;
+    fn r2(&self) -> &Self::B;
     /// Constructs a new config from a modulus.
-    fn new(modulus: Self::I) -> Self;
+    fn new(modulus: Self::B) -> Self;
 }
 
 /// Trait for references to field configuration.

@@ -11,8 +11,10 @@ use crypto_bigint::{
 use num_traits::{ConstOne, ConstZero, One, Zero};
 
 use crate::{
-    biginteger::{BigInt, Words},
-    crypto_int::uint::Uint,
+    field::{
+        biginteger::{BigInt, Words},
+        uint::Uint,
+    },
     traits::Integer,
     zip::pcs::utils::ToBytes,
 };

@@ -1,5 +1,5 @@
 use crate::{
-    biginteger::BigInt,
+    field::BigInt,
     traits::{Config, ConfigReference},
 };
 
@@ -159,7 +159,7 @@ impl<const N: usize> FieldConfig<N> {
 }
 
 impl<const N: usize> Config for FieldConfig<N> {
-    type I = BigInt<N>;
+    type B = BigInt<N>;
     fn modulus(&self) -> &BigInt<N> {
         &self.modulus
     }
@@ -315,7 +315,7 @@ mod tests {
 
     use super::FieldConfig;
     use crate::{
-        biginteger::{BigInteger128, BigInteger256},
+        field::{BigInteger128, BigInteger256},
         traits::Config,
     };
 

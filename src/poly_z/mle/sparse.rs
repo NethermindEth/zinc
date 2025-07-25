@@ -394,8 +394,7 @@ mod tests {
     use num_traits::ConstZero;
 
     use super::*;
-    use crate::crypto_int::Int;
-
+    use crate::field::Int;
     // Function to convert usize to a binary vector of Ring elements.
     fn usize_to_binary_vector<I: Integer>(n: usize, dimensions: usize) -> Vec<I> {
         let mut bits = Vec::with_capacity(dimensions);

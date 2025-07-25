@@ -12,10 +12,7 @@ use criterion::{
 use crypto_bigint::Random;
 use itertools::Itertools;
 use zinc::{
-    biginteger::BigInt,
-    crypto_int::Int,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,

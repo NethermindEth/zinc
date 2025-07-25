@@ -2,8 +2,7 @@ use ark_ff::{One, Zero};
 use zeroize::Zeroize;
 
 use crate::{
-    biginteger::BigInt,
-    field::{RandomField, RandomField::Raw},
+    field::{biginteger::BigInt, RandomField, RandomField::Raw},
     traits::Field,
 };
 
@@ -62,10 +61,12 @@ mod tests {
     use zeroize::Zeroize;
 
     use crate::{
-        biginteger::BigInt,
         create_bigint, create_random_field,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{
+            biginteger::BigInt,
+            config::{ConfigRef, FieldConfig},
+            RandomField,
+        },
         traits::Config,
     };
 

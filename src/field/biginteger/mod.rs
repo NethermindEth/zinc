@@ -28,8 +28,7 @@ use zeroize::Zeroize;
 use crate::{
     adc,
     const_helpers::SerBuffer,
-    crypto_int::Int,
-    field_config,
+    field::{config, Int},
     traits::{BigInteger, FromBytes, Integer, Uinteger},
 };
 
@@ -568,10 +567,10 @@ impl<const N: usize> BigInt<N> {
             let k = r[i].wrapping_mul(inv);
             let mut carry = 0;
 
-            field_config::mac_with_carry(r[i], k, modulus.0[0], &mut carry);
+            config::mac_with_carry(r[i], k, modulus.0[0], &mut carry);
             for j in 1..N {
                 r[(j + i) % N] =
-                    field_config::mac_with_carry(r[(j + i) % N], k, modulus.0[j], &mut carry);
+                    config::mac_with_carry(r[(j + i) % N], k, modulus.0[j], &mut carry);
             }
             r[i % N] = carry;
         }

@@ -417,8 +417,7 @@ fn precompute_eq<F: Field>(g: &[F], config: F::R) -> Vec<F> {
 mod tests {
     use super::*;
     use crate::{
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{ConfigRef, FieldConfig, RandomField},
         traits::Config,
     };
 

@@ -1,10 +1,7 @@
 use ark_std::{str::FromStr, vec, vec::Vec, UniformRand};
 
 use crate::{
-    biginteger::BigInt,
-    crypto_int::Int,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
     poly_z::mle::DenseMultilinearExtension,
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,

@@ -1,11 +1,8 @@
 use ark_std::{marker::PhantomData, str::FromStr};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use zinc::{
-    biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
-    crypto_int::Int,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
     traits::{Config, ConfigReference},
     transcript::KeccakTranscript,
     zinc::{

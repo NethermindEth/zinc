@@ -315,10 +315,8 @@ pub(crate) fn get_test_z_F<F: Field>(input: u64, config: F::R) -> Vec<F> {
 mod tests {
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
     use crate::{
-        biginteger::BigInt,
         ccs::test_utils::get_dummy_ccs_F_from_z_length,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
         traits::Config,
     };
 

@@ -5,7 +5,11 @@ use criterion::{
     black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
     PlotConfiguration,
 };
-use zinc::{biginteger::BigInt, field::RandomField, prime_gen, transcript::KeccakTranscript};
+use zinc::{
+    field::{BigInt, RandomField},
+    prime_gen,
+    transcript::KeccakTranscript,
+};
 
 fn bench_prime_generation(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let hasher = KeccakTranscript::new();

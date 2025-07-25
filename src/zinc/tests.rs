@@ -2,11 +2,8 @@ use ark_std::{marker::PhantomData, str::FromStr};
 use crypto_bigint::Zero;
 
 use crate::{
-    biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
-    crypto_int::Int,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
     traits::{Config, ConfigReference},
     transcript::KeccakTranscript,
     zinc::{

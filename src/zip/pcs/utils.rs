@@ -292,7 +292,7 @@ mod tests {
     use crypto_bigint::Random;
 
     use super::*;
-    use crate::{crypto_int::Int, zip::utils::combine_rows};
+    use crate::{field::Int, zip::utils::combine_rows};
 
     #[test]
     fn test_basic_combination() {

@@ -137,9 +137,7 @@ mod tests {
         MLSumcheck, SumcheckProof,
     };
     use crate::{
-        biginteger::BigInt,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
         traits::{Config, ConfigReference, Field},
         transcript::KeccakTranscript,
     };

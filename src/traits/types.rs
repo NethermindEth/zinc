@@ -152,13 +152,14 @@ pub trait Integer:
     + One
     + ConstZero
     + ConstOne
-    + RemAssign<Self>
+    + Neg<Output = Self>
     + Add<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + Mul<Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
+    + RemAssign<Self>
     + Sum
     + for<'a> From<&'a Self>
     + From<i64>

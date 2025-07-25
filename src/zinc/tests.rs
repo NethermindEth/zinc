@@ -34,11 +34,14 @@ fn test_dummy_spartan_prover() {
     let prover =
         ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
 
-    let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
-            &statement, &wit, &ccs, config,
-        )
-        .expect("Failed to prepare for random field PIOP");
+    let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+        RandomFieldZipTypes<I>,
+        RandomField<N>,
+        DefaultLinearCodeSpec,
+    >::prepare_for_random_field_piop(
+        &statement, &wit, &ccs, config
+    )
+    .expect("Failed to prepare for random field PIOP");
 
     let proof = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
@@ -67,11 +70,14 @@ fn test_spartan_verifier() {
     let prover =
         ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
 
-    let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
-            &statement, &wit, &ccs, config,
-        )
-        .expect("Failed to prepare for random field PIOP");
+    let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+        RandomFieldZipTypes<I>,
+        RandomField<N>,
+        DefaultLinearCodeSpec,
+    >::prepare_for_random_field_piop(
+        &statement, &wit, &ccs, config
+    )
+    .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
@@ -115,11 +121,14 @@ fn test_dummy_spartan_verifier() {
     let prover =
         ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
 
-    let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
-            &statement, &wit, &ccs, config,
-        )
-        .expect("Failed to prepare for random field PIOP");
+    let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+        RandomFieldZipTypes<I>,
+        RandomField<N>,
+        DefaultLinearCodeSpec,
+    >::prepare_for_random_field_piop(
+        &statement, &wit, &ccs, config
+    )
+    .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
@@ -163,11 +172,14 @@ fn test_failing_spartan_verifier() {
     let prover =
         ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
 
-    let (z_ccs, z_mle, ccs_f, statement_f) =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, DefaultLinearCodeSpec>::prepare_for_random_field_piop(
-            &statement, &wit, &ccs, config,
-        )
-        .expect("Failed to prepare for random field PIOP");
+    let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
+        RandomFieldZipTypes<I>,
+        RandomField<N>,
+        DefaultLinearCodeSpec,
+    >::prepare_for_random_field_piop(
+        &statement, &wit, &ccs, config
+    )
+    .expect("Failed to prepare for random field PIOP");
 
     let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,

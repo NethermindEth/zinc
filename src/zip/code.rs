@@ -185,7 +185,11 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
         In: Integer,
         Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
     {
-        debug_assert_eq!(row.len(), self.row_len, "Row length must match the code's row length");
+        debug_assert_eq!(
+            row.len(),
+            self.row_len,
+            "Row length must match the code's row length"
+        );
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(self.a.mat_vec_mul(row));
         code.extend(self.b.mat_vec_mul(row));
@@ -291,12 +295,47 @@ impl<L: Integer> SparseMatrixZ<L> {
         Self { dimension, cells }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, L)]> {
+    /// Samples a permutation matrix (one that has exactly one non-zero element for each row
+    /// and column).
+    pub fn sample_permutation<T: ZipTranscript<L>>(n: usize, transcript: &mut T) -> Self {
+        use rand::{seq::SliceRandom, SeedableRng};
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(transcript.get_u64());
+
+        let mut cells: Vec<_> = (0..n).map(|i| (i, L::ONE)).collect();
+        cells.shuffle(&mut rng);
+
+        let dimension = SparseMatrixDimension::new(n, n, 1);
+        Self { dimension, cells }
+    }
+
+    /// Creates a matrix that, when multiplied to a given vector, repeats it.
+    /// Matrix that repeats vector of length 2 three times would be:
+    /// ```text
+    /// 1 0 0
+    /// 1 0 0
+    /// 0 1 0
+    /// 0 1 0
+    /// 0 0 1
+    /// 0 0 1
+    /// ```
+    pub fn repetition(input_length: usize, rep: usize) -> Self {
+        let mut cells = Vec::with_capacity(input_length * rep);
+        for column in 0..input_length {
+            for _ in 0..rep {
+                cells.push((column, L::ONE));
+            }
+        }
+        let dimension = SparseMatrixDimension::new(input_length * rep, input_length, 1);
+        Self { dimension, cells }
+    }
+
+    pub fn rows(&self) -> impl Iterator<Item = &[(usize, L)]> {
         self.cells.chunks(self.dimension.d)
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
+    pub fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
         &self,
         vector: &[N],
     ) -> Vec<M> {
@@ -318,6 +357,14 @@ impl<L: Integer> SparseMatrixZ<L> {
 
         result
     }
+
+    pub fn to_dense(&self) -> Vec<Vec<L>> {
+        let mut r: Vec<Vec<L>> = vec![vec![L::ZERO; self.dimension.m]; self.dimension.n];
+        for (row_i, (col_i, value)) in self.cells.iter().enumerate() {
+            r[row_i][*col_i] = value.clone();
+        }
+        r
+    }
 }
 
 /// Sparse matrix over a field.
@@ -328,7 +375,7 @@ pub struct SparseMatrixF<F: Field> {
 }
 
 impl<F: Field> SparseMatrixF<F> {
-    fn new<L: Integer + FieldMap<F, Output = F>>(
+    pub fn new<L: Integer + FieldMap<F, Output = F>>(
         sparse_matrix: &SparseMatrixZ<L>,
         config: F::R,
     ) -> Self {
@@ -348,7 +395,7 @@ impl<F: Field> SparseMatrixF<F> {
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
+    pub fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
         assert_eq!(
             self.dimension.m,
             vector.len(),

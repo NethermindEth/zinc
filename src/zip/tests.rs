@@ -7,7 +7,10 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
-    zip::{code::{ZipLinearCode, DefaultLinearCodeSpec}, pcs::structs::MultilinearZip, pcs_transcript::PcsTranscript},
+    zip::{
+        code::DefaultLinearCodeSpec, code_raa::RaaCode, pcs::structs::MultilinearZip,
+        pcs_transcript::PcsTranscript,
+    },
 };
 
 const I: usize = 1;
@@ -17,7 +20,7 @@ define_random_field_zip_types!();
 implement_random_field_zip_types!(I);
 
 type ZT = RandomFieldZipTypes<I>;
-type LC = ZipLinearCode<ZT>;
+type LC = RaaCode<ZT>;
 type TestZip<LC> = MultilinearZip<ZT, LC>;
 
 #[test]

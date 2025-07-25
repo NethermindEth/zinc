@@ -19,7 +19,8 @@ use zinc::{
     traits::{Config, ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{
-        code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
+        code::{DefaultLinearCodeSpec, LinearCode},
+        code_raa::RaaCode,
         pcs::{structs::MultilinearZip, MerkleTree},
         pcs_transcript::PcsTranscript,
     },
@@ -32,7 +33,7 @@ define_random_field_zip_types!();
 implement_random_field_zip_types!(INT_LIMBS);
 
 type ZT = RandomFieldZipTypes<INT_LIMBS>;
-type LC = ZipLinearCode<ZT>;
+type LC = RaaCode<ZT>;
 type BenchZip = MultilinearZip<ZT, LC>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
@@ -81,8 +82,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
-    let linear_code =
-        ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let params = BenchZip::setup(poly_size, linear_code);
 
     group.bench_function(

@@ -1,7 +1,7 @@
 use ark_std::{
     cmp::Ordering,
     iter::Sum,
-    ops::{Add, AddAssign, Mul, RemAssign, Sub},
+    ops::{Add, AddAssign, Mul, Neg, RemAssign, Sub},
     rand::RngCore,
     vec::Vec,
 };
@@ -21,6 +21,7 @@ use crate::{
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(transparent)]
 pub struct Int<const N: usize>(pub(crate) CryptoInt<N>);
 
 impl<const N: usize> Zero for Int<N> {
@@ -57,6 +58,15 @@ impl<const N: usize> One for Int<N> {
 
 impl<const N: usize> ConstOne for Int<N> {
     const ONE: Self = Self(CryptoInt::ONE);
+}
+
+impl<const N: usize> Neg for Int<N> {
+    type Output = Self;
+
+    #[inline]
+    fn neg(self) -> Self::Output {
+        Self(self.0.checked_neg().unwrap())
+    }
 }
 
 impl<const N: usize> Mul<Self> for Int<N> {

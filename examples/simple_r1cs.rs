@@ -98,7 +98,7 @@ fn get_witness<const N: usize>(input: i64) -> Witness_Z<Int<N>> {
         [
             input.pow(3) + input + 5, // x^3 + x + 5
             input.pow(2),             // x^2
-            input.pow(3) * input,     // x^2 * x
+            input.pow(2) * input,     // x^2 * x
             input.pow(3) + input,     // x^3 + x
         ]
         .iter()

@@ -22,24 +22,49 @@ pub trait LinearCodes<In: Integer, Im: Integer>: Sync + Send {
     fn encode(&self, input: &[In]) -> Vec<Im>;
 }
 
+/// A linear code implementation used for the Zip PCS.
+///
+/// # Type Parameters
+/// - `I`: The input cryptographic integer type. Represents the field elements being encoded.
+/// - `L`: The matrix element type. A larger cryptographic integer type used for sparse matrix
+///   operations to prevent overflow during encoding. Must be at least as large as `I`.
 #[derive(Clone, Debug)]
 pub struct Zip<I: Integer, L: Integer> {
+    /// Length of each input row before encoding
     row_len: usize,
+
+    /// Length of each encoded codeword (output length after encoding)
     codeword_len: usize,
+
+    /// Number of columns to open during verification (security parameter)
     num_column_opening: usize,
+
+    /// Number of proximity tests to perform (security parameter)
     num_proximity_testing: usize,
+
+    /// First sparse matrix used in the encoding process
     a: SparseMatrixZ<L>,
+
+    /// Second sparse matrix used in the encoding process
     b: SparseMatrixZ<L>,
+
     phantom: PhantomData<I>,
 }
 
 impl<I: Integer, L: Integer> Zip<I, L> {
     pub fn proof_size<S: ZipSpec>(n_0: usize, c: usize, r: usize) -> usize {
         let log2_q = I::W::num_words();
+        // Number of low-degree tests
         let num_ldt = S::num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
+    /// Creates a new Zip instance for multilinear polynomials.
+    ///
+    /// # Parameters
+    /// - `num_vars`: Number of variables in the multilinear polynomial
+    /// - `n_0`: Number of rows in the matrix representation of the polynomial
+    /// - `transcript`: Reference to a transcript for generating random challenges
     pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<L>>(
         num_vars: usize,
         n_0: usize,
@@ -68,6 +93,17 @@ impl<I: Integer, L: Integer> Zip<I, L> {
         }
     }
 
+    /// Encodes a row of field elements using the Zip linear encoding scheme.
+    ///
+    /// This function is used when working with field elements directly and performs the encoding
+    /// by first converting the sparse matrices to field elements.
+    ///
+    /// # Parameters
+    /// - `row`: Slice of field elements to encode
+    /// - `field`: Field configuration for the conversion
+    ///
+    /// # Returns
+    /// A vector of field elements representing the encoded row
     pub fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
     where
         L: FieldMap<F, Output = F>,
@@ -75,19 +111,29 @@ impl<I: Integer, L: Integer> Zip<I, L> {
         let mut code = Vec::with_capacity(self.codeword_len);
         let a_f = SparseMatrixF::new(&self.a, field);
         let b_f = SparseMatrixF::new(&self.b, field);
-        code.extend(SparseMatrixF::mat_vec_mul(&a_f, row));
-        code.extend(SparseMatrixF::mat_vec_mul(&b_f, row));
+        code.extend(a_f.mat_vec_mul(row));
+        code.extend(b_f.mat_vec_mul(row));
 
         code
     }
 
+    /// Encodes a row of cryptographic integers using the Zip linear encoding scheme.
+    ///
+    /// This function is optimized for the prover's context where we work with cryptographic integers.
+    /// It's more efficient than `encode_f` as it avoids field conversions.
+    ///
+    /// # Parameters
+    /// - `row`: Slice of cryptographic integers to encode
+    ///
+    /// # Returns
+    /// A vector of cryptographic integers representing the encoded row
     pub(crate) fn encode_wide<M: Integer + for<'a> From<&'a L> + for<'a> From<&'a M>>(
         &self,
         row: &[M],
     ) -> Vec<M> {
         let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
-        code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
+        code.extend(self.a.mat_vec_mul(row));
+        code.extend(self.b.mat_vec_mul(row));
 
         code
     }
@@ -165,9 +211,12 @@ impl_spec_128!((ZipSpec1,));
 
 #[derive(Clone, Copy, Debug)]
 pub struct SparseMatrixDimension {
-    n: usize, // number of rows
-    m: usize, // number of columns
-    d: usize, // number of non-zero elements per row
+    /// Number of rows
+    n: usize,
+    /// Number of columns
+    m: usize,
+    /// Number of non-zero elements per row
+    d: usize,
 }
 
 impl ark_std::fmt::Display for SparseMatrixDimension {
@@ -186,6 +235,7 @@ impl SparseMatrixDimension {
     }
 }
 
+/// Sparse matrix over a ring of integers.
 #[derive(Clone, Debug)]
 pub struct SparseMatrixZ<I: Integer> {
     dimension: SparseMatrixDimension,

@@ -31,7 +31,7 @@ where
     pub fn open<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtensionZ<I>,
-        commit_data: &MultilinearZipData<I, K>,
+        commit_data: &MultilinearZipData<K>,
         point: &[F],
         field: F::R,
         transcript: &mut PcsTranscript<F>,
@@ -39,7 +39,7 @@ where
     where
         I: FieldMap<F, Output = F>,
     {
-        validate_input("open", pp.num_vars(), [poly], [point])?;
+        validate_input("open", pp.num_vars, [poly], [point])?;
 
         Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
 
@@ -52,7 +52,7 @@ where
     pub fn batch_open<'a, F: Field>(
         pp: &MultilinearZipParams<I, L>,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
+        comms: impl Iterable<Item = &'a MultilinearZipData<K>>,
         points: &[Vec<F>],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
@@ -78,8 +78,8 @@ where
     where
         I: FieldMap<F, Output = F>,
     {
-        let num_rows = pp.num_rows();
-        let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
+        let num_rows = pp.num_rows;
+        let row_len = pp.zip.row_len();
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
@@ -102,36 +102,27 @@ where
     pub(super) fn prove_testing_phase<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtensionZ<I>,
-        commit_data: &MultilinearZipData<I, K>,
+        commit_data: &MultilinearZipData<K>,
         transcript: &mut PcsTranscript<F>,
         field: F::R, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
-        if pp.num_rows() > 1 {
+        if pp.num_rows > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
-                let coeffs = transcript
-                    .fs_transcript
-                    .get_integer_challenges(pp.num_rows());
+            for _ in 0..pp.zip.num_proximity_testing() {
+                let coeffs = transcript.fs_transcript.get_integer_challenges(pp.num_rows);
                 let coeffs = coeffs.iter().map(expand::<I, M>);
 
                 let evals = poly.evaluations.iter().map(expand::<I, M>);
-                let combined_row = combine_rows(
-                    coeffs,
-                    evals,
-                    <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip()),
-                );
+                let combined_row = combine_rows(coeffs, evals, pp.zip.row_len());
 
                 transcript.write_integers(combined_row.iter())?;
             }
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_column_opening(pp.zip()) {
-            let column = transcript.squeeze_challenge_idx(
-                field,
-                <Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()),
-            );
+        for _ in 0..pp.zip.num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, pp.zip.codeword_len());
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
@@ -139,17 +130,17 @@ where
 
     pub(super) fn open_merkle_trees_for_column<F: Field>(
         pp: &MultilinearZipParams<I, L>,
-        commit_data: &MultilinearZipData<I, K>,
+        commit_data: &MultilinearZipData<K>,
         column: usize,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error> {
-        //Write the elements in the squeezed column to the shared transcript
+        // Write the elements in the squeezed column to the shared transcript
         transcript.write_integers(
             commit_data
                 .rows()
                 .iter()
                 .skip(column)
-                .step_by(<Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip())),
+                .step_by(pp.zip.codeword_len()),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".into()))?;

@@ -29,11 +29,12 @@ where
     pub fn commit<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtensionZ<I>,
-    ) -> Result<(MultilinearZipData<I, K>, MultilinearZipCommitment<I>), Error> {
-        validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
+    ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment<I>), Error> {
+        validate_input::<I, F>("commit", pp.num_vars, [poly], None)?;
 
-        let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
-        let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());
+        // TODO(alex): Rework to avoid function call syntax
+        let row_len = LinearCodes::<I, M>::row_len(&pp.zip);
+        let codeword_len = LinearCodes::<I, M>::codeword_len(&pp.zip);
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -43,7 +44,7 @@ where
             .map(|row| MerkleTree::new(merkle_depth, row))
             .collect::<Vec<_>>();
 
-        assert_eq!(rows_merkle_trees.len(), pp.num_rows());
+        assert_eq!(rows_merkle_trees.len(), pp.num_rows);
 
         let roots = rows_merkle_trees
             .iter()
@@ -51,7 +52,7 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::<I, K>::new(rows, rows_merkle_trees),
+            MultilinearZipData::<K>::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }
@@ -59,7 +60,7 @@ where
     pub fn batch_commit<'a, F: Field>(
         pp: &MultilinearZipParams<I, L>,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-    ) -> Result<Vec<(MultilinearZipData<I, K>, MultilinearZipCommitment<I>)>, Error>
+    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment<I>)>, Error>
     where
         I: 'a,
     {
@@ -76,10 +77,10 @@ where
         row_len: usize,
         poly: &DenseMultilinearExtensionZ<I>,
     ) -> Vec<K> {
-        // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
+        // assert_eq!(pp.num_rows, poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
-        let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![K::default(); pp.num_rows() * codeword_len];
+        let rows_per_thread = div_ceil(pp.num_rows, num_threads());
+        let mut encoded_rows = vec![K::default(); pp.num_rows * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -90,7 +91,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row.clone_from_slice(pp.zip().encode(evals).as_slice());
+                    row.clone_from_slice(pp.zip.encode(evals).as_slice());
                 }
             },
         );

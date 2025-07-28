@@ -23,33 +23,18 @@ pub struct MultilinearZip<
 
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<N: Integer, L: Integer> {
-    num_vars: usize,
-    num_rows: usize,
-    zip: Zip<N, L>,
-}
-
-impl<N: Integer, L: Integer> MultilinearZipParams<N, L> {
-    pub fn num_vars(&self) -> usize {
-        self.num_vars
-    }
-
-    pub fn num_rows(&self) -> usize {
-        self.num_rows
-    }
-
-    pub fn zip(&self) -> &Zip<N, L> {
-        &self.zip
-    }
+    pub num_vars: usize,
+    pub num_rows: usize,
+    pub zip: Zip<N, L>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipData<N: Integer, K: Integer> {
+pub struct MultilinearZipData<K: Integer> {
     /// The encoded rows of the polynomial matrix representation
     rows: Vec<K>,
     /// Merkle trees of each row
     rows_merkle_trees: Vec<MerkleTree>,
-    phantom: PhantomData<N>,
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
@@ -70,12 +55,11 @@ impl<I: Integer> MultilinearZipCommitment<I> {
     }
 }
 
-impl<N: Integer, K: Integer> MultilinearZipData<N, K> {
-    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<N, K> {
+impl<K: Integer> MultilinearZipData<K> {
+    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<K> {
         MultilinearZipData {
             rows,
             rows_merkle_trees,
-            phantom: PhantomData,
         }
     }
 

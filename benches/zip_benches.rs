@@ -25,14 +25,12 @@ use zinc::{
 
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
-type BenchZip = MultilinearZip<
-    Int<INT_LIMBS>,
-    Int<{ 2 * INT_LIMBS }>,
-    Int<{ 4 * INT_LIMBS }>,
-    Int<{ 8 * INT_LIMBS }>,
-    ZipSpec1,
-    KeccakTranscript,
->;
+type I1 = Int<INT_LIMBS>;
+type I2 = Int<{ 2 * INT_LIMBS }>;
+type I4 = Int<{ 4 * INT_LIMBS }>;
+type I8 = Int<{ 8 * INT_LIMBS }>;
+
+type BenchZip = MultilinearZip<I1, I2, I4, I8, ZipSpec1, KeccakTranscript>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     group.bench_function(
@@ -44,8 +42,8 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
 
-            let row_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::row_len(params.zip());
-            let codeword_len = <Zip<Int<INT_LIMBS>, Int<{2*INT_LIMBS}>> as LinearCodes<Int<INT_LIMBS>, Int<{8*INT_LIMBS}>>>::codeword_len(params.zip());
+            let row_len = <Zip<I1, I2> as LinearCodes<I1, I8>>::row_len(&params.zip);
+            let codeword_len = <Zip<I1, I2> as LinearCodes<I1, I8>>::codeword_len(&params.zip);
             b.iter(|| {
                 let _rows = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
             })
@@ -58,9 +56,7 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
     let mut rng = test_rng();
 
     let num_leaves = 1 << P;
-    let leaves = (0..num_leaves)
-        .map(|_| Int::<INT_LIMBS>::random(&mut rng))
-        .collect_vec();
+    let leaves = (0..num_leaves).map(|_| I1::random(&mut rng)).collect_vec();
 
     group.bench_function(
         format!("MerkleRoot: Int<{INT_LIMBS}>, leaves=2^{P}, spec={spec}"),

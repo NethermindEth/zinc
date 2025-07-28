@@ -28,7 +28,7 @@ pub trait Verifier<I: Integer, F: Field> {
     fn verify<I2, I4, I8>(
         &self,
         cm_i: &Statement_Z<I>,
-        proof: ZincProof<I, F>,
+        proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
@@ -56,7 +56,7 @@ where
     fn verify<I2, I4, I8>(
         &self,
         statement: &Statement_Z<I>,
-        proof: ZincProof<I, F>,
+        proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
@@ -242,7 +242,7 @@ impl<I: Integer, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
     fn verify_pcs_proof<I2, I4, I8>(
         &self,
         cm_i: &Statement_F<F>,
-        zip_proof: &ZipProof<I, F>,
+        zip_proof: &ZipProof<F>,
         verification_points: &VerificationPoints<F>,
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,

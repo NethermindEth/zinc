@@ -27,7 +27,7 @@ where
 {
     pub fn verify<F: Field>(
         vp: &MultilinearZipParams<I, L>,
-        comm: &MultilinearZipCommitment<I>,
+        comm: &MultilinearZipCommitment,
         point: &[F],
         eval: F,
         transcript: &mut PcsTranscript<F>,
@@ -48,7 +48,7 @@ where
 
     pub fn batch_verify_z<'a, F: Field>(
         vp: &MultilinearZipParams<I, L>,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<I>>,
+        comms: impl Iterable<Item = &'a MultilinearZipCommitment>,
         points: &[Vec<F>],
         evals: &[F],
         transcript: &mut PcsTranscript<F>,

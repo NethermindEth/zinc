@@ -38,17 +38,13 @@ pub struct MultilinearZipData<K: Integer> {
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipCommitment<I: Integer> {
+pub struct MultilinearZipCommitment {
     /// Roots of the merkle tree of each row
     roots: Vec<Output<Keccak256>>,
-    phantom: PhantomData<I>,
 }
-impl<I: Integer> MultilinearZipCommitment<I> {
-    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<I> {
-        MultilinearZipCommitment {
-            roots,
-            phantom: PhantomData,
-        }
+impl MultilinearZipCommitment {
+    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment {
+        MultilinearZipCommitment { roots }
     }
     pub fn roots(&self) -> &[Output<Keccak256>] {
         &self.roots

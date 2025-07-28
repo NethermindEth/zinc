@@ -29,7 +29,7 @@ where
     pub fn commit<F: Field>(
         pp: &MultilinearZipParams<I, L>,
         poly: &DenseMultilinearExtensionZ<I>,
-    ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment<I>), Error> {
+    ) -> Result<(MultilinearZipData<K>, MultilinearZipCommitment), Error> {
         validate_input::<I, F>("commit", pp.num_vars, [poly], None)?;
 
         // TODO(alex): Rework to avoid function call syntax
@@ -60,7 +60,7 @@ where
     pub fn batch_commit<'a, F: Field>(
         pp: &MultilinearZipParams<I, L>,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment<I>)>, Error>
+    ) -> Result<Vec<(MultilinearZipData<K>, MultilinearZipCommitment)>, Error>
     where
         I: 'a,
     {

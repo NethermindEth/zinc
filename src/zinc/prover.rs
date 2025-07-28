@@ -40,7 +40,7 @@ pub trait Prover<I: Integer, F: Field> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> Result<ZincProof<I, F>, ZincError<F>>
+    ) -> Result<ZincProof<F>, ZincError<F>>
     where
         I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
         I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
@@ -62,7 +62,7 @@ where
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> ZincResult<ZincProof<I, F>, F>
+    ) -> ZincResult<ZincProof<F>, F>
     where
         I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
         I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
@@ -316,7 +316,7 @@ where
         r_y: &[F],
         transcript: &mut KeccakTranscript,
         config: F::R,
-    ) -> SpartanResult<ZipProof<I, F>, F>
+    ) -> SpartanResult<ZipProof<F>, F>
     where
         I8: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I>,
         I4: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,

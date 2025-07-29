@@ -158,6 +158,7 @@ pub trait Integer:
     + for<'a> Sub<&'a Self, Output = Self>
     + Mul<Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
+    + AddAssign<Self>
     + for<'a> AddAssign<&'a Self>
     + RemAssign<Self>
     + Sum

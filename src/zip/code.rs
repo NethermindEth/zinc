@@ -6,7 +6,7 @@ use itertools::Itertools;
 use super::pcs::structs::ZipTranscript;
 use crate::{
     traits::{Field, FieldMap, Integer, Words, ZipTypes},
-    zip::utils::expand,
+    zip::utils::{expand, shuffle_seeded},
 };
 
 pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
@@ -297,13 +297,9 @@ impl<L: Integer> SparseMatrixZ<L> {
 
     /// Samples a permutation matrix (one that has exactly one non-zero element for each row
     /// and column).
-    pub fn sample_permutation<T: ZipTranscript<L>>(n: usize, transcript: &mut T) -> Self {
-        use rand::{seq::SliceRandom, SeedableRng};
-
-        let mut rng = rand::rngs::StdRng::seed_from_u64(transcript.get_u64());
-
+    pub fn sample_permutation(n: usize, rng_seed: u64) -> Self {
         let mut cells: Vec<_> = (0..n).map(|i| (i, L::ONE)).collect();
-        cells.shuffle(&mut rng);
+        shuffle_seeded(&mut cells, rng_seed);
 
         let dimension = SparseMatrixDimension::new(n, n, 1);
         Self { dimension, cells }

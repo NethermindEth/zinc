@@ -1,12 +1,20 @@
-use crate::traits::{Integer, Field, FieldMap, Words, ZipTypes};
-use crate::zip::code::{LinearCode, LinearCodeSpec, SparseMatrixF, SparseMatrixZ};
-use crate::zip::pcs::structs::ZipTranscript;
+use ark_std::{
+    fmt::Debug,
+    ops::{AddAssign, Mul},
+    vec,
+    vec::Vec,
+};
 use num_traits::Zero;
 use rand::{Rng, SeedableRng};
-use ark_std::fmt::Debug;
-use ark_std::ops::{Add, AddAssign, Mul};
-use ark_std::vec;
-use ark_std::vec::Vec;
+
+use crate::{
+    traits::{Field, FieldMap, Integer, Words, ZipTypes},
+    zip::{
+        code::{LinearCode, LinearCodeSpec, SparseMatrixF, SparseMatrixZ},
+        pcs::structs::ZipTranscript,
+        utils::shuffle_seeded,
+    },
+};
 
 /// Implementation of a repeat-accumulate-accumulate (RAA) codes over the binary field,
 /// as defined by the Blaze paper (https://eprint.iacr.org/2024/1609)
@@ -19,6 +27,12 @@ pub struct RaaCode<ZT: ZipTypes> {
     num_column_opening: usize,
 
     num_proximity_testing: usize,
+
+    /// Randomness seed for the first permutation
+    perm_1_seed: u64,
+
+    /// Randomness seed for the second permutation
+    perm_2_seed: u64,
 
     /// Permutation matrix (M_{\pi_1})
     perm_matrix_1: SparseMatrixZ<ZT::L>,
@@ -39,29 +53,29 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
         transcript: &mut T,
     ) -> Self {
         // Taken from original Zip codes
+
         let num_vars = poly_size.ilog2() as usize;
         let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
         let repetition_factor = spec.repetition_factor();
         let codeword_len = row_len * repetition_factor;
-
-        // Note: Could be made more efficient by using u8 instead of ZT::L (all matrices are binary),
-        // but since this is a setup phase, we don't really care.
-
-        let acc_matrix: DenseMatrixZ<ZT::L> = gen_accumulation_matrix(codeword_len);
-
-        let perm_matrix_1: SparseMatrixZ<ZT::L> =
-            SparseMatrixZ::sample_permutation(codeword_len, transcript);
-
-        let perm_matrix_2: SparseMatrixZ<ZT::L> =
-            SparseMatrixZ::sample_permutation(codeword_len, transcript);
 
         let num_column_opening = spec.num_column_opening();
         let log2_q = <ZT::N as Integer>::W::num_words();
         let n_0 = 20.min((1 << num_vars) - 1);
         let num_proximity_testing = spec.num_proximity_testing(log2_q, row_len, n_0);
 
-        let repetition_matrix: SparseMatrixZ<ZT::L> =
-            SparseMatrixZ::repetition(row_len, repetition_factor);
+        // Note: Could be made more efficient by using u8 instead of ZT::L (all matrices are binary),
+        // but since this is a setup phase, we don't really care.
+
+        let acc_matrix: DenseMatrixZ<ZT::L> = gen_accumulation_matrix(codeword_len);
+
+        let perm_1_seed = transcript.get_u64();
+        let perm_2_seed = transcript.get_u64();
+
+        let perm_matrix_1 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_1_seed);
+        let perm_matrix_2 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_2_seed);
+
+        let repetition_matrix = SparseMatrixZ::<ZT::L>::repetition(row_len, repetition_factor);
 
         // Pre-multiply the matrices to create the encoding matrix
         let encoding_matrix = &acc_matrix;
@@ -80,6 +94,8 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
             repetition_factor,
             num_column_opening,
             num_proximity_testing,
+            perm_1_seed,
+            perm_2_seed,
             perm_matrix_1,
             perm_matrix_2,
             repetition_matrix,
@@ -105,17 +121,14 @@ fn gen_accumulation_matrix<I: Integer>(dim: usize) -> DenseMatrixZ<I> {
     DenseMatrixZ { rows }
 }
 
-/// Multiply each element of the input vector by the lower triangular matrix of the appropriate size.
-fn mul_by_acc_matrix<I>(input: &[I]) -> Vec<I>
+/// Multiply the input vector in-place by the lower triangular matrix of the appropriate size.
+fn mul_by_acc_matrix<I>(input: &mut [I])
 where
-    I: Zero + Add<I> + Clone,
+    I: Zero + AddAssign<I> + Clone,
 {
-    let mut result = vec![I::zero(); input.len()];
-    result[0] = input[0].clone();
     for i in 1..input.len() {
-        result[i] = result[i - 1].clone() + input[i].clone();
+        input[i] += input[i - 1].clone();
     }
-    result
 }
 
 impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
@@ -145,11 +158,11 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
             self.row_len,
             "Row length must match the code's row length"
         );
-        let result: Vec<Out> = self.repetition_matrix.mat_vec_mul(row);
-        let result: Vec<Out> = self.perm_matrix_1.mat_vec_mul(&result);
-        let result: Vec<Out> = mul_by_acc_matrix(&result);
-        let result: Vec<Out> = self.perm_matrix_2.mat_vec_mul(&result);
-        let result: Vec<Out> = mul_by_acc_matrix(&result);
+        let mut result: Vec<Out> = self.repetition_matrix.mat_vec_mul(row);
+        shuffle_seeded(&mut result, self.perm_1_seed);
+        mul_by_acc_matrix(&mut result);
+        shuffle_seeded(&mut result, self.perm_2_seed);
+        mul_by_acc_matrix(&mut result);
         debug_assert_eq!(result.len(), self.codeword_len());
         result
 
@@ -176,11 +189,11 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
         let perm_matrix_1 = SparseMatrixF::new(&self.perm_matrix_1, field);
         let perm_matrix_2 = SparseMatrixF::new(&self.perm_matrix_2, field);
 
-        let result: Vec<F> = repetition_matrix.mat_vec_mul(row);
-        let result: Vec<F> = perm_matrix_1.mat_vec_mul(&result);
-        let result: Vec<F> = mul_by_acc_matrix(&result);
-        let result: Vec<F> = perm_matrix_2.mat_vec_mul(&result);
-        let result: Vec<F> = mul_by_acc_matrix(&result);
+        let mut result: Vec<F> = repetition_matrix.mat_vec_mul(row);
+        shuffle_seeded(&mut result, self.perm_1_seed);
+        mul_by_acc_matrix(&mut result);
+        shuffle_seeded(&mut result, self.perm_2_seed);
+        mul_by_acc_matrix(&mut result);
         debug_assert_eq!(result.len(), self.codeword_len());
         result
 

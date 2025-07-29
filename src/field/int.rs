@@ -119,6 +119,13 @@ impl<'a, const N: usize> Mul<&'a Self> for Int<N> {
     }
 }
 
+impl<const N: usize> AddAssign<Self> for Int<N> {
+    #[inline]
+    fn add_assign(&mut self, rhs: Self) {
+        self.0 += &rhs.0;
+    }
+}
+
 impl<'a, const N: usize> AddAssign<&'a Self> for Int<N> {
     #[inline]
     fn add_assign(&mut self, rhs: &'a Self) {

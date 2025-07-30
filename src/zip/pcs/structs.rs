@@ -1,5 +1,4 @@
 use ark_std::{collections::BTreeSet, marker::PhantomData, vec::Vec};
-use sha3::{digest::Output, Keccak256};
 
 use super::utils::MerkleTree;
 use crate::{
@@ -35,7 +34,7 @@ pub struct MultilinearZipData<K: Integer> {
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment {
     /// Roots of the merkle tree of each row
-    pub roots: Vec<Output<Keccak256>>,
+    pub roots: Vec<blake3::Hash>,
 }
 
 impl<K: Integer> MultilinearZipData<K> {
@@ -46,14 +45,14 @@ impl<K: Integer> MultilinearZipData<K> {
         }
     }
 
-    pub fn roots(&self) -> Vec<Output<Keccak256>> {
+    pub fn roots(&self) -> Vec<blake3::Hash> {
         self.rows_merkle_trees
             .iter()
             .map(|tree| tree.root)
             .collect::<Vec<_>>()
     }
 
-    pub fn root_at_index(&self, index: usize) -> Output<Keccak256> {
+    pub fn root_at_index(&self, index: usize) -> blake3::Hash {
         self.rows_merkle_trees[index].root
     }
 }

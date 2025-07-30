@@ -1,6 +1,5 @@
 use ark_ff::Zero;
 use ark_std::{format, iterable::Iterable, vec, vec::Vec};
-use sha3::{digest::Output, Digest, Keccak256};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -66,18 +65,18 @@ pub trait ToBytes {
 }
 
 /// A merkle tree in which its layers are concatenated together in a single vector
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct MerkleTree {
-    pub root: Output<Keccak256>,
+    pub root: blake3::Hash,
     pub depth: usize,
-    pub layers: Vec<Output<Keccak256>>,
+    pub layers: Vec<blake3::Hash>,
 }
 
 impl MerkleTree {
     pub fn new<T: ToBytes + Send + Sync>(depth: usize, leaves: &[T]) -> Self {
         assert!(leaves.len().is_power_of_two());
         assert_eq!(leaves.len(), 1 << depth);
-        let mut layers = vec![Output::<Keccak256>::default(); (2 << depth) - 1];
+        let mut layers = vec![blake3::Hash::from_bytes([0; blake3::OUT_LEN]); (2 << depth) - 1];
         Self::compute_leaves_hashes(&mut layers[..leaves.len()], leaves);
         Self::merklize_leaves_hashes(depth, &mut layers);
         Self {
@@ -87,21 +86,19 @@ impl MerkleTree {
         }
     }
 
-    fn compute_leaves_hashes<T: ToBytes + Send + Sync>(
-        hashes: &mut [Output<Keccak256>],
-        leaves: &[T],
-    ) {
+    fn compute_leaves_hashes<T: ToBytes + Send + Sync>(hashes: &mut [blake3::Hash], leaves: &[T]) {
         parallelize(hashes, |(hashes, start)| {
-            let mut hasher = Keccak256::new();
+            let mut hasher = blake3::Hasher::new();
             for (hash, row) in hashes.iter_mut().zip(start..) {
                 let bytes = leaves[row].to_bytes();
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &bytes);
-                hasher.finalize_into_reset(hash);
+                hasher.update(&bytes);
+                *hash = hasher.finalize();
+                hasher.reset();
             }
         });
     }
 
-    fn merklize_leaves_hashes(depth: usize, hashes: &mut [Output<Keccak256>]) {
+    fn merklize_leaves_hashes(depth: usize, hashes: &mut [blake3::Hash]) {
         assert_eq!(hashes.len(), (2 << depth) - 1);
         let mut offset = 0;
         for width in (1..=depth).rev().map(|depth| 1 << depth) {
@@ -113,11 +110,12 @@ impl MerkleTree {
                     .chunks(2 * chunk_size)
                     .zip(next_layer.chunks_mut(chunk_size)),
                 |(input, output)| {
-                    let mut hasher = Keccak256::new();
+                    let mut hasher = blake3::Hasher::new();
                     for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
-                        hasher.update(input[0]);
-                        hasher.update(input[1]);
-                        hasher.finalize_into_reset(output);
+                        hasher.update(input[0].as_bytes());
+                        hasher.update(input[1].as_bytes());
+                        *output = hasher.finalize();
+                        hasher.reset();
                     }
                 },
             );
@@ -126,9 +124,19 @@ impl MerkleTree {
     }
 }
 
+impl Default for MerkleTree {
+    fn default() -> Self {
+        MerkleTree {
+            root: blake3::Hash::from_bytes([0; blake3::OUT_LEN]),
+            depth: 0,
+            layers: vec![],
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
-    pub merkle_path: Vec<Output<Keccak256>>,
+    pub merkle_path: Vec<blake3::Hash>,
 }
 
 impl ark_std::fmt::Display for MerkleProof {
@@ -154,13 +162,13 @@ impl MerkleProof {
         }
     }
 
-    pub fn from_vec(vec: Vec<Output<Keccak256>>) -> Self {
+    pub fn from_vec(vec: Vec<blake3::Hash>) -> Self {
         Self { merkle_path: vec }
     }
 
     pub fn create_proof(merkle_tree: &MerkleTree, leaf: usize) -> Result<Self, MerkleError> {
         let mut offset = 0;
-        let path: Vec<Output<Keccak256>> = (1..=merkle_tree.depth)
+        let path: Vec<blake3::Hash> = (1..=merkle_tree.depth)
             .rev()
             .map(|depth| {
                 let width = 1 << depth;
@@ -175,26 +183,28 @@ impl MerkleProof {
 
     pub fn verify<T: ToBytes>(
         &self,
-        root: Output<Keccak256>,
+        root: blake3::Hash,
         leaf_value: &T,
         leaf_index: usize,
     ) -> Result<(), MerkleError> {
-        let mut hasher = Keccak256::new();
+        let mut hasher = blake3::Hasher::new();
         let bytes = leaf_value.to_bytes();
         hasher.update(&bytes);
-        let mut current = hasher.finalize_reset();
+        let mut current = hasher.finalize();
+        hasher.reset();
 
         let mut index = leaf_index;
         for path_hash in &self.merkle_path {
             if (index & 1) == 0 {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
+                hasher.update(current.as_bytes());
+                hasher.update(path_hash.as_bytes());
             } else {
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, path_hash);
-                <Keccak256 as sha3::digest::Update>::update(&mut hasher, &current);
+                hasher.update(path_hash.as_bytes());
+                hasher.update(current.as_bytes());
             }
 
-            hasher.finalize_into_reset(&mut current);
+            current = hasher.finalize();
+            hasher.reset();
             index /= 2;
         }
         if current != root {
@@ -229,7 +239,7 @@ impl ColumnOpening {
     }
 
     pub fn verify_column<F: Field, T: ToBytes>(
-        rows_roots: &[Output<Keccak256>],
+        rows_roots: &[blake3::Hash],
         column: &[T],
         column_index: usize,
         transcript: &mut PcsTranscript<F>,

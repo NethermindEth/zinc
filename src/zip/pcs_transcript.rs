@@ -6,7 +6,6 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use sha3::{digest::Output, Keccak256};
 
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
@@ -56,19 +55,19 @@ impl<F: Field> PcsTranscript<F> {
 
     /// Reads a cryptographic commitment from the proof stream.
     /// Used during proof verification to retrieve previously committed values.
-    pub fn read_commitment(&mut self) -> Result<Output<Keccak256>, Error> {
-        let mut buf = Output::<Keccak256>::default();
+    pub fn read_commitment(&mut self) -> Result<blake3::Hash, Error> {
+        let mut buf = [0; blake3::OUT_LEN];
         self.stream
             .read_exact(&mut buf)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        Ok(*Output::<Keccak256>::from_slice(&buf))
+        Ok(blake3::Hash::from_bytes(buf))
     }
 
     /// Writes a cryptographic commitment to the proof stream.
     /// Used during proof generation to store commitments for later verification.
-    pub fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), Error> {
+    pub fn write_commitment(&mut self, comm: &blake3::Hash) -> Result<(), Error> {
         self.stream
-            .write_all(comm)
+            .write_all(comm.as_bytes())
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
         Ok(())
     }
@@ -162,13 +161,13 @@ impl<F: Field> PcsTranscript<F> {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_commitments(&mut self, n: usize) -> Result<Vec<Output<Keccak256>>, Error> {
+    pub fn read_commitments(&mut self, n: usize) -> Result<Vec<blake3::Hash>, Error> {
         (0..n).map(|_| self.read_commitment()).collect()
     }
 
     pub fn write_commitments<'a>(
         &mut self,
-        comms: impl IntoIterator<Item = &'a Output<Keccak256>>,
+        comms: impl IntoIterator<Item = &'a blake3::Hash>,
     ) -> Result<(), Error> {
         for comm in comms.into_iter() {
             self.write_commitment(comm)?;
@@ -269,7 +268,7 @@ fn test_pcs_transcript_read_write() {
     const N: usize = 4;
 
     // Test commitment
-    let original_commitment = Output::<Keccak256>::default();
+    let original_commitment = blake3::Hash::from([0u8; blake3::OUT_LEN]);
     test_read_write!(
         write_commitment,
         read_commitment,
@@ -278,7 +277,7 @@ fn test_pcs_transcript_read_write() {
     );
     //TODO put the tests back in for Int<N> types
     // Test vector of commitments
-    let original_commitments = vec![Output::<Keccak256>::default(); 1024];
+    let original_commitments = vec![blake3::Hash::from([0u8; blake3::OUT_LEN]); 1024];
     test_read_write_vec!(
         write_commitments,
         read_commitments,

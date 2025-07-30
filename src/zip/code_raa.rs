@@ -1,16 +1,10 @@
-use ark_std::{
-    fmt::Debug,
-    ops::{AddAssign, Mul},
-    vec,
-    vec::Vec,
-};
+use ark_std::{fmt::Debug, marker::PhantomData, ops::AddAssign, vec::Vec};
 use num_traits::Zero;
-use rand::{Rng, SeedableRng};
 
 use crate::{
     traits::{Field, FieldMap, Integer, Words, ZipTypes},
     zip::{
-        code::{LinearCode, LinearCodeSpec, SparseMatrixF, SparseMatrixZ},
+        code::{LinearCode, LinearCodeSpec},
         pcs::structs::ZipTranscript,
         utils::shuffle_seeded,
     },
@@ -34,16 +28,8 @@ pub struct RaaCode<ZT: ZipTypes> {
     /// Randomness seed for the second permutation
     perm_2_seed: u64,
 
-    /// Permutation matrix (M_{\pi_1})
-    perm_matrix_1: SparseMatrixZ<ZT::L>,
-
-    /// Permutation matrix (M_{\pi_2})
-    perm_matrix_2: SparseMatrixZ<ZT::L>,
-
-    /// Matrix that repeats input vector N times, denoted as `F_{r}` in Blaze paper
-    repetition_matrix: SparseMatrixZ<ZT::L>,
-
-    encoding_matrix: DenseMatrixZ<ZT::L>,
+    // encoding_matrix: DenseMatrixZ<ZT::L>,
+    phantom: PhantomData<ZT>,
 }
 
 impl<ZT: ZipTypes> RaaCode<ZT> {
@@ -57,7 +43,6 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
         let num_vars = poly_size.ilog2() as usize;
         let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
         let repetition_factor = spec.repetition_factor();
-        let codeword_len = row_len * repetition_factor;
 
         let num_column_opening = spec.num_column_opening();
         let log2_q = <ZT::N as Integer>::W::num_words();
@@ -67,27 +52,31 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
         // Note: Could be made more efficient by using u8 instead of ZT::L (all matrices are binary),
         // but since this is a setup phase, we don't really care.
 
-        let acc_matrix: DenseMatrixZ<ZT::L> = gen_accumulation_matrix(codeword_len);
-
         let perm_1_seed = transcript.get_u64();
         let perm_2_seed = transcript.get_u64();
 
-        let perm_matrix_1 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_1_seed);
-        let perm_matrix_2 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_2_seed);
-
-        let repetition_matrix = SparseMatrixZ::<ZT::L>::repetition(row_len, repetition_factor);
-
-        // Pre-multiply the matrices to create the encoding matrix
-        let encoding_matrix = &acc_matrix;
-        let encoding_matrix = encoding_matrix.mul_mod_2(&perm_matrix_2.to_dense());
-        let encoding_matrix = encoding_matrix.mul_mod_2(&acc_matrix.rows);
-        let encoding_matrix = encoding_matrix.mul_mod_2(&perm_matrix_1.to_dense());
-        let mut encoding_matrix = encoding_matrix.mul_mod_2(&repetition_matrix.to_dense());
-
-        // Apply a trick to randomize the signs of the encoding matrix.
-        // This does not change the code's properties, but produces codewords with
-        // quadratically smaller entries on average.
-        encoding_matrix.randomize_sign(transcript);
+        // let codeword_len = row_len * repetition_factor;
+        // let acc_matrix: DenseMatrixZ<ZT::L> = gen_accumulation_matrix(codeword_len);
+        //
+        // // Permutation matrix (M_{\pi_1})
+        // let perm_matrix_1 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_1_seed);
+        // // Permutation matrix (M_{\pi_2})
+        // let perm_matrix_2 = SparseMatrixZ::<ZT::L>::sample_permutation(codeword_len, perm_2_seed);
+        //
+        // // Matrix that repeats input vector N times, denoted as `F_{r}` in Blaze paper
+        // let repetition_matrix = SparseMatrixZ::<ZT::L>::repetition(row_len, repetition_factor);
+        //
+        // // Pre-multiply the matrices to create the encoding matrix
+        // let encoding_matrix = &acc_matrix;
+        // let encoding_matrix = encoding_matrix.mul_mod_2(&perm_matrix_2.to_dense());
+        // let encoding_matrix = encoding_matrix.mul_mod_2(&acc_matrix.rows);
+        // let encoding_matrix = encoding_matrix.mul_mod_2(&perm_matrix_1.to_dense());
+        // let mut encoding_matrix = encoding_matrix.mul_mod_2(&repetition_matrix.to_dense());
+        //
+        // // Apply a trick to randomize the signs of the encoding matrix.
+        // // This does not change the code's properties, but produces codewords with
+        // // quadratically smaller entries on average.
+        // encoding_matrix.randomize_sign(transcript);
 
         Self {
             row_len,
@@ -96,29 +85,42 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
             num_proximity_testing,
             perm_1_seed,
             perm_2_seed,
-            perm_matrix_1,
-            perm_matrix_2,
-            repetition_matrix,
-            encoding_matrix,
+            // perm_matrix_1,
+            // perm_matrix_2,
+            // repetition_matrix,
+            // encoding_matrix,
+            phantom: PhantomData,
         }
     }
 }
 
-/// Generate an accumulation matrix for the RAA code. It is a lower triangular matrix:
-/// ```text
-/// 1 0 0 0
-/// 1 1 0 0
-/// 1 1 1 0
-/// 1 1 1 1
-/// ```
-fn gen_accumulation_matrix<I: Integer>(dim: usize) -> DenseMatrixZ<I> {
-    let mut rows = vec![vec![I::ZERO; dim]; dim];
-    for i in 0..dim {
-        for j in 0..=i {
-            rows[i][j] = I::ONE;
-        }
-    }
-    DenseMatrixZ { rows }
+// /// Generate an accumulation matrix for the RAA code. It is a lower triangular matrix:
+// /// ```text
+// /// 1 0 0 0
+// /// 1 1 0 0
+// /// 1 1 1 0
+// /// 1 1 1 1
+// /// ```
+// fn gen_accumulation_matrix<I: Integer>(dim: usize) -> DenseMatrixZ<I> {
+//     let mut rows = vec![vec![I::ZERO; dim]; dim];
+//     for i in 0..dim {
+//         for j in 0..=i {
+//             rows[i][j] = I::ONE;
+//         }
+//     }
+//     DenseMatrixZ { rows }
+// }
+
+fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
+    input: &[In],
+    repetition_factor: usize,
+) -> Vec<Out> {
+    input
+        .iter()
+        .map(|i| Out::from(i))
+        .cycle()
+        .take(input.len() * repetition_factor)
+        .collect()
 }
 
 /// Multiply the input vector in-place by the lower triangular matrix of the appropriate size.
@@ -158,7 +160,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
             self.row_len,
             "Row length must match the code's row length"
         );
-        let mut result: Vec<Out> = self.repetition_matrix.mat_vec_mul(row);
+        let mut result: Vec<Out> = repeat(row, self.repetition_factor);
         shuffle_seeded(&mut result, self.perm_1_seed);
         mul_by_acc_matrix(&mut result);
         shuffle_seeded(&mut result, self.perm_2_seed);
@@ -175,7 +177,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
         // alt_result
     }
 
-    fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
+    fn encode_f<F: Field>(&self, row: &[F], _field: F::R) -> Vec<F>
     where
         ZT::L: FieldMap<F, Output = F>,
     {
@@ -185,11 +187,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
             "Row length must match the code's row length"
         );
 
-        let repetition_matrix = SparseMatrixF::new(&self.repetition_matrix, field);
-        let perm_matrix_1 = SparseMatrixF::new(&self.perm_matrix_1, field);
-        let perm_matrix_2 = SparseMatrixF::new(&self.perm_matrix_2, field);
-
-        let mut result: Vec<F> = repetition_matrix.mat_vec_mul(row);
+        let mut result: Vec<F> = repeat(row, self.repetition_factor);
         shuffle_seeded(&mut result, self.perm_1_seed);
         mul_by_acc_matrix(&mut result);
         shuffle_seeded(&mut result, self.perm_2_seed);
@@ -208,138 +206,138 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
     }
 }
 
-/// Matrix content, vector of rows.
-#[repr(transparent)]
-#[derive(Debug, Clone, Eq, PartialEq)]
-struct DenseMatrixZ<L> {
-    rows: Vec<Vec<L>>,
-}
-
-impl<L: Send + Sync + Clone> DenseMatrixZ<L> {
-    fn mat_vec_mul<In, Out>(&self, vec: &[In]) -> Vec<Out>
-    where
-        In: Send + Sync,
-        Out: Zero
-            + for<'a> AddAssign<&'a Out>
-            + for<'a> From<&'a In>
-            + for<'a> From<&'a L>
-            + Mul<Output = Out>
-            + core::iter::Sum
-            + Clone
-            + Send
-            + Sync,
-    {
-        self.rows
-            .iter()
-            .map(|row| {
-                let mut sum = Out::zero();
-                for (a, b) in row.iter().zip(vec.iter()) {
-                    sum += &(Out::from(a) * Out::from(b))
-                }
-                sum
-            })
-            .collect()
-
-        // TODO: Enable this parallelized implementation:
-        //
-        // let mut result = vec![Out::zero(); self.rows.len()];
-        // parallelize(&mut result, |(result_row, i)| {
-        //     let mut sum = Out::zero();
-        //     for (a, b) in self.rows[i].iter().zip(vec.iter()) {
-        //         sum += &(Out::from(a) * Out::from(b))
-        //     }
-        //     result_row[i] = sum;
-        // });
-        // result
-    }
-
-    fn map_to_field<F: Field>(&self, field: F::R) -> DenseMatrixZ<F>
-    where
-        L: Integer + FieldMap<F, Output = F>,
-    {
-        DenseMatrixZ {
-            rows: self
-                .rows
-                .iter()
-                .map(|row| row.iter().map(|x| x.map_to_field(field)).collect())
-                .collect(),
-        }
-    }
-
-    fn mul_mod_2(&self, rhs: &[Vec<L>]) -> DenseMatrixZ<L>
-    where
-        L: Integer,
-    {
-        let mut result = vec![vec![L::ZERO; self.rows[0].len()]; self.rows.len()];
-        let modulus = L::ONE + L::ONE; // Modulo 2
-
-        for (i, row) in self.rows.iter().enumerate() {
-            for (j, value) in row.iter().enumerate() {
-                for (k, rhs_value) in rhs[j].iter().enumerate() {
-                    result[i][k] += &(value.clone() * rhs_value);
-                    result[i][k] %= modulus.clone();
-                }
-            }
-        }
-
-        DenseMatrixZ { rows: result }
-    }
-
-    fn randomize_sign(&mut self, transcript: &mut impl ZipTranscript<L>)
-    where
-        L: Integer,
-    {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(transcript.get_u64());
-        for row in &mut self.rows {
-            for value in row {
-                if !Zero::is_zero(value) && rng.random_bool(0.5) {
-                    *value = -value.clone();
-                }
-            }
-        }
-    }
-}
-
-impl<L: Integer> Mul<Self> for &DenseMatrixZ<L> {
-    type Output = DenseMatrixZ<L>;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        let mut result = vec![vec![L::ZERO; self.rows[0].len()]; self.rows.len()];
-
-        for (i, row) in self.rows.iter().enumerate() {
-            for (j, value) in row.iter().enumerate() {
-                for (k, rhs_value) in rhs.rows[j].iter().enumerate() {
-                    result[i][k] += &(value.clone() * rhs_value);
-                }
-            }
-        }
-
-        DenseMatrixZ { rows: result }
-    }
-}
-
-impl<L: Integer> Mul<&Self> for DenseMatrixZ<L> {
-    type Output = DenseMatrixZ<L>;
-
-    fn mul(self, rhs: &Self) -> Self::Output {
-        &self * rhs
-    }
-}
-
-impl<L: Integer> Mul<&SparseMatrixZ<L>> for &DenseMatrixZ<L> {
-    type Output = DenseMatrixZ<L>;
-
-    fn mul(self, rhs: &SparseMatrixZ<L>) -> Self::Output {
-        self * &DenseMatrixZ {
-            rows: rhs.to_dense(),
-        }
-    }
-}
-
-impl<L: Integer> Mul<&SparseMatrixZ<L>> for DenseMatrixZ<L> {
-    type Output = DenseMatrixZ<L>;
-
-    fn mul(self, rhs: &SparseMatrixZ<L>) -> Self::Output {
-        &self * rhs
-    }
-}
+// /// Matrix content, vector of rows.
+// #[repr(transparent)]
+// #[derive(Debug, Clone, Eq, PartialEq)]
+// struct DenseMatrixZ<L> {
+//     rows: Vec<Vec<L>>,
+// }
+//
+// impl<L: Send + Sync + Clone> DenseMatrixZ<L> {
+//     fn mat_vec_mul<In, Out>(&self, vec: &[In]) -> Vec<Out>
+//     where
+//         In: Send + Sync,
+//         Out: Zero
+//             + for<'a> AddAssign<&'a Out>
+//             + for<'a> From<&'a In>
+//             + for<'a> From<&'a L>
+//             + Mul<Output = Out>
+//             + core::iter::Sum
+//             + Clone
+//             + Send
+//             + Sync,
+//     {
+//         self.rows
+//             .iter()
+//             .map(|row| {
+//                 let mut sum = Out::zero();
+//                 for (a, b) in row.iter().zip(vec.iter()) {
+//                     sum += &(Out::from(a) * Out::from(b))
+//                 }
+//                 sum
+//             })
+//             .collect()
+//
+//         // TODO: Enable this parallelized implementation:
+//         //
+//         // let mut result = vec![Out::zero(); self.rows.len()];
+//         // parallelize(&mut result, |(result_row, i)| {
+//         //     let mut sum = Out::zero();
+//         //     for (a, b) in self.rows[i].iter().zip(vec.iter()) {
+//         //         sum += &(Out::from(a) * Out::from(b))
+//         //     }
+//         //     result_row[i] = sum;
+//         // });
+//         // result
+//     }
+//
+//     fn map_to_field<F: Field>(&self, field: F::R) -> DenseMatrixZ<F>
+//     where
+//         L: Integer + FieldMap<F, Output = F>,
+//     {
+//         DenseMatrixZ {
+//             rows: self
+//                 .rows
+//                 .iter()
+//                 .map(|row| row.iter().map(|x| x.map_to_field(field)).collect())
+//                 .collect(),
+//         }
+//     }
+//
+//     fn mul_mod_2(&self, rhs: &[Vec<L>]) -> DenseMatrixZ<L>
+//     where
+//         L: Integer,
+//     {
+//         let mut result = vec![vec![L::ZERO; self.rows[0].len()]; self.rows.len()];
+//         let modulus = L::ONE + L::ONE; // Modulo 2
+//
+//         for (i, row) in self.rows.iter().enumerate() {
+//             for (j, value) in row.iter().enumerate() {
+//                 for (k, rhs_value) in rhs[j].iter().enumerate() {
+//                     result[i][k] += &(value.clone() * rhs_value);
+//                     result[i][k] %= modulus.clone();
+//                 }
+//             }
+//         }
+//
+//         DenseMatrixZ { rows: result }
+//     }
+//
+//     fn randomize_sign(&mut self, transcript: &mut impl ZipTranscript<L>)
+//     where
+//         L: Integer,
+//     {
+//         let mut rng = rand::rngs::StdRng::seed_from_u64(transcript.get_u64());
+//         for row in &mut self.rows {
+//             for value in row {
+//                 if !Zero::is_zero(value) && rng.random_bool(0.5) {
+//                     *value = -value.clone();
+//                 }
+//             }
+//         }
+//     }
+// }
+//
+// impl<L: Integer> Mul<Self> for &DenseMatrixZ<L> {
+//     type Output = DenseMatrixZ<L>;
+//
+//     fn mul(self, rhs: Self) -> Self::Output {
+//         let mut result = vec![vec![L::ZERO; self.rows[0].len()]; self.rows.len()];
+//
+//         for (i, row) in self.rows.iter().enumerate() {
+//             for (j, value) in row.iter().enumerate() {
+//                 for (k, rhs_value) in rhs.rows[j].iter().enumerate() {
+//                     result[i][k] += &(value.clone() * rhs_value);
+//                 }
+//             }
+//         }
+//
+//         DenseMatrixZ { rows: result }
+//     }
+// }
+//
+// impl<L: Integer> Mul<&Self> for DenseMatrixZ<L> {
+//     type Output = DenseMatrixZ<L>;
+//
+//     fn mul(self, rhs: &Self) -> Self::Output {
+//         &self * rhs
+//     }
+// }
+//
+// impl<L: Integer> Mul<&SparseMatrixZ<L>> for &DenseMatrixZ<L> {
+//     type Output = DenseMatrixZ<L>;
+//
+//     fn mul(self, rhs: &SparseMatrixZ<L>) -> Self::Output {
+//         self * &DenseMatrixZ {
+//             rows: rhs.to_dense(),
+//         }
+//     }
+// }
+//
+// impl<L: Integer> Mul<&SparseMatrixZ<L>> for DenseMatrixZ<L> {
+//     type Output = DenseMatrixZ<L>;
+//
+//     fn mul(self, rhs: &SparseMatrixZ<L>) -> Self::Output {
+//         &self * rhs
+//     }
+// }

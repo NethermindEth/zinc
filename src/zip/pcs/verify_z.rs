@@ -1,5 +1,4 @@
 use ark_std::{iterable::Iterable, vec::Vec};
-use sha3::{digest::Output, Keccak256};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
@@ -60,7 +59,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     #[allow(clippy::type_complexity)]
     pub(super) fn verify_testing<F: Field>(
         vp: &MultilinearZipParams<ZT, LC>,
-        roots: &[Output<Keccak256>],
+        roots: &[blake3::Hash],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
     ) -> Result<Vec<(usize, Vec<ZT::K>)>, Error> {

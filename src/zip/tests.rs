@@ -15,7 +15,14 @@ use crate::{
 const I: usize = 1;
 const N: usize = 2;
 
-type TestZip = MultilinearZip<I, { 2 * I }, { 4 * I }, { 8 * I }, ZipSpec1, KeccakTranscript>;
+type TestZip = MultilinearZip<
+    Int<I>,
+    Int<{ 2 * I }>,
+    Int<{ 4 * I }>,
+    Int<{ 8 * I }>,
+    ZipSpec1,
+    KeccakTranscript,
+>;
 
 #[test]
 fn test_zip_commitment() {

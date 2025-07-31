@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<I, L, K, M, S, T>
+    MultilinearZip<Int<I>, Int<L>, Int<K>, Int<M>, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<Int<L>>,
@@ -28,8 +28,9 @@ where
     ) -> Result<(Self::Data, Self::Commitment), Error> {
         validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = <Zip<I, L> as LinearCodes<Int<I>, Int<M>>>::row_len(pp.zip());
-        let codeword_len = <Zip<I, L> as LinearCodes<Int<I>, Int<M>>>::codeword_len(pp.zip());
+        let row_len = <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<M>>>::row_len(pp.zip());
+        let codeword_len =
+            <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<M>>>::codeword_len(pp.zip());
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -47,7 +48,7 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::<I, K>::new(rows, rows_merkle_trees),
+            MultilinearZipData::<Int<I>, Int<K>>::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }

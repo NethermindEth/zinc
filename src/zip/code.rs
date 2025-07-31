@@ -6,12 +6,12 @@ use itertools::Itertools;
 
 use super::pcs::structs::ZipTranscript;
 use crate::{
-    traits::{Field, FieldMap},
+    traits::{CryptoInt, Field, FieldMap},
     zip::utils::expand,
 };
 
 const INVERSE_RATE: usize = 2;
-pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
+pub trait LinearCodes<In: CryptoInt, Im: CryptoInt>: Sync + Send {
     fn row_len(&self) -> usize;
 
     fn codeword_len(&self) -> usize;
@@ -20,7 +20,7 @@ pub trait LinearCodes<const N: usize, const M: usize>: Sync + Send {
 
     fn num_proximity_testing(&self) -> usize;
 
-    fn encode(&self, input: &[Int<N>]) -> Vec<Int<M>>;
+    fn encode(&self, input: &[In]) -> Vec<Im>;
 }
 
 #[derive(Clone, Debug)]
@@ -29,8 +29,8 @@ pub struct Zip<const N: usize, const L: usize> {
     codeword_len: usize,
     num_column_opening: usize,
     num_proximity_testing: usize,
-    a: SparseMatrixZ<L>,
-    b: SparseMatrixZ<L>,
+    a: SparseMatrixZ<Int<L>>,
+    b: SparseMatrixZ<Int<L>>,
 }
 
 impl<const I: usize, const L: usize> Zip<I, L> {
@@ -40,7 +40,7 @@ impl<const I: usize, const L: usize> Zip<I, L> {
         (1 + num_ldt) * c + S::num_column_opening() * r
     }
 
-    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<L>>(
+    pub fn new_multilinear<S: ZipSpec, T: ZipTranscript<Int<L>>>(
         num_vars: usize,
         n_0: usize,
         transcript: &mut T,
@@ -89,7 +89,7 @@ impl<const I: usize, const L: usize> Zip<I, L> {
     }
 }
 
-impl<const N: usize, const M: usize, const L: usize> LinearCodes<N, M> for Zip<N, L> {
+impl<const N: usize, const M: usize, const L: usize> LinearCodes<Int<N>, Int<M>> for Zip<N, L> {
     fn row_len(&self) -> usize {
         self.row_len
     }
@@ -128,12 +128,12 @@ pub trait ZipSpec: Debug {
         n * INVERSE_RATE
     }
 
-    fn matrices<const L: usize, T: ZipTranscript<L>>(
+    fn matrices<const L: usize, T: ZipTranscript<Int<L>>>(
         rows: usize,
         cols: usize,
         density: usize,
         transcript: &mut T,
-    ) -> (SparseMatrixZ<L>, SparseMatrixZ<L>) {
+    ) -> (SparseMatrixZ<Int<L>>, SparseMatrixZ<Int<L>>) {
         let dim = SparseMatrixDimension::new(rows, cols, density);
         (
             SparseMatrixZ::new(dim, transcript),
@@ -181,13 +181,13 @@ impl SparseMatrixDimension {
 }
 
 #[derive(Clone, Debug)]
-pub struct SparseMatrixZ<const L: usize> {
+pub struct SparseMatrixZ<I: CryptoInt> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, Int<L>)>,
+    cells: Vec<(usize, I)>,
 }
 
-impl<const L: usize> SparseMatrixZ<L> {
-    fn new<T: ZipTranscript<L>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
+impl<const L: usize> SparseMatrixZ<Int<L>> {
+    fn new<T: ZipTranscript<Int<L>>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             transcript.sample_unique_columns(0..dimension.m, &mut columns, dimension.d);
@@ -234,7 +234,7 @@ pub struct SparseMatrixF<F: Field> {
 }
 
 impl<F: Field> SparseMatrixF<F> {
-    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>, config: F::Cr) -> Self
+    fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<Int<L>>, config: F::Cr) -> Self
     where
         Int<L>: FieldMap<F, Output = F>,
     {

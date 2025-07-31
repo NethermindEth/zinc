@@ -22,7 +22,7 @@ impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
     MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript<L>,
+    T: ZipTranscript<Int<L>>,
 {
     pub fn open<F: Field>(
         pp: &Self::ProverParam,
@@ -74,7 +74,7 @@ where
         Int<I>: FieldMap<F, Output = F>,
     {
         let num_rows = pp.num_rows();
-        let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
+        let row_len = <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::row_len(pp.zip());
 
         // We prove evaluations over the field,so integers need to be mapped to field elements first
         let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
@@ -104,7 +104,8 @@ where
         if pp.num_rows() > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
+            for _ in 0..<Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_proximity_testing(pp.zip())
+            {
                 let coeffs = transcript
                     .fs_transcript
                     .get_integer_challenges(pp.num_rows());
@@ -114,7 +115,7 @@ where
                 let combined_row = combine_rows(
                     coeffs,
                     evals,
-                    <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip()),
+                    <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::row_len(pp.zip()),
                 );
 
                 transcript.write_integers(&combined_row)?;
@@ -122,10 +123,10 @@ where
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_column_opening(pp.zip()) {
+        for _ in 0..<Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::num_column_opening(pp.zip()) {
             let column = transcript.squeeze_challenge_idx(
                 field,
-                <Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()),
+                <Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::codeword_len(pp.zip()),
             );
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
@@ -145,7 +146,9 @@ where
                 .iter()
                 .copied()
                 .skip(column)
-                .step_by(<Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()))
+                .step_by(<Zip<I, L> as LinearCodes<Int<I>, Int<L>>>::codeword_len(
+                    pp.zip(),
+                ))
                 .collect::<Vec<_>>(),
         )?;
         ColumnOpening::open_at_column(column, commit_data, transcript)

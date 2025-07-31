@@ -1,7 +1,6 @@
 #![allow(non_snake_case)]
-use ark_ff::One;
-use ark_std::{log2, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
-use crypto_bigint::{Int, Random};
+
+use ark_std::{log2, marker::PhantomData, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
 
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
@@ -9,30 +8,30 @@ use super::{
 };
 use crate::{
     sparse_matrix::SparseMatrix,
-    traits::{ConfigReference, Field, FieldMap},
+    traits::{ConfigReference, CryptoInt, Field, FieldMap},
 };
 
-pub(crate) fn create_dummy_identity_sparse_matrix_Z<const N: usize>(
+pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInt>(
     rows: usize,
     columns: usize,
-) -> SparseMatrix<Int<N>> {
+) -> SparseMatrix<I> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
         n_cols: columns,
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((Int::one(), i));
+        row.push((I::one(), i));
     }
     matrix
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
+pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: CryptoInt>(
     rows: usize,
     columns: usize,
-    witness: &[Int<N>],
-) -> SparseMatrix<Int<N>> {
+    witness: &[I],
+) -> SparseMatrix<I> {
     assert_eq!(
         rows,
         witness.len(),
@@ -44,7 +43,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_Z<const N: usize>(
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((witness[i], i));
+        row.push((witness[i].clone(), i));
     }
     matrix
 }
@@ -87,10 +86,10 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<F: Field>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z<const N: usize>(
-    z: &[Int<N>],
+fn get_dummy_ccs_Z_from_z<I: CryptoInt>(
+    z: &[I],
     pub_io_len: usize,
-) -> (CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
+) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {
     let ccs = CCS_Z {
         m: z.len(),
         n: z.len(),
@@ -102,6 +101,7 @@ fn get_dummy_ccs_Z_from_z<const N: usize>(
         s_prime: log2(z.len()) as usize,
         S: vec![vec![0, 1], vec![2]],
         c: vec![1, -1],
+        _phantom: PhantomData,
     };
 
     let A = create_dummy_identity_sparse_matrix_Z(z.len(), z.len());
@@ -158,13 +158,13 @@ fn get_dummy_ccs_F_from_z<F: Field>(
     (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_Z_from_z_length<const N: usize>(
+pub fn get_dummy_ccs_Z_from_z_length<I: CryptoInt>(
     n: usize,
     rng: &mut impl Rng,
-) -> (Vec<Int<N>>, CCS_Z<N>, Statement_Z<N>, Witness_Z<N>) {
-    let mut z: Vec<_> = (0..n).map(|_| Int::<N>::random(rng)).collect();
+) -> (Vec<I>, CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {
+    let mut z: Vec<_> = (0..n).map(|_| I::random(rng)).collect();
     let pub_io_len = 1;
-    z[pub_io_len] = Int::<N>::one();
+    z[pub_io_len] = I::one();
     let (ccs, statement, wit) = get_dummy_ccs_Z_from_z(&z, pub_io_len);
 
     (z, ccs, statement, wit)

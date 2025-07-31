@@ -50,18 +50,6 @@ pub struct FieldConfig<const N: usize> {
 }
 
 impl<const N: usize> FieldConfig<N> {
-    pub fn new(modulus: BigInt<N>) -> Self {
-        let modulus_has_spare_bit = modulus.has_spare_bit();
-        Self {
-            modulus,
-            r: modulus.montgomery_r(),
-            r2: modulus.montgomery_r2(),
-            inv: inv(modulus),
-
-            modulus_has_spare_bit,
-        }
-    }
-
     pub fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
@@ -186,6 +174,18 @@ impl<const N: usize> Config<Words<N>, BigInt<N>> for FieldConfig<N> {
 
     fn r2(&self) -> &BigInt<N> {
         &self.r2
+    }
+
+    fn new(modulus: BigInt<N>) -> Self {
+        let modulus_has_spare_bit = modulus.has_spare_bit();
+        Self {
+            modulus,
+            r: modulus.montgomery_r(),
+            r2: modulus.montgomery_r2(),
+            inv: inv(modulus),
+
+            modulus_has_spare_bit,
+        }
     }
 }
 

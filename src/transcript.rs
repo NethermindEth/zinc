@@ -3,8 +3,7 @@ use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    field::RandomField,
-    traits::{Config, ConfigReference, Field, FieldMap, Integer, Words},
+    traits::{Config, ConfigReference, CryptoInt, Field, FieldMap, Integer, Words},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -46,28 +45,11 @@ impl KeccakTranscript {
         result
     }
 
-    pub fn absorb_random_field<const N: usize>(&mut self, v: &RandomField<N>) {
-        match v {
-            RandomField::Raw { value } => {
-                self.absorb(&[0x1]);
-                self.absorb(&value.to_bytes_be());
-                self.absorb(&[0x3])
-            }
-            RandomField::Initialized { config, value } => {
-                let config = config.reference().expect("Field config cannot be none");
-
-                self.absorb(&[0x3]);
-                self.absorb(&config.modulus().to_bytes_be());
-                self.absorb(&[0x5]);
-
-                self.absorb(&[0x1]);
-                self.absorb(&value.to_bytes_be());
-                self.absorb(&[0x3])
-            }
-        }
+    pub fn absorb_random_field<F: Field>(&mut self, v: &F) {
+        v.absorb_into_transcript(self)
     }
 
-    pub fn absorb_slice<const N: usize>(&mut self, slice: &[RandomField<N>]) {
+    pub fn absorb_slice<F: Field>(&mut self, slice: &[F]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -138,22 +120,22 @@ impl KeccakTranscript {
         challenges
     }
 
-    pub fn get_integer_challenge<const N: usize>(&mut self) -> Int<N> {
-        let mut words = [0u64; N];
+    pub fn get_integer_challenge<I: CryptoInt<W>, W: Words>(&mut self) -> I {
+        let mut words = W::default();
 
-        for word in &mut words {
+        for i in 0..W::num_words() {
             let mut challenge = [0u8; 8];
             challenge.copy_from_slice(self.get_random_bytes(8).as_slice());
             self.hasher.update([0x12]);
             self.hasher.update(challenge);
             self.hasher.update([0x34]);
-            *word = u64::from_le_bytes(challenge);
+            words[i] = u64::from_le_bytes(challenge);
         }
 
-        Int::<N>::from_words(words)
+        I::from_words(words)
     }
 
-    pub fn get_integer_challenges<const N: usize>(&mut self, n: usize) -> Vec<Int<N>> {
+    pub fn get_integer_challenges<I: CryptoInt<W>, W: Words>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
@@ -200,7 +182,7 @@ mod tests {
         biginteger::BigInt,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
-        traits::FieldMap,
+        traits::{Config, FieldMap},
     };
 
     #[test]

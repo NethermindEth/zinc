@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 use ark_std::{borrow::Cow, iterable::Iterable, vec::Vec};
+use crypto_bigint::Int;
 use itertools::izip;
 
 use super::{
@@ -7,10 +8,8 @@ use super::{
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    field::RandomField,
-    field_config::ConfigRef,
     poly_z::mle::DenseMultilinearExtension,
-    traits::FieldMap,
+    traits::{Field, FieldMap},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs_transcript::PcsTranscript,
@@ -25,14 +24,17 @@ where
     S: ZipSpec,
     T: ZipTranscript<L>,
 {
-    pub fn open<'cfg, const N: usize>(
+    pub fn open<F: Field>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        point: &[RandomField<'cfg, N>],
-        field: ConfigRef<'cfg, N>,
-        transcript: &mut PcsTranscript<N>,
-    ) -> Result<(), Error> {
+        point: &[F],
+        field: F::Cr,
+        transcript: &mut PcsTranscript<F>,
+    ) -> Result<(), Error>
+    where
+        Int<I>: FieldMap<F, Output = F>,
+    {
         validate_input("open", pp.num_vars(), [poly], [point])?;
 
         Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
@@ -43,14 +45,17 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'cfg, 'a, const N: usize>(
+    pub fn batch_open<'a, F: Field>(
         pp: &Self::ProverParam,
         polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
         comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
-        points: &[Vec<RandomField<'cfg, N>>],
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
+        points: &[Vec<F>],
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<I>: FieldMap<F, Output = F>,
+    {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;
         }
@@ -58,13 +63,16 @@ where
     }
 
     // Subprotocol functions
-    fn prove_evaluation_phase<'cfg, const N: usize>(
+    fn prove_evaluation_phase<F: Field>(
         pp: &Self::ProverParam,
-        transcript: &mut PcsTranscript<N>,
-        point: &[RandomField<'cfg, N>],
+        transcript: &mut PcsTranscript<F>,
+        point: &[F],
         poly: &Self::Polynomial,
-        field: ConfigRef<'cfg, N>,
-    ) -> Result<(), Error> {
+        field: F::Cr,
+    ) -> Result<(), Error>
+    where
+        Int<I>: FieldMap<F, Output = F>,
+    {
         let num_rows = pp.num_rows();
         let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
 
@@ -76,7 +84,7 @@ where
         let q_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
             let combined_row = combine_rows(q_0, evaluations, row_len);
-            Cow::<Vec<RandomField<N>>>::Owned(combined_row)
+            Cow::<Vec<F>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
             // We just return the evaluation row combination
@@ -86,12 +94,12 @@ where
         transcript.write_field_elements(&q_0_combined_row)
     }
 
-    pub(super) fn prove_testing_phase<const N: usize>(
+    pub(super) fn prove_testing_phase<F: Field>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
         commit_data: &Self::Data,
-        transcript: &mut PcsTranscript<N>,
-        field: ConfigRef<N>, // This is only needed to called the transcript but we are getting integers not fields
+        transcript: &mut PcsTranscript<F>,
+        field: F::Cr, // This is only needed to called the transcript but we are getting integers not fields
     ) -> Result<(), Error> {
         if pp.num_rows() > 1 {
             // If we can take linear combinations
@@ -99,7 +107,7 @@ where
             for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
                 let coeffs = transcript
                     .fs_transcript
-                    .get_integer_challenges::<I>(pp.num_rows());
+                    .get_integer_challenges(pp.num_rows());
                 let coeffs = coeffs.iter().map(expand::<I, M>);
 
                 let evals = poly.evaluations.iter().map(expand::<I, M>);
@@ -124,11 +132,11 @@ where
         Ok(())
     }
 
-    pub(super) fn open_merkle_trees_for_column<const N: usize>(
+    pub(super) fn open_merkle_trees_for_column<F: Field>(
         pp: &Self::ProverParam,
         commit_data: &MultilinearZipData<I, K>,
         column: usize,
-        transcript: &mut PcsTranscript<N>,
+        transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error> {
         //Write the elements in the squeezed column to the shared transcript
         transcript.write_integers(

@@ -241,7 +241,7 @@ pub(crate) fn get_test_ccs_F<F: Field>(config: F::Cr) -> CCS_F<F> {
         None => panic!("FieldConfig cannot be null"),
         Some(config_ptr) => {
             let mut c: Vec<F> = vec![1u32, 1].map_to_field(config);
-            c[1] = -c[1];
+            c[1] = -c[1].clone();
             CCS_F {
                 m,
                 n,
@@ -320,6 +320,7 @@ mod tests {
         ccs::test_utils::get_dummy_ccs_F_from_z_length,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     #[test]

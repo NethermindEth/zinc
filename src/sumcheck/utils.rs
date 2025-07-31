@@ -54,7 +54,7 @@ pub fn rand_poly<F: Field>(
 
         let coefficient = F::rand_with_config(rng, config);
         mles.extend(product);
-        sum += &(product_sum * coefficient);
+        sum += &(product_sum * &coefficient);
 
         let indices: Vec<usize> =
             (current_mle_index..current_mle_index + num_multiplicands).collect();
@@ -68,9 +68,9 @@ pub fn rand_poly<F: Field>(
 pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], config: F::Cr) -> F {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
-        let mut term = *coef;
+        let mut term = coef.clone();
         for &i in indices {
-            term *= vals[i];
+            term *= &vals[i];
         }
         result += &term;
     }
@@ -87,9 +87,9 @@ pub fn eq_eval<F: Field>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
     }
     let start = start_timer!(|| "eq_eval");
     let mut res = F::one();
-    for (&xi, &yi) in x.iter().zip(y.iter()) {
-        let xi_yi = xi * yi;
-        res *= xi_yi + xi_yi - xi - yi + F::one();
+    for (xi, yi) in x.iter().zip(y.iter()) {
+        let xi_yi = xi.clone() * yi;
+        res *= xi_yi.clone() + xi_yi - xi.clone() - yi.clone() + F::one();
     }
     end_timer!(start);
     Ok(res)
@@ -143,8 +143,8 @@ fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithE
         return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
-        buf.push(F::one() - r[0]);
-        buf.push(r[0]);
+        buf.push(F::one() - r[0].clone());
+        buf.push(r[0].clone());
     } else {
         build_eq_x_r_helper(&r[1..], buf)?;
 
@@ -162,8 +162,8 @@ fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithE
 
         let mut res = vec![F::zero(); buf.len() << 1];
         cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
-            let bi = buf[i >> 1];
-            let tmp = r[0] * bi;
+            let bi = buf[i >> 1].clone();
+            let tmp = r[0].clone() * bi.clone();
             if (i & 1) == 0 {
                 *val = bi - tmp;
             } else {

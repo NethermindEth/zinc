@@ -5,11 +5,10 @@ use sha3::{digest::Output, Digest, Keccak256};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
-    field::{RandomField, RandomField as F},
-    field_config::ConfigRef,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
+    traits::Field,
     zip::{
         pcs_transcript::PcsTranscript,
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
@@ -26,15 +25,12 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'cfg, 'a, const I: usize, const N: usize>(
+pub(super) fn validate_input<'a, const I: usize, F: Field + 'a>(
     function: &str,
     param_num_vars: usize,
     polys: impl Iterable<Item = &'a MLE_Z<I>>,
-    points: impl Iterable<Item = &'a [F<'cfg, N>]>,
-) -> Result<(), Error>
-where
-    'cfg: 'a,
-{
+    points: impl Iterable<Item = &'a [F]>,
+) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
         if param_num_vars < poly.num_vars {
@@ -228,10 +224,10 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<const N: usize, const I: usize, const M: usize>(
+    pub fn open_at_column<F: Field, const I: usize, const M: usize>(
         column: usize,
         commit_data: &MultilinearZipData<I, M>,
-        transcript: &mut PcsTranscript<N>,
+        transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees() {
             let merkle_path = MerkleProof::create_proof(row_merkle_tree, column)?;
@@ -242,11 +238,11 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<const N: usize, T: ToBytes>(
+    pub fn verify_column<F: Field, T: ToBytes>(
         rows_roots: &[Output<Keccak256>],
         column: &[T],
         column_index: usize,
-        transcript: &mut PcsTranscript<N>,
+        transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
         for (root, leaf) in rows_roots.iter().zip(column) {
             let proof = transcript
@@ -260,24 +256,24 @@ impl ColumnOpening {
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
-pub(super) fn point_to_tensor<'cfg, const N: usize>(
+pub(super) fn point_to_tensor<F: Field>(
     num_rows: usize,
-    point: &[F<'cfg, N>],
-    config: ConfigRef<'cfg, N>,
-) -> Result<(Vec<F<'cfg, N>>, Vec<F<'cfg, N>>), Error> {
+    point: &[F],
+    config: F::Cr,
+) -> Result<(Vec<F>, Vec<F>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
-        MLE_F::<RandomField<N>>::zero()
+        MLE_F::zero()
     };
 
     let q_1 = if !hi.is_empty() {
         build_eq_x_r_f(hi, config).unwrap()
     } else {
-        MLE_F::<RandomField<N>>::zero()
+        MLE_F::zero()
     };
 
     Ok((q_0.evaluations, q_1.evaluations))
@@ -286,17 +282,17 @@ pub(super) fn point_to_tensor<'cfg, const N: usize>(
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
-pub(super) fn left_point_to_tensor<'cfg, const N: usize>(
+pub(super) fn left_point_to_tensor<F: Field>(
     num_rows: usize,
-    point: &[F<'cfg, N>],
-    config: ConfigRef<'cfg, N>,
-) -> Result<Vec<F<'cfg, N>>, Error> {
+    point: &[F],
+    config: F::Cr,
+) -> Result<Vec<F>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
-        MLE_F::<RandomField<N>>::zero()
+        MLE_F::<F>::zero()
     };
     Ok(q_0.evaluations)
 }

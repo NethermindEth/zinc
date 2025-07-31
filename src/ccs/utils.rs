@@ -47,7 +47,7 @@ pub(crate) fn hadamard<R: Clone + Mul<R, Output = R>>(a: &[R], b: &[R]) -> Resul
 
 pub(crate) fn mat_vec_mul<R>(M: &SparseMatrix<R>, z: &[R]) -> Result<Vec<R>, Error>
 where
-    R: Copy + Send + Sync + Mul<R, Output = R> + Add<Output = R> + Default,
+    R: Clone + Send + Sync + Mul<R, Output = R> + Add<Output = R> + Default,
     for<'a> R: Mul<&'a R, Output = R>,
 {
     if M.n_cols != z.len() {
@@ -64,7 +64,7 @@ where
     for row in &M.coeffs {
         let mut acc = R::default(); // Assuming Default gives the additive identity (e.g., 0)
         for (value, col_i) in row {
-            acc = acc + (z[*col_i] * value);
+            acc = acc + (z[*col_i].clone() * value);
         }
         result.push(acc);
     }
@@ -82,7 +82,7 @@ mod tests {
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
         sparse_matrix::dense_matrix_to_sparse,
-        traits::FieldMap,
+        traits::{Config, FieldMap},
     };
 
     const N: usize = 3;

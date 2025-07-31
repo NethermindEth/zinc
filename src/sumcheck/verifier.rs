@@ -71,7 +71,7 @@ impl<F: Field> IPForMLSumcheck<F> {
         // `check_and_generate_subclaim`, and will be done after the last round.
 
         let msg = Self::sample_round(transcript, verifier_state.config);
-        verifier_state.randomness.push(msg.randomness);
+        verifier_state.randomness.push(msg.randomness.clone());
         verifier_state
             .polynomials_received
             .push(prover_msg.evaluations);
@@ -113,15 +113,16 @@ impl<F: Field> IPForMLSumcheck<F> {
                 panic!("incorrect number of evaluations");
             }
 
-            let p0 = evaluations[0];
-            let p1 = evaluations[1];
-            if p0 + p1 != expected {
+            let p0 = &evaluations[0];
+            let p1 = &evaluations[1];
+            if p0.clone() + p1.clone() != expected {
                 return Err(SumCheckError::SumCheckFailed(
-                    Box::new((p0 + p1).into()),
+                    Box::new((p0.clone() + p1.clone()).into()),
                     Box::new(expected.into()),
                 ));
             }
-            expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i], config);
+            expected =
+                interpolate_uni_poly(evaluations, verifier_state.randomness[i].clone(), config);
         }
 
         Ok(SubClaim {
@@ -148,32 +149,32 @@ impl<F: Field> IPForMLSumcheck<F> {
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
 pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> F {
     // We will need these a few times
-    let zero = 0u64.map_to_field(config);
+    let zero: F = 0u64.map_to_field(config);
     let one = 1u64.map_to_field(config);
 
     let len = p_i.len();
 
     let mut evals = vec![];
 
-    let mut prod = x;
-    evals.push(x);
+    let mut prod = x.clone();
+    evals.push(x.clone());
 
     //`prod = \prod_{j} (x - j)`
     // we return early if 0 <= x < len, i.e. if the desired value has been passed
-    let mut j = zero;
+    let mut j = zero.clone();
     for i in 1..len {
         if x == j {
-            return p_i[i - 1];
+            return p_i[i - 1].clone();
         }
         j += &one;
 
-        let tmp = x - j;
-        evals.push(tmp);
+        let tmp = x.clone() - j.clone();
+        evals.push(tmp.clone());
         prod *= tmp;
     }
 
     if x == j {
-        return p_i[len - 1];
+        return p_i[len - 1].clone();
     }
 
     let mut res = zero;
@@ -224,9 +225,10 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> 
             let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
-            let x = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
+            let x = prod.clone() * ratio_enumerator_f
+                / (last_denom.clone() * ratio_numerator_f * &evals[i]);
 
-            res += &(p_i[i] * x);
+            res += &(p_i[i].clone() * x);
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
             if i != 0 {
@@ -253,8 +255,9 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> 
             let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
             ratio_enumerator_f.set_config(config);
 
-            let x: F = prod * ratio_enumerator_f / (last_denom * ratio_numerator_f * evals[i]);
-            res += &(p_i[i] * x);
+            let x: F = prod.clone() * ratio_enumerator_f
+                / (last_denom.clone() * ratio_numerator_f * &evals[i]);
+            res += &(p_i[i].clone() * x);
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
             if i != 0 {
@@ -269,8 +272,8 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::Cr) -> 
         let mut denom_down = one;
 
         for i in (0..len).rev() {
-            let x = prod * denom_down / (denom_up * evals[i]);
-            res += &(p_i[i] * x);
+            let x = prod.clone() * &denom_down / (denom_up.clone() * &evals[i]);
+            res += &(p_i[i].clone() * x);
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {

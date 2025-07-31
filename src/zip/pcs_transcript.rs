@@ -1,6 +1,8 @@
 #![allow(non_snake_case)]
+
 use ark_std::{
     io::{Cursor, Read, Write},
+    marker::PhantomData,
     vec,
     vec::Vec,
 };
@@ -9,21 +11,19 @@ use sha3::{digest::Output, Keccak256};
 
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
-    biginteger::BigInt,
-    field::RandomField,
-    field_config::ConfigRef,
     poly::alloc::string::ToString,
-    traits::{Field, FromBytes},
+    traits::{Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 
 #[derive(Default, Clone)]
-pub struct PcsTranscript<const N: usize> {
+pub struct PcsTranscript<F: Field> {
     pub fs_transcript: KeccakTranscript,
     pub stream: Cursor<Vec<u8>>,
+    _phantom: PhantomData<F>,
 }
 
-impl<const N: usize> PcsTranscript<N> {
+impl<F: Field> PcsTranscript<F> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -36,10 +36,11 @@ impl<const N: usize> PcsTranscript<N> {
         Self {
             fs_transcript: KeccakTranscript::default(),
             stream: Cursor::new(proof.to_vec()),
+            _phantom: PhantomData,
         }
     }
 
-    pub fn common_field_element(&mut self, fe: &RandomField<N>) {
+    pub fn common_field_element(&mut self, fe: &F) {
         self.fs_transcript.absorb_random_field(fe);
     }
 
@@ -59,7 +60,7 @@ impl<const N: usize> PcsTranscript<N> {
     }
 
     // TODO if we change this to an iterator we may be able to save some memory
-    pub fn write_field_elements(&mut self, elems: &[RandomField<N>]) -> Result<(), Error> {
+    pub fn write_field_elements(&mut self, elems: &[F]) -> Result<(), Error> {
         for elem in elems {
             self.write_field_element(elem)?;
         }
@@ -67,33 +68,26 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn read_field_elements<'cfg>(
-        &mut self,
-        n: usize,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<Vec<RandomField<'cfg, N>>, Error> {
+    pub fn read_field_elements(&mut self, n: usize, config: F::Cr) -> Result<Vec<F>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element<'cfg>(
-        &mut self,
-        config: ConfigRef<'cfg, N>,
-    ) -> Result<RandomField<'cfg, N>, Error> {
-        let mut bytes: Vec<u8> = vec![0; N * 8];
+    pub fn read_field_element(&mut self, config: F::Cr) -> Result<F, Error> {
+        let mut bytes: Vec<u8> = vec![0; F::W::num_words() * 8];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        let fe = RandomField::new_unchecked(config, BigInt::from_bytes_be(&bytes).unwrap());
+        let fe = F::new_unchecked(config, F::I::from_bytes_be(&bytes).unwrap());
 
         self.common_field_element(&fe);
         Ok(fe)
     }
 
-    pub fn write_field_element(&mut self, fe: &RandomField<N>) -> Result<(), Error> {
+    pub fn write_field_element(&mut self, fe: &F) -> Result<(), Error> {
         self.common_field_element(fe);
         let repr = fe.value().to_bytes_be();
         self.stream
@@ -151,8 +145,8 @@ impl<const N: usize> PcsTranscript<N> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: ConfigRef<N>, cap: usize) -> usize {
-        let challenge: RandomField<N> = self.fs_transcript.get_challenge(config);
+    pub fn squeeze_challenge_idx(&mut self, config: F::Cr, cap: usize) -> usize {
+        let challenge: F = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
         num % cap
@@ -193,14 +187,15 @@ impl<const N: usize> PcsTranscript<N> {
 
 #[allow(unused_macros)]
 macro_rules! test_read_write {
+    // TODO: N is magic
     ($write_fn:ident, $read_fn:ident, $original_value:expr, $assert_msg:expr) => {{
         use ark_std::format;
-        let mut transcript = PcsTranscript::<N>::new();
+        let mut transcript = PcsTranscript::<RandomField<N>>::new();
         transcript
             .$write_fn(&$original_value)
             .expect(&format!("Failed to write {}", $assert_msg));
         let proof = transcript.into_proof();
-        let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+        let mut transcript = PcsTranscript::<RandomField<N>>::from_proof(&proof);
         let read_value = transcript
             .$read_fn()
             .expect(&format!("Failed to read {}", $assert_msg));
@@ -214,14 +209,15 @@ macro_rules! test_read_write {
 
 #[allow(unused_macros)]
 macro_rules! test_read_write_vec {
+    // TODO: N is magic
     ($write_fn:ident, $read_fn:ident, $original_values:expr, $assert_msg:expr) => {{
         use ark_std::format;
-        let mut transcript = PcsTranscript::<N>::new();
+        let mut transcript = PcsTranscript::<RandomField<N>>::new();
         transcript
             .$write_fn(&$original_values)
             .expect(&format!("Failed to write {}", $assert_msg));
         let proof = transcript.into_proof();
-        let mut transcript = PcsTranscript::<N>::from_proof(&proof);
+        let mut transcript = PcsTranscript::<RandomField<N>>::from_proof(&proof);
         let read_values = transcript
             .$read_fn($original_values.len())
             .expect(&format!("Failed to read {}", $assert_msg));
@@ -235,6 +231,7 @@ macro_rules! test_read_write_vec {
 
 #[test]
 fn test_pcs_transcript_read_write() {
+    use crate::field::RandomField;
     const N: usize = 4;
 
     // Test commitment

@@ -4,6 +4,7 @@ use zeroize::Zeroize;
 use crate::{
     biginteger::BigInt,
     field::{RandomField, RandomField::Raw},
+    traits::Field,
 };
 
 impl<const N: usize> Zero for RandomField<'_, N> {
@@ -65,6 +66,7 @@ mod tests {
         create_bigint, create_random_field,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
+        traits::Config,
     };
 
     #[test]

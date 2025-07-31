@@ -59,7 +59,7 @@ where
     }
 }
 
-impl<R: Copy + Send + Sync + Zero + Random> SparseMatrix<R> {
+impl<R: Clone + Send + Sync + Zero + Random> SparseMatrix<R> {
     pub fn empty() -> Self {
         Self {
             n_rows: 0,
@@ -89,8 +89,8 @@ impl<R: Copy + Send + Sync + Zero + Random> SparseMatrix<R> {
     pub fn to_dense(&self) -> Vec<Vec<R>> {
         let mut r: Vec<Vec<R>> = vec![vec![R::zero(); self.n_cols]; self.n_rows];
         for (row_i, row) in self.coeffs.iter().enumerate() {
-            for &(value, col_i) in row.iter() {
-                r[row_i][col_i] = value;
+            for (value, col_i) in row.iter() {
+                r[row_i][*col_i] = value.clone();
             }
         }
         r
@@ -117,7 +117,7 @@ impl<R: Copy + Send + Sync + Zero + Random> SparseMatrix<R> {
     }
 }
 
-pub fn dense_matrix_to_sparse<R: Copy + Send + Sync + Zero>(m: Vec<Vec<R>>) -> SparseMatrix<R> {
+pub fn dense_matrix_to_sparse<R: Clone + Send + Sync + Zero>(m: Vec<Vec<R>>) -> SparseMatrix<R> {
     let mut r = SparseMatrix::<R> {
         n_rows: m.len(),
         n_cols: m[0].len(),
@@ -127,7 +127,7 @@ pub fn dense_matrix_to_sparse<R: Copy + Send + Sync + Zero>(m: Vec<Vec<R>>) -> S
         let mut row: Vec<(R, usize)> = Vec::new();
         for (col_i, value) in m_row.iter().enumerate() {
             if !value.is_zero() {
-                row.push((*value, col_i));
+                row.push((value.clone(), col_i));
             }
         }
         r.coeffs.push(row);
@@ -175,7 +175,7 @@ pub fn compute_eval_table_sparse<F: Field>(
         vec![0u32.map_to_field(config); num_cols],
         |mut M_evals, (row, vals)| {
             for (val, col) in vals {
-                M_evals[*col] += &(rx[row] * val);
+                M_evals[*col] += &(rx[row].clone() * val);
             }
             M_evals
         },

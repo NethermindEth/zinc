@@ -82,7 +82,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<F: Field>(
         coeffs: vec![vec![]; rows],
     };
     for (i, row) in matrix.coeffs.iter_mut().enumerate() {
-        row.push((witness[i], i));
+        row.push((witness[i].clone(), i));
     }
     matrix
 }

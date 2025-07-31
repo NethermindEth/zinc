@@ -69,16 +69,16 @@ impl<F: Field> IPForMLSumcheck<F> {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");
             }
-            prover_state.randomness.push(msg.randomness);
+            prover_state.randomness.push(msg.randomness.clone());
 
             // fix argument
             let i = prover_state.round;
-            let r = prover_state.randomness[i - 1];
+            let r = prover_state.randomness[i - 1].clone();
 
             let atomic_config =
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(&[r], unsafe {
+                multiplicand.fix_variables(&[r.clone()], unsafe {
                     F::Cr::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });
@@ -106,14 +106,14 @@ impl<F: Field> IPForMLSumcheck<F> {
             vals: Vec<R>,
             levals: Vec<R>,
         }
-        let zero = 0u64.map_to_field(config);
+        let zero: F = 0u64.map_to_field(config);
         let scratch = || Scratch {
-            evals: vec![zero; degree + 1],
-            steps: vec![zero; polys.len()],
-            vals0: vec![zero; polys.len()],
-            vals1: vec![zero; polys.len()],
-            vals: vec![zero; polys.len()],
-            levals: vec![zero; degree + 1],
+            evals: vec![zero.clone(); degree + 1],
+            steps: vec![zero.clone(); polys.len()],
+            vals0: vec![zero.clone(); polys.len()],
+            vals1: vec![zero.clone(); polys.len()],
+            vals: vec![zero.clone(); polys.len()],
+            levals: vec![zero.clone(); degree + 1],
         };
 
         #[cfg(not(feature = "parallel"))]
@@ -127,18 +127,18 @@ impl<F: Field> IPForMLSumcheck<F> {
             s.vals0
                 .iter_mut()
                 .zip(polys.iter())
-                .for_each(|(v0, poly)| *v0 = poly[index]);
+                .for_each(|(v0, poly)| *v0 = poly[index].clone());
             s.levals[0] = comb_fn(&s.vals0);
 
             s.vals1
                 .iter_mut()
                 .zip(polys.iter())
-                .for_each(|(v1, poly)| *v1 = poly[index + 1]);
+                .for_each(|(v1, poly)| *v1 = poly[index + 1].clone());
             s.levals[1] = comb_fn(&s.vals1);
 
             for (i, (v1, v0)) in s.vals1.iter().zip(s.vals0.iter()).enumerate() {
-                s.steps[i] = *v1 - *v0;
-                s.vals[i] = *v1;
+                s.steps[i] = v1.clone() - v0.clone();
+                s.vals[i] = v1.clone();
             }
 
             for eval_point in s.levals.iter_mut().take(degree + 1).skip(2) {
@@ -158,7 +158,7 @@ impl<F: Field> IPForMLSumcheck<F> {
         // Rayon's fold outputs an iter which still needs to be summed over
         #[cfg(feature = "parallel")]
         let evaluations = summer.map(|s| s.evals).reduce(
-            || vec![zero; degree + 1],
+            || vec![zero.clone(); degree + 1],
             |mut evaluations, levals| {
                 evaluations
                     .iter_mut()

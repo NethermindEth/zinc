@@ -4,33 +4,35 @@
 // Adapted for rings by Nethermind
 
 use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
-use crypto_bigint::{Int, Random};
 
-use crate::poly::{get_batched_nv, ArithErrors, RefCounter};
 pub use crate::poly_z::mle::{DenseMultilinearExtension, MultilinearExtension};
+use crate::{
+    poly::{get_batched_nv, ArithErrors, RefCounter},
+    traits::CryptoInt,
+};
 
 /// Sample a random list of multilinear polynomials.
 /// Returns
 /// - the list of polynomials,
 /// - its sum of polynomial evaluations over the boolean hypercube.
-pub fn random_mle_list<Rn: RngCore, const I: usize>(
+pub fn random_mle_list<Rn: RngCore, I: CryptoInt>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-) -> (Vec<RefCounter<DenseMultilinearExtension<I>>>, Int<I>) {
+) -> (Vec<RefCounter<DenseMultilinearExtension<I>>>, I) {
     let start = start_timer!(|| "sample random mle list");
     let mut multiplicands = Vec::with_capacity(degree);
     for _ in 0..degree {
         multiplicands.push(Vec::with_capacity(1 << nv));
     }
-    let mut sum = Int::<I>::ZERO;
+    let mut sum = I::ZERO;
 
     for _ in 0..1 << nv {
-        let mut product = Int::<I>::ONE;
+        let mut product = I::one();
 
         for e in multiplicands.iter_mut() {
-            let val = Int::<I>::random(rng);
-            e.push(val);
+            let val = I::random(rng);
+            e.push(val.clone());
             product = product * val;
         }
         sum += &product;
@@ -46,7 +48,7 @@ pub fn random_mle_list<Rn: RngCore, const I: usize>(
 }
 
 // Build a randomize list of mle-s whose sum is zero.
-pub fn random_zero_mle_list<const I: usize, Rn: RngCore>(
+pub fn random_zero_mle_list<I: CryptoInt, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
@@ -58,9 +60,9 @@ pub fn random_zero_mle_list<const I: usize, Rn: RngCore>(
         multiplicands.push(Vec::with_capacity(1 << nv));
     }
     for _ in 0..1 << nv {
-        multiplicands[0].push(Int::<I>::ZERO);
+        multiplicands[0].push(I::ZERO);
         for e in multiplicands.iter_mut().skip(1) {
-            e.push(Int::<I>::random(rng));
+            e.push(I::random(rng));
         }
     }
 
@@ -79,7 +81,7 @@ pub fn identity_permutation(num_vars: usize, num_chunks: usize) -> Vec<i64> {
 }
 
 /// A list of MLEs that represents an identity permutation
-pub fn identity_permutation_mles<const I: usize>(
+pub fn identity_permutation_mles<I: CryptoInt>(
     num_vars: usize,
     num_chunks: usize,
 ) -> Vec<RefCounter<DenseMultilinearExtension<I>>> {
@@ -87,7 +89,7 @@ pub fn identity_permutation_mles<const I: usize>(
     for i in 0..num_chunks {
         let shift = (i * (1 << num_vars)) as u32;
         let s_id_vec = (shift..shift + (1u32 << num_vars))
-            .map(|i| Int::<I>::from(i64::from(i)))
+            .map(|i| I::from(i64::from(i)))
             .collect();
         res.push(RefCounter::new(
             DenseMultilinearExtension::from_evaluations_vec(num_vars, s_id_vec),
@@ -96,13 +98,13 @@ pub fn identity_permutation_mles<const I: usize>(
     res
 }
 
-pub fn random_permutation<Rn: RngCore, const I: usize>(
+pub fn random_permutation<Rn: RngCore, I: CryptoInt>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-) -> Vec<Int<I>> {
+) -> Vec<I> {
     let len = (num_chunks as u32) * (1u32 << num_vars);
-    let mut s_id_vec: Vec<Int<I>> = (0..len).map(|i| Int::<I>::from(i64::from(i))).collect();
+    let mut s_id_vec: Vec<I> = (0..len).map(|i| I::from(i64::from(i))).collect();
     let mut s_perm_vec = vec![];
     for _ in 0..len {
         let index = (rng.next_u64() as usize) % s_id_vec.len();
@@ -112,7 +114,7 @@ pub fn random_permutation<Rn: RngCore, const I: usize>(
 }
 
 /// A list of MLEs that represent a random permutation
-pub fn random_permutation_mles<Rn: RngCore, const I: usize>(
+pub fn random_permutation_mles<Rn: RngCore, I: CryptoInt>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
@@ -131,17 +133,14 @@ pub fn random_permutation_mles<Rn: RngCore, const I: usize>(
     res
 }
 
-pub fn evaluate_opt<const I: usize>(
-    poly: &DenseMultilinearExtension<I>,
-    point: &[Int<I>],
-) -> Int<I> {
+pub fn evaluate_opt<I: CryptoInt>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
-    fix_variables(poly, point).evaluations[0]
+    fix_variables(poly, point).evaluations[0].clone()
 }
 
-pub fn fix_variables<const I: usize>(
+pub fn fix_variables<I: CryptoInt>(
     poly: &DenseMultilinearExtension<I>,
-    partial_point: &[Int<I>],
+    partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -158,33 +157,26 @@ pub fn fix_variables<const I: usize>(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_one_variable_helper<const I: usize>(
-    data: &[Int<I>],
-    nv: usize,
-    point: &Int<I>,
-) -> Vec<Int<I>> {
-    let mut res = vec![Int::<I>::ZERO; 1 << (nv - 1)];
+fn fix_one_variable_helper<I: CryptoInt>(data: &[I], nv: usize, point: &I) -> Vec<I> {
+    let mut res = vec![I::ZERO; 1 << (nv - 1)];
 
     // evaluate single variable of partial point from left to right
 
     for i in 0..1 << (nv - 1) {
-        res[i] = data[i] + (data[(i << 1) + 1] - data[i << 1]) * point;
+        res[i] = data[i].clone() + (data[(i << 1) + 1].clone() - &data[i << 1]) * point;
     }
 
     res
 }
 
-pub fn evaluate_no_par<const I: usize>(
-    poly: &DenseMultilinearExtension<I>,
-    point: &[Int<I>],
-) -> Int<I> {
+pub fn evaluate_no_par<I: CryptoInt>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
-    fix_variables_no_par(poly, point).evaluations[0]
+    fix_variables_no_par(poly, point).evaluations[0].clone()
 }
 
-fn fix_variables_no_par<const I: usize>(
+fn fix_variables_no_par<I: CryptoInt>(
     poly: &DenseMultilinearExtension<I>,
-    partial_point: &[Int<I>],
+    partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -195,9 +187,9 @@ fn fix_variables_no_par<const I: usize>(
     let dim = partial_point.len();
     // evaluate single variable of partial point from left to right
     for i in 1..dim + 1 {
-        let r = partial_point[i - 1];
+        let r = partial_point[i - 1].clone();
         for b in 0..1 << (nv - i) {
-            poly[b] = poly[b << 1] + (poly[(b << 1) + 1] - poly[b << 1]) * r;
+            poly[b] = poly[b << 1].clone() + (poly[(b << 1) + 1].clone() - &poly[b << 1]) * &r;
         }
     }
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
@@ -205,7 +197,7 @@ fn fix_variables_no_par<const I: usize>(
 
 /// merge a set of polynomials. Returns an error if the
 /// polynomials do not share a same number of nvs.
-pub fn merge_polynomials<const I: usize>(
+pub fn merge_polynomials<I: CryptoInt>(
     polynomials: &[RefCounter<DenseMultilinearExtension<I>>],
 ) -> Result<RefCounter<DenseMultilinearExtension<I>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
@@ -222,15 +214,15 @@ pub fn merge_polynomials<const I: usize>(
     for poly in polynomials.iter() {
         scalars.extend_from_slice(poly.to_evaluations().as_slice());
     }
-    scalars.extend_from_slice(vec![Int::<I>::ZERO; (1 << merged_nv) - scalars.len()].as_ref());
+    scalars.extend_from_slice(vec![I::ZERO; (1 << merged_nv) - scalars.len()].as_ref());
     Ok(RefCounter::new(
         DenseMultilinearExtension::from_evaluations_vec(merged_nv, scalars),
     ))
 }
 
-pub fn fix_last_variables_no_par<const I: usize>(
+pub fn fix_last_variables_no_par<I: CryptoInt>(
     poly: &DenseMultilinearExtension<I>,
-    partial_point: &[Int<I>],
+    partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap());
     for p in partial_point.iter().rev().skip(1) {
@@ -239,22 +231,23 @@ pub fn fix_last_variables_no_par<const I: usize>(
     res
 }
 
-fn fix_last_variable_no_par<const I: usize>(
+fn fix_last_variable_no_par<I: CryptoInt>(
     poly: &DenseMultilinearExtension<I>,
-    partial_point: &Int<I>,
+    partial_point: &I,
 ) -> DenseMultilinearExtension<I> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
-    let mut res = vec![Int::<I>::ZERO; half_len];
+    let mut res = vec![I::ZERO; half_len];
     for (i, e) in res.iter_mut().enumerate().take(half_len) {
-        *e = poly.evaluations[i]
-            + *partial_point * (poly.evaluations[i + half_len] - poly.evaluations[i]);
+        *e = poly.evaluations[i].clone()
+            + partial_point.clone()
+                * (poly.evaluations[i + half_len].clone() - &poly.evaluations[i]);
     }
     DenseMultilinearExtension::from_evaluations_vec(nv - 1, res)
 }
-pub fn fix_last_variables<const I: usize>(
+pub fn fix_last_variables<I: CryptoInt>(
     poly: &DenseMultilinearExtension<I>,
-    partial_point: &[Int<I>],
+    partial_point: &[I],
 ) -> DenseMultilinearExtension<I> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -271,18 +264,14 @@ pub fn fix_last_variables<const I: usize>(
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
 }
 
-fn fix_last_variable_helper<const N: usize>(
-    data: &[Int<N>],
-    nv: usize,
-    point: &Int<N>,
-) -> Vec<Int<N>> {
+fn fix_last_variable_helper<I: CryptoInt>(data: &[I], nv: usize, point: &I) -> Vec<I> {
     let half_len = 1 << (nv - 1);
-    let mut res = vec![Int::<N>::ZERO; half_len];
+    let mut res = vec![I::ZERO; half_len];
 
     // evaluate single variable of partial point from left to right
 
     for b in 0..half_len {
-        res[b] = data[b] + (data[b + half_len] - data[b]) * point;
+        res[b] = data[b].clone() + (data[b + half_len].clone() - &data[b]) * point;
     }
 
     res

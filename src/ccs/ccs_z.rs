@@ -3,7 +3,6 @@
 #![allow(non_snake_case, non_camel_case_types)]
 
 use ark_std::{log2, marker::PhantomData, sync::atomic::AtomicPtr, vec, vec::Vec};
-use crypto_bigint::Zero;
 
 use super::{
     ccs_f::{Statement_F, Witness_F, CCS_F},
@@ -55,7 +54,7 @@ pub struct CCS_Z<I> {
 impl<I: CryptoInt> Arith_Z<I> for CCS_Z<I> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(&self, M: &[SparseMatrix<I>], z: &[I]) -> Result<(), Error> {
-        let mut result = vec![<I as Zero>::zero(); self.m];
+        let mut result = vec![I::ZERO; self.m];
         for m in M.iter() {
             assert_eq!(
                 m.n_rows, self.m,
@@ -76,7 +75,7 @@ impl<I: CryptoInt> Arith_Z<I> for CCS_Z<I> {
             let mut hadamard_result = vec![I::from_i64(1); self.m];
             for M_j in vec_M_j.into_iter() {
                 let mut res = mat_vec_mul(M_j, z)?;
-                res.resize(self.m, <I as Zero>::zero());
+                res.resize(self.m, I::ZERO);
                 hadamard_result = hadamard(&hadamard_result, &res)?;
             }
 
@@ -90,7 +89,7 @@ impl<I: CryptoInt> Arith_Z<I> for CCS_Z<I> {
         // make sure the final vector is all zeroes
         result
             .iter()
-            .all(|item| *item == <I as Zero>::zero())
+            .all(|item| *item == I::ZERO)
             .then_some(())
             .ok_or(Error::NotSatisfied)
     }

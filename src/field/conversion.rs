@@ -147,32 +147,22 @@ impl<F: Field> FieldMap<F> for &bool {
 }
 
 // Implementation for Int<N>
-impl<F: Field, const M: usize> FieldMap<F> for Int<M>
+impl<F: Field, T: CryptoInt> FieldMap<F> for T
 where
-    BigInt<M>: FieldMap<F, Output = F>,
+    T::I: FieldMap<F, Output = F>,
 {
     type Output = F;
 
     fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
-        let local_type_bigint: BigInt<M> = BigInt::from(self);
+        let local_type_bigint = T::I::from(self);
         let res = local_type_bigint.map_to_field(config_ref);
-        if self < &Int::ZERO {
+        if self < &T::zero() {
             return -res;
         }
         res
     }
 }
 
-impl<F: Field, const M: usize> FieldMap<F> for &Int<M>
-where
-    Int<M>: FieldMap<F, Output = F>,
-{
-    type Output = F;
-
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
-        (*self).map_to_field(config_ref)
-    }
-}
 // Implementation of FieldMap for BigInt<N>
 impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
 where

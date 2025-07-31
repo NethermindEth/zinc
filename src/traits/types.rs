@@ -15,6 +15,8 @@ use crate::{
     transcript::KeccakTranscript,
 };
 
+/// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
+/// Used as a bound for generic code over finite fields.
 pub trait Field:
     Zero
     + Eq
@@ -39,54 +41,85 @@ pub trait Field:
     + core::iter::Sum
     + for<'a> MulAssign<&'a Self>
 {
-    type I: Integer<Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
-    type C: Config<Self::W, Self::I>;
-    type Cr: ConfigReference<Self::W, Self::I, Self::C>;
+    /// Integer representation type for the field element.
+    type I: Integer<W = Self::W> + From<Self::CryptoInt> + FieldMap<Self, Output = Self>;
+    /// Field configuration type.
+    type C: Config<I = Self::I>;
+    /// Reference to field configuration.
+    type Cr: ConfigReference<C = Self::C>;
+    /// Word representation type.
     type W: Words;
-    type CryptoInt: CryptoInt<Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
-    type CryptoUint: CryptoUint<Self::W, Int = Self::CryptoInt>;
+    /// Cryptographic integer type.
+    type CryptoInt: CryptoInt<W = Self::W, Uint = Self::CryptoUint> + for<'a> From<&'a Self::I>;
+    /// Cryptographic unsigned integer type.
+    type CryptoUint: CryptoUint<W = Self::W, Int = Self::CryptoInt>;
+    /// Debug representation for the field.
     type DebugField: Debug + From<Self> + Send + Sync;
+    /// Creates a new field element from config and value, without checking.
     fn new_unchecked(config: Self::Cr, value: Self::I) -> Self;
+    /// Creates a new field element from value, without config.
     fn without_config(value: Self::I) -> Self;
+    /// Generates a random field element with the given config.
     fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self;
+    /// Sets the field configuration.
     fn set_config(&mut self, config: Self::Cr);
+    /// Returns a reference to the integer value.
     fn value(&self) -> &Self::I;
+    /// Returns a mutable reference to the integer value.
     fn value_mut(&mut self) -> &mut Self::I;
+    /// Absorbs the field element into a Keccak transcript.
     fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript);
 }
 
-pub trait Integer<W: Words>: From<u64> + From<u32> + Debug + FromBytes + Copy {
-    fn to_words(&self) -> W;
-
+/// Trait for integer types used as field element representations.
+pub trait Integer: From<u64> + From<u32> + Debug + FromBytes + Copy {
+    type W: Words;
+    /// Converts the integer to its word representation.
+    fn to_words(&self) -> Self::W;
+    /// Returns the integer one.
     fn one() -> Self;
+    /// Constructs from big-endian bits.
     fn from_bits_be(bits: &[bool]) -> Self;
-
+    /// Constructs from little-endian bits.
     fn from_bits_le(bits: &[bool]) -> Self;
+    /// Returns the number of bits.
     fn num_bits(&self) -> u32;
-    fn new(words: W) -> Self;
+    /// Constructs from words.
+    fn new(words: Self::W) -> Self;
+    /// Converts to big-endian bytes.
     fn to_bytes_be(self) -> Vec<u8>;
-
+    /// Converts to little-endian bytes.
     fn to_bytes_le(self) -> Vec<u8>;
 }
-pub trait Config<W: Words, I: Integer<W>>: PartialEq + Eq {
-    fn modulus(&self) -> &I;
-    fn mul_assign(&self, a: &mut I, b: &I);
 
-    fn r2(&self) -> &I;
-    fn new(modulus: I) -> Self;
+/// Trait for field configuration types.
+pub trait Config: PartialEq + Eq {
+    type I: Integer;
+    /// Returns the modulus for the field.
+    fn modulus(&self) -> &Self::I;
+    /// Multiplies two integers in the field.
+    fn mul_assign(&self, a: &mut Self::I, b: &Self::I);
+    /// Returns the R^2 value for Montgomery reduction.
+    fn r2(&self) -> &Self::I;
+    /// Constructs a new config from a modulus.
+    fn new(modulus: Self::I) -> Self;
 }
-pub trait ConfigReference<W: Words, I: Integer<W>, C: Config<W, I>>:
-    Copy + Clone + PartialEq + Eq + Debug + Send + Sync
-{
-    fn reference(&self) -> Option<&C>;
 
+/// Trait for references to field configuration.
+pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync {
+    type C: Config;
+    /// Returns a reference to the config, if available.
+    fn reference(&self) -> Option<&Self::C>;
+    /// Creates a new config reference from a pointer.
     #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
-    unsafe fn new(config_ptr: *mut C) -> Self;
-
-    fn pointer(&self) -> Option<*mut C>;
+    unsafe fn new(config_ptr: *mut Self::C) -> Self;
+    /// Returns a pointer to the config, if available.
+    fn pointer(&self) -> Option<*mut Self::C>;
+    /// Constant representing no config reference.
     const NONE: Self;
 }
 
+/// Trait for word-based representations of integers.
 pub trait Words:
     Default
     + Index<usize, Output = u64>
@@ -97,18 +130,29 @@ pub trait Words:
     + IndexMut<RangeTo<usize>, Output = [u64]>
     + Copy
 {
+    /// Returns the number of words.
     fn num_words() -> usize;
 }
 
-pub trait CryptoInt<W: Words>: crypto_bigint::Zero + RemAssign<NonZero<Self>> {
-    type Uint: CryptoUint<W>;
-    fn from_words(words: W) -> Self;
+/// Trait for cryptographic integer types.
+pub trait CryptoInt: crypto_bigint::Zero + PartialOrd + RemAssign<NonZero<Self>> {
+    type W: Words;
+    type Uint: CryptoUint<W = Self::W>;
+    type I: Integer<W = Self::W> + for<'a> From<&'a Self>;
+    /// Constructs from words.
+    fn from_words(words: Self::W) -> Self;
 }
-pub trait CryptoUint<W: Words>:
+
+/// Trait for cryptographic unsigned integer types.
+pub trait CryptoUint:
     crypto_bigint::Integer + RemAssign<NonZero<Self>> + FromBytes + RandomMod + Copy
 {
-    type Int: CryptoInt<W>;
-    fn from_words(words: W) -> Self;
+    type W: Words;
+    type Int: CryptoInt<W = Self::W>;
+    /// Constructs from words.
+    fn from_words(words: Self::W) -> Self;
+    /// Converts to the signed integer type.
     fn as_int(&self) -> Self::Int;
-    fn to_words(self) -> W;
+    /// Converts to words.
+    fn to_words(self) -> Self::W;
 }

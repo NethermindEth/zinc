@@ -45,7 +45,7 @@ where
 
     pub fn batch_verify_z<'a, F: Field>(
         vp: &Self::VerifierParam,
-        comms: impl Iterable<Item = &'a MultilinearZipCommitment<I>>,
+        comms: impl Iterable<Item = &'a MultilinearZipCommitment<Int<I>>>,
         points: &[Vec<F>],
         evals: &[F],
         transcript: &mut PcsTranscript<F>,

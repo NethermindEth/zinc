@@ -35,14 +35,14 @@ pub trait Prover<const I: usize, F: Field> {
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
-    ) -> Result<ZincProof<I, F>, ZincError<F>>
+    ) -> Result<ZincProof<Int<I>, F>, ZincError<F>>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
         [(); 8 * I]:;
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
+impl<const I: usize, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<Int<I>, F, S>
 where
     for<'a> Int<I>: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a BigInt<I>>, // TODO
@@ -55,7 +55,7 @@ where
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
-    ) -> ZincResult<ZincProof<I, F>, F>
+    ) -> ZincResult<ZincProof<Int<I>, F>, F>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,
@@ -119,7 +119,7 @@ pub trait SpartanProver<const I: usize, F: Field> {
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
+impl<const I: usize, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<Int<I>, F, S>
 where
     for<'a> Int<I>: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a BigInt<I>>, // TODO
@@ -159,7 +159,7 @@ where
     }
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> ZincProver<I, F, S>
+impl<const I: usize, F: Field, S: ZipSpec> ZincProver<Int<I>, F, S>
 where
     for<'a> Int<I>: From<&'a F::I>,
     for<'a> F::CryptoInt: From<&'a BigInt<I>>, // TODO
@@ -296,7 +296,7 @@ where
         r_y: &[F],
         transcript: &mut KeccakTranscript,
         config: F::Cr,
-    ) -> SpartanResult<ZipProof<I, F>, F>
+    ) -> SpartanResult<ZipProof<Int<I>, F>, F>
     where
         [(); 2 * I]:,
         [(); 4 * I]:,

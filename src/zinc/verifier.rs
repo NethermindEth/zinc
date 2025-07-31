@@ -23,7 +23,7 @@ pub trait Verifier<const I: usize, F: Field> {
     fn verify(
         &self,
         cm_i: &Statement_Z<Int<I>>,
-        proof: ZincProof<I, F>,
+        proof: ZincProof<Int<I>, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
@@ -35,7 +35,7 @@ pub trait Verifier<const I: usize, F: Field> {
 }
 
 // TODO
-impl<const I: usize, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
+impl<const I: usize, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<Int<I>, F, S>
 where
     Int<{ 2 * I }>: FieldMap<F, Output = F>,
     Int<{ 4 * I }>: FieldMap<F, Output = F>,
@@ -46,7 +46,7 @@ where
     fn verify(
         &self,
         statement: &Statement_Z<Int<I>>,
-        proof: ZincProof<I, F>,
+        proof: ZincProof<Int<I>, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<Int<I>>,
         config: F::Cr,
@@ -107,7 +107,7 @@ pub trait SpartanVerifier<F: Field> {
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
+impl<const I: usize, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<Int<I>, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
@@ -144,7 +144,7 @@ impl<const I: usize, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I
     }
 }
 
-impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
+impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<Int<I>, F, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,
@@ -227,7 +227,7 @@ impl<const I: usize, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
     fn verify_pcs_proof(
         &self,
         cm_i: &Statement_F<F>,
-        zip_proof: &ZipProof<I, F>,
+        zip_proof: &ZipProof<Int<I>, F>,
         verification_points: &VerificationPoints<F>,
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,

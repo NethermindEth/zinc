@@ -37,7 +37,7 @@ fn test_dummy_spartan_prover() {
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let proof = SpartanProver::<I, RandomField<N>>::prove(
+    let proof = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -70,7 +70,7 @@ fn test_spartan_verifier() {
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -117,7 +117,7 @@ fn test_dummy_spartan_verifier() {
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -164,7 +164,7 @@ fn test_failing_spartan_verifier() {
         )
         .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<I, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
         &prover,
         &statement_f,
         &z_ccs,

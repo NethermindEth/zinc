@@ -2,7 +2,6 @@
 
 use ark_std::vec::Vec;
 use bytemuck::cast_slice;
-use crypto_bigint::Int;
 
 use super::errors::{MleEvaluationError, SpartanError};
 use crate::{
@@ -11,7 +10,7 @@ use crate::{
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
-    traits::{Config, Field},
+    traits::{Config, CryptoInt, Field},
     transcript::KeccakTranscript,
 };
 
@@ -159,8 +158,8 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<const I: usize, F: Field>(
-    public_inputs: &[Int<I>],
+pub fn draw_random_field<I: CryptoInt, F: Field>(
+    public_inputs: &[I],
     transcript: &mut KeccakTranscript,
 ) -> F::C {
     for input in public_inputs {

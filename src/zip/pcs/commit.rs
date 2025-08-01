@@ -1,5 +1,4 @@
 use ark_std::{iterable::Iterable, vec, vec::Vec};
-use crypto_bigint::Int;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData, ZipTranscript},
@@ -7,30 +6,32 @@ use super::{
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
-    traits::Field,
+    traits::{CryptoInt, Field},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
+        pcs::utils::ToBytes,
         utils::{div_ceil, num_threads, parallelize_iter},
         Error,
     },
 };
 
-impl<const I: usize, const L: usize, const K: usize, const M: usize, S, T>
-    MultilinearZip<Int<I>, Int<L>, Int<K>, Int<M>, S, T>
+impl<I: CryptoInt, L: CryptoInt, K: CryptoInt, M: CryptoInt, S, T> MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
-    T: ZipTranscript<Int<L>>,
+    T: ZipTranscript<L>,
+    M: for<'a> From<&'a I>,
+    K: for<'a> From<&'a I> + ToBytes,
+    Zip<I, L>: LinearCodes<I, M> + LinearCodes<I, K>,
 {
     /// TODO: validate_input method requires a parameter points which is an iterable of type F
     pub fn commit<F: Field>(
         pp: &Self::ProverParam,
         poly: &Self::Polynomial,
     ) -> Result<(Self::Data, Self::Commitment), Error> {
-        validate_input::<Int<I>, F>("commit", pp.num_vars(), [poly], None)?;
+        validate_input::<I, F>("commit", pp.num_vars(), [poly], None)?;
 
-        let row_len = <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<M>>>::row_len(pp.zip());
-        let codeword_len =
-            <Zip<Int<I>, Int<L>> as LinearCodes<Int<I>, Int<M>>>::codeword_len(pp.zip());
+        let row_len = <Zip<I, L> as LinearCodes<I, M>>::row_len(pp.zip());
+        let codeword_len = <Zip<I, L> as LinearCodes<I, M>>::codeword_len(pp.zip());
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
@@ -48,15 +49,18 @@ where
             .collect::<Vec<_>>();
 
         Ok((
-            MultilinearZipData::<Int<I>, Int<K>>::new(rows, rows_merkle_trees),
+            MultilinearZipData::<I, K>::new(rows, rows_merkle_trees),
             MultilinearZipCommitment::new(roots),
         ))
     }
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<'a, F: Field>(
         pp: &Self::ProverParam,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<Int<I>>>,
-    ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error> {
+        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
+    ) -> Result<Vec<(Self::Data, Self::Commitment)>, Error>
+    where
+        I: 'a,
+    {
         polys
             .iter()
             .map(|poly| Self::commit::<F>(pp, poly))
@@ -69,11 +73,11 @@ where
         codeword_len: usize,
         row_len: usize,
         poly: &Self::Polynomial,
-    ) -> Vec<Int<K>> {
+    ) -> Vec<K> {
         // assert_eq!(pp.num_rows(), poly.evaluations.len().isqrt());
         assert_eq!(codeword_len, row_len * 2);
         let rows_per_thread = div_ceil(pp.num_rows(), num_threads());
-        let mut encoded_rows = vec![Int::<K>::default(); pp.num_rows() * codeword_len];
+        let mut encoded_rows = vec![K::default(); pp.num_rows() * codeword_len];
 
         parallelize_iter(
             encoded_rows
@@ -84,7 +88,7 @@ where
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
                 {
-                    row.copy_from_slice(pp.zip().encode(evals).as_slice());
+                    row.clone_from_slice(pp.zip().encode(evals).as_slice());
                 }
             },
         );

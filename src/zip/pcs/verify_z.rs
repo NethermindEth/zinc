@@ -34,7 +34,7 @@ where
         Int<L>: FieldMap<F, Output = F>,
         Int<K>: FieldMap<F, Output = F>,
     {
-        validate_input::<I, F>("verify", vp.num_vars(), [], [point])?;
+        validate_input::<Int<I>, F>("verify", vp.num_vars(), [], [point])?;
 
         let columns_opened = Self::verify_testing(vp, comm.roots(), transcript, field)?;
 

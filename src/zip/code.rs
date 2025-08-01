@@ -1,8 +1,6 @@
 #![allow(non_snake_case)]
 
-use ark_ff::Zero;
 use ark_std::{collections::BTreeSet, fmt::Debug, iter, marker::PhantomData, vec, vec::Vec};
-use crypto_bigint::Int;
 use itertools::Itertools;
 
 use super::pcs::structs::ZipTranscript;
@@ -83,10 +81,10 @@ impl<I: CryptoInt, L: CryptoInt> Zip<I, L> {
         code
     }
 
-    pub(crate) fn encode_wide<const M: usize>(&self, row: &[Int<M>]) -> Vec<Int<M>>
-    where
-        for<'a> Int<M>: From<&'a L>,
-    {
+    pub(crate) fn encode_wide<M: CryptoInt + for<'a> From<&'a L> + for<'a> From<&'a M>>(
+        &self,
+        row: &[M],
+    ) -> Vec<M> {
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
         code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
@@ -95,8 +93,8 @@ impl<I: CryptoInt, L: CryptoInt> Zip<I, L> {
     }
 }
 
-impl<const N: usize, const M: usize, const L: usize> LinearCodes<Int<N>, Int<M>>
-    for Zip<Int<N>, Int<L>>
+impl<N: CryptoInt, M: CryptoInt + for<'a> From<&'a N> + for<'a> From<&'a L>, L: CryptoInt>
+    LinearCodes<N, M> for Zip<N, L>
 {
     fn row_len(&self) -> usize {
         self.row_len
@@ -114,7 +112,7 @@ impl<const N: usize, const M: usize, const L: usize> LinearCodes<Int<N>, Int<M>>
         self.num_proximity_testing
     }
 
-    fn encode(&self, row: &[Int<N>]) -> Vec<Int<M>> {
+    fn encode(&self, row: &[N]) -> Vec<M> {
         let mut code = Vec::with_capacity(self.codeword_len);
         code.extend(SparseMatrixZ::mat_vec_mul(&self.a, row));
         code.extend(SparseMatrixZ::mat_vec_mul(&self.b, row));
@@ -214,22 +212,22 @@ impl<L: CryptoInt> SparseMatrixZ<L> {
         self.cells.chunks(self.dimension.d)
     }
 
-    fn mat_vec_mul<const N: usize, const M: usize>(&self, vector: &[Int<N>]) -> Vec<Int<M>>
-    where
-        for<'a> Int<M>: From<&'a L>,
-    {
+    fn mat_vec_mul<N: CryptoInt, M: CryptoInt + for<'a> From<&'a N> + for<'a> From<&'a L>>(
+        &self,
+        vector: &[N],
+    ) -> Vec<M> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![Int::from_i64(0i64); self.dimension.n];
+        let mut result = vec![M::from_i64(0i64); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = Int::<M>::zero();
+            let mut sum = M::ZERO;
             for (column, coeff) in cells.iter() {
-                sum += expand::<L, Int<M>>(coeff) * expand::<Int<N>, Int<M>>(&vector[*column]);
+                sum += &(expand::<L, M>(coeff) * expand::<N, M>(&vector[*column]));
             }
             result[row_idx] = sum;
         });

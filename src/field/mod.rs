@@ -3,17 +3,23 @@
 use ark_ff::UniformRand;
 use crypto_bigint::Random;
 
-use crate::{
-    biginteger::BigInt,
-    field_config::FieldConfig,
-    traits::{Config, ConfigReference, FieldMap},
+use crate::traits::{Config, ConfigReference, FieldMap, FromBytes, Words as WordsTrait};
+
+mod arithmetic;
+mod biginteger;
+mod comparison;
+mod config;
+mod constant;
+mod int;
+mod uint;
+
+pub use biginteger::{
+    signed_mod_reduction, BigInt, BigInteger128, BigInteger256, BigInteger320, BigInteger384,
+    BigInteger448, BigInteger64, BigInteger768, BigInteger832, Words,
 };
-
-pub mod arithmetic;
-pub mod comparison;
-pub mod constant;
-pub mod conversion;
-
+pub use config::{ConfigRef, DebugFieldConfig, FieldConfig};
+pub use int::Int;
+pub use uint::Uint;
 #[derive(Copy, Clone)]
 pub enum RandomField<'cfg, const N: usize> {
     Raw {
@@ -28,9 +34,6 @@ pub enum RandomField<'cfg, const N: usize> {
 use RandomField::*;
 
 use crate::{
-    biginteger::Words,
-    crypto_int::{Int, Uint},
-    field_config::{ConfigRef, DebugFieldConfig},
     traits::{BigInteger, Field},
     transcript::KeccakTranscript,
 };
@@ -470,14 +473,121 @@ impl ark_std::fmt::Display for DebugRandomField {
     }
 }
 
+impl<const N: usize> From<u128> for RandomField<'_, N> {
+    fn from(value: u128) -> Self {
+        let value = BigInt::from(value);
+
+        Raw { value }
+    }
+}
+
+macro_rules! impl_from_uint {
+    ($type:ty) => {
+        impl<const N: usize> From<$type> for RandomField<'_, N> {
+            fn from(value: $type) -> Self {
+                let value = BigInt::from(value);
+                Raw { value }
+            }
+        }
+    };
+}
+
+impl_from_uint!(u64);
+impl_from_uint!(u32);
+impl_from_uint!(u16);
+impl_from_uint!(u8);
+
+impl<const N: usize> From<bool> for RandomField<'_, N> {
+    fn from(value: bool) -> Self {
+        let value = BigInt::from(value as u8);
+        Raw { value }
+    }
+}
+
+impl<const N: usize> FromBytes for RandomField<'_, N> {
+    fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
+        Some(Raw {
+            value: BigInt::<N>::from_bytes_le(bytes)?,
+        })
+    }
+
+    fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
+        Some(Raw {
+            value: BigInt::<N>::from_bytes_be(bytes)?,
+        })
+    }
+}
+
+impl<'cfg, const N: usize> RandomField<'cfg, N> {
+    pub fn from_bytes_le_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
+        let value = BigInt::<N>::from_bytes_le(bytes);
+
+        Self::from_bigint(config, value?)
+    }
+
+    pub fn from_bytes_be_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
+        let value = BigInt::<N>::from_bytes_be(bytes);
+
+        Self::from_bigint(config, value?)
+    }
+}
+
+// Implementation of FieldMap for BigInt<N>
+impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
+where
+    for<'a> Int<M>: From<&'a F::B>,
+    F::B: From<Int<M>>,
+    for<'a> F::I: From<&'a BigInt<M>>,
+{
+    type Output = F;
+
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+        let config = match config_ref.reference() {
+            Some(config) => config,
+            None => panic!("Cannot convert BigInt to prime field element without a modulus"),
+        };
+
+        let mut value = if M > F::W::num_words() {
+            let modulus: Int<M> = config.modulus().into();
+            let mut value: Int<M> = self.into();
+            value %= modulus;
+
+            F::B::from(value)
+        } else {
+            let modulus: F::I = config.modulus().into();
+            let mut value: F::I = self.into();
+            value %= modulus;
+
+            value.into()
+        };
+
+        config.mul_assign(&mut value, config.r2());
+
+        F::new_unchecked(config_ref, value)
+    }
+}
+
+// Implementation of FieldMap for reference to BigInt<N>
+impl<F: Field, const M: usize> FieldMap<F> for &BigInt<M>
+where
+    BigInt<M>: FieldMap<F, Output = F>,
+{
+    type Output = F;
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+        (*self).map_to_field(config_ref)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use ark_std::str::FromStr;
 
     use crate::{
-        biginteger::BigInt,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{
+            biginteger::BigInt,
+            config::{ConfigRef, FieldConfig},
+            RandomField,
+        },
         traits::Config,
     };
 

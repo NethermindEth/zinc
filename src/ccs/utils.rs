@@ -78,9 +78,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        biginteger::BigInt,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
         sparse_matrix::dense_matrix_to_sparse,
         traits::{Config, FieldMap},
     };

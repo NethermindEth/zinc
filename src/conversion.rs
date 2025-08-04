@@ -1,74 +1,9 @@
 use ark_std::{vec::Vec, Zero};
 
-use crate::{
-    biginteger::BigInt,
-    crypto_int::Int,
-    field::{RandomField, RandomField::Raw},
-    field_config::ConfigRef,
-    traits::{
-        BigInteger, Config, ConfigReference, Field, FieldMap, FromBytes, Integer,
-        PrimitiveConversion, Uinteger, Words,
-    },
+use crate::traits::{
+    BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Uinteger,
+    Words,
 };
-
-impl<const N: usize> From<u128> for RandomField<'_, N> {
-    fn from(value: u128) -> Self {
-        let value = BigInt::from(value);
-
-        Raw { value }
-    }
-}
-
-macro_rules! impl_from_uint {
-    ($type:ty) => {
-        impl<const N: usize> From<$type> for RandomField<'_, N> {
-            fn from(value: $type) -> Self {
-                let value = BigInt::from(value);
-                Raw { value }
-            }
-        }
-    };
-}
-
-impl_from_uint!(u64);
-impl_from_uint!(u32);
-impl_from_uint!(u16);
-impl_from_uint!(u8);
-
-impl<const N: usize> From<bool> for RandomField<'_, N> {
-    fn from(value: bool) -> Self {
-        let value = BigInt::from(value as u8);
-        Raw { value }
-    }
-}
-
-impl<const N: usize> FromBytes for RandomField<'_, N> {
-    fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
-        Some(Raw {
-            value: BigInt::<N>::from_bytes_le(bytes)?,
-        })
-    }
-
-    fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
-        Some(Raw {
-            value: BigInt::<N>::from_bytes_be(bytes)?,
-        })
-    }
-}
-
-impl<'cfg, const N: usize> RandomField<'cfg, N> {
-    pub fn from_bytes_le_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
-        let value = BigInt::<N>::from_bytes_le(bytes);
-
-        Self::from_bigint(config, value?)
-    }
-
-    pub fn from_bytes_be_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
-        let value = BigInt::<N>::from_bytes_be(bytes);
-
-        Self::from_bigint(config, value?)
-    }
-}
 
 // Implementation of FieldMap for signed integers
 macro_rules! impl_field_map_for_int {
@@ -164,52 +99,6 @@ where
     }
 }
 
-// Implementation of FieldMap for BigInt<N>
-impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
-where
-    for<'a> Int<M>: From<&'a F::B>,
-    F::B: From<Int<M>>,
-    for<'a> F::I: From<&'a BigInt<M>>,
-{
-    type Output = F;
-
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        let config = match config_ref.reference() {
-            Some(config) => config,
-            None => panic!("Cannot convert BigInt to prime field element without a modulus"),
-        };
-
-        let mut value = if M > F::W::num_words() {
-            let modulus: Int<M> = config.modulus().into();
-            let mut value: Int<M> = self.into();
-            value %= modulus;
-
-            F::B::from(value)
-        } else {
-            let modulus: F::I = config.modulus().into();
-            let mut value: F::I = self.into();
-            value %= modulus;
-
-            value.into()
-        };
-
-        config.mul_assign(&mut value, config.r2());
-
-        F::new_unchecked(config_ref, value)
-    }
-}
-
-// Implementation of FieldMap for reference to BigInt<N>
-impl<F: Field, const M: usize> FieldMap<F> for &BigInt<M>
-where
-    BigInt<M>: FieldMap<F, Output = F>,
-{
-    type Output = F;
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        (*self).map_to_field(config_ref)
-    }
-}
-
 // Implementation of FieldMap for Vec<T>
 
 impl<F: Field, T: FieldMap<F>> FieldMap<F> for Vec<T> {
@@ -241,9 +130,7 @@ mod tests {
     use ark_std::{fmt::Debug, format, str::FromStr};
 
     use crate::{
-        biginteger::BigInt,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
         traits::{Config, ConfigReference, Field, FieldMap, FromBytes},
     };
 
@@ -643,7 +530,7 @@ mod bigint_field_map_tests {
     use ark_std::str::FromStr;
 
     use super::*;
-    use crate::field_config::FieldConfig;
+    use crate::field::{BigInt, ConfigRef, FieldConfig, RandomField};
 
     #[test]
     fn test_bigint_smaller_than_field() {

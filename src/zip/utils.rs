@@ -123,7 +123,7 @@ mod test {
     use num_traits::{ConstOne, ConstZero};
 
     use crate::{
-        crypto_int::Int,
+        field::Int,
         traits::Integer,
         zip::utils::{expand, inner_product},
     };

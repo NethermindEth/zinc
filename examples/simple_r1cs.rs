@@ -1,5 +1,8 @@
 use ark_std::{log2, marker::PhantomData};
-use zinc::{crypto_int::Int, field::RandomField, field_config::ConfigRef, zinc::prelude::*};
+use zinc::{
+    field::{ConfigRef, Int, RandomField},
+    zinc::prelude::*,
+};
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )

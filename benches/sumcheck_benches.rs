@@ -5,9 +5,7 @@ use criterion::{
     criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 use zinc::{
-    biginteger::BigInt,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInt, ConfigRef, FieldConfig, RandomField},
     sumcheck::{
         utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck,

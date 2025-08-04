@@ -3,8 +3,6 @@
 use ark_serialize::{Read, Write};
 use ark_std::ops::{Index, IndexMut};
 
-use crate::biginteger::BigInt;
-
 /// A helper macro for emulating `for` loops in a `const` context.
 /// # Usage
 /// ```rust

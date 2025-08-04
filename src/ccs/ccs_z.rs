@@ -328,14 +328,11 @@ mod tests {
 
     use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
     use crate::{
-        biginteger::BigInt,
         ccs::{
             ccs_f::{Arith, Instance_F, CCS_F},
             ccs_z::CCS_Z,
         },
-        crypto_int::Int,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
         sparse_matrix::SparseMatrix,
         traits::{Config, FieldMap},
     };

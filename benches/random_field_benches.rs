@@ -11,9 +11,7 @@ use criterion::{
     PlotConfiguration,
 };
 use zinc::{
-    biginteger::BigInteger256,
-    field::RandomField,
-    field_config::{ConfigRef, FieldConfig},
+    field::{BigInteger256, ConfigRef, FieldConfig, RandomField},
     traits::{Config, FieldMap},
 };
 

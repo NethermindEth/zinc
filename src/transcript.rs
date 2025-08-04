@@ -180,9 +180,7 @@ mod tests {
 
     use super::KeccakTranscript;
     use crate::{
-        biginteger::BigInt,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{BigInt, ConfigRef, FieldConfig, RandomField},
         traits::{Config, FieldMap},
     };
 

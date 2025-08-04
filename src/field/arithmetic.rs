@@ -178,10 +178,12 @@ mod test {
     use ark_std::str::FromStr;
 
     use crate::{
-        biginteger::BigInt,
         create_bigint, create_random_field,
-        field::RandomField,
-        field_config::{ConfigRef, FieldConfig},
+        field::{
+            biginteger::BigInt,
+            config::{ConfigRef, FieldConfig},
+            RandomField,
+        },
         traits::Config,
     };
 

@@ -10,10 +10,6 @@ use crate::{
 pub struct MultilinearZip<ZT: ZipTypes, LC: LinearCode<ZT>>(PhantomData<(ZT, LC)>);
 
 /// Parameters for the Zip PCS.
-///
-/// # Type Parameters
-/// - `N`: Width of elements in witness/polynomial evaluations on hypercube.
-/// - `M`: Width of elements in linear combination of code rows
 #[derive(Clone, Debug)]
 pub struct MultilinearZipParams<ZT: ZipTypes, LC: LinearCode<ZT>> {
     pub num_vars: usize,

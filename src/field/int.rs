@@ -236,8 +236,7 @@ impl<const N: usize> Integer for Int<N> {
 #[macro_export]
 macro_rules! define_random_field_zip_types {
     () => {
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub struct RandomFieldZipTypes<const N: usize>();
+        define_random_field_zip_types!(RandomFieldZipTypes);
     };
 
     ($name:ident) => {
@@ -259,12 +258,7 @@ macro_rules! define_random_field_zip_types {
 #[macro_export]
 macro_rules! implement_random_field_zip_types {
     ($N:expr) => {
-        impl $crate::traits::ZipTypes for RandomFieldZipTypes<$N> {
-            type N = $crate::field::Int<$N>;
-            type L = $crate::field::Int<{ 2 * $N }>;
-            type K = $crate::field::Int<{ 4 * $N }>;
-            type M = $crate::field::Int<{ 8 * $N }>;
-        }
+        implement_random_field_zip_types!(RandomFieldZipTypes, $N);
     };
 
     ($name:ident, $N:expr) => {

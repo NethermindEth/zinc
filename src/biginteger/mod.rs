@@ -830,7 +830,7 @@ impl<const M: usize, const N: usize> From<&BigInt<N>> for Int<M> {
         let mut result = [0u64; M];
         result[..min_width].copy_from_slice(&words[..min_width]);
 
-        Int::from_words(Words(result))
+        Int::from(result)
     }
 }
 
@@ -1139,6 +1139,8 @@ impl<const N: usize> Default for Words<N> {
 }
 
 impl<const N: usize> crate::traits::Words for Words<N> {
+    type Word = u64;
+
     fn num_words() -> usize {
         N
     }

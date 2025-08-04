@@ -6,7 +6,8 @@ use crate::{
     field::{RandomField, RandomField::Raw},
     field_config::ConfigRef,
     traits::{
-        BigInteger, Config, ConfigReference, Field, FieldMap, FromBytes, Integer, Uinteger, Words,
+        BigInteger, Config, ConfigReference, Field, FieldMap, FromBytes, Integer,
+        PrimitiveConversion, Uinteger, Words,
     },
 };
 
@@ -85,10 +86,11 @@ macro_rules! impl_field_map_for_int {
                 let value = self.abs_diff(0);
                 let mut words = F::W::default();
 
-                words[0] = value as u64;
+                words[0] = PrimitiveConversion::from_primitive(value);
 
                 if (ark_std::mem::size_of::<$t>() + 7) / 8 > 1 && F::W::num_words() > 1 {
-                    words[1] = ((value as u128) >> 64) as u64;
+                    words[1] =
+                        PrimitiveConversion::from_primitive(u128::from_primitive(value) >> 64);
                 }
                 let mut value = F::U::from_words(words).as_int();
                 let modulus = F::I::from_words(config.modulus().to_words());

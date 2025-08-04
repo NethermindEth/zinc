@@ -122,6 +122,13 @@ impl<'a, const N: usize> Sub<&'a Self> for Int<N> {
     }
 }
 
+impl<const N: usize> From<[u64; N]> for Int<N> {
+    #[inline]
+    fn from(value: [u64; N]) -> Self {
+        Self(CryptoInt::from_words(value))
+    }
+}
+
 impl<const N: usize> From<i64> for Int<N> {
     #[inline]
     fn from(value: i64) -> Self {

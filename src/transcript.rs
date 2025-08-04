@@ -2,7 +2,9 @@ use ark_std::vec::Vec;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    traits::{BigInteger, Config, ConfigReference, Field, FieldMap, Integer, Words},
+    traits::{
+        BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Words,
+    },
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -128,7 +130,7 @@ impl KeccakTranscript {
             self.hasher.update([0x12]);
             self.hasher.update(challenge);
             self.hasher.update([0x34]);
-            words[i] = u64::from_le_bytes(challenge);
+            words[i] = PrimitiveConversion::from_primitive(u64::from_le_bytes(challenge));
         }
 
         I::from_words(words)

@@ -11,7 +11,7 @@ use sha3::{digest::Output, Keccak256};
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
     poly::alloc::string::ToString,
-    traits::{BigInteger, Field, FromBytes, Integer, Words},
+    traits::{BigInteger, Field, FromBytes, Integer, PrimitiveConversion, Words},
     transcript::KeccakTranscript,
 };
 
@@ -88,7 +88,7 @@ impl<F: Field> PcsTranscript<F> {
 
     pub fn write_field_element(&mut self, fe: &F) -> Result<(), Error> {
         self.common_field_element(fe);
-        let repr = fe.value().to_bytes_be();
+        let repr = fe.value().clone().to_bytes_be();
         self.stream
             .write_all(repr.as_ref())
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
@@ -131,7 +131,7 @@ impl<F: Field> PcsTranscript<F> {
                 .read_exact(&mut buf)
                 .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-            *word = u64::from_le_bytes(buf);
+            *word = PrimitiveConversion::from_primitive(u64::from_le_bytes(buf));
         }
         Ok(M::from_words(words))
     }
@@ -158,7 +158,7 @@ impl<F: Field> PcsTranscript<F> {
 
     pub fn squeeze_challenge_idx(&mut self, config: F::R, cap: usize) -> usize {
         let challenge: F = self.fs_transcript.get_challenge(config);
-        let bytes = challenge.value().to_bytes_le();
+        let bytes = challenge.value().clone().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;
         num % cap
     }

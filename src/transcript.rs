@@ -1,9 +1,8 @@
 use ark_std::vec::Vec;
-use crypto_bigint::Int;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    traits::{Config, ConfigReference, CryptoInt, Field, FieldMap, Integer, Words},
+    traits::{BigInteger, Config, ConfigReference, Field, FieldMap, Integer, Words},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -69,7 +68,7 @@ impl KeccakTranscript {
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<F: Field>(&mut self, config_ref: F::Cr) -> F {
+    pub fn get_challenge<F: Field>(&mut self, config_ref: F::R) -> F {
         let (lo, hi) = self.get_challenge_limbs();
         let config = config_ref.reference().expect("Field config cannot be none");
         let modulus = config.modulus();
@@ -92,7 +91,7 @@ impl KeccakTranscript {
             challenge.set_config(config_ref);
             challenge
         } else if challenge_num_bits >= 256 {
-            let two_to_128 = F::I::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
                 .map_to_field(config_ref);
 
             let mut challenge: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
@@ -105,7 +104,7 @@ impl KeccakTranscript {
 
             let truncated_hi = hi & hi_mask;
 
-            let two_to_128 = F::I::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
                 .map_to_field(config_ref);
 
             let mut ret: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
@@ -114,13 +113,13 @@ impl KeccakTranscript {
             ret
         }
     }
-    pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::Cr) -> Vec<F> {
+    pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::R) -> Vec<F> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge::<F>(config)));
         challenges
     }
 
-    pub fn get_integer_challenge<I: CryptoInt>(&mut self) -> I {
+    pub fn get_integer_challenge<I: Integer>(&mut self) -> I {
         let mut words = I::W::default();
 
         for i in 0..I::W::num_words() {
@@ -135,7 +134,7 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
-    pub fn get_integer_challenges<I: CryptoInt>(&mut self, n: usize) -> Vec<I> {
+    pub fn get_integer_challenges<I: Integer>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
@@ -149,12 +148,12 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
-impl<const L: usize> ZipTranscript<Int<L>> for KeccakTranscript {
-    fn get_encoding_element(&mut self) -> Int<L> {
+impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> I {
         let byte = self.get_random_bytes(1)[0];
         // cancels all bits and depends only on whether the random byte LSB is 0 or 1
         let bit = byte & 1;
-        Int::<L>::from(bit as i8)
+        I::from(bit as i8)
     }
 
     fn sample_unique_columns(

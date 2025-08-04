@@ -1,8 +1,5 @@
-use std::marker::PhantomData;
-
-use ark_std::log2;
-use crypto_bigint::Int;
-use zinc::{field::RandomField, field_config::ConfigRef, zinc::prelude::*};
+use ark_std::{log2, marker::PhantomData};
+use zinc::{crypto_int::Int, field::RandomField, field_config::ConfigRef, zinc::prelude::*};
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
@@ -86,7 +83,7 @@ fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<Int<N>> {
         vec![0, 0, 1, 0, 0, 0],
     ]);
     let constraints = vec![A, B, C];
-    let public_input = vec![Int::<N>::from_i64(input)];
+    let public_input = vec![Int::<N>::from(input)];
     Statement_Z {
         constraints,
         public_input,
@@ -94,12 +91,18 @@ fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<Int<N>> {
 }
 
 fn get_witness<const N: usize>(input: i64) -> Witness_Z<Int<N>> {
-    Witness_Z::new(vec![
-        Int::<N>::from_i64(input * input * input + input + 5), // x^3 + x + 5
-        Int::<N>::from_i64(input * input),                     // x^2
-        Int::<N>::from_i64(input * input * input),             // x^2 * x
-        Int::<N>::from_i64(input * input * input + input),     // x^3 + x
-    ])
+    Witness_Z::new(
+        [
+            input.pow(3) + input + 5, // x^3 + x + 5
+            input.pow(2),             // x^2
+            input.pow(3) * input,     // x^2 * x
+            input.pow(3) + input,     // x^3 + x
+        ]
+        .iter()
+        .cloned()
+        .map(Int::from)
+        .collect(),
+    )
 }
 
 fn get_ccs_stuff<const N: usize>(

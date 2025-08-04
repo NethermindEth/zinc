@@ -1,10 +1,9 @@
-use std::{marker::PhantomData, str::FromStr};
-
+use ark_std::{marker::PhantomData, str::FromStr};
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use crypto_bigint::Int;
 use zinc::{
     biginteger::BigInt,
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     traits::{Config, ConfigReference},

@@ -8,10 +8,10 @@ use super::{
 };
 use crate::{
     sparse_matrix::SparseMatrix,
-    traits::{ConfigReference, CryptoInt, Field, FieldMap},
+    traits::{ConfigReference, Field, FieldMap, Integer},
 };
 
-pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInt>(
+pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: Integer>(
     rows: usize,
     columns: usize,
 ) -> SparseMatrix<I> {
@@ -27,7 +27,7 @@ pub(crate) fn create_dummy_identity_sparse_matrix_Z<I: CryptoInt>(
 }
 
 // Takes a vector and returns a matrix that will square the vector
-pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: CryptoInt>(
+pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: Integer>(
     rows: usize,
     columns: usize,
     witness: &[I],
@@ -51,7 +51,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_Z<I: CryptoInt>(
 pub(crate) fn create_dummy_identity_sparse_matrix_F<F: Field>(
     rows: usize,
     columns: usize,
-    config: F::Cr,
+    config: F::R,
 ) -> SparseMatrix<F> {
     let mut matrix = SparseMatrix {
         n_rows: rows,
@@ -86,7 +86,7 @@ pub(crate) fn create_dummy_squaring_sparse_matrix_F<F: Field>(
     matrix
 }
 
-fn get_dummy_ccs_Z_from_z<I: CryptoInt>(
+fn get_dummy_ccs_Z_from_z<I: Integer>(
     z: &[I],
     pub_io_len: usize,
 ) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {
@@ -123,7 +123,7 @@ fn get_dummy_ccs_Z_from_z<I: CryptoInt>(
 fn get_dummy_ccs_F_from_z<F: Field>(
     z: &[F],
     pub_io_len: usize,
-    config: F::Cr,
+    config: F::R,
 ) -> (CCS_F<F>, Statement_F<F>, Witness_F<F>) {
     let ccs = match config.pointer() {
         None => panic!("FieldConfig cannot be null"),
@@ -158,7 +158,7 @@ fn get_dummy_ccs_F_from_z<F: Field>(
     (ccs, statement, wit)
 }
 
-pub fn get_dummy_ccs_Z_from_z_length<I: CryptoInt>(
+pub fn get_dummy_ccs_Z_from_z_length<I: Integer>(
     n: usize,
     rng: &mut impl Rng,
 ) -> (Vec<I>, CCS_Z<I>, Statement_Z<I>, Witness_Z<I>) {
@@ -173,7 +173,7 @@ pub fn get_dummy_ccs_Z_from_z_length<I: CryptoInt>(
 pub fn get_dummy_ccs_F_from_z_length<F: Field>(
     n: usize,
     rng: &mut impl Rng,
-    config: F::Cr,
+    config: F::R,
 ) -> (Vec<F>, CCS_F<F>, Statement_F<F>, Witness_F<F>) {
     let mut z: Vec<_> = (0..n).map(|_| F::rand_with_config(rng, config)).collect();
     let pub_io_len = 1;

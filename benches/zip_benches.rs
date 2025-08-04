@@ -1,18 +1,19 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
-use std::{
+use ark_std::{
     str::FromStr,
+    test_rng,
     time::{Duration, Instant},
 };
-
-use ark_std::test_rng;
 use criterion::{
     black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
-use crypto_bigint::{Int, Random};
+use crypto_bigint::Random;
+use itertools::Itertools;
 use zinc::{
     biginteger::BigInt,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
@@ -60,7 +61,9 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
     let mut rng = test_rng();
 
     let num_leaves = 1 << P;
-    let leaves: Vec<Int<INT_LIMBS>> = (0..num_leaves).map(|_| Int::random(&mut rng)).collect();
+    let leaves = (0..num_leaves)
+        .map(|_| Int::<INT_LIMBS>::random(&mut rng))
+        .collect_vec();
 
     group.bench_function(
         format!("MerkleRoot: Int<{INT_LIMBS}>, leaves=2^{P}, spec={spec}"),

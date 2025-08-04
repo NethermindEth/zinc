@@ -11,7 +11,7 @@ use sha3::{digest::Output, Keccak256};
 use super::{pcs::utils::MerkleProof, Error};
 use crate::{
     poly::alloc::string::ToString,
-    traits::{CryptoInt, Field, FromBytes, Integer, Words},
+    traits::{BigInteger, Field, FromBytes, Integer, Words},
     transcript::KeccakTranscript,
 };
 
@@ -67,20 +67,20 @@ impl<F: Field> PcsTranscript<F> {
         Ok(())
     }
 
-    pub fn read_field_elements(&mut self, n: usize, config: F::Cr) -> Result<Vec<F>, Error> {
+    pub fn read_field_elements(&mut self, n: usize, config: F::R) -> Result<Vec<F>, Error> {
         (0..n)
             .map(|_| self.read_field_element(config))
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_field_element(&mut self, config: F::Cr) -> Result<F, Error> {
+    pub fn read_field_element(&mut self, config: F::R) -> Result<F, Error> {
         let mut bytes: Vec<u8> = vec![0; F::W::num_words() * 8];
 
         self.stream
             .read_exact(&mut bytes)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
 
-        let fe = F::new_unchecked(config, F::I::from_bytes_be(&bytes).unwrap());
+        let fe = F::new_unchecked(config, F::B::from_bytes_be(&bytes).unwrap());
 
         self.common_field_element(&fe);
         Ok(fe)
@@ -94,7 +94,7 @@ impl<F: Field> PcsTranscript<F> {
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
     }
 
-    pub fn write_integer<M: CryptoInt>(&mut self, int: &M) -> Result<(), Error> {
+    pub fn write_integer<M: Integer>(&mut self, int: &M) -> Result<(), Error> {
         for &word in int.as_words().iter() {
             let bytes = word.to_le_bytes();
             self.stream
@@ -112,7 +112,7 @@ impl<F: Field> PcsTranscript<F> {
 
     pub fn write_integers<'a, M, I>(&mut self, ints: I) -> Result<(), Error>
     where
-        M: CryptoInt + 'a,
+        M: Integer + 'a,
         I: Iterator<Item = &'a M>,
     {
         for i in ints {
@@ -122,7 +122,7 @@ impl<F: Field> PcsTranscript<F> {
         Ok(())
     }
 
-    pub fn read_integer<M: CryptoInt>(&mut self) -> Result<M, Error> {
+    pub fn read_integer<M: Integer>(&mut self) -> Result<M, Error> {
         let mut words = M::W::default();
 
         for word in words[0..M::W::num_words()].iter_mut() {
@@ -136,7 +136,7 @@ impl<F: Field> PcsTranscript<F> {
         Ok(M::from_words(words))
     }
 
-    pub fn read_integers<M: CryptoInt>(&mut self, n: usize) -> Result<Vec<M>, Error> {
+    pub fn read_integers<M: Integer>(&mut self, n: usize) -> Result<Vec<M>, Error> {
         (0..n)
             .map(|_| self.read_integer())
             .collect::<Result<Vec<_>, _>>()
@@ -156,7 +156,7 @@ impl<F: Field> PcsTranscript<F> {
         Ok(())
     }
 
-    pub fn squeeze_challenge_idx(&mut self, config: F::Cr, cap: usize) -> usize {
+    pub fn squeeze_challenge_idx(&mut self, config: F::R, cap: usize) -> usize {
         let challenge: F = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().to_bytes_le();
         let num = u32::from_le_bytes(bytes[..4].try_into().unwrap()) as usize;

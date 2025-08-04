@@ -21,7 +21,7 @@ pub fn random_mle_list<F: Field, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: F::Cr,
+    config: F::R,
 ) -> (Vec<RefCounter<DenseMultilinearExtension<F>>>, F) {
     let start = start_timer!(|| "sample random mle list");
     let mut multiplicands = Vec::with_capacity(degree);
@@ -59,7 +59,7 @@ pub fn random_zero_mle_list<F: Field, Rn: RngCore>(
     nv: usize,
     degree: usize,
     rng: &mut Rn,
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<RefCounter<DenseMultilinearExtension<F>>> {
     let start = start_timer!(|| "sample random zero mle list");
 
@@ -70,7 +70,7 @@ pub fn random_zero_mle_list<F: Field, Rn: RngCore>(
     for _ in 0..1 << nv {
         multiplicands[0].push(F::zero());
         for e in multiplicands.iter_mut().skip(1) {
-            e.push(F::rand(rng));
+            e.push(F::random(rng));
         }
     }
 
@@ -87,7 +87,7 @@ pub fn random_zero_mle_list<F: Field, Rn: RngCore>(
     list
 }
 
-pub fn identity_permutation<F: Field>(num_vars: usize, num_chunks: usize, config: F::Cr) -> Vec<F> {
+pub fn identity_permutation<F: Field>(num_vars: usize, num_chunks: usize, config: F::R) -> Vec<F> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
     (0..len).map(|i| i.map_to_field(config)).collect()
 }
@@ -96,7 +96,7 @@ pub fn identity_permutation<F: Field>(num_vars: usize, num_chunks: usize, config
 pub fn identity_permutation_mles<F: Field>(
     num_vars: usize,
     num_chunks: usize,
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<RefCounter<DenseMultilinearExtension<F>>> {
     let mut res = vec![];
     for i in 0..num_chunks {
@@ -115,7 +115,7 @@ pub fn random_permutation<F: Field, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<F> {
     let len = (num_chunks as u64) * (1u64 << num_vars);
     let mut s_id_vec: Vec<F> = (0..len).map(|i| i.map_to_field(config)).collect();
@@ -132,7 +132,7 @@ pub fn random_permutation_mles<F: Field, Rn: RngCore>(
     num_vars: usize,
     num_chunks: usize,
     rng: &mut Rn,
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<RefCounter<DenseMultilinearExtension<F>>> {
     let s_perm_vec = random_permutation(num_vars, num_chunks, rng, config);
     let mut res = vec![];
@@ -149,11 +149,7 @@ pub fn random_permutation_mles<F: Field, Rn: RngCore>(
     res
 }
 
-pub fn evaluate_opt<F: Field>(
-    poly: &DenseMultilinearExtension<F>,
-    point: &[F],
-    config: F::Cr,
-) -> F {
+pub fn evaluate_opt<F: Field>(poly: &DenseMultilinearExtension<F>, point: &[F], config: F::R) -> F {
     assert_eq!(poly.num_vars, point.len());
     fix_variables(poly, point, config).evaluations[0].clone()
 }
@@ -161,7 +157,7 @@ pub fn evaluate_opt<F: Field>(
 pub fn fix_variables<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     partial_point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> DenseMultilinearExtension<F> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -197,7 +193,7 @@ fn fix_one_variable_helper<F: Field>(data: &[F], nv: usize, point: &F) -> Vec<F>
 pub fn evaluate_no_par<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> F {
     assert_eq!(poly.num_vars, point.len());
     fix_variables_no_par(poly, point, config).evaluations[0].clone()
@@ -206,7 +202,7 @@ pub fn evaluate_no_par<F: Field>(
 fn fix_variables_no_par<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     partial_point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> DenseMultilinearExtension<F> {
     assert!(
         partial_point.len() <= poly.num_vars,
@@ -230,7 +226,7 @@ fn fix_variables_no_par<F: Field>(
 /// polynomials do not share a same number of nvs.
 pub fn merge_polynomials<F: Field>(
     polynomials: &[RefCounter<DenseMultilinearExtension<F>>],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<RefCounter<DenseMultilinearExtension<F>>, ArithErrors> {
     let nv = polynomials[0].num_vars();
     for poly in polynomials.iter() {
@@ -255,7 +251,7 @@ pub fn merge_polynomials<F: Field>(
 pub fn fix_last_variables_no_par<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     partial_point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> DenseMultilinearExtension<F> {
     let mut res = fix_last_variable_no_par(poly, partial_point.last().unwrap(), config);
     for p in partial_point.iter().rev().skip(1) {
@@ -267,7 +263,7 @@ pub fn fix_last_variables_no_par<F: Field>(
 fn fix_last_variable_no_par<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     partial_point: &F,
-    config: F::Cr,
+    config: F::R,
 ) -> DenseMultilinearExtension<F> {
     let nv = poly.num_vars();
     let half_len = 1 << (nv - 1);
@@ -282,7 +278,7 @@ fn fix_last_variable_no_par<F: Field>(
 pub fn fix_last_variables<F: Field>(
     poly: &DenseMultilinearExtension<F>,
     partial_point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> DenseMultilinearExtension<F> {
     assert!(
         partial_point.len() <= poly.num_vars,

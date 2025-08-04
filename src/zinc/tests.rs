@@ -1,9 +1,10 @@
 use ark_std::{marker::PhantomData, str::FromStr};
-use crypto_bigint::{Int, Zero};
+use crypto_bigint::Zero;
 
 use crate::{
     biginteger::BigInt,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     traits::{Config, ConfigReference},
@@ -175,9 +176,7 @@ fn test_failing_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> {
-        data: ark_std::marker::PhantomData,
-    };
+    let verifier = ZincVerifier::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");

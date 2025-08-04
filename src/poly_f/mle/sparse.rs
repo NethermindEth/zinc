@@ -15,7 +15,7 @@ use rayon::iter::*;
 use super::{swap_bits, MultilinearExtension};
 use crate::{
     sparse_matrix::SparseMatrix,
-    traits::{ConfigReference, Field, FieldMap, Integer},
+    traits::{BigInteger, ConfigReference, Field, FieldMap},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,13 +26,13 @@ pub struct SparseMultilinearExtension<F: Field> {
     pub num_vars: usize,
     zero: F,
     /// Field in which the MLE is operating
-    pub config: F::Cr,
+    pub config: F::R,
 }
 impl<F: Field> SparseMultilinearExtension<F> {
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, F)>,
-        config: F::Cr,
+        config: F::R,
     ) -> Self
     where
         F: 'a,
@@ -53,7 +53,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
             config,
         }
     }
-    pub fn evaluate(&self, point: &[F], config: F::Cr) -> F {
+    pub fn evaluate(&self, point: &[F], config: F::R) -> F {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point, config)[0].clone()
     }
@@ -68,7 +68,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
     pub fn rand_with_config<Rn: Rng>(
         num_vars: usize,
         num_nonzero_entries: usize,
-        config: F::Cr,
+        config: F::R,
         rng: &mut Rn,
     ) -> Self {
         assert!(num_nonzero_entries <= 1 << num_vars);
@@ -79,7 +79,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
             while map.contains_key(&index) {
                 index = usize::rand(rng) & ((1 << num_vars) - 1);
             }
-            map.entry(index).or_insert(F::rand(rng));
+            map.entry(index).or_insert(F::random(rng));
         }
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {
@@ -97,7 +97,7 @@ impl<F: Field> SparseMultilinearExtension<F> {
     }
 
     /// Returns the sparse MLE from the given matrix, without modifying the original matrix.
-    pub fn from_matrix(m: &SparseMatrix<F>, config: F::Cr) -> Self {
+    pub fn from_matrix(m: &SparseMatrix<F>, config: F::R) -> Self {
         let n_rows = m.n_rows.next_power_of_two();
         let n_cols = m.n_cols.next_power_of_two();
         let n_vars: usize = (log2(n_rows * n_cols)) as usize; // n_vars = s + s'
@@ -118,12 +118,12 @@ impl<F: Field> SparseMultilinearExtension<F> {
     }
 
     /// Takes n_vars and a sparse slice and returns its sparse MLE.
-    pub fn from_sparse_slice(n_vars: usize, v: &[(usize, F)], config: F::Cr) -> Self {
+    pub fn from_sparse_slice(n_vars: usize, v: &[(usize, F)], config: F::R) -> Self {
         SparseMultilinearExtension::<F>::from_evaluations(n_vars, v, config)
     }
 
     /// Takes n_vars and a dense slice and returns its sparse MLE.
-    pub fn from_slice(n_vars: usize, v: &[F], config: F::Cr) -> Self {
+    pub fn from_slice(n_vars: usize, v: &[F], config: F::R) -> Self {
         let v_sparse = v
             .iter()
             .enumerate()
@@ -141,7 +141,7 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
     /// are sampled uniformly at random. The number of nonzero entries is
     /// `sqrt(2^num_vars)` and indices of those nonzero entries are distributed
     /// uniformly at random.
-    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: F::Cr, rng: &mut Rn) -> Self {
+    fn rand<Rn: ark_std::rand::Rng>(num_vars: usize, config: F::R, rng: &mut Rn) -> Self {
         Self::rand_with_config(num_vars, 1 << (num_vars / 2), config, rng)
     }
 
@@ -170,7 +170,7 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
         }
     }
 
-    fn fix_variables(&mut self, partial_point: &[F], config: F::Cr) {
+    fn fix_variables(&mut self, partial_point: &[F], config: F::R) {
         let dim = partial_point.len();
         assert!(dim <= self.num_vars, "invalid partial point dimension");
 
@@ -209,7 +209,7 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
         self.zero = F::zero();
     }
 
-    fn fixed_variables(&self, partial_point: &[F], config: F::Cr) -> Self {
+    fn fixed_variables(&self, partial_point: &[F], config: F::R) -> Self {
         let mut res = self.clone();
         res.fix_variables(partial_point, config);
         res
@@ -232,7 +232,7 @@ impl<F: Field> Zero for SparseMultilinearExtension<F> {
             num_vars: 0,
             evaluations: tuples_to_treemap(&Vec::new()),
             zero: F::zero(),
-            config: F::Cr::NONE,
+            config: F::R::NONE,
         }
     }
 
@@ -397,10 +397,10 @@ fn hashmap_to_treemap<F: Field>(map: &HashMap<usize, F>) -> BTreeMap<usize, F> {
 }
 
 // precompute  f(x) = eq(g,x)
-fn precompute_eq<F: Field>(g: &[F], config: F::Cr) -> Vec<F> {
+fn precompute_eq<F: Field>(g: &[F], config: F::R) -> Vec<F> {
     let dim = g.len();
     let mut dp = vec![F::zero(); 1 << dim];
-    dp[0] = <F::I as FieldMap<F>>::map_to_field(&F::I::one(), config) - g[0].clone();
+    dp[0] = <F::B as FieldMap<F>>::map_to_field(&F::B::one(), config) - g[0].clone();
     dp[1] = g[0].clone();
     for i in 1..dim {
         for b in 0..1 << i {
@@ -423,7 +423,7 @@ mod tests {
     };
 
     // Function to convert usize to a binary vector of Ring elements.
-    fn usize_to_binary_vector<F: Field>(n: usize, dimensions: usize, config: F::Cr) -> Vec<F> {
+    fn usize_to_binary_vector<F: Field>(n: usize, dimensions: usize, config: F::R) -> Vec<F> {
         let mut bits = Vec::with_capacity(dimensions);
         let mut current = n;
 
@@ -439,18 +439,18 @@ mod tests {
     }
 
     // Wrapper function to generate a boolean hypercube.
-    fn boolean_hypercube<F: Field>(dimensions: usize, config: F::Cr) -> Vec<Vec<F>> {
+    fn boolean_hypercube<F: Field>(dimensions: usize, config: F::R) -> Vec<Vec<F>> {
         let max_val = 1 << dimensions; // 2^dimensions
         (0..max_val)
             .map(|i| usize_to_binary_vector(i, dimensions, config))
             .collect()
     }
 
-    fn vec_cast<F: Field>(v: &[usize], config: F::Cr) -> Vec<F> {
+    fn vec_cast<F: Field>(v: &[usize], config: F::R) -> Vec<F> {
         v.iter().map(|c| (*c as u64).map_to_field(config)).collect()
     }
 
-    fn matrix_cast<F: Field>(m: &[Vec<usize>], config: F::Cr) -> SparseMatrix<F> {
+    fn matrix_cast<F: Field>(m: &[Vec<usize>], config: F::R) -> SparseMatrix<F> {
         let n_rows = m.len();
         let n_cols = m[0].len();
         let mut coeffs = Vec::with_capacity(n_rows);
@@ -470,7 +470,7 @@ mod tests {
         }
     }
 
-    fn get_test_z<F: Field>(input: usize, config: F::Cr) -> Vec<F> {
+    fn get_test_z<F: Field>(input: usize, config: F::R) -> Vec<F> {
         vec_cast(
             &[
                 input, // io

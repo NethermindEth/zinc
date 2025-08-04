@@ -1,9 +1,8 @@
-use ark_ff::UniformRand;
-use ark_std::{str::FromStr, vec, vec::Vec};
-use crypto_bigint::Int;
+use ark_std::{str::FromStr, vec, vec::Vec, UniformRand};
 
 use crate::{
     biginteger::BigInt,
+    crypto_int::Int,
     field::RandomField,
     field_config::{ConfigRef, FieldConfig},
     poly_z::mle::DenseMultilinearExtension,
@@ -29,7 +28,7 @@ fn test_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations: Vec<_> = (0..8).map(Int::<I>::from_i32).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
 
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
@@ -44,7 +43,7 @@ fn test_failing_zip_commitment() {
     let mut transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut transcript);
 
-    let evaluations: Vec<_> = (0..16).map(Int::<I>::from_i32).collect();
+    let evaluations: Vec<_> = (0..16).map(Int::<I>::from).collect();
     let n = 4;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -63,7 +62,7 @@ fn test_zip_opening() {
 
     let mut transcript = PcsTranscript::<RandomField<N>>::new();
 
-    let evaluations: Vec<_> = (0..8).map(Int::<I>::from_i32).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -85,7 +84,7 @@ fn test_failing_zip_evaluation() {
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(8, &mut keccak_transcript);
 
-    let evaluations: Vec<_> = (0..8).map(Int::<I>::from_i32).collect();
+    let evaluations: Vec<_> = (0..8).map(Int::<I>::from).collect();
     let n = 3;
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -116,7 +115,7 @@ fn test_zip_evaluation() {
     let mut keccak_transcript = KeccakTranscript::new();
     let param: TestZip::Param = TestZip::setup(1 << n, &mut keccak_transcript);
     let evaluations: Vec<_> = (0..(1 << n))
-        .map(|_| Int::<I>::from_i8(i8::rand(&mut rng)))
+        .map(|_| Int::<I>::from(i8::rand(&mut rng)))
         .collect();
     let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
@@ -150,7 +149,7 @@ fn test_zip_batch_evaluation() {
     let evaluations: Vec<Vec<Int<I>>> = (0..m)
         .map(|_| {
             (0..(1 << n))
-                .map(|_| Int::<I>::from_i8(i8::rand(&mut rng)))
+                .map(|_| Int::<I>::from(i8::rand(&mut rng)))
                 .collect::<Vec<Int<I>>>()
         })
         .collect();

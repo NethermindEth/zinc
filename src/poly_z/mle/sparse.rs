@@ -14,7 +14,7 @@ use num_traits::Zero;
 use rayon::iter::*;
 
 use super::{swap_bits, MultilinearExtension};
-use crate::{sparse_matrix::SparseMatrix, traits::CryptoInt};
+use crate::{sparse_matrix::SparseMatrix, traits::Integer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SparseMultilinearExtension<I> {
@@ -25,7 +25,7 @@ pub struct SparseMultilinearExtension<I> {
     zero: I,
 }
 
-impl<I: CryptoInt> SparseMultilinearExtension<I> {
+impl<I: Integer> SparseMultilinearExtension<I> {
     pub fn from_evaluations<'a>(
         num_vars: usize,
         evaluations: impl IntoIterator<Item = &'a (usize, I)>,
@@ -126,7 +126,7 @@ impl<I: CryptoInt> SparseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInt> MultilinearExtension<I> for SparseMultilinearExtension<I> {
+impl<I: Integer> MultilinearExtension<I> for SparseMultilinearExtension<I> {
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -217,7 +217,7 @@ impl<I: CryptoInt> MultilinearExtension<I> for SparseMultilinearExtension<I> {
         evaluations
     }
 }
-impl<I: CryptoInt> Zero for SparseMultilinearExtension<I> {
+impl<I: Integer> Zero for SparseMultilinearExtension<I> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
@@ -230,14 +230,14 @@ impl<I: CryptoInt> Zero for SparseMultilinearExtension<I> {
         self.num_vars == 0 && self.evaluations.is_empty()
     }
 }
-impl<I: CryptoInt> Add for SparseMultilinearExtension<I> {
+impl<I: Integer> Add for SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     fn add(self, other: SparseMultilinearExtension<I>) -> Self {
         &self + &other
     }
 }
-impl<'a, I: CryptoInt> Add<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
+impl<'a, I: Integer> Add<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     fn add(self, rhs: &'a SparseMultilinearExtension<I>) -> Self::Output {
@@ -272,21 +272,19 @@ impl<'a, I: CryptoInt> Add<&'a SparseMultilinearExtension<I>> for &SparseMultili
     }
 }
 
-impl<I: CryptoInt> AddAssign for SparseMultilinearExtension<I> {
+impl<I: Integer> AddAssign for SparseMultilinearExtension<I> {
     fn add_assign(&mut self, other: Self) {
         *self = &*self + &other;
     }
 }
-impl<'a, I: CryptoInt> AddAssign<&'a SparseMultilinearExtension<I>>
+impl<'a, I: Integer> AddAssign<&'a SparseMultilinearExtension<I>>
     for SparseMultilinearExtension<I>
 {
     fn add_assign(&mut self, rhs: &'a SparseMultilinearExtension<I>) {
         *self = &*self + rhs;
     }
 }
-impl<I: CryptoInt> AddAssign<(I, &SparseMultilinearExtension<I>)>
-    for SparseMultilinearExtension<I>
-{
+impl<I: Integer> AddAssign<(I, &SparseMultilinearExtension<I>)> for SparseMultilinearExtension<I> {
     fn add_assign(&mut self, (r, other): (I, &SparseMultilinearExtension<I>)) {
         if !self.is_zero() && !other.is_zero() {
             assert_eq!(
@@ -305,7 +303,7 @@ impl<I: CryptoInt> AddAssign<(I, &SparseMultilinearExtension<I>)>
         *self += &other;
     }
 }
-impl<I: CryptoInt> Neg for SparseMultilinearExtension<I> {
+impl<I: Integer> Neg for SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     fn neg(self) -> Self {
@@ -319,14 +317,14 @@ impl<I: CryptoInt> Neg for SparseMultilinearExtension<I> {
         }
     }
 }
-impl<I: CryptoInt> Sub for SparseMultilinearExtension<I> {
+impl<I: Integer> Sub for SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     fn sub(self, other: SparseMultilinearExtension<I>) -> Self {
         &self - &other
     }
 }
-impl<'a, I: CryptoInt> Sub<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
+impl<'a, I: Integer> Sub<&'a SparseMultilinearExtension<I>> for &SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
@@ -334,19 +332,19 @@ impl<'a, I: CryptoInt> Sub<&'a SparseMultilinearExtension<I>> for &SparseMultili
         self + &rhs.clone().neg()
     }
 }
-impl<I: CryptoInt> SubAssign for SparseMultilinearExtension<I> {
+impl<I: Integer> SubAssign for SparseMultilinearExtension<I> {
     fn sub_assign(&mut self, other: SparseMultilinearExtension<I>) {
         *self = &*self - &other;
     }
 }
-impl<'a, I: CryptoInt> SubAssign<&'a SparseMultilinearExtension<I>>
+impl<'a, I: Integer> SubAssign<&'a SparseMultilinearExtension<I>>
     for SparseMultilinearExtension<I>
 {
     fn sub_assign(&mut self, rhs: &'a SparseMultilinearExtension<I>) {
         *self = &*self - rhs;
     }
 }
-impl<I: CryptoInt> Index<usize> for SparseMultilinearExtension<I> {
+impl<I: Integer> Index<usize> for SparseMultilinearExtension<I> {
     type Output = I;
 
     /// Returns the evaluation of the polynomial at a point represented by
@@ -363,19 +361,19 @@ impl<I: CryptoInt> Index<usize> for SparseMultilinearExtension<I> {
 }
 
 /// Utilities
-fn tuples_to_treemap<I: CryptoInt>(tuples: &[(usize, I)]) -> BTreeMap<usize, I> {
+fn tuples_to_treemap<I: Integer>(tuples: &[(usize, I)]) -> BTreeMap<usize, I> {
     BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, v.clone())))
 }
 
-fn treemap_to_hashmap<I: CryptoInt>(map: &BTreeMap<usize, I>) -> HashMap<usize, I> {
+fn treemap_to_hashmap<I: Integer>(map: &BTreeMap<usize, I>) -> HashMap<usize, I> {
     HashMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
 }
-fn hashmap_to_treemap<I: CryptoInt>(map: &HashMap<usize, I>) -> BTreeMap<usize, I> {
+fn hashmap_to_treemap<I: Integer>(map: &HashMap<usize, I>) -> BTreeMap<usize, I> {
     BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
 }
 
 // precompute  f(x) = eq(g,x)
-fn precompute_eq<I: CryptoInt>(g: &[I]) -> Vec<I> {
+fn precompute_eq<I: Integer>(g: &[I]) -> Vec<I> {
     let dim = g.len();
     let mut dp = vec![I::ZERO; 1 << dim];
     dp[0] = I::one() - &g[0];
@@ -393,12 +391,13 @@ fn precompute_eq<I: CryptoInt>(g: &[I]) -> Vec<I> {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use crypto_bigint::Int;
+    use num_traits::ConstZero;
 
     use super::*;
+    use crate::crypto_int::Int;
 
     // Function to convert usize to a binary vector of Ring elements.
-    fn usize_to_binary_vector<I: CryptoInt>(n: usize, dimensions: usize) -> Vec<I> {
+    fn usize_to_binary_vector<I: Integer>(n: usize, dimensions: usize) -> Vec<I> {
         let mut bits = Vec::with_capacity(dimensions);
         let mut current = n;
 
@@ -423,14 +422,17 @@ mod tests {
 
     fn get_test_z<const N: usize>(input: i64) -> Vec<Int<N>> {
         [
-            Int::<N>::from_i64(input), // io
-            Int::<N>::from_i64(1),
-            Int::<N>::from_i64(input * input * input + input + 5), // x^3 + x + 5
-            Int::<N>::from_i64(input * input),                     // x^2
-            Int::<N>::from_i64(input * input * input),             // x^2 * x
-            Int::<N>::from_i64(input * input * input + input),     // x^3 + x
+            input, // io
+            1,
+            input.pow(3) + input + 5, // x^3 + x + 5
+            input.pow(2),             // x^2
+            input.pow(3),             // x^2 * x
+            input.pow(3) + input,     // x^3 + x
         ]
-        .to_vec()
+        .iter()
+        .cloned()
+        .map(Int::from)
+        .collect()
     }
     fn matrix_cast<const N: usize>(m: &[Vec<usize>]) -> SparseMatrix<Int<N>> {
         let n_rows = m.len();
@@ -440,7 +442,7 @@ mod tests {
             let mut row_coeffs = Vec::with_capacity(n_cols);
             for (col_i, &val) in row.iter().enumerate() {
                 if val != 0 {
-                    row_coeffs.push((Int::from_i64(val as i64), col_i));
+                    row_coeffs.push((Int::from(val as i64), col_i));
                 }
             }
             coeffs.push(row_coeffs);

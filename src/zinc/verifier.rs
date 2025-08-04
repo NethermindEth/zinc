@@ -12,7 +12,7 @@ use crate::{
     },
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
-    traits::{ConfigReference, CryptoInt, Field, FieldMap},
+    traits::{ConfigReference, Field, FieldMap, Integer},
     transcript::KeccakTranscript,
     zip::{
         code::ZipSpec,
@@ -24,28 +24,32 @@ use crate::{
     },
 };
 
-pub trait Verifier<I: CryptoInt, F: Field> {
+pub trait Verifier<I: Integer, F: Field> {
     fn verify<I2, I4, I8>(
         &self,
         cm_i: &Statement_Z<I>,
         proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<(), ZincError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
+        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: Integer + FieldMap<F, Output = F> + ToBytes,
+        I8: Integer
+            + for<'a> From<&'a I2>
+            + for<'a> From<&'a I>
+            + for<'a> From<&'a I4>
+            + for<'a> From<&'a I4>,
         KeccakTranscript: ZipTranscript<I2>;
 }
 
 // TODO
-impl<I: CryptoInt, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
+impl<I: Integer, F: Field, S: ZipSpec> Verifier<I, F> for ZincVerifier<I, F, S>
 where
-    for<'a> I: From<&'a F::I>,
-    F::I: From<I>,
-    for<'a> F::CryptoInt: From<&'a I::I>,
+    for<'a> I: From<&'a F::B>,
+    F::B: From<I>,
+    for<'a> F::I: From<&'a I::I>,
     I: FieldMap<F, Output = F>,
     Self: SpartanVerifier<F>,
 {
@@ -55,12 +59,16 @@ where
         proof: ZincProof<I, F>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<(), ZincError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
+        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: Integer + FieldMap<F, Output = F> + ToBytes,
+        I8: Integer
+            + for<'a> From<&'a I2>
+            + for<'a> From<&'a I>
+            + for<'a> From<&'a I4>
+            + for<'a> From<&'a I4>,
         KeccakTranscript: ZipTranscript<I2>,
     {
         if draw_random_field::<I, F>(&statement.public_input, transcript)
@@ -110,17 +118,17 @@ pub trait SpartanVerifier<F: Field> {
         proof: &SpartanProof<F>,
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
+impl<I: Integer, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, F, S> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<VerificationPoints<F>, SpartanError<F>> {
         // Step 1: Generate the beta challenges.
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
@@ -151,7 +159,7 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> SpartanVerifier<F> for ZincVerifier<I, 
     }
 }
 
-impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
+impl<I: Integer, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,
@@ -168,7 +176,7 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             degree,
             F::zero(),
             proof,
-            unsafe { F::Cr::new(*ccs.config.as_ptr()) },
+            unsafe { F::R::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -216,7 +224,7 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
             degree,
             claimed_sum,
             proof,
-            unsafe { F::Cr::new(*ccs.config.as_ptr()) },
+            unsafe { F::R::new(*ccs.config.as_ptr()) },
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -238,12 +246,16 @@ impl<I: CryptoInt, F: Field, S: ZipSpec> ZincVerifier<I, F, S> {
         verification_points: &VerificationPoints<F>,
         ccs: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<(), SpartanError<F>>
     where
-        I2: CryptoInt + FieldMap<F, Output = F> + for<'a> From<&'a I>,
-        I4: CryptoInt + FieldMap<F, Output = F> + ToBytes,
-        I8: CryptoInt + for<'a> From<&'a I2> + for<'a> From<&'a I> + for<'a> From<&'a I4>,
+        I2: Integer + FieldMap<F, Output = F> + for<'a> From<&'a I>,
+        I4: Integer + FieldMap<F, Output = F> + ToBytes,
+        I8: Integer
+            + for<'a> From<&'a I2>
+            + for<'a> From<&'a I>
+            + for<'a> From<&'a I4>
+            + for<'a> From<&'a I4>,
         KeccakTranscript: ZipTranscript<I2>,
     {
         let param = MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::setup(ccs.m, transcript);

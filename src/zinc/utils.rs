@@ -10,7 +10,7 @@ use crate::{
     prime_gen::get_prime,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
-    traits::{Config, CryptoInt, Field},
+    traits::{Config, Field, Integer},
     transcript::KeccakTranscript,
 };
 
@@ -52,7 +52,7 @@ pub fn prepare_lin_sumcheck_polynomial<F: Field>(
     M_mles: &[DenseMultilinearExtension<F>],
     S: &[Vec<usize>],
     beta_s: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<(Vec<DenseMultilinearExtension<F>>, usize), SpartanError<F>> {
     let len = 1 + c
         .iter()
@@ -94,11 +94,11 @@ pub(crate) fn sumcheck_polynomial_comb_fn_1<F: Field>(vals: &[F], ccs: &CCS_F<F>
 }
 
 pub(crate) trait SqueezeBeta<F: Field> {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: F::Cr) -> Vec<F>;
+    fn squeeze_beta_challenges(&mut self, n: usize, config: F::R) -> Vec<F>;
 }
 
 impl<F: Field> SqueezeBeta<F> for KeccakTranscript {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: F::Cr) -> Vec<F> {
+    fn squeeze_beta_challenges(&mut self, n: usize, config: F::R) -> Vec<F> {
         self.absorb(b"beta_s");
 
         self.get_challenges(n, config)
@@ -106,11 +106,11 @@ impl<F: Field> SqueezeBeta<F> for KeccakTranscript {
 }
 
 pub(crate) trait SqueezeGamma<F: Field> {
-    fn squeeze_gamma_challenge(&mut self, config: F::Cr) -> F;
+    fn squeeze_gamma_challenge(&mut self, config: F::R) -> F;
 }
 
 impl<F: Field> SqueezeGamma<F> for KeccakTranscript {
-    fn squeeze_gamma_challenge(&mut self, config: F::Cr) -> F {
+    fn squeeze_gamma_challenge(&mut self, config: F::R) -> F {
         self.absorb(b"gamma");
 
         self.get_challenge(config)
@@ -122,7 +122,7 @@ pub(super) fn calculate_Mz_mles<E, F: Field>(
     constraints: &[SparseMatrix<F>],
     ccs_s: usize,
     z_ccs: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<Vec<DenseMultilinearExtension<F>>, E>
 where
     E: From<MleEvaluationError> + From<CSError> + Sync + Send,
@@ -137,7 +137,7 @@ where
 fn to_mles_err<F: Field, I, E, E1>(
     n_vars: usize,
     mle_s: I,
-    config: F::Cr,
+    config: F::R,
 ) -> Result<Vec<DenseMultilinearExtension<F>>, E>
 where
     I: IntoIterator<Item = Result<Vec<F>, E1>>,
@@ -158,7 +158,7 @@ where
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<I: CryptoInt, F: Field>(
+pub fn draw_random_field<I: Integer, F: Field>(
     public_inputs: &[I],
     transcript: &mut KeccakTranscript,
 ) -> F::C {

@@ -22,15 +22,15 @@ use ark_std::{
     vec::Vec,
     Zero,
 };
-use crypto_bigint::Int;
 use num_bigint::BigUint;
 use zeroize::Zeroize;
 
 use crate::{
     adc,
     const_helpers::SerBuffer,
+    crypto_int::Int,
     field_config,
-    traits::{FromBytes, Integer},
+    traits::{BigInteger, FromBytes, Integer, Uinteger},
 };
 
 #[macro_use]
@@ -585,7 +585,7 @@ impl<const N: usize> BigInt<N> {
     }
 }
 
-impl<const N: usize> Integer for BigInt<N> {
+impl<const N: usize> BigInteger for BigInt<N> {
     type W = Words<N>;
     fn to_words(&self) -> Words<N> {
         Words(self.0)
@@ -830,7 +830,7 @@ impl<const M: usize, const N: usize> From<&BigInt<N>> for Int<M> {
         let mut result = [0u64; M];
         result[..min_width].copy_from_slice(&words[..min_width]);
 
-        Int::from_words(result)
+        Int::from_words(Words(result))
     }
 }
 

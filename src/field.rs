@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use ark_ff::UniformRand;
-use crypto_bigint::{Int, Random, Uint};
+use crypto_bigint::Random;
 
 use crate::{
     biginteger::BigInt,
@@ -29,8 +29,9 @@ use RandomField::*;
 
 use crate::{
     biginteger::Words,
+    crypto_int::{Int, Uint},
     field_config::{ConfigRef, DebugFieldConfig},
-    traits::{Field, Integer},
+    traits::{BigInteger, Field},
     transcript::KeccakTranscript,
 };
 
@@ -271,23 +272,23 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 }
 
 impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
-    type I = BigInt<N>;
+    type B = BigInt<N>;
     type C = FieldConfig<N>;
-    type Cr = ConfigRef<'cfg, N>;
+    type R = ConfigRef<'cfg, N>;
     type W = Words<N>;
-    type CryptoInt = Int<N>;
-    type CryptoUint = Uint<N>;
+    type I = Int<N>;
+    type U = Uint<N>;
     type DebugField = DebugRandomField;
 
     fn new_unchecked(config: ConfigRef<'cfg, N>, value: BigInt<N>) -> Self {
         Initialized { config, value }
     }
 
-    fn without_config(value: Self::I) -> Self {
+    fn without_config(value: Self::B) -> Self {
         Raw { value }
     }
 
-    fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::Cr) -> Self {
+    fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::R) -> Self {
         loop {
             let mut value = BigInt::rand(rng);
             let modulus = config
@@ -312,7 +313,7 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
         }
     }
 
-    fn set_config(&mut self, config: Self::Cr) {
+    fn set_config(&mut self, config: Self::R) {
         self.with_raw_value_mut_or(
             |value| {
                 // Ideally we should do something like:

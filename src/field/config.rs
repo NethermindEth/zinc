@@ -311,14 +311,8 @@ unsafe impl<const N: usize> Send for ConfigRef<'_, N> {}
 
 #[cfg(test)]
 mod tests {
-    use ark_std::str::FromStr;
-
     use super::FieldConfig;
-    use crate::{
-        field::{BigInteger128, BigInteger256},
-        traits::Config,
-    };
-
+    use crate::{big_int, field::BigInteger128, field_config, traits::Config};
     //BIGINTS ARE LITTLE ENDIAN!!
     #[test]
     fn test_addition() {
@@ -346,16 +340,11 @@ mod tests {
 
     #[test]
     fn test_multiplication() {
-        let field = FieldConfig::new(
-            BigInteger256::from_str("695962179703626800597079116051991347").unwrap(),
-        );
-        let mut a = BigInteger256::from_str("423024736033").unwrap();
-        let b = BigInteger256::from_str("246308734").unwrap();
+        let field = field_config!(695962179703626800597079116051991347);
+        let mut a = big_int!(423024736033, 4);
+        let b = big_int!(246308734);
         field.mul_assign(&mut a, &b);
 
-        assert_eq!(
-            BigInteger256::from_str("504579159360957705315139767875358506").unwrap(),
-            a
-        );
+        assert_eq!(big_int!(504579159360957705315139767875358506), a);
     }
 }

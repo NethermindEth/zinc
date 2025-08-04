@@ -74,18 +74,20 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ark_std::{str::FromStr, vec};
+    use ark_std::vec;
 
     use super::*;
     use crate::{
-        field::{BigInt, ConfigRef, FieldConfig, RandomField},
+        big_int,
+        field::{ConfigRef, FieldConfig, RandomField},
+        field_config,
         sparse_matrix::dense_matrix_to_sparse,
-        traits::{Config, FieldMap},
+        traits::FieldMap,
     };
 
     const N: usize = 3;
     fn get_config() -> FieldConfig<N> {
-        FieldConfig::new(BigInt::<N>::from_str("695962179703626800597079116051991347").unwrap())
+        field_config!(695962179703626800597079116051991347, N)
     }
 
     #[test]

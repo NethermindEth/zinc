@@ -129,7 +129,7 @@ impl<F: Field> MLSumcheck<F> {
 #[cfg(test)]
 mod tests {
 
-    use ark_std::{rand, str::FromStr};
+    use ark_std::rand;
     use rand::Rng;
 
     use super::{
@@ -137,8 +137,10 @@ mod tests {
         MLSumcheck, SumcheckProof,
     };
     use crate::{
-        field::{BigInt, ConfigRef, FieldConfig, RandomField},
-        traits::{Config, ConfigReference, Field},
+        big_int,
+        field::{ConfigRef, RandomField},
+        field_config,
+        traits::{ConfigReference, Field},
         transcript::KeccakTranscript,
     };
 
@@ -169,7 +171,7 @@ mod tests {
         const N: usize = 2;
         let mut rng = ark_std::test_rng();
         let nvars = 3;
-        let config = FieldConfig::new(BigInt::from_str("57316695564490278656402085503").unwrap());
+        let config = field_config!(57316695564490278656402085503, N);
 
         let config_ptr = ConfigRef::from(&config);
         config_ptr.reference().expect("FieldConfig cannot be null");

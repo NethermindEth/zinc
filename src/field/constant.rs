@@ -57,17 +57,12 @@ impl<const N: usize> Zeroize for RandomField<'_, N> {
 #[cfg(test)]
 mod tests {
     use ark_ff::{One, Zero};
-    use ark_std::str::FromStr;
     use zeroize::Zeroize;
 
     use crate::{
-        create_bigint, create_random_field,
-        field::{
-            biginteger::BigInt,
-            config::{ConfigRef, FieldConfig},
-            RandomField,
-        },
-        traits::Config,
+        big_int,
+        field::{config::ConfigRef, RandomField},
+        field_config, random_field,
     };
 
     #[test]
@@ -78,9 +73,9 @@ mod tests {
 
     #[test]
     fn test_set_zero() {
-        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23, 1);
         let config = ConfigRef::from(&config);
-        let mut elem: RandomField<1> = create_random_field!(config, 7);
+        let mut elem: RandomField<1> = random_field!(7u32, config);
         elem.set_zero();
         assert!(elem.is_zero());
     }
@@ -93,9 +88,9 @@ mod tests {
 
     #[test]
     fn test_set_one() {
-        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23, 1);
         let config = ConfigRef::from(&config);
-        let mut elem: RandomField<1> = create_random_field!(config, 5);
+        let mut elem: RandomField<1> = random_field!(5u32, config);
         elem.set_one();
         assert!(elem.is_one());
     }
@@ -136,9 +131,9 @@ mod tests {
 
     #[test]
     fn test_zeroize() {
-        let config = FieldConfig::<1>::new(BigInt::from_str("23").unwrap());
+        let config = field_config!(23, 1);
         let config = ConfigRef::from(&config);
-        let mut elem: RandomField<1> = create_random_field!(config, 12);
+        let mut elem: RandomField<1> = random_field!(12, config);
         elem.zeroize();
         assert!(elem.is_zero());
     }

@@ -1,9 +1,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::redundant_closure_call)]
 
 pub mod ccs;
 mod const_helpers;
 pub mod conversion;
 pub mod field;
+pub mod macros;
 pub mod poly;
 pub mod poly_f;
 pub mod poly_z;

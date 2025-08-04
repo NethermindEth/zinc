@@ -315,19 +315,17 @@ pub(crate) fn get_test_z_F<F: Field>(input: u64, config: F::R) -> Vec<F> {
 mod tests {
     use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
     use crate::{
+        big_int,
         ccs::test_utils::get_dummy_ccs_F_from_z_length,
-        field::{BigInt, ConfigRef, FieldConfig, RandomField},
-        traits::Config,
+        field::{ConfigRef, RandomField},
+        field_config,
     };
 
     #[test]
     fn test_ccs_f() {
-        use ark_std::str::FromStr;
-
         const N: usize = 2;
 
-        let config =
-            FieldConfig::<N>::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let config = field_config!(75671012754143952277701807739, N);
 
         let config_ptr = ConfigRef::from(&config);
 
@@ -342,10 +340,8 @@ mod tests {
 
     #[test]
     fn test_dummy_ccs_f() {
-        use ark_std::str::FromStr;
-
         const N: usize = 2;
-        let config = FieldConfig::new(BigInt::from_str("75671012754143952277701807739").unwrap());
+        let config = field_config!(75671012754143952277701807739, N);
         let mut rng = ark_std::test_rng();
         let n = 1 << 13;
         let (z, ccs, statement, _) =

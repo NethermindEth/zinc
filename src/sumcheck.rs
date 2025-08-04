@@ -54,7 +54,7 @@ impl<F: Field> MLSumcheck<F> {
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[F]) -> F + Send + Sync,
-        config: F::Cr,
+        config: F::R,
     ) -> (SumcheckProof<F>, ProverState<F>) {
         let (nvars_field, degree_field): (F, F) = if F::W::num_words() == 1 {
             (
@@ -98,7 +98,7 @@ impl<F: Field> MLSumcheck<F> {
         degree: usize,
         claimed_sum: F,
         proof: &SumcheckProof<F>,
-        config: F::Cr,
+        config: F::R,
     ) -> Result<SubClaim<F>, SumCheckError<F>> {
         let (nvars_field, degree_field): (F, F) = if F::W::num_words() == 1 {
             (
@@ -147,7 +147,7 @@ mod tests {
     fn generate_sumcheck_proof<F: Field>(
         nvars: usize,
         mut rng: &mut (impl Rng + Sized),
-        config: F::Cr,
+        config: F::R,
     ) -> (usize, F, SumcheckProof<F>) {
         let mut transcript = KeccakTranscript::default();
 

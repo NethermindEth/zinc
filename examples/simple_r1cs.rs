@@ -1,5 +1,5 @@
 use ark_std::{log2, marker::PhantomData};
-use zinc::{crypto_int::CryptoInt, field::RandomField, field_config::ConfigRef, zinc::prelude::*};
+use zinc::{crypto_int::Int, field::RandomField, field_config::ConfigRef, zinc::prelude::*};
 
 // R1CS for: x^3 + x + 5 = y (example from article
 // https://www.vitalik.ca/general/2016/12/10/qap.html )
@@ -7,13 +7,12 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<CryptoInt<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipSpec1> {
-        data: PhantomData,
-    };
+    let prover =
+        ZincProver::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipSpec1> { data: PhantomData };
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<CryptoInt<INT_LIMBS>, RandomField<FIELD_LIMBS>>(
+    let field_config = draw_random_field::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>>(
         &statement.public_input,
         &mut prover_transcript,
     );
@@ -21,7 +20,7 @@ fn main() {
     let config_ref = ConfigRef::from(&field_config);
 
     let proof = prover
-        .prove::<CryptoInt<{ INT_LIMBS * 2 }>, CryptoInt<{ INT_LIMBS * 4 }>, CryptoInt<{ INT_LIMBS * 8 }>>(
+        .prove::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
             &statement,
             &witness,
             &mut prover_transcript,
@@ -30,13 +29,12 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<CryptoInt<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipSpec1> {
-        data: PhantomData,
-    };
+    let verifier =
+        ZincVerifier::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>, ZipSpec1> { data: PhantomData };
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier
-        .verify::<CryptoInt<{ INT_LIMBS * 2 }>, CryptoInt<{ INT_LIMBS * 4 }>, CryptoInt<{ INT_LIMBS * 8 }>>(
+        .verify::<Int<{ INT_LIMBS * 2 }>, Int<{ INT_LIMBS * 4 }>, Int<{ INT_LIMBS * 8 }>>(
             &statement,
             proof,
             &mut verifier_transcript,
@@ -46,7 +44,7 @@ fn main() {
         .expect("Proof verification failed");
 }
 
-fn get_ccs<const N: usize>() -> CCS_Z<CryptoInt<N>> {
+fn get_ccs<const N: usize>() -> CCS_Z<Int<N>> {
     let m = 4;
     let n = 6;
     CCS_Z {
@@ -65,7 +63,7 @@ fn get_ccs<const N: usize>() -> CCS_Z<CryptoInt<N>> {
 }
 
 #[allow(non_snake_case)]
-fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<CryptoInt<N>> {
+fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<Int<N>> {
     let A = to_Z_matrix(vec![
         vec![1, 0, 0, 0, 0, 0],
         vec![0, 0, 0, 1, 0, 0],
@@ -85,14 +83,14 @@ fn get_ccs_statement<const N: usize>(input: i64) -> Statement_Z<CryptoInt<N>> {
         vec![0, 0, 1, 0, 0, 0],
     ]);
     let constraints = vec![A, B, C];
-    let public_input = vec![CryptoInt::<N>::from(input)];
+    let public_input = vec![Int::<N>::from(input)];
     Statement_Z {
         constraints,
         public_input,
     }
 }
 
-fn get_witness<const N: usize>(input: i64) -> Witness_Z<CryptoInt<N>> {
+fn get_witness<const N: usize>(input: i64) -> Witness_Z<Int<N>> {
     Witness_Z::new(
         [
             input.pow(3) + input + 5, // x^3 + x + 5
@@ -102,18 +100,14 @@ fn get_witness<const N: usize>(input: i64) -> Witness_Z<CryptoInt<N>> {
         ]
         .iter()
         .cloned()
-        .map(CryptoInt::from)
+        .map(Int::from)
         .collect(),
     )
 }
 
 fn get_ccs_stuff<const N: usize>(
     input: i64,
-) -> (
-    CCS_Z<CryptoInt<N>>,
-    Statement_Z<CryptoInt<N>>,
-    Witness_Z<CryptoInt<N>>,
-) {
+) -> (CCS_Z<Int<N>>, Statement_Z<Int<N>>, Witness_Z<Int<N>>) {
     let mut ccs = get_ccs();
     let mut statement = get_ccs_statement(input);
     let matrices = statement.constraints.clone();

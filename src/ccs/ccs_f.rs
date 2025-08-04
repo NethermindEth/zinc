@@ -138,7 +138,7 @@ impl<F: Field> Statement_F<F> {
             .iter()
             .map(|M| {
                 compute_eval_table_sparse(M, evals, num_rows, num_cols, unsafe {
-                    F::Cr::new(ccs.config.load(Ordering::Acquire))
+                    F::R::new(ccs.config.load(Ordering::Acquire))
                 })
             })
             .collect()
@@ -191,11 +191,11 @@ impl<F: Field> Witness_F<F> {
 ///
 pub trait Instance_F<F: Field> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
-    fn get_z_vector(&self, w: &[F], config: F::Cr) -> Vec<F>;
+    fn get_z_vector(&self, w: &[F], config: F::R) -> Vec<F>;
 }
 
 impl<F: Field> Instance_F<F> for Statement_F<F> {
-    fn get_z_vector(&self, w: &[F], config: F::Cr) -> Vec<F> {
+    fn get_z_vector(&self, w: &[F], config: F::R) -> Vec<F> {
         let mut z: Vec<F> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
         z.extend_from_slice(&self.public_input);
@@ -207,7 +207,7 @@ impl<F: Field> Instance_F<F> for Statement_F<F> {
 }
 
 /// Returns a sparse matrix of field elements given a matrix of unsigned ints
-pub fn to_F_matrix<F: Field>(config: F::Cr, M: Vec<Vec<usize>>) -> SparseMatrix<F> {
+pub fn to_F_matrix<F: Field>(config: F::R, M: Vec<Vec<usize>>) -> SparseMatrix<F> {
     dense_matrix_to_sparse(
         M.iter()
             .map(|m| m.iter().map(|c| (*c as u64).map_to_field(config)).collect())
@@ -216,19 +216,19 @@ pub fn to_F_matrix<F: Field>(config: F::Cr, M: Vec<Vec<usize>>) -> SparseMatrix<
 }
 
 /// Returns a dense matrix of field elements given a matrix of unsigned ints
-pub fn to_F_dense_matrix<F: Field>(config: F::Cr, M: Vec<Vec<usize>>) -> Vec<Vec<F>> {
+pub fn to_F_dense_matrix<F: Field>(config: F::R, M: Vec<Vec<usize>>) -> Vec<Vec<F>> {
     M.iter()
         .map(|m| m.iter().map(|c| (*c as u64).map_to_field(config)).collect())
         .collect()
 }
 
 /// Returns a vector of field elements given a vector of unsigned ints
-pub fn to_F_vec<F: Field>(z: Vec<u64>, config: F::Cr) -> Vec<F> {
+pub fn to_F_vec<F: Field>(z: Vec<u64>, config: F::R) -> Vec<F> {
     z.iter().map(|c| (*c).map_to_field(config)).collect()
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_F<F: Field>(config: F::Cr) -> CCS_F<F> {
+pub(crate) fn get_test_ccs_F<F: Field>(config: F::R) -> CCS_F<F> {
     use ark_std::log2;
 
     use crate::traits::FieldMap;
@@ -260,7 +260,7 @@ pub(crate) fn get_test_ccs_F<F: Field>(config: F::Cr) -> CCS_F<F> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_F_statement<F: Field>(input: u64, config: F::Cr) -> Statement_F<F> {
+pub(crate) fn get_test_ccs_F_statement<F: Field>(input: u64, config: F::R) -> Statement_F<F> {
     let A = to_F_matrix(
         config,
         vec![
@@ -297,7 +297,7 @@ pub(crate) fn get_test_ccs_F_statement<F: Field>(input: u64, config: F::Cr) -> S
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_z_F<F: Field>(input: u64, config: F::Cr) -> Vec<F> {
+pub(crate) fn get_test_z_F<F: Field>(input: u64, config: F::R) -> Vec<F> {
     // z = (io, 1, w)
     to_F_vec(
         vec![

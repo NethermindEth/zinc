@@ -4,7 +4,7 @@ use sha3::{digest::Output, Keccak256};
 use super::utils::MerkleTree;
 use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
-    traits::CryptoInteger,
+    traits::Integer,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
 
@@ -14,22 +14,22 @@ use crate::{
 // M is the width of elements in linear combination of code rows
 #[derive(Debug, Clone)]
 pub struct MultilinearZip<
-    N: CryptoInteger,
-    L: CryptoInteger,
-    K: CryptoInteger,
-    M: CryptoInteger,
+    N: Integer,
+    L: Integer,
+    K: Integer,
+    M: Integer,
     S: ZipSpec,
     T: ZipTranscript<L>,
 >(PhantomData<(N, L, K, M, S, T)>);
 
 #[derive(Clone, Debug)]
-pub struct MultilinearZipParams<N: CryptoInteger, L: CryptoInteger> {
+pub struct MultilinearZipParams<N: Integer, L: Integer> {
     num_vars: usize,
     num_rows: usize,
     zip: Zip<N, L>,
 }
 
-impl<N: CryptoInteger, L: CryptoInteger> MultilinearZipParams<N, L> {
+impl<N: Integer, L: Integer> MultilinearZipParams<N, L> {
     pub fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -45,7 +45,7 @@ impl<N: CryptoInteger, L: CryptoInteger> MultilinearZipParams<N, L> {
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipData<N: CryptoInteger, K: CryptoInteger> {
+pub struct MultilinearZipData<N: Integer, K: Integer> {
     /// The encoded rows of the polynomial matrix representation
     rows: Vec<K>,
     /// Merkle trees of each row
@@ -54,12 +54,12 @@ pub struct MultilinearZipData<N: CryptoInteger, K: CryptoInteger> {
 }
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipCommitment<I: CryptoInteger> {
+pub struct MultilinearZipCommitment<I: Integer> {
     /// Roots of the merkle tree of each row
     roots: Vec<Output<Keccak256>>,
     phantom: PhantomData<I>,
 }
-impl<I: CryptoInteger> MultilinearZipCommitment<I> {
+impl<I: Integer> MultilinearZipCommitment<I> {
     pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<I> {
         MultilinearZipCommitment {
             roots,
@@ -71,7 +71,7 @@ impl<I: CryptoInteger> MultilinearZipCommitment<I> {
     }
 }
 
-impl<N: CryptoInteger, K: CryptoInteger> MultilinearZipData<N, K> {
+impl<N: Integer, K: Integer> MultilinearZipData<N, K> {
     pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<N, K> {
         MultilinearZipData {
             rows,
@@ -100,7 +100,7 @@ impl<N: CryptoInteger, K: CryptoInteger> MultilinearZipData<N, K> {
     }
 }
 
-pub trait ZipTranscript<I: CryptoInteger> {
+pub trait ZipTranscript<I: Integer> {
     fn get_encoding_element(&mut self) -> I;
     fn sample_unique_columns(
         &mut self,
@@ -109,8 +109,7 @@ pub trait ZipTranscript<I: CryptoInteger> {
         count: usize,
     ) -> usize;
 }
-impl<I: CryptoInteger, L: CryptoInteger, K: CryptoInteger, M: CryptoInteger, S, T>
-    MultilinearZip<I, L, K, M, S, T>
+impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
     T: ZipTranscript<L>,

@@ -3,9 +3,9 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use num_integer::Integer;
+use num_integer::Integer as NumInteger;
 
-use crate::traits::{CryptoInteger, Words};
+use crate::traits::{Integer, Words};
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
 where
@@ -21,7 +21,7 @@ where
 }
 
 pub(crate) fn div_ceil(dividend: usize, divisor: usize) -> usize {
-    Integer::div_ceil(&dividend, &divisor)
+    NumInteger::div_ceil(&dividend, &divisor)
 }
 
 pub(crate) fn num_threads() -> usize {
@@ -107,9 +107,7 @@ where
 
     combined_row
 }
-pub(super) fn expand<N: CryptoInteger, M: CryptoInteger + for<'a> From<&'a N>>(
-    narrow_int: &N,
-) -> M {
+pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &N) -> M {
     assert!(
         N::W::num_words() <= M::W::num_words(),
         "Cannot squeeze a wide integer into a narrow integer."
@@ -126,8 +124,8 @@ mod test {
 
     use crate::{
         biginteger::Words,
-        crypto_int::CryptoInt,
-        traits::CryptoInteger,
+        crypto_int::Int,
+        traits::Integer,
         zip::utils::{expand, inner_product},
     };
 
@@ -141,8 +139,8 @@ mod test {
     #[test]
     fn test_expand_normal() {
         let input_words = [1u64, 2u64];
-        let input = CryptoInt::<2>::from_words(Words(input_words));
-        let expanded = expand::<CryptoInt<2>, CryptoInt<4>>(&input);
+        let input = Int::<2>::from_words(Words(input_words));
+        let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [1u64, 2u64, 0u64, 0u64];
         assert_eq!(expanded.as_words(), expected_words);
@@ -151,8 +149,8 @@ mod test {
     #[test]
     fn test_expand_identity() {
         let input_words = Words([42u64, 99u64]);
-        let input = CryptoInt::<2>::from_words(input_words);
-        let expanded = expand::<CryptoInt<2>, CryptoInt<2>>(&input);
+        let input = Int::<2>::from_words(input_words);
+        let expanded = expand::<Int<2>, Int<2>>(&input);
 
         let expected_words = [42u64, 99u64];
         assert_eq!(expanded.as_words(), expected_words);
@@ -161,15 +159,15 @@ mod test {
     #[test]
     #[should_panic(expected = "Cannot squeeze a wide integer into a narrow integer.")]
     fn test_expand_invalid() {
-        let input = CryptoInt::<4>::from_words(Words([1, 2, 3, 4]));
+        let input = Int::<4>::from_words(Words([1, 2, 3, 4]));
         // N = 4, M = 2 → should panic
-        let _ = expand::<CryptoInt<4>, CryptoInt<2>>(&input);
+        let _ = expand::<Int<4>, Int<2>>(&input);
     }
 
     #[test]
     fn test_expand_zero_padding() {
-        let input = CryptoInt::<1>::from_words(Words([123]));
-        let expanded = expand::<CryptoInt<1>, CryptoInt<3>>(&input);
+        let input = Int::<1>::from_words(Words([123]));
+        let expanded = expand::<Int<1>, Int<3>>(&input);
 
         let expected_words = [123u64, 0u64, 0u64];
         assert_eq!(expanded.as_words(), expected_words);
@@ -177,8 +175,8 @@ mod test {
 
     #[test]
     fn test_expand_all_zeros() {
-        let input = CryptoInt::<2>::from_words(Words([0u64, 0u64]));
-        let expanded = expand::<CryptoInt<2>, CryptoInt<4>>(&input);
+        let input = Int::<2>::from_words(Words([0u64, 0u64]));
+        let expanded = expand::<Int<2>, Int<4>>(&input);
 
         let expected_words = [0u64, 0u64, 0u64, 0u64];
         assert_eq!(expanded.as_words(), expected_words);
@@ -186,27 +184,27 @@ mod test {
     #[test]
     fn test_expand_negative_number_identity() {
         // Example negative number in two's complement for 2 words
-        let negative_val = CryptoInt::<2>::from_words(Words([!0u64, !0u64])); // -1
-        let expanded = expand::<CryptoInt<2>, CryptoInt<2>>(&negative_val);
+        let negative_val = Int::<2>::from_words(Words([!0u64, !0u64])); // -1
+        let expanded = expand::<Int<2>, Int<2>>(&negative_val);
 
-        assert_eq!(expanded, CryptoInt::<2>::ZERO - &CryptoInt::<2>::ONE);
+        assert_eq!(expanded, Int::<2>::ZERO - &Int::<2>::ONE);
     }
 
     #[test]
     fn test_expand_negative_number_wider() {
         let mut rg = ark_std::test_rng();
 
-        let mut positive_val = CryptoInt::<2>::random(&mut rg);
-        if positive_val < CryptoInt::ZERO {
-            positive_val = CryptoInt::<2>::ZERO - &positive_val;
+        let mut positive_val = Int::<2>::random(&mut rg);
+        if positive_val < Int::ZERO {
+            positive_val = Int::<2>::ZERO - &positive_val;
         }
 
-        let expanded_positive = expand::<CryptoInt<2>, CryptoInt<4>>(&positive_val);
+        let expanded_positive = expand::<Int<2>, Int<4>>(&positive_val);
 
-        let negative_val = CryptoInt::<2>::ZERO - &positive_val;
-        let expanded_negative = expand::<CryptoInt<2>, CryptoInt<4>>(&negative_val);
+        let negative_val = Int::<2>::ZERO - &positive_val;
+        let expanded_negative = expand::<Int<2>, Int<4>>(&negative_val);
 
-        let expected_negative = CryptoInt::<4>::ZERO - &expanded_positive;
+        let expected_negative = Int::<4>::ZERO - &expanded_positive;
 
         assert_eq!(expanded_negative, expected_negative);
     }

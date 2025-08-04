@@ -16,7 +16,7 @@ use crate::{
     poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
     sparse_matrix::SparseMatrix,
-    traits::{CryptoInteger, Field, FieldMap},
+    traits::{Field, FieldMap, Integer},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,7 +27,7 @@ pub struct DenseMultilinearExtension<I> {
     pub num_vars: usize,
 }
 
-impl<I: CryptoInteger> DenseMultilinearExtension<I> {
+impl<I: Integer> DenseMultilinearExtension<I> {
     pub fn from_evaluations_slice(num_vars: usize, evaluations: &[I]) -> Self {
         Self::from_evaluations_vec(num_vars, evaluations.to_vec())
     }
@@ -119,12 +119,12 @@ impl<I: CryptoInteger> DenseMultilinearExtension<I> {
     }
 }
 
-impl<F: Field, I: CryptoInteger> FieldMap<F> for DenseMultilinearExtension<I>
+impl<F: Field, I: Integer> FieldMap<F> for DenseMultilinearExtension<I>
 where
     I: FieldMap<F, Output = F>,
 {
     type Output = DenseMultilinearExtensionF<F>;
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,
             self.evaluations.map_to_field(config_ref),
@@ -133,7 +133,7 @@ where
     }
 }
 
-impl<I: CryptoInteger> MultilinearExtension<I> for DenseMultilinearExtension<I> {
+impl<I: Integer> MultilinearExtension<I> for DenseMultilinearExtension<I> {
     fn num_vars(&self) -> usize {
         self.num_vars
     }
@@ -190,7 +190,7 @@ impl<I: CryptoInteger> MultilinearExtension<I> for DenseMultilinearExtension<I> 
     }
 }
 
-impl<I: CryptoInteger> Zero for DenseMultilinearExtension<I> {
+impl<I: Integer> Zero for DenseMultilinearExtension<I> {
     fn zero() -> Self {
         Self {
             num_vars: 0,
@@ -203,7 +203,7 @@ impl<I: CryptoInteger> Zero for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> Add for DenseMultilinearExtension<I> {
+impl<I: Integer> Add for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn add(self, other: DenseMultilinearExtension<I>) -> Self {
@@ -211,7 +211,7 @@ impl<I: CryptoInteger> Add for DenseMultilinearExtension<I> {
     }
 }
 
-impl<'a, I: CryptoInteger> Add<&'a DenseMultilinearExtension<I>> for &DenseMultilinearExtension<I> {
+impl<'a, I: Integer> Add<&'a DenseMultilinearExtension<I>> for &DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn add(self, rhs: &'a DenseMultilinearExtension<I>) -> Self::Output {
@@ -237,15 +237,13 @@ impl<'a, I: CryptoInteger> Add<&'a DenseMultilinearExtension<I>> for &DenseMulti
     }
 }
 
-impl<I: CryptoInteger> AddAssign for DenseMultilinearExtension<I> {
+impl<I: Integer> AddAssign for DenseMultilinearExtension<I> {
     fn add_assign(&mut self, rhs: DenseMultilinearExtension<I>) {
         self.add_assign(&rhs);
     }
 }
 
-impl<'a, I: CryptoInteger> AddAssign<&'a DenseMultilinearExtension<I>>
-    for DenseMultilinearExtension<I>
-{
+impl<'a, I: Integer> AddAssign<&'a DenseMultilinearExtension<I>> for DenseMultilinearExtension<I> {
     fn add_assign(&mut self, other: &'a DenseMultilinearExtension<I>) {
         if self.is_zero() {
             *self = other.clone();
@@ -267,9 +265,7 @@ impl<'a, I: CryptoInteger> AddAssign<&'a DenseMultilinearExtension<I>>
     }
 }
 
-impl<I: CryptoInteger> AddAssign<(I, &DenseMultilinearExtension<I>)>
-    for DenseMultilinearExtension<I>
-{
+impl<I: Integer> AddAssign<(I, &DenseMultilinearExtension<I>)> for DenseMultilinearExtension<I> {
     fn add_assign(&mut self, (r, other): (I, &DenseMultilinearExtension<I>)) {
         if self.is_zero() {
             *self = other.clone();
@@ -294,7 +290,7 @@ impl<I: CryptoInteger> AddAssign<(I, &DenseMultilinearExtension<I>)>
     }
 }
 
-impl<I: CryptoInteger> Neg for DenseMultilinearExtension<I> {
+impl<I: Integer> Neg for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn neg(mut self) -> Self {
@@ -304,7 +300,7 @@ impl<I: CryptoInteger> Neg for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> Sub for DenseMultilinearExtension<I> {
+impl<I: Integer> Sub for DenseMultilinearExtension<I> {
     type Output = Self;
 
     fn sub(self, other: DenseMultilinearExtension<I>) -> Self {
@@ -312,7 +308,7 @@ impl<I: CryptoInteger> Sub for DenseMultilinearExtension<I> {
     }
 }
 
-impl<'a, I: CryptoInteger> Sub<&'a DenseMultilinearExtension<I>> for &DenseMultilinearExtension<I> {
+impl<'a, I: Integer> Sub<&'a DenseMultilinearExtension<I>> for &DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn sub(self, rhs: &'a DenseMultilinearExtension<I>) -> Self::Output {
@@ -338,15 +334,13 @@ impl<'a, I: CryptoInteger> Sub<&'a DenseMultilinearExtension<I>> for &DenseMulti
     }
 }
 
-impl<I: CryptoInteger> SubAssign for DenseMultilinearExtension<I> {
+impl<I: Integer> SubAssign for DenseMultilinearExtension<I> {
     fn sub_assign(&mut self, other: DenseMultilinearExtension<I>) {
         self.sub_assign(&other);
     }
 }
 
-impl<'a, I: CryptoInteger> SubAssign<&'a DenseMultilinearExtension<I>>
-    for DenseMultilinearExtension<I>
-{
+impl<'a, I: Integer> SubAssign<&'a DenseMultilinearExtension<I>> for DenseMultilinearExtension<I> {
     fn sub_assign(&mut self, rhs: &'a DenseMultilinearExtension<I>) {
         if self.is_zero() {
             *self = rhs.clone().neg();
@@ -368,7 +362,7 @@ impl<'a, I: CryptoInteger> SubAssign<&'a DenseMultilinearExtension<I>>
     }
 }
 
-impl<I: CryptoInteger> Mul<I> for DenseMultilinearExtension<I> {
+impl<I: Integer> Mul<I> for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn mul(mut self, rhs: I) -> DenseMultilinearExtension<I> {
@@ -380,7 +374,7 @@ impl<I: CryptoInteger> Mul<I> for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> MulAssign<I> for DenseMultilinearExtension<I> {
+impl<I: Integer> MulAssign<I> for DenseMultilinearExtension<I> {
     fn mul_assign(&mut self, rhs: I) {
         self.evaluations
             .iter_mut()
@@ -388,7 +382,7 @@ impl<I: CryptoInteger> MulAssign<I> for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> Sub<I> for DenseMultilinearExtension<I> {
+impl<I: Integer> Sub<I> for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn sub(mut self, rhs: I) -> DenseMultilinearExtension<I> {
@@ -400,7 +394,7 @@ impl<I: CryptoInteger> Sub<I> for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> Add<I> for DenseMultilinearExtension<I> {
+impl<I: Integer> Add<I> for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn add(mut self, rhs: I) -> DenseMultilinearExtension<I> {
@@ -410,7 +404,7 @@ impl<I: CryptoInteger> Add<I> for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> Index<usize> for DenseMultilinearExtension<I> {
+impl<I: Integer> Index<usize> for DenseMultilinearExtension<I> {
     type Output = I;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -418,7 +412,7 @@ impl<I: CryptoInteger> Index<usize> for DenseMultilinearExtension<I> {
     }
 }
 
-impl<I: CryptoInteger> IndexMut<usize> for DenseMultilinearExtension<I> {
+impl<I: Integer> IndexMut<usize> for DenseMultilinearExtension<I> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.evaluations[index]
     }
@@ -434,9 +428,7 @@ unsafe impl<I> Sync for DenseMultilinearExtension<I> {}
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r<I: CryptoInteger>(
-    r: &[I],
-) -> Result<DenseMultilinearExtension<I>, ArithErrors> {
+pub fn build_eq_x_r<I: Integer>(r: &[I]) -> Result<DenseMultilinearExtension<I>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals);
 
@@ -450,7 +442,7 @@ pub fn build_eq_x_r<I: CryptoInteger>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r_vec<I: CryptoInteger>(r: &[I]) -> Result<Vec<I>, ArithErrors> {
+pub fn build_eq_x_r_vec<I: Integer>(r: &[I]) -> Result<Vec<I>, ArithErrors> {
     // we build eq(x,r) from its evaluations
     // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
     // for example, with num_vars = 4, x is a binary vector of 4, then
@@ -471,7 +463,7 @@ pub fn build_eq_x_r_vec<I: CryptoInteger>(r: &[I]) -> Result<Vec<I>, ArithErrors
 /// A helper function to build eq(x, r) recursively.
 /// This function takes `r.len()` steps, and for each step it requires a maximum
 /// `r.len()-1` multiplications.
-fn build_eq_x_r_helper<I: CryptoInteger>(r: &[I], buf: &mut Vec<I>) -> Result<(), ArithErrors> {
+fn build_eq_x_r_helper<I: Integer>(r: &[I], buf: &mut Vec<I>) -> Result<(), ArithErrors> {
     if r.is_empty() {
         return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {

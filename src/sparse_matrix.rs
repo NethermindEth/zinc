@@ -41,7 +41,7 @@ where
     <T as FieldMap<F>>::Output: Clone + Send + Sync,
 {
     type Output = SparseMatrix<T::Output>;
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         let mut matrix = SparseMatrix::<F> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
@@ -167,7 +167,7 @@ pub fn compute_eval_table_sparse<F: Field>(
     rx: &[F],
     num_rows: usize,
     num_cols: usize,
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<F> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(

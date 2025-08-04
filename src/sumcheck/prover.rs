@@ -63,7 +63,7 @@ impl<F: Field> IPForMLSumcheck<F> {
         prover_state: &mut ProverState<F>,
         v_msg: &Option<VerifierMsg<F>>,
         comb_fn: impl Fn(&[F]) -> F + Send + Sync,
-        config: F::Cr,
+        config: F::R,
     ) -> ProverMsg<F> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
@@ -79,7 +79,7 @@ impl<F: Field> IPForMLSumcheck<F> {
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(&[r.clone()], unsafe {
-                    F::Cr::new(atomic_config.load(atomic::Ordering::Relaxed))
+                    F::R::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });
         } else if prover_state.round > 0 {

@@ -6,7 +6,7 @@ use super::{
     utils::{point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    traits::{CryptoInteger, Field, FieldMap},
+    traits::{Field, FieldMap, Integer},
     zip::{
         code::{LinearCodes, Zip, ZipSpec},
         pcs::utils::ToBytes,
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-impl<I: CryptoInteger, L: CryptoInteger, K: CryptoInteger + ToBytes, M: CryptoInteger, S, T>
+impl<I: Integer, L: Integer, K: Integer + ToBytes, M: Integer, S, T>
     MultilinearZip<I, L, K, M, S, T>
 where
     S: ZipSpec,
@@ -31,7 +31,7 @@ where
         point: &[F],
         eval: F,
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         L: FieldMap<F, Output = F>,
@@ -52,7 +52,7 @@ where
         points: &[Vec<F>],
         evals: &[F],
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         L: FieldMap<F, Output = F>,
@@ -69,7 +69,7 @@ where
         vp: &Self::VerifierParam,
         roots: &[Output<Keccak256>],
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<Vec<(usize, Vec<K>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
         let mut encoded_combined_rows = Vec::with_capacity(
@@ -143,7 +143,7 @@ where
         eval: F,
         columns_opened: &[(usize, Vec<K>)],
         transcript: &mut PcsTranscript<F>,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         L: FieldMap<F, Output = F>,
@@ -180,7 +180,7 @@ where
         column_entries: &[K],
         column: usize,
         num_rows: usize,
-        field: F::Cr,
+        field: F::R,
     ) -> Result<(), Error>
     where
         K: FieldMap<F, Output = F>,

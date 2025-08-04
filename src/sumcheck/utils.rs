@@ -28,7 +28,7 @@ pub fn rand_poly<F: Field>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: F::Cr,
+    config: F::R,
     rng: &mut impl RngCore,
 ) -> Result<
     (
@@ -65,7 +65,7 @@ pub fn rand_poly<F: Field>(
     Ok(((mles, degree), products, sum))
 }
 
-pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], config: F::Cr) -> F {
+pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], config: F::R) -> F {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
         let mut term = coef.clone();
@@ -103,7 +103,7 @@ pub fn eq_eval<F: Field>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
 pub fn build_eq_x_r<F: Field>(
     r: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Result<DenseMultilinearExtension<F>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);

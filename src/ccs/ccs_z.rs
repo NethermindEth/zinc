@@ -11,11 +11,11 @@ use super::{
 use crate::{
     ccs::error::CSError as Error,
     sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
-    traits::{ConfigReference, CryptoInteger, Field, FieldMap},
+    traits::{ConfigReference, Field, FieldMap, Integer},
 };
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
-pub trait Arith_Z<I: CryptoInteger> {
+pub trait Arith_Z<I: Integer> {
     /// Checks that the given Arith structure is satisfied by a z vector. Used only for testing.
     fn check_relation(&self, M: &[SparseMatrix<I>], z: &[I]) -> Result<(), Error>;
 
@@ -51,7 +51,7 @@ pub struct CCS_Z<I> {
     pub _phantom: PhantomData<I>,
 }
 
-impl<I: CryptoInteger> Arith_Z<I> for CCS_Z<I> {
+impl<I: Integer> Arith_Z<I> for CCS_Z<I> {
     /// check that a CCS structure is satisfied by a z vector. Only for testing.
     fn check_relation(&self, M: &[SparseMatrix<I>], z: &[I]) -> Result<(), Error> {
         let mut result = vec![I::ZERO; self.m];
@@ -107,7 +107,7 @@ impl<I: CryptoInteger> Arith_Z<I> for CCS_Z<I> {
     }
 }
 
-impl<I: CryptoInteger> CCS_Z<I> {
+impl<I: Integer> CCS_Z<I> {
     pub fn pad(&mut self, statement: &mut Statement_Z<I>, size: usize) {
         let size = size.next_power_of_two();
         if size > self.m {
@@ -129,10 +129,10 @@ impl<I: CryptoInteger> CCS_Z<I> {
     }
 }
 
-impl<F: Field, I: CryptoInteger + FieldMap<F, Output = F>> FieldMap<F> for CCS_Z<I> {
+impl<F: Field, I: Integer + FieldMap<F, Output = F>> FieldMap<F> for CCS_Z<I> {
     type Output = CCS_F<F>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         match config_ref.pointer() {
             Some(config_ptr) => CCS_F {
                 m: self.m,
@@ -152,18 +152,18 @@ impl<F: Field, I: CryptoInteger + FieldMap<F, Output = F>> FieldMap<F> for CCS_Z
     }
 }
 
-pub struct Statement_Z<I: CryptoInteger> {
+pub struct Statement_Z<I: Integer> {
     pub constraints: Vec<SparseMatrix<I>>,
     pub public_input: Vec<I>,
 }
 
-impl<F: Field, I: CryptoInteger> FieldMap<F> for Statement_Z<I>
+impl<F: Field, I: Integer> FieldMap<F> for Statement_Z<I>
 where
     I: FieldMap<F, Output = F>,
 {
     type Output = Statement_F<F>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         Self::Output {
             constraints: self
                 .constraints
@@ -181,7 +181,7 @@ pub struct Witness_Z<I> {
     pub w_ccs: Vec<I>,
 }
 
-impl<I: CryptoInteger> Witness_Z<I> {
+impl<I: Integer> Witness_Z<I> {
     /// Create a [`Witness`] from a ccs witness.
     pub fn new(w_ccs: Vec<I>) -> Self {
         Self { w_ccs }
@@ -195,7 +195,7 @@ where
 {
     type Output = Witness_F<F>;
 
-    fn map_to_field(&self, config_ref: F::Cr) -> Self::Output {
+    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         Witness_F {
             w_ccs: self
                 .w_ccs
@@ -211,12 +211,12 @@ where
 /// # Types
 ///  - `R: Ring` - the ring in which the constraint system is operating.
 ///
-pub trait Instance_Z<I: CryptoInteger> {
+pub trait Instance_Z<I: Integer> {
     /// Given a witness vector, produce a concatonation of the statement and the witness
     fn get_z_vector(&self, w: &[I]) -> Vec<I>;
 }
 
-impl<I: CryptoInteger> Instance_Z<I> for Statement_Z<I> {
+impl<I: Integer> Instance_Z<I> for Statement_Z<I> {
     fn get_z_vector(&self, w: &[I]) -> Vec<I> {
         let mut z: Vec<_> = Vec::with_capacity(self.public_input.len() + w.len() + 1);
 
@@ -229,7 +229,7 @@ impl<I: CryptoInteger> Instance_Z<I> for Statement_Z<I> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_Z<I: CryptoInteger>() -> CCS_Z<I> {
+pub(crate) fn get_test_ccs_Z<I: Integer>() -> CCS_Z<I> {
     // R1CS for: x^3 + x + 5 = y (example from article
     // https://www.vitalik.ca/general/2016/12/10/qap.html )
 
@@ -250,7 +250,7 @@ pub(crate) fn get_test_ccs_Z<I: CryptoInteger>() -> CCS_Z<I> {
     }
 }
 
-pub fn to_Z_matrix<I: CryptoInteger>(M: Vec<Vec<usize>>) -> SparseMatrix<I> {
+pub fn to_Z_matrix<I: Integer>(M: Vec<Vec<usize>>) -> SparseMatrix<I> {
     dense_matrix_to_sparse(
         M.iter()
             .map(|m| m.iter().map(|c| I::from_i64(*c as i64)).collect())
@@ -259,7 +259,7 @@ pub fn to_Z_matrix<I: CryptoInteger>(M: Vec<Vec<usize>>) -> SparseMatrix<I> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_Z_statement<I: CryptoInteger>(input: i64) -> Statement_Z<I> {
+pub(crate) fn get_test_ccs_Z_statement<I: Integer>(input: i64) -> Statement_Z<I> {
     let A = to_Z_matrix(vec![
         vec![1, 0, 0, 0, 0, 0],
         vec![0, 0, 0, 1, 0, 0],
@@ -287,7 +287,7 @@ pub(crate) fn get_test_ccs_Z_statement<I: CryptoInteger>(input: i64) -> Statemen
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_z_Z<I: CryptoInteger>(input: i64) -> Vec<I> {
+pub(crate) fn get_test_z_Z<I: Integer>(input: i64) -> Vec<I> {
     // z = (io, 1, w)
     vec![
         I::from_i64(input), // io
@@ -300,7 +300,7 @@ pub(crate) fn get_test_z_Z<I: CryptoInteger>(input: i64) -> Vec<I> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_wit_Z<I: CryptoInteger>(input: i64) -> Witness_Z<I> {
+pub(crate) fn get_test_wit_Z<I: Integer>(input: i64) -> Witness_Z<I> {
     Witness_Z::new(vec![
         I::from_i64(input * input * input + input + 5), // x^3 + x + 5
         I::from_i64(input * input),                     // x^2
@@ -310,7 +310,7 @@ pub(crate) fn get_test_wit_Z<I: CryptoInteger>(input: i64) -> Witness_Z<I> {
 }
 
 #[cfg(test)]
-pub(crate) fn get_test_ccs_stuff_Z<I: CryptoInteger>(
+pub(crate) fn get_test_ccs_stuff_Z<I: Integer>(
     input: i64,
 ) -> (CCS_Z<I>, Statement_Z<I>, Witness_Z<I>, Vec<I>) {
     let mut ccs = get_test_ccs_Z();
@@ -333,7 +333,7 @@ mod tests {
             ccs_f::{Arith, Instance_F, CCS_F},
             ccs_z::CCS_Z,
         },
-        crypto_int::CryptoInt,
+        crypto_int::Int,
         field::RandomField,
         field_config::{ConfigRef, FieldConfig},
         sparse_matrix::SparseMatrix,
@@ -344,7 +344,7 @@ mod tests {
     fn test_ccs_z() {
         const N: usize = 3;
         let input = 3;
-        let ccs: CCS_Z<CryptoInt<N>> = get_test_ccs_Z();
+        let ccs: CCS_Z<Int<N>> = get_test_ccs_Z();
         let statement = get_test_ccs_Z_statement(input);
         let z = get_test_z_Z(input);
         let constraints = statement
@@ -370,7 +370,7 @@ mod tests {
     #[test]
     fn test_ccs_z_conversion() {
         let input = 3;
-        let ccs = get_test_ccs_Z::<CryptoInt<N>>();
+        let ccs = get_test_ccs_Z::<Int<N>>();
         let statement = get_test_ccs_Z_statement(input);
         let z = get_test_z_Z(input);
         let wit = z[2..].to_vec();

@@ -24,7 +24,7 @@ pub fn gen_eval_point<F: Field>(
     index: usize,
     index_len: usize,
     point: &[F],
-    config: F::Cr,
+    config: F::R,
 ) -> Vec<F> {
     let index_vec: Vec<F> = bit_decompose(index as u64, index_len)
         .into_iter()

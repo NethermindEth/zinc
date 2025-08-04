@@ -3,7 +3,6 @@ use sha3::{digest::Output, Keccak256};
 
 use super::utils::MerkleTree;
 use crate::{
-    poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     traits::Integer,
     zip::code::{LinearCodes, Zip, ZipSpec},
 };
@@ -115,15 +114,7 @@ where
     T: ZipTranscript<L>,
     Zip<I, L>: LinearCodes<I, M>,
 {
-    pub type Param = MultilinearZipParams<I, L>;
-    pub type ProverParam = MultilinearZipParams<I, L>;
-    pub type VerifierParam = MultilinearZipParams<I, L>;
-    pub type Polynomial = DenseMultilinearExtensionZ<I>;
-    pub type Data = MultilinearZipData<I, K>;
-    pub type Commitment = MultilinearZipCommitment<I>;
-    pub type CommitmentChunk = Output<Keccak256>;
-
-    pub fn setup(poly_size: usize, transcript: &mut T) -> Self::Param {
+    pub fn setup(poly_size: usize, transcript: &mut T) -> MultilinearZipParams<I, L> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
         let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);

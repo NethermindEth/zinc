@@ -86,7 +86,7 @@ where
 
         // Commit to z_mle and prove its evaluation at v
         let zip_proof = Self::commit_z_mle_and_prove_evaluation::<I2, I4, I8>(
-            &z_mle, &ccs_f, &r_y, transcript, config,
+            z_mle, &ccs_f, &r_y, transcript, config,
         )?;
 
         // Return proof
@@ -176,19 +176,21 @@ where
     F::B: From<I>,
     I: FieldMap<F, Output = F>,
 {
-    pub type DenseMleF = DenseMultilinearExtension<F>;
-    pub type DenseMleZ = DenseMultilinearExtensionZ<I>;
-    pub type CcsF = CCS_F<F>;
-
-    pub type StatementF = Statement_F<F>;
-
     #[allow(clippy::type_complexity)] // TODO refactor this out
     pub fn prepare_for_random_field_piop(
         statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> SpartanResult<(Vec<F>, Self::DenseMleZ, Self::CcsF, Self::StatementF), F> {
+    ) -> SpartanResult<
+        (
+            Vec<F>,
+            DenseMultilinearExtensionZ<I>,
+            CCS_F<F>,
+            Statement_F<F>,
+        ),
+        F,
+    > {
         // z_ccs vector, i.e. concatenation x || 1 || w.
         let (z_ccs, z_mle) = Self::get_z_ccs_and_z_mle(statement, wit, ccs, config);
         let ccs_f = ccs.map_to_field(config);
@@ -202,9 +204,16 @@ where
         z_ccs: &[F],
         transcript: &mut KeccakTranscript,
         constraints: &[SparseMatrix<F>],
-        ccs: &Self::CcsF,
+        ccs: &CCS_F<F>,
         config: F::R,
-    ) -> SpartanResult<(Vec<Self::DenseMleF>, usize, Vec<Self::DenseMleF>), F> {
+    ) -> SpartanResult<
+        (
+            Vec<DenseMultilinearExtension<F>>,
+            usize,
+            Vec<DenseMultilinearExtension<F>>,
+        ),
+        F,
+    > {
         // Generate beta challenges from Step 1
         let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
 
@@ -223,7 +232,7 @@ where
         wit: &Witness_Z<I>,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> (Vec<F>, Self::DenseMleZ) {
+    ) -> (Vec<F>, DenseMultilinearExtensionZ<I>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
@@ -241,10 +250,10 @@ where
     fn sumcheck_1(
         z_ccs: &[F],
         transcript: &mut KeccakTranscript,
-        statement: &Self::StatementF,
-        ccs: &Self::CcsF,
+        statement: &Statement_F<F>,
+        ccs: &CCS_F<F>,
         config: F::R,
-    ) -> SpartanResult<(SumcheckProof<F>, Vec<F>, Vec<Self::DenseMleF>), F> {
+    ) -> SpartanResult<(SumcheckProof<F>, Vec<F>, Vec<DenseMultilinearExtension<F>>), F> {
         let (g_mles, g_degree, mz_mles) = {
             Self::construct_polynomial_g(z_ccs, transcript, &statement.constraints, ccs, config)?
         };
@@ -259,10 +268,10 @@ where
 
     fn sumcheck_2(
         r_a: &[F],
-        ccs: &Self::CcsF,
-        statement: &Self::StatementF,
+        ccs: &CCS_F<F>,
+        statement: &Statement_F<F>,
         config: F::R,
-        z_mle: &Self::DenseMleF,
+        z_mle: &DenseMultilinearExtension<F>,
         transcript: &mut KeccakTranscript,
     ) -> SpartanResult<(SumcheckProof<F>, Vec<F>), F> {
         let gamma: F = transcript.squeeze_gamma_challenge(config);
@@ -302,8 +311,8 @@ where
     }
 
     fn commit_z_mle_and_prove_evaluation<I2, I4, I8>(
-        z_mle: &Self::DenseMleZ,
-        ccs: &Self::CcsF,
+        z_mle: DenseMultilinearExtensionZ<I>,
+        ccs: &CCS_F<F>,
         r_y: &[F],
         transcript: &mut KeccakTranscript,
         config: F::R,
@@ -316,14 +325,14 @@ where
     {
         let param = MultilinearZip::<I, I2, I4, I8, S, _>::setup(ccs.m, transcript);
         let (z_data, z_comm) =
-            MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::commit::<F>(&param, z_mle)?;
+            MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::commit::<F>(&param, &z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
         MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::open(
             &param,
-            z_mle,
+            &z_mle,
             &z_data,
             r_y,
             config,
@@ -339,7 +348,7 @@ where
     }
 
     fn calculate_V_s(
-        mz_mles: &[Self::DenseMleF],
+        mz_mles: &[DenseMultilinearExtension<F>],
         r_x: &[F],
         config: F::R,
     ) -> SpartanResult<Vec<F>, F> {
@@ -359,7 +368,7 @@ where
     /// Step 2: Run linearization sum-check protocol.
     fn generate_sumcheck_proof(
         transcript: &mut KeccakTranscript,
-        mles: Vec<Self::DenseMleF>,
+        mles: Vec<DenseMultilinearExtension<F>>,
         nvars: usize,
         degree: usize,
         comb_fn: impl Fn(&[F]) -> F + Send + Sync,

@@ -21,7 +21,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
     config: ConfigRef<N>,
     prime: &str,
 ) {
-    let mut group = c.benchmark_group(format!("spartan_prover for {} prime", prime));
+    let mut group = c.benchmark_group(format!("spartan_prover for {prime} prime"));
     let mut rng = ark_std::test_rng();
 
     let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> {
@@ -39,7 +39,7 @@ fn benchmark_spartan_prover<const I: usize, const N: usize>(
             )
             .expect("Failed to prepare for random field PIOP");
 
-        group.bench_function(format!("n={}", n), |b| {
+        group.bench_function(format!("n={n}"), |b| {
             b.iter_batched(
                 KeccakTranscript::new,
                 |mut prover_transcript| {
@@ -68,7 +68,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
     config: ConfigRef<N>,
     prime: &str,
 ) {
-    let mut group = c.benchmark_group(format!("spartan_verifier for {} prime", prime));
+    let mut group = c.benchmark_group(format!("spartan_verifier for {prime} prime"));
     let mut rng = ark_std::test_rng();
 
     let prover = ZincProver::<Int<I>, RandomField<N>, ZipSpec1> { data: PhantomData };
@@ -97,7 +97,7 @@ fn benchmark_spartan_verifier<const I: usize, const N: usize>(
         )
         .expect("Failed to generate Spartan proof");
         config.reference().expect("Field config cannot be none");
-        group.bench_function(format!("n={}", n), |b| {
+        group.bench_function(format!("n={n}"), |b| {
             b.iter_batched(
                 KeccakTranscript::new,
                 |mut verifier_transcript| {

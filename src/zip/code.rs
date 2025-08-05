@@ -6,7 +6,7 @@ use itertools::Itertools;
 use super::pcs::structs::ZipTranscript;
 use crate::{
     traits::{Field, FieldMap, Integer, Words, ZipTypes},
-    zip::utils::{expand, shuffle_seeded},
+    zip::utils::expand,
 };
 
 pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
@@ -292,37 +292,6 @@ impl<L: Integer> SparseMatrixZ<L> {
         .take(dimension.n)
         .flatten()
         .collect();
-        Self { dimension, cells }
-    }
-
-    /// Samples a permutation matrix (one that has exactly one non-zero element for each row
-    /// and column).
-    pub fn sample_permutation(n: usize, rng_seed: u64) -> Self {
-        let mut cells: Vec<_> = (0..n).map(|i| (i, L::ONE)).collect();
-        shuffle_seeded(&mut cells, rng_seed);
-
-        let dimension = SparseMatrixDimension::new(n, n, 1);
-        Self { dimension, cells }
-    }
-
-    /// Creates a matrix that, when multiplied to a given vector, repeats it.
-    /// Matrix that repeats vector of length 2 three times would be:
-    /// ```text
-    /// 1 0 0
-    /// 1 0 0
-    /// 0 1 0
-    /// 0 1 0
-    /// 0 0 1
-    /// 0 0 1
-    /// ```
-    pub fn repetition(input_length: usize, rep: usize) -> Self {
-        let mut cells = Vec::with_capacity(input_length * rep);
-        for column in 0..input_length {
-            for _ in 0..rep {
-                cells.push((column, L::ONE));
-            }
-        }
-        let dimension = SparseMatrixDimension::new(input_length * rep, input_length, 1);
         Self { dimension, cells }
     }
 

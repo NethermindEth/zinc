@@ -46,26 +46,6 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         ))
     }
 
-    /// Execute a commit phase without constructing Merkle treesю
-    /// Needed for tests only.
-    #[allow(dead_code)]
-    pub fn commit_no_merkle<F: Field>(
-        pp: &MultilinearZipParams<ZT, LC>,
-        poly: &DenseMultilinearExtension<ZT::N>,
-    ) -> Result<(MultilinearZipData<ZT::K>, MultilinearZipCommitment), Error> {
-        validate_input("commit", pp.num_vars, [poly], None::<&[F]>)?;
-
-        let row_len = pp.linear_code.row_len();
-        let codeword_len = pp.linear_code.codeword_len();
-
-        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
-
-        Ok((
-            MultilinearZipData::new(rows, vec![]),
-            MultilinearZipCommitment { roots: vec![] },
-        ))
-    }
-
     #[allow(clippy::type_complexity)]
     pub fn batch_commit<F: Field>(
         pp: &MultilinearZipParams<ZT, LC>,

@@ -48,6 +48,24 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
         let n_0 = 20.min((1 << num_vars) - 1);
         let num_proximity_testing = spec.num_proximity_testing(log2_q, row_len, n_0);
 
+        // Width of each entry in codeword vector, in bits.
+        // For RAA it's initial_bits + 2*log(repetition_factor) + num_variables
+        let codeword_width_bits = {
+            let initial_bits = ZT::N::num_bits();
+            let rep_factor_log = (repetition_factor as f32).log2().ceil() as usize;
+            let num_vars_even = if num_vars % 2 == 0 {
+                num_vars
+            } else {
+                num_vars + 1
+            };
+            initial_bits + num_vars_even + (2 * rep_factor_log)
+        };
+        assert!(
+            ZT::K::num_bits() >= codeword_width_bits,
+            "Cannot fit {codeword_width_bits}-bit wide codeword entries in {} bits integers",
+            ZT::K::num_bits()
+        );
+
         let perm_1_seed = transcript.get_u64();
         let perm_2_seed = transcript.get_u64();
 

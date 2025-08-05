@@ -1,5 +1,6 @@
 use ark_std::{
     fmt::Debug,
+    iter::{Product, Sum},
     ops::{
         Add, AddAssign, Div, Index, IndexMut, Mul, MulAssign, Neg, Range, RangeTo, RemAssign, Shr,
         Sub, SubAssign,
@@ -18,27 +19,29 @@ use crate::{
 /// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
 /// Used as a bound for generic code over finite fields.
 pub trait Field:
-    Zero
-    + Eq
-    + PartialEq
-    + One
+    Debug
     + Clone
+    + PartialEq
+    + Eq
     + Default
     + Sync
     + Send
-    + for<'a> Mul<&'a Self, Output = Self>
+    + Zero
+    + One
     + Neg<Output = Self>
-    + Debug
-    + for<'a> AddAssign<&'a Self>
+    + Add<Self, Output = Self>
     + Sub<Self, Output = Self>
-    + MulAssign
-    + SubAssign
-    + Random
+    + for<'a> Mul<&'a Self, Output = Self>
     + AddAssign
-    + Div<Self, Output = Self>
-    + for<'a> core::iter::Product<&'a Self>
-    + core::iter::Sum
+    + for<'a> AddAssign<&'a Self>
+    + MulAssign
     + for<'a> MulAssign<&'a Self>
+    + SubAssign
+    + Div<Self, Output = Self>
+    + Sum
+    + for<'a> Product<&'a Self>
+    + for<'a> From<&'a Self>
+    + Random
 {
     /// Integer representation type for the field element.
     type B: BigInteger<W = Self::W> + From<Self::I> + FieldMap<Self, Output = Self>;
@@ -136,32 +139,33 @@ pub trait Words:
 
 /// Trait for cryptographic integer types.
 pub trait Integer:
-    Zero
-    + ConstZero
-    + One
-    + ConstOne
-    + crypto_bigint::Zero
-    + PartialOrd
+    Debug
+    + Clone
     + PartialEq
     + Eq
+    + PartialOrd
+    + Default
+    + Send
+    + Sync
+    + Zero
+    + crypto_bigint::Zero
+    + One
+    + ConstZero
+    + ConstOne
     + RemAssign<Self>
-    + Clone
     + Add<Output = Self>
-    + Mul<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
+    + for<'a> Sub<&'a Self, Output = Self>
+    + Mul<Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
     + for<'a> AddAssign<&'a Self>
-    + for<'a> Sub<&'a Self, Output = Self>
+    + Sum
+    + for<'a> From<&'a Self>
     + From<i64>
     + From<i32>
     + From<i8>
     + From<u8>
-    + Default
     + Random
-    + Send
-    + Sync
-    + Debug
-    + for<'a> From<&'a Self>
     + ToBytes
 {
     type W: Words;
@@ -186,6 +190,23 @@ pub trait Uinteger: Clone + FromBytes + One + for<'a> SubAssign<&'a Self> {
     /// Converts to words.
     fn to_words(self) -> Self::W;
     fn is_even(&self) -> bool;
+}
+
+pub trait ZipTypes: Send + Sync {
+    /// Width of elements in witness/polynomial evaluations on hypercube
+    type N: Integer;
+
+    /// Width of elements in the encoding matrices
+    type L: Integer + for<'a> From<&'a Self::N>;
+
+    /// Width of elements in the code
+    type K: Integer + for<'a> From<&'a Self::N> + for<'a> From<&'a Self::L>;
+
+    /// Width of elements in linear combination of code rows
+    type M: Integer
+        + for<'a> From<&'a Self::N>
+        + for<'a> From<&'a Self::L>
+        + for<'a> From<&'a Self::K>;
 }
 
 pub trait PrimalityTest<U: Uinteger> {

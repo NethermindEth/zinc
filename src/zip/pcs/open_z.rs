@@ -1,18 +1,16 @@
 #![allow(non_snake_case)]
-use ark_std::{borrow::Cow, iterable::Iterable, vec::Vec};
+use ark_std::{borrow::Cow, vec::Vec};
 use itertools::izip;
 
 use super::{
-    structs::{MultilinearZip, MultilinearZipData, ZipTranscript},
+    structs::{MultilinearZip, MultilinearZipData},
     utils::{left_point_to_tensor, validate_input, ColumnOpening},
 };
 use crate::{
-    poly_z::mle::{
-        DenseMultilinearExtension as DenseMultilinearExtensionZ, DenseMultilinearExtension,
-    },
-    traits::{Field, FieldMap, Integer},
+    poly_z::mle::DenseMultilinearExtension,
+    traits::{Field, FieldMap, ZipTypes},
     zip::{
-        code::{LinearCodes, Zip, ZipSpec},
+        code::LinearCode,
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
@@ -20,26 +18,19 @@ use crate::{
     },
 };
 
-impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
-where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
-    L: for<'a> From<&'a I> + for<'a> From<&'a L>,
-    M: for<'a> From<&'a I>,
-    Zip<I, L>: LinearCodes<I, M>,
-{
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     pub fn open<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtensionZ<I>,
-        commit_data: &MultilinearZipData<I, K>,
+        pp: &MultilinearZipParams<ZT, LC>,
+        poly: &DenseMultilinearExtension<ZT::N>,
+        commit_data: &MultilinearZipData<ZT::K>,
         point: &[F],
         field: F::R,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error>
     where
-        I: FieldMap<F, Output = F>,
+        ZT::N: FieldMap<F, Output = F>,
     {
-        validate_input("open", pp.num_vars(), [poly], [point])?;
+        validate_input("open", pp.num_vars, [poly], [point])?;
 
         Self::prove_testing_phase(pp, poly, commit_data, transcript, field)?;
 
@@ -49,17 +40,16 @@ where
     }
 
     // TODO Apply 2022/1355 https://eprint.iacr.org/2022/1355.pdf#page=30
-    pub fn batch_open<'a, F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        polys: impl Iterable<Item = &'a DenseMultilinearExtension<I>>,
-        comms: impl Iterable<Item = &'a MultilinearZipData<I, K>>,
+    pub fn batch_open<F: Field>(
+        pp: &MultilinearZipParams<ZT, LC>,
+        polys: &[DenseMultilinearExtension<ZT::N>],
+        comms: &[MultilinearZipData<ZT::K>],
         points: &[Vec<F>],
         transcript: &mut PcsTranscript<F>,
         field: F::R,
     ) -> Result<(), Error>
     where
-        I: FieldMap<F, Output = F> + 'a,
-        K: 'a,
+        ZT::N: FieldMap<F, Output = F>,
     {
         for (poly, comm, point) in izip!(polys.iter(), comms.iter(), points.iter()) {
             Self::open(pp, poly, comm, point, field, transcript)?;
@@ -68,21 +58,22 @@ where
     }
 
     // Subprotocol functions
+
     fn prove_evaluation_phase<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
+        pp: &MultilinearZipParams<ZT, LC>,
         transcript: &mut PcsTranscript<F>,
         point: &[F],
-        poly: &DenseMultilinearExtensionZ<I>,
+        poly: &DenseMultilinearExtension<ZT::N>,
         field: F::R,
     ) -> Result<(), Error>
     where
-        I: FieldMap<F, Output = F>,
+        ZT::N: FieldMap<F, Output = F>,
     {
-        let num_rows = pp.num_rows();
-        let row_len = <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip());
+        let num_rows = pp.num_rows;
+        let row_len = pp.linear_code.row_len();
 
-        // We prove evaluations over the field,so integers need to be mapped to field elements first
-        let q_0 = left_point_to_tensor(num_rows, point, field).unwrap();
+        // We prove evaluations over the field, so integers need to be mapped to field elements first
+        let q_0 = left_point_to_tensor(num_rows, point, field)?;
 
         let evaluations = poly.evaluations.map_to_field(field);
 
@@ -100,59 +91,54 @@ where
     }
 
     pub(super) fn prove_testing_phase<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        poly: &DenseMultilinearExtensionZ<I>,
-        commit_data: &MultilinearZipData<I, K>,
+        pp: &MultilinearZipParams<ZT, LC>,
+        poly: &DenseMultilinearExtension<ZT::N>,
+        commit_data: &MultilinearZipData<ZT::K>,
         transcript: &mut PcsTranscript<F>,
-        field: F::R, // This is only needed to called the transcript but we are getting integers not fields
+        field: F::R, // This is only needed to call the transcript, but we are getting integers not fields
     ) -> Result<(), Error> {
-        if pp.num_rows() > 1 {
+        if pp.num_rows > 1 {
             // If we can take linear combinations
             // perform the proximity test an arbitrary number of times
-            for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_proximity_testing(pp.zip()) {
-                let coeffs = transcript
-                    .fs_transcript
-                    .get_integer_challenges(pp.num_rows());
-                let coeffs = coeffs.iter().map(expand::<I, M>);
+            for _ in 0..pp.linear_code.num_proximity_testing() {
+                let coeffs = transcript.fs_transcript.get_integer_challenges(pp.num_rows);
+                let coeffs = coeffs.iter().map(expand::<ZT::N, ZT::M>);
 
-                let evals = poly.evaluations.iter().map(expand::<I, M>);
-                let combined_row = combine_rows(
-                    coeffs,
-                    evals,
-                    <Zip<I, L> as LinearCodes<I, L>>::row_len(pp.zip()),
-                );
+                let evals = poly.evaluations.iter().map(expand::<ZT::N, ZT::M>);
+
+                // u' in the Zinc paper
+                let combined_row = combine_rows(coeffs, evals, pp.linear_code.row_len());
 
                 transcript.write_integers(combined_row.iter())?;
             }
         }
 
         // Open merkle tree for each column drawn
-        for _ in 0..<Zip<I, L> as LinearCodes<I, L>>::num_column_opening(pp.zip()) {
-            let column = transcript.squeeze_challenge_idx(
-                field,
-                <Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip()),
-            );
+        for _ in 0..pp.linear_code.num_column_opening() {
+            let column = transcript.squeeze_challenge_idx(field, pp.linear_code.codeword_len());
             Self::open_merkle_trees_for_column(pp, commit_data, column, transcript)?;
         }
         Ok(())
     }
 
     pub(super) fn open_merkle_trees_for_column<F: Field>(
-        pp: &MultilinearZipParams<I, L>,
-        commit_data: &MultilinearZipData<I, K>,
+        pp: &MultilinearZipParams<ZT, LC>,
+        commit_data: &MultilinearZipData<ZT::K>,
         column: usize,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), Error> {
-        //Write the elements in the squeezed column to the shared transcript
-        transcript.write_integers(
-            commit_data
-                .rows()
-                .iter()
-                .skip(column)
-                .step_by(<Zip<I, L> as LinearCodes<I, L>>::codeword_len(pp.zip())),
-        )?;
+        let column_values = commit_data
+            .rows
+            .iter()
+            .skip(column)
+            .step_by(pp.linear_code.codeword_len());
+
+        // Write the elements in the squeezed column to the shared transcript
+        transcript.write_integers(column_values)?;
+
         ColumnOpening::open_at_column(column, commit_data, transcript)
             .map_err(|_| Error::InvalidPcsOpen("Failed to open merkle tree".into()))?;
+
         Ok(())
     }
 }

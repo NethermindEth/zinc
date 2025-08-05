@@ -1,4 +1,5 @@
 use ark_std::{sync::atomic::Ordering, vec::Vec};
+use num_traits::Zero;
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
@@ -17,14 +18,11 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
     sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
-    traits::{ConfigReference, Field, FieldMap, Integer},
+    traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::ZipSpec,
-        pcs::{
-            structs::{MultilinearZip, ZipTranscript},
-            utils::ToBytes,
-        },
+        code::{LinearCodeSpec, ZipLinearCode},
+        pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
@@ -33,48 +31,37 @@ pub type SpartanResult<T, F> = Result<T, SpartanError<F>>;
 pub type ZincResult<T, F> = Result<T, ZincError<F>>;
 
 pub trait Prover<I: Integer, F: Field> {
-    fn prove<I2, I4, I8>(
+    fn prove(
         &self,
         statement: &Statement_Z<I>,
         wit: &Witness_Z<I>,
         transcript: &mut KeccakTranscript,
         ccs: &CCS_Z<I>,
         config: F::R,
-    ) -> Result<ZincProof<I, F>, ZincError<F>>
-    where
-        I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: Integer + for<'a> From<&'a I>,
-        KeccakTranscript: ZipTranscript<I2>;
+    ) -> Result<ZincProof<F>, ZincError<F>>;
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> Prover<I, F> for ZincProver<I, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> Prover<ZT::N, F> for ZincProver<ZT, F, S>
 where
-    for<'a> I: From<&'a F::B>,
-    for<'a> F::I: From<&'a I::I>, // TODO
-    F::B: From<I>,
-    I: FieldMap<F, Output = F>,
+    for<'a> ZT::N: From<&'a F::I>,
+    for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO
+    for<'a> F::I: From<&'a ZT::N>,
+    ZT::N: FieldMap<F, Output = F>,
 {
-    fn prove<I2, I4, I8>(
+    fn prove(
         &self,
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
+        statement: &Statement_Z<ZT::N>,
+        wit: &Witness_Z<ZT::N>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
+        ccs: &CCS_Z<ZT::N>,
         config: F::R,
-    ) -> ZincResult<ZincProof<I, F>, F>
-    where
-        I8: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2>,
-        I4: Integer + for<'a> From<&'a I> + for<'a> From<&'a I2> + ToBytes,
-        I2: Integer + for<'a> From<&'a I>,
-        KeccakTranscript: ZipTranscript<I2>,
-    {
+    ) -> ZincResult<ZincProof<F>, F> {
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
         let (z_ccs, z_mle, ccs_f, statement_f) =
             Self::prepare_for_random_field_piop(statement, wit, ccs, config)?;
 
         // Prove Spartan protocol over random field
-        let (spartan_proof, r_y) = SpartanProver::<I, F>::prove(
+        let (spartan_proof, r_y) = SpartanProver::<ZT::N, F>::prove(
             self,
             &statement_f,
             &z_ccs,
@@ -85,8 +72,13 @@ where
         )?;
 
         // Commit to z_mle and prove its evaluation at v
-        let zip_proof = Self::commit_z_mle_and_prove_evaluation::<I2, I4, I8>(
-            z_mle, &ccs_f, &r_y, transcript, config,
+        let zip_proof = Self::commit_z_mle_and_prove_evaluation(
+            &self.lc_spec,
+            &z_mle,
+            &ccs_f,
+            &r_y,
+            transcript,
+            config,
         )?;
 
         // Return proof
@@ -96,6 +88,7 @@ where
         })
     }
 }
+
 /// Prover for the Spartan protocol
 pub trait SpartanProver<I: Integer, F: Field> {
     /// Generates a proof for the spartan protocol
@@ -128,18 +121,18 @@ pub trait SpartanProver<I: Integer, F: Field> {
     ) -> SpartanResult<(SpartanProof<F>, Vec<F>), F>;
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> SpartanProver<I, F> for ZincProver<I, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanProver<ZT::N, F> for ZincProver<ZT, F, S>
 where
-    for<'a> I: From<&'a F::B>,
-    for<'a> F::I: From<&'a I::I>, // TODO
-    F::B: From<I>,
-    I: FieldMap<F, Output = F>,
+    for<'a> ZT::N: From<&'a F::I>,
+    for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO
+    for<'a> F::I: From<&'a ZT::N>,
+    ZT::N: FieldMap<F, Output = F>,
 {
     fn prove(
         &self,
         statement_f: &Statement_F<F>,
         z_ccs: &[F],
-        z_mle: &DenseMultilinearExtensionZ<I>,
+        z_mle: &DenseMultilinearExtensionZ<ZT::N>,
         ccs_f: &CCS_F<F>,
         transcript: &mut KeccakTranscript,
         config: F::R,
@@ -169,23 +162,23 @@ where
     }
 }
 
-impl<I: Integer, F: Field, S: ZipSpec> ZincProver<I, F, S>
+impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S>
 where
-    for<'a> I: From<&'a F::B>,
-    for<'a> F::I: From<&'a I::I>, // TODO
-    F::B: From<I>,
-    I: FieldMap<F, Output = F>,
+    for<'a> ZT::N: From<&'a F::I>,
+    for<'a> F::I: From<&'a <ZT::N as Integer>::I>, // TODO
+    for<'a> F::I: From<&'a ZT::N>,
+    ZT::N: FieldMap<F, Output = F>,
 {
     #[allow(clippy::type_complexity)] // TODO refactor this out
     pub fn prepare_for_random_field_piop(
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
-        ccs: &CCS_Z<I>,
+        statement: &Statement_Z<ZT::N>,
+        wit: &Witness_Z<ZT::N>,
+        ccs: &CCS_Z<ZT::N>,
         config: F::R,
     ) -> SpartanResult<
         (
             Vec<F>,
-            DenseMultilinearExtensionZ<I>,
+            DenseMultilinearExtensionZ<ZT::N>,
             CCS_F<F>,
             Statement_F<F>,
         ),
@@ -228,15 +221,15 @@ where
     }
 
     fn get_z_ccs_and_z_mle(
-        statement: &Statement_Z<I>,
-        wit: &Witness_Z<I>,
-        ccs: &CCS_Z<I>,
+        statement: &Statement_Z<ZT::N>,
+        wit: &Witness_Z<ZT::N>,
+        ccs: &CCS_Z<ZT::N>,
         config: F::R,
-    ) -> (Vec<F>, DenseMultilinearExtensionZ<I>) {
+    ) -> (Vec<F>, DenseMultilinearExtensionZ<ZT::N>) {
         let mut z_ccs = statement.get_z_vector(&wit.w_ccs);
 
         if z_ccs.len() <= ccs.m {
-            z_ccs.resize(ccs.m, I::ZERO);
+            z_ccs.resize(ccs.m, ZT::N::zero());
         }
         let z_mle = DenseMultilinearExtensionZ::from_evaluations_slice(ccs.s_prime, &z_ccs);
 
@@ -310,34 +303,22 @@ where
         Self::generate_sumcheck_proof(transcript, sumcheck_2_mles, ccs.s, 2, comb_fn_2, config)
     }
 
-    fn commit_z_mle_and_prove_evaluation<I2, I4, I8>(
-        z_mle: DenseMultilinearExtensionZ<I>,
+    fn commit_z_mle_and_prove_evaluation(
+        lc_spec: &S,
+        z_mle: &DenseMultilinearExtensionZ<ZT::N>,
         ccs: &CCS_F<F>,
         r_y: &[F],
         transcript: &mut KeccakTranscript,
         config: F::R,
-    ) -> SpartanResult<ZipProof<I, F>, F>
-    where
-        I8: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I>,
-        I4: Integer + for<'a> From<&'a I2> + for<'a> From<&'a I> + ToBytes,
-        I2: Integer + for<'a> From<&'a I>,
-        KeccakTranscript: ZipTranscript<I2>,
-    {
-        let param = MultilinearZip::<I, I2, I4, I8, S, _>::setup(ccs.m, transcript);
-        let (z_data, z_comm) =
-            MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::commit::<F>(&param, &z_mle)?;
+    ) -> SpartanResult<ZipProof<F>, F> {
+        let linear_code = ZipLinearCode::<ZT>::new(lc_spec, ccs.m, transcript);
+        let param = MultilinearZip::<ZT, _>::setup(ccs.m, linear_code);
+        let (z_data, z_comm) = MultilinearZip::<ZT, _>::commit::<F>(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();
         let v = z_mle.map_to_field(config).evaluate(r_y, config).ok_or(
             MleEvaluationError::IncorrectLength(r_y.len(), z_mle.num_vars),
         )?;
-        MultilinearZip::<I, I2, I4, I8, S, KeccakTranscript>::open(
-            &param,
-            &z_mle,
-            &z_data,
-            r_y,
-            config,
-            &mut pcs_transcript,
-        )?;
+        MultilinearZip::<ZT, _>::open(&param, z_mle, &z_data, r_y, config, &mut pcs_transcript)?;
 
         let pcs_proof = pcs_transcript.into_proof();
         Ok(ZipProof {

@@ -1,5 +1,6 @@
 use ark_std::{
     cmp::Ordering,
+    iter::Sum,
     ops::{Add, AddAssign, Mul, RemAssign, Sub},
     rand::RngCore,
     vec::Vec,
@@ -191,6 +192,15 @@ impl<const N: usize> ToBytes for Int<N> {
     }
 }
 
+impl<const N: usize> Sum for Int<N> {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::zero(), |mut acc, x| {
+            acc.add_assign(&x);
+            acc
+        })
+    }
+}
+
 impl<const N: usize> Integer for Int<N> {
     type W = Words<N>;
     type Uint = Uint<N>;
@@ -211,4 +221,52 @@ impl<const N: usize> Integer for Int<N> {
     fn abs(&self) -> Self::Uint {
         Uint(self.0.abs())
     }
+}
+
+/// Defines a wrapper type suitable for implementing the `ZipTypes` trait with const generics.
+///
+/// # Usage
+/// - `define_random_field_zip_types!();`
+///   Expands to `pub struct RandomFieldZipTypes<const N: usize>();`
+///
+/// - `define_random_field_zip_types!(CustomName);`
+///   Expands to `pub struct CustomName<const N: usize>();`
+///
+/// This macro allows downstream crates to define their own local wrapper types for implementing traits, in compliance with Rust's orphan rule.
+#[macro_export]
+macro_rules! define_random_field_zip_types {
+    () => {
+        define_random_field_zip_types!(RandomFieldZipTypes);
+    };
+
+    ($name:ident) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub struct $name<const N: usize>();
+    };
+}
+
+/// Implements the `ZipTypes` trait for a wrapper type and a specific const parameter.
+///
+/// # Usage
+/// - `implement_random_field_zip_types!(N);`
+///   Implements `ZipTypes` for `RandomFieldZipTypes<N>`.
+///
+/// - `implement_random_field_zip_types!(TypeName, N);`
+///   Implements `ZipTypes` for `TypeName<N>`.
+///
+/// This macro reduces boilerplate and ensures consistent associated type definitions for each implementation.
+#[macro_export]
+macro_rules! implement_random_field_zip_types {
+    ($N:expr) => {
+        implement_random_field_zip_types!(RandomFieldZipTypes, $N);
+    };
+
+    ($name:ident, $N:expr) => {
+        impl $crate::traits::ZipTypes for $name<$N> {
+            type N = $crate::field::Int<$N>;
+            type L = $crate::field::Int<{ 2 * $N }>;
+            type K = $crate::field::Int<{ 4 * $N }>;
+            type M = $crate::field::Int<{ 8 * $N }>;
+        }
+    };
 }

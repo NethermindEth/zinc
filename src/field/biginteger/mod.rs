@@ -529,7 +529,7 @@ impl<const N: usize> BigInt<N> {
     }
 
     #[inline]
-    pub fn montogomery_reduction(
+    pub fn montgomery_reduction(
         &mut self,
         lo: &mut Self,
         hi: &mut Self,

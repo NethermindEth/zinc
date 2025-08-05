@@ -214,12 +214,12 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<F: Field, I: Integer, M: Integer>(
+    pub fn open_at_column<F: Field, M: Integer>(
         column: usize,
-        commit_data: &MultilinearZipData<I, M>,
+        commit_data: &MultilinearZipData<M>,
         transcript: &mut PcsTranscript<F>,
     ) -> Result<(), MerkleError> {
-        for row_merkle_tree in commit_data.rows_merkle_trees() {
+        for row_merkle_tree in commit_data.rows_merkle_trees.iter() {
             let merkle_path = MerkleProof::create_proof(row_merkle_tree, column)?;
             transcript
                 .write_merkle_proof(&merkle_path)

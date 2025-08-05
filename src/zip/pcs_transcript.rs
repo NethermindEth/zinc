@@ -15,10 +15,17 @@ use crate::{
     transcript::KeccakTranscript,
 };
 
+/// A transcript for Polynomial Commitment Scheme (PCS) operations.
+/// Manages both Fiat-Shamir transformations and serialization/deserialization of proof data.
 #[derive(Default, Clone)]
 pub struct PcsTranscript<F: Field> {
+    /// Handles Fiat-Shamir transformations for non-interactive zero-knowledge proofs.
+    /// Used to absorb field elements and generate cryptographic challenges.
     pub fs_transcript: KeccakTranscript,
+
+    /// Manages serialization and deserialization of proof data as a byte stream.
     pub stream: Cursor<Vec<u8>>,
+
     _phantom: PhantomData<F>,
 }
 
@@ -27,10 +34,12 @@ impl<F: Field> PcsTranscript<F> {
         Self::default()
     }
 
+    /// Converts the transcript into a serialized proof as a byte vector.
     pub fn into_proof(self) -> Vec<u8> {
         self.stream.into_inner()
     }
 
+    /// Creates a transcript from an existing serialized proof.
     pub fn from_proof(proof: &[u8]) -> Self {
         Self {
             fs_transcript: KeccakTranscript::default(),
@@ -39,10 +48,14 @@ impl<F: Field> PcsTranscript<F> {
         }
     }
 
+    /// Absorbs a field element into the Fiat-Shamir transcript.
+    /// This is used to incorporate public values into the transcript for challenge generation.
     pub fn common_field_element(&mut self, fe: &F) {
         self.fs_transcript.absorb_random_field(fe);
     }
 
+    /// Reads a cryptographic commitment from the proof stream.
+    /// Used during proof verification to retrieve previously committed values.
     pub fn read_commitment(&mut self) -> Result<Output<Keccak256>, Error> {
         let mut buf = Output::<Keccak256>::default();
         self.stream
@@ -51,6 +64,8 @@ impl<F: Field> PcsTranscript<F> {
         Ok(*Output::<Keccak256>::from_slice(&buf))
     }
 
+    /// Writes a cryptographic commitment to the proof stream.
+    /// Used during proof generation to store commitments for later verification.
     pub fn write_commitment(&mut self, comm: &Output<Keccak256>) -> Result<(), Error> {
         self.stream
             .write_all(comm)
@@ -73,6 +88,8 @@ impl<F: Field> PcsTranscript<F> {
             .collect::<Result<Vec<_>, _>>()
     }
 
+    /// Reads a field element from the proof stream and absorbs it into the transcript.
+    /// Used during proof verification to retrieve and process field elements.
     pub fn read_field_element(&mut self, config: F::R) -> Result<F, Error> {
         let mut bytes: Vec<u8> = vec![0; F::W::num_words() * 8];
 
@@ -86,6 +103,8 @@ impl<F: Field> PcsTranscript<F> {
         Ok(fe)
     }
 
+    /// Writes a field element to the proof stream and absorbs it into the transcript.
+    /// Used during proof generation to store field elements for later verification.
     pub fn write_field_element(&mut self, fe: &F) -> Result<(), Error> {
         self.common_field_element(fe);
         let repr = fe.value().clone().to_bytes_be();
@@ -103,6 +122,7 @@ impl<F: Field> PcsTranscript<F> {
         }
         Ok(())
     }
+
     // pub fn write_integers<M: CryptoInt>(&mut self, ints: &[M]) -> Result<(), Error> {
     //     for int in ints {
     //         self.write_integer(int)?;
@@ -156,6 +176,9 @@ impl<F: Field> PcsTranscript<F> {
         Ok(())
     }
 
+    /// Generates a pseudorandom index based on the current transcript state.
+    /// Used to create deterministic challenges for zero-knowledge protocols.
+    /// Returns an index between 0 and cap-1.
     pub fn squeeze_challenge_idx(&mut self, config: F::R, cap: usize) -> usize {
         let challenge: F = self.fs_transcript.get_challenge(config);
         let bytes = challenge.value().clone().to_bytes_le();

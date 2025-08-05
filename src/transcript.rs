@@ -8,8 +8,11 @@ use crate::{
     zip::pcs::structs::ZipTranscript,
 };
 
+/// A cryptographic transcript implementation using the Keccak-256 hash function.
+/// Used for Fiat-Shamir transformations in zero-knowledge proof systems.
 #[derive(Clone)]
 pub struct KeccakTranscript {
+    /// The underlying Keccak-256 hasher that maintains the transcript state.
     hasher: Keccak256,
 }
 
@@ -26,10 +29,14 @@ impl KeccakTranscript {
         }
     }
 
+    /// Absorbs arbitrary bytes into the transcript.
+    /// This updates the internal state of the hasher with the provided data.
     pub fn absorb(&mut self, v: &[u8]) {
         self.hasher.update(v);
     }
 
+    /// Generates a specified number of pseudorandom bytes based on the current transcript state.
+    /// Uses a counter-based approach to generate enough bytes from the hasher.
     pub fn get_random_bytes(&mut self, length: usize) -> Vec<u8> {
         let mut result = Vec::with_capacity(length);
         let mut counter = 0;
@@ -46,16 +53,22 @@ impl KeccakTranscript {
         result
     }
 
+    /// Absorbs a field element into the transcript.
+    /// Delegates to the field element's implementation of absorb_into_transcript.
     pub fn absorb_random_field<F: Field>(&mut self, v: &F) {
         v.absorb_into_transcript(self)
     }
 
+    /// Absorbs a slice of field elements into the transcript.
+    /// Processes each field element in the slice sequentially.
     pub fn absorb_slice<F: Field>(&mut self, slice: &[F]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
     }
 
+    /// Internal helper that generates two 128-bit limbs from the current transcript state.
+    /// Updates the transcript state.
     fn get_challenge_limbs(&mut self) -> (u128, u128) {
         let challenge = self.hasher.clone().finalize();
 
@@ -69,6 +82,7 @@ impl KeccakTranscript {
         (lo, hi)
     }
 
+    /// Generates a pseudorandom field element as a challenge based on the current transcript state.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<F: Field>(&mut self, config_ref: F::R) -> F {
         let (lo, hi) = self.get_challenge_limbs();
@@ -115,12 +129,15 @@ impl KeccakTranscript {
             ret
         }
     }
+
+    /// Generates pseudorandom field elements as challenges based on the current transcript state.
     pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::R) -> Vec<F> {
         let mut challenges = Vec::with_capacity(n);
         challenges.extend((0..n).map(|_| self.get_challenge::<F>(config)));
         challenges
     }
 
+    /// Generates a pseudorandom [Integer] as a challenge based on the current transcript state.
     pub fn get_integer_challenge<I: Integer>(&mut self) -> I {
         let mut words = I::W::default();
 
@@ -136,9 +153,12 @@ impl KeccakTranscript {
         I::from_words(words)
     }
 
+    /// Generates pseudorandom [CryptoInt]s as challenges based on the current transcript state.
     pub fn get_integer_challenges<I: Integer>(&mut self, n: usize) -> Vec<I> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
+
+    /// Generates a pseudorandom `usize` within the given range bounds based on the current transcript state.
     fn get_usize_in_range(&mut self, range: &ark_std::ops::Range<usize>) -> usize {
         let challenge = self.hasher.clone().finalize();
 
@@ -150,6 +170,7 @@ impl KeccakTranscript {
         range.start + (num % (range.end - range.start))
     }
 }
+
 impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
     fn get_encoding_element(&mut self) -> I {
         let byte = self.get_random_bytes(1)[0];

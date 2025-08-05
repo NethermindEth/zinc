@@ -71,8 +71,25 @@ where
     f((v, 0));
 }
 
-// Define function that performs a row operation on the evaluation matrix
-// [t_0]^T * M]
+/// Computes a linear combination of multiple evaluation rows into a single combined row.
+///
+/// Given a flat `evaluations` vector, interpreted as a matrix with `row_len` columns,
+/// this function treats each consecutive `row_len` values as one row. The output is a single row,
+/// computed by multiplying each input row by the corresponding coefficient from `coeffs`,
+/// and summing these scaled rows column-wise.
+///
+/// This is equivalent to performing a matrix-vector multiplication where the matrix is formed by
+/// the evaluations and the vector is formed by the coefficients.
+///
+/// # Arguments
+///
+/// - `coeffs`: Coefficients applied to each row.
+/// - `evaluations`: Flattened evaluations arranged row-wise.
+/// - `row_len`: Number of columns per evaluation row.
+///
+/// # Returns
+///
+/// A vector of length `row_len` representing the combined row.
 pub(super) fn combine_rows<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
 where
     F: Clone
@@ -107,6 +124,7 @@ where
 
     combined_row
 }
+
 pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &N) -> M {
     assert!(
         N::W::num_words() <= M::W::num_words(),

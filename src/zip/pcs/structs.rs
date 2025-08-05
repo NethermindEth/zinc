@@ -3,88 +3,43 @@ use sha3::{digest::Output, Keccak256};
 
 use super::utils::MerkleTree;
 use crate::{
-    traits::Integer,
-    zip::code::{LinearCodes, Zip, ZipSpec},
+    traits::{Integer, ZipTypes},
+    zip::code::LinearCode,
 };
 
-// N is the width of elements in witness/ polynomial evaluations on hypercube
-// L is the width of elements in the encoding matrices
-// K is the width of elements in the code
-// M is the width of elements in linear combination of code rows
-#[derive(Debug, Clone)]
-pub struct MultilinearZip<
-    N: Integer,
-    L: Integer,
-    K: Integer,
-    M: Integer,
-    S: ZipSpec,
-    T: ZipTranscript<L>,
->(PhantomData<(N, L, K, M, S, T)>);
+pub struct MultilinearZip<ZT: ZipTypes, LC: LinearCode<ZT>>(PhantomData<(ZT, LC)>);
 
+/// Parameters for the Zip PCS.
 #[derive(Clone, Debug)]
-pub struct MultilinearZipParams<N: Integer, L: Integer> {
-    num_vars: usize,
-    num_rows: usize,
-    zip: Zip<N, L>,
-}
-
-impl<N: Integer, L: Integer> MultilinearZipParams<N, L> {
-    pub fn num_vars(&self) -> usize {
-        self.num_vars
-    }
-
-    pub fn num_rows(&self) -> usize {
-        self.num_rows
-    }
-
-    pub fn zip(&self) -> &Zip<N, L> {
-        &self.zip
-    }
+pub struct MultilinearZipParams<ZT: ZipTypes, LC: LinearCode<ZT>> {
+    pub num_vars: usize,
+    pub num_rows: usize,
+    pub linear_code: LC,
+    phantom_data_zt: PhantomData<ZT>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
-pub struct MultilinearZipData<N: Integer, K: Integer> {
-    /// The encoded rows of the polynomial matrix representation
-    rows: Vec<K>,
+pub struct MultilinearZipData<K: Integer> {
+    /// The encoded rows of the polynomial matrix representation, referred to as "u-hat" in the Zinc paper
+    pub rows: Vec<K>,
     /// Merkle trees of each row
-    rows_merkle_trees: Vec<MerkleTree>,
-    phantom: PhantomData<N>,
-}
-/// Representantation of a zip commitment to a multilinear polynomial
-#[derive(Clone, Debug, Default)]
-pub struct MultilinearZipCommitment<I: Integer> {
-    /// Roots of the merkle tree of each row
-    roots: Vec<Output<Keccak256>>,
-    phantom: PhantomData<I>,
-}
-impl<I: Integer> MultilinearZipCommitment<I> {
-    pub fn new(roots: Vec<Output<Keccak256>>) -> MultilinearZipCommitment<I> {
-        MultilinearZipCommitment {
-            roots,
-            phantom: PhantomData,
-        }
-    }
-    pub fn roots(&self) -> &[Output<Keccak256>] {
-        &self.roots
-    }
+    pub rows_merkle_trees: Vec<MerkleTree>,
 }
 
-impl<N: Integer, K: Integer> MultilinearZipData<N, K> {
-    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<N, K> {
+/// Representantation of a zip commitment to a multilinear polynomial
+#[derive(Clone, Debug, Default)]
+pub struct MultilinearZipCommitment {
+    /// Roots of the merkle tree of each row
+    pub roots: Vec<Output<Keccak256>>,
+}
+
+impl<K: Integer> MultilinearZipData<K> {
+    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<K> {
         MultilinearZipData {
             rows,
             rows_merkle_trees,
-            phantom: PhantomData,
         }
-    }
-
-    pub fn rows(&self) -> &[K] {
-        &self.rows
-    }
-
-    pub fn rows_merkle_trees(&self) -> &[MerkleTree] {
-        &self.rows_merkle_trees
     }
 
     pub fn roots(&self) -> Vec<Output<Keccak256>> {
@@ -108,22 +63,18 @@ pub trait ZipTranscript<I: Integer> {
         count: usize,
     ) -> usize;
 }
-impl<I: Integer, L: Integer, K: Integer, M: Integer, S, T> MultilinearZip<I, L, K, M, S, T>
-where
-    S: ZipSpec,
-    T: ZipTranscript<L>,
-    Zip<I, L>: LinearCodes<I, M>,
-{
-    pub fn setup(poly_size: usize, transcript: &mut T) -> MultilinearZipParams<I, L> {
+
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
+    pub fn setup(poly_size: usize, linear_code: LC) -> MultilinearZipParams<ZT, LC> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
-        let zip = Zip::new_multilinear::<S, T>(num_vars, 20.min((1 << num_vars) - 1), transcript);
+        let num_rows = ((1 << num_vars) / linear_code.row_len()).next_power_of_two();
 
         MultilinearZipParams {
             num_vars,
-            num_rows: ((1 << num_vars) / <Zip<I, L> as LinearCodes<I, M>>::row_len(&zip))
-                .next_power_of_two(),
-            zip,
+            num_rows,
+            linear_code,
+            phantom_data_zt: PhantomData,
         }
     }
 }

@@ -168,7 +168,7 @@ impl<const N: usize> Config for FieldConfig<N> {
         let (mut lo, mut hi) = a.mul_naive(b);
 
         // Montgomery reduction
-        let carry = a.montogomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
+        let carry = a.montgomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
 
         self.reduce_modulus(a, carry);
     }

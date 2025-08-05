@@ -88,12 +88,8 @@ impl MerkleTree {
 
     fn compute_leaves_hashes<T: ToBytes + Send + Sync>(hashes: &mut [blake3::Hash], leaves: &[T]) {
         parallelize(hashes, |(hashes, start)| {
-            let mut hasher = blake3::Hasher::new();
             for (hash, row) in hashes.iter_mut().zip(start..) {
-                let bytes = leaves[row].to_bytes();
-                hasher.update(&bytes);
-                *hash = hasher.finalize();
-                hasher.reset();
+                *hash = blake3::hash(&leaves[row].to_bytes());
             }
         });
     }

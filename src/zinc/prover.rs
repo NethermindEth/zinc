@@ -21,7 +21,8 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{LinearCodeSpec, ZipLinearCode},
+        code::LinearCodeSpec,
+        code_raa::RaaCode,
         pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
@@ -311,7 +312,7 @@ where
         transcript: &mut KeccakTranscript,
         config: F::R,
     ) -> SpartanResult<ZipProof<F>, F> {
-        let linear_code = ZipLinearCode::<ZT>::new(lc_spec, ccs.m, transcript);
+        let linear_code = RaaCode::<ZT>::new(lc_spec, ccs.m, transcript);
         let param = MultilinearZip::<ZT, _>::setup(ccs.m, linear_code);
         let (z_data, z_comm) = MultilinearZip::<ZT, _>::commit::<F>(&param, z_mle)?;
         let mut pcs_transcript = PcsTranscript::new();

@@ -79,18 +79,25 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
             phantom: PhantomData,
         }
     }
-}
 
-fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
-    input: &[In],
-    repetition_factor: usize,
-) -> Vec<Out> {
-    input
-        .iter()
-        .map(|i| Out::from(i))
-        .cycle()
-        .take(input.len() * repetition_factor)
-        .collect()
+    /// Do the actual encoding, as per RAA spec
+    fn encode_inner<In, Out>(&self, row: &[In]) -> Vec<Out>
+    where
+        Out: Zero + AddAssign<Out> + for<'a> From<&'a In> + Clone,
+    {
+        debug_assert_eq!(
+            row.len(),
+            self.row_len,
+            "Row length must match the code's row length"
+        );
+        let mut result: Vec<Out> = repeat(row, self.repetition_factor);
+        shuffle_seeded(&mut result, self.perm_1_seed);
+        accumulate(&mut result);
+        shuffle_seeded(&mut result, self.perm_2_seed);
+        accumulate(&mut result);
+        debug_assert_eq!(result.len(), self.codeword_len());
+        result
+    }
 }
 
 impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
@@ -115,42 +122,33 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
         In: Integer,
         Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
     {
-        debug_assert_eq!(
-            row.len(),
-            self.row_len,
-            "Row length must match the code's row length"
-        );
-        let mut result: Vec<Out> = repeat(row, self.repetition_factor);
-        shuffle_seeded(&mut result, self.perm_1_seed);
-        mul_by_acc_matrix(&mut result);
-        shuffle_seeded(&mut result, self.perm_2_seed);
-        mul_by_acc_matrix(&mut result);
-        debug_assert_eq!(result.len(), self.codeword_len());
-        result
+        self.encode_inner(row)
     }
 
     fn encode_f<F: Field>(&self, row: &[F], _field: F::R) -> Vec<F>
     where
         ZT::L: FieldMap<F, Output = F>,
     {
-        debug_assert_eq!(
-            row.len(),
-            self.row_len,
-            "Row length must match the code's row length"
-        );
-
-        let mut result: Vec<F> = repeat(row, self.repetition_factor);
-        shuffle_seeded(&mut result, self.perm_1_seed);
-        mul_by_acc_matrix(&mut result);
-        shuffle_seeded(&mut result, self.perm_2_seed);
-        mul_by_acc_matrix(&mut result);
-        debug_assert_eq!(result.len(), self.codeword_len());
-        result
+        self.encode_inner(row)
     }
 }
 
-/// Multiply the input vector in-place by the accumulation matrix from the RAA code.
-/// This is a lower triangular matrix of the appropriate size, i.e. a matrix looking like this:
+/// Repeat the given slice N times, e.g `[1,2,3] => [1,2,3,1,2,3]`
+fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
+    input: &[In],
+    repetition_factor: usize,
+) -> Vec<Out> {
+    input
+        .iter()
+        .map(|i| Out::from(i))
+        .cycle()
+        .take(input.len() * repetition_factor)
+        .collect()
+}
+
+/// Perform an operation equivalent to multiplying the slice in-place by the accumulation matrix
+/// from the RAA code - a lower triangular matrix of the appropriate size, i.e. a matrix looking
+/// like this:
 ///
 /// ```text
 /// 1 0 0 0
@@ -158,7 +156,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
 /// 1 1 1 0
 /// 1 1 1 1
 /// ```
-fn mul_by_acc_matrix<I>(input: &mut [I])
+fn accumulate<I>(input: &mut [I])
 where
     I: Zero + AddAssign<I> + Clone,
 {

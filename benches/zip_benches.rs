@@ -58,18 +58,16 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 }
 
 fn encode_single_row<const ROW_LEN: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
-        type T = KeccakTranscript;
     group.bench_function(
         format!("EncodeMessage: Int<{FIELD_LIMBS}>, row_len = {ROW_LEN}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
         |b| {
             let mut rng = test_rng();
-            type T = KeccakTranscript;
-            let mut keccak_transcript = T::new();
+            let mut keccak_transcript = KeccakTranscript::new();
             let poly_size = ROW_LEN * ROW_LEN;
             let linear_code =
                 LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
             assert_eq!(linear_code.row_len(), ROW_LEN, "Unexpected row_len");
-            let message: Vec<_> = (0..ROW_LEN).map(|i| <ZT as ZipTypes>::N::random(&mut rng)).collect();
+            let message: Vec<_> = (0..ROW_LEN).map(|_i| <ZT as ZipTypes>::N::random(&mut rng)).collect();
             b.iter(|| {
                 let encoded_row: Vec<<ZT as ZipTypes>::K> = linear_code.encode_wide(&message);
                 black_box(encoded_row);

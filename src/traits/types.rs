@@ -177,7 +177,7 @@ pub trait Integer:
     fn num_bits() -> usize {
         Self::W::num_words() * <Self::W as Words>::Word::bits()
     }
-    
+
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     fn as_words(&self) -> &[u64];

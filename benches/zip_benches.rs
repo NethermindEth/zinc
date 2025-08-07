@@ -13,7 +13,7 @@ use crypto_bigint::Random;
 use itertools::Itertools;
 use zinc::{
     define_random_field_zip_types,
-    field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
+    field::{BigInt, ConfigRef, FieldConfig, RandomField},
     implement_random_field_zip_types,
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap, ZipTypes},
@@ -82,7 +82,7 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 
     let num_leaves = 1 << P;
     let leaves = (0..num_leaves)
-        .map(|_| Int::<INT_LIMBS>::random(&mut rng))
+        .map(|_| <ZT as ZipTypes>::K::random(&mut rng))
         .collect_vec();
 
     group.bench_function(
@@ -235,6 +235,7 @@ fn zip_benchmarks(c: &mut Criterion) {
 
     merkle_root::<12>(&mut group, 1);
     merkle_root::<16>(&mut group, 1);
+    merkle_root::<22>(&mut group, 1);
 
     commit::<12>(&mut group, 1);
     commit::<16>(&mut group, 1);

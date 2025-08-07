@@ -2,6 +2,7 @@ use ark_std::vec::Vec;
 use sha3::{Digest, Keccak256};
 
 use crate::{
+    field::Int,
     traits::{
         BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Words,
     },
@@ -177,6 +178,10 @@ impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
         // cancels all bits and depends only on whether the random byte LSB is 0 or 1
         let bit = byte & 1;
         I::from(bit as i8)
+    }
+
+    fn get_u64(&mut self) -> u64 {
+        self.get_integer_challenge::<Int<1>>().as_words()[0]
     }
 
     fn sample_unique_columns(

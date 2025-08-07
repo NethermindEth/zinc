@@ -15,8 +15,7 @@ use crate::{
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{LinearCodeSpec, ZipLinearCode},
-        pcs::structs::MultilinearZip,
+        code::LinearCodeSpec, code_raa::RaaCode, pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
@@ -232,7 +231,7 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
         ZT::L: FieldMap<F, Output = F>,
         ZT::K: FieldMap<F, Output = F>,
     {
-        let linear_code = ZipLinearCode::<ZT>::new(&self.lc_spec, ccs.m, transcript);
+        let linear_code = RaaCode::<ZT>::new(&self.lc_spec, ccs.m, transcript);
         let param = MultilinearZip::<ZT, _>::setup(ccs.m, linear_code);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];

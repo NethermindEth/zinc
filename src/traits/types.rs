@@ -152,13 +152,15 @@ pub trait Integer:
     + One
     + ConstZero
     + ConstOne
-    + RemAssign<Self>
+    + Neg<Output = Self>
     + Add<Output = Self>
     + for<'a> Add<&'a Self, Output = Self>
     + for<'a> Sub<&'a Self, Output = Self>
     + Mul<Output = Self>
     + for<'a> Mul<&'a Self, Output = Self>
+    + AddAssign<Self>
     + for<'a> AddAssign<&'a Self>
+    + RemAssign<Self>
     + Sum
     + for<'a> From<&'a Self>
     + From<i64>
@@ -171,6 +173,11 @@ pub trait Integer:
     type W: Words;
     type Uint: Uinteger<W = Self::W>;
     type I: BigInteger<W = Self::W> + for<'a> From<&'a Self>;
+
+    fn num_bits() -> usize {
+        Self::W::num_words() * <Self::W as Words>::Word::bits()
+    }
+
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
     fn as_words(&self) -> &[u64];

@@ -8,8 +8,7 @@ use crate::{
     traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
     zip::{
-        code::{DefaultLinearCodeSpec, ZipLinearCode},
-        pcs::structs::MultilinearZip,
+        code::DefaultLinearCodeSpec, code_raa::RaaCode, pcs::structs::MultilinearZip,
         pcs_transcript::PcsTranscript,
     },
 };
@@ -21,7 +20,7 @@ define_random_field_zip_types!();
 implement_random_field_zip_types!(I);
 
 type ZT = RandomFieldZipTypes<I>;
-type LC = ZipLinearCode<ZT>;
+type LC = RaaCode<ZT>;
 type TestZip<LC> = MultilinearZip<ZT, LC>;
 
 #[test]

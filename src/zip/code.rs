@@ -295,12 +295,12 @@ impl<L: Integer> SparseMatrixZ<L> {
         Self { dimension, cells }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, L)]> {
+    pub fn rows(&self) -> impl Iterator<Item = &[(usize, L)]> {
         self.cells.chunks(self.dimension.d)
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
+    pub fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
         &self,
         vector: &[N],
     ) -> Vec<M> {
@@ -322,6 +322,14 @@ impl<L: Integer> SparseMatrixZ<L> {
 
         result
     }
+
+    pub fn to_dense(&self) -> Vec<Vec<L>> {
+        let mut r: Vec<Vec<L>> = vec![vec![L::ZERO; self.dimension.m]; self.dimension.n];
+        for (row_i, (col_i, value)) in self.cells.iter().enumerate() {
+            r[row_i][*col_i] = value.clone();
+        }
+        r
+    }
 }
 
 /// Sparse matrix over a field.
@@ -332,7 +340,7 @@ pub struct SparseMatrixF<F: Field> {
 }
 
 impl<F: Field> SparseMatrixF<F> {
-    fn new<L: Integer + FieldMap<F, Output = F>>(
+    pub fn new<L: Integer + FieldMap<F, Output = F>>(
         sparse_matrix: &SparseMatrixZ<L>,
         config: F::R,
     ) -> Self {
@@ -352,7 +360,7 @@ impl<F: Field> SparseMatrixF<F> {
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
+    pub fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
         assert_eq!(
             self.dimension.m,
             vector.len(),

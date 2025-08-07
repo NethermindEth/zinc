@@ -16,10 +16,11 @@ use zinc::{
     field::{BigInt, ConfigRef, FieldConfig, Int, RandomField},
     implement_random_field_zip_types,
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{Config, ConfigReference, FieldMap},
+    traits::{Config, ConfigReference, FieldMap, ZipTypes},
     transcript::KeccakTranscript,
     zip::{
-        code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
+        code::{DefaultLinearCodeSpec, LinearCode},
+        code_raa::RaaCode,
         pcs::{structs::MultilinearZip, MerkleTree},
         pcs_transcript::PcsTranscript,
     },
@@ -32,7 +33,7 @@ define_random_field_zip_types!();
 implement_random_field_zip_types!(INT_LIMBS);
 
 type ZT = RandomFieldZipTypes<INT_LIMBS>;
-type LC = ZipLinearCode<ZT>;
+type LC = RaaCode<ZT>;
 type BenchZip = MultilinearZip<ZT, LC>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
@@ -50,7 +51,26 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
             let codeword_len = params.linear_code.codeword_len();
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
             b.iter(|| {
-                let _ = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
+                let _ = BenchZip::encode_rows(&params, codeword_len, row_len, &poly.evaluations);
+            })
+        },
+    );
+}
+
+fn encode_single_row<const ROW_LEN: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    group.bench_function(
+        format!("EncodeMessage: Int<{FIELD_LIMBS}>, row_len = {ROW_LEN}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
+        |b| {
+            let mut rng = test_rng();
+            let mut keccak_transcript = KeccakTranscript::new();
+            let poly_size = ROW_LEN * ROW_LEN;
+            let linear_code =
+                LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+            assert_eq!(linear_code.row_len(), ROW_LEN, "Unexpected row_len");
+            let message: Vec<_> = (0..ROW_LEN).map(|_i| <ZT as ZipTypes>::N::random(&mut rng)).collect();
+            b.iter(|| {
+                let encoded_row: Vec<<ZT as ZipTypes>::K> = linear_code.encode_wide(&message);
+                black_box(encoded_row);
             })
         },
     );
@@ -81,8 +101,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
-    let linear_code =
-        ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
     let params = BenchZip::setup(poly_size, linear_code);
 
     group.bench_function(
@@ -206,6 +225,13 @@ fn zip_benchmarks(c: &mut Criterion) {
 
     encode_rows::<12>(&mut group, 1);
     encode_rows::<16>(&mut group, 1);
+
+    encode_single_row::<128>(&mut group, 1);
+    encode_single_row::<256>(&mut group, 1);
+    encode_single_row::<512>(&mut group, 1);
+    encode_single_row::<1024>(&mut group, 1);
+    encode_single_row::<2048>(&mut group, 1);
+    encode_single_row::<4096>(&mut group, 1);
 
     merkle_root::<12>(&mut group, 1);
     merkle_root::<16>(&mut group, 1);

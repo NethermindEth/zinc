@@ -1,5 +1,4 @@
 #![cfg_attr(not(feature = "std"), no_std)]
-#![allow(clippy::redundant_closure_call)]
 
 pub mod ccs;
 mod const_helpers;

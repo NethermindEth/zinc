@@ -22,29 +22,20 @@
 /// ```
 #[macro_export]
 macro_rules! big_int {
-    ($v:literal) => {
-        (|| {
-            use ark_std::str::FromStr;
-            use $crate::field::BigInt;
-            BigInt::from_str(stringify!($v)).unwrap()
-        })()
-    };
+    ($v:literal) => {{
+        use ark_std::str::FromStr;
+        $crate::field::BigInt::from_str(stringify!($v)).unwrap()
+    }};
 
-    ($v:literal, $n:expr) => {
-        (|| {
-            use ark_std::str::FromStr;
-            use $crate::field::BigInt;
-            BigInt::<$n>::from_str(stringify!($v)).unwrap()
-        })()
-    };
+    ($v:literal, $n:expr) => {{
+        use ark_std::str::FromStr;
+        $crate::field::BigInt::<$n>::from_str(stringify!($v)).unwrap()
+    }};
 
-    ($v:literal, $n:expr, $msg:literal) => {
-        (|| {
-            use ark_std::str::FromStr;
-            use $crate::field::BigInt;
-            BigInt::<$n>::from_str(stringify!($v)).expect($msg)
-        })()
-    };
+    ($v:literal, $n:expr, $msg:literal) => {{
+        use ark_std::str::FromStr;
+        $crate::field::BigInt::<$n>::from_str(stringify!($v)).expect($msg)
+    }};
 }
 
 /// Constructs a `FieldConfig<N>` from a numeric literal.
@@ -89,18 +80,14 @@ macro_rules! big_int {
 ///
 #[macro_export]
 macro_rules! field_config {
-    ($v:literal) => {
-        (|| {
-            use $crate::{big_int, field::FieldConfig, traits::Config};
-            FieldConfig::new(big_int!($v))
-        })()
-    };
-    ($v:literal, $n:expr) => {
-        (|| {
-            use $crate::{big_int, field::FieldConfig, traits::Config};
-            FieldConfig::new(big_int!($v, $n))
-        })()
-    };
+    ($v:literal) => {{
+        use $crate::{big_int, field::FieldConfig, traits::Config};
+        FieldConfig::new(big_int!($v))
+    }};
+    ($v:literal, $n:expr) => {{
+        use $crate::{big_int, field::FieldConfig, traits::Config};
+        FieldConfig::new(big_int!($v, $n))
+    }};
 }
 
 /// Constructs a `RandomField` element from a literal value.
@@ -144,38 +131,30 @@ macro_rules! field_config {
 ///
 #[macro_export]
 macro_rules! random_field {
-    ($v:literal) => {
-        (|| {
-            use $crate::field::{BigInt, RandomField};
-            RandomField::Raw {
-                value: BigInt::from($v),
-            }
-        })()
-    };
+    ($v:literal) => {{
+        use $crate::field::{BigInt, RandomField};
+        RandomField::Raw {
+            value: BigInt::from($v),
+        }
+    }};
 
-    ($v:literal, $config:expr) => {
-        (|| {
-            use $crate::traits::FieldMap;
-            $v.map_to_field($config)
-        })()
-    };
+    ($v:literal, $config:expr) => {{
+        use $crate::traits::FieldMap;
+        $v.map_to_field($config)
+    }};
 
-    ($v:literal, $n:literal) => {
-        (|| {
-            use $crate::{
-                big_int,
-                field::{BigInt, RandomField},
-            };
-            RandomField::Raw {
-                value: big_int!($v),
-            }
-        })()
-    };
+    ($v:literal, $n:literal) => {{
+        use $crate::{
+            big_int,
+            field::{BigInt, RandomField},
+        };
+        RandomField::Raw {
+            value: big_int!($v),
+        }
+    }};
 
-    ($v:expr, $n:literal, $config:expr) => {
-        (|| {
-            use $crate::{big_int, field::BigInt, random_field, traits::FieldMap};
-            <BigInt<$n> as FieldMap<RandomField<$n>>>::map_to_field(&big_int!($v), $config)
-        })()
-    };
+    ($v:expr, $n:literal, $config:expr) => {{
+        use $crate::{big_int, field::BigInt, random_field, traits::FieldMap};
+        <BigInt<$n> as FieldMap<RandomField<$n>>>::map_to_field(&big_int!($v), $config)
+    }};
 }

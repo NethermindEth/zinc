@@ -52,7 +52,12 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
         // For RAA it's initial_bits + 2*log(repetition_factor) + num_variables
         let codeword_width_bits = {
             let initial_bits = ZT::N::num_bits();
-            let rep_factor_log = (repetition_factor as f32).log2().ceil() as usize;
+            let rep_factor_log: usize = repetition_factor
+                .checked_next_power_of_two()
+                .expect("Repetition factor is too large")
+                .ilog2()
+                .try_into()
+                .expect("Repetition factor logarithm is too large");
             let num_vars_even = if num_vars % 2 == 0 {
                 num_vars
             } else {

@@ -1,0 +1,8 @@
+# Preserve groups of imports
+group_imports = "StdExternalCrate"
+
+# Wrap multi-line imports using nested indentation
+imports_granularity = "Crate"
+
+# Sort imports alphabetically within groups
+reorder_imports = true

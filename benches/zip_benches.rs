@@ -2,12 +2,13 @@
 #![allow(clippy::eq_op)]
 
 use ark_std::{
+    hint::black_box,
     str::FromStr,
     test_rng,
     time::{Duration, Instant},
 };
 use criterion::{
-    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
 };
 use crypto_bigint::Random;
 use itertools::Itertools;

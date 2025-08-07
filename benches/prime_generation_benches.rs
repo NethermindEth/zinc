@@ -1,9 +1,9 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
+use ark_std::hint::black_box;
 use criterion::{
-    black_box, criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion,
-    PlotConfiguration,
+    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
 };
 use zinc::{
     field::{BigInt, RandomField},

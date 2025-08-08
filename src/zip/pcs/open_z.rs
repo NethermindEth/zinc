@@ -142,3 +142,523 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::field::ConfigRef;
+    use crate::zip::pcs::MerkleTree;
+    use crate::{
+        define_random_field_zip_types,
+        field::{Int, RandomField},
+        field_config, implement_random_field_zip_types,
+        poly_z::mle::DenseMultilinearExtension,
+        traits::Integer,
+        zip::{
+            code::{DefaultLinearCodeSpec, ZipLinearCode},
+            pcs::structs::{MultilinearZip, MultilinearZipParams, ZipTranscript},
+            utils::div_ceil,
+        },
+    };
+    use ark_std::rand::Rng;
+    use ark_std::vec;
+    use ark_std::{collections::BTreeSet, ops::Range, vec::Vec};
+    use num_traits::Zero;
+
+    const INT_LIMBS: usize = 1;
+    const FIELD_LIMBS: usize = 4;
+
+    define_random_field_zip_types!();
+    implement_random_field_zip_types!(INT_LIMBS);
+
+    type ZT = RandomFieldZipTypes<INT_LIMBS>;
+    type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
+    type TestZip<LC> = MultilinearZip<ZT, LC>;
+
+    #[derive(Default)]
+    pub struct MockTranscript {
+        pub counter: i64,
+    }
+
+    impl<L: Integer> ZipTranscript<L> for MockTranscript {
+        fn get_encoding_element(&mut self) -> L {
+            self.counter += 1;
+            L::from(self.counter)
+        }
+        fn get_u64(&mut self) -> u64 {
+            self.counter += 1;
+            self.counter as u64
+        }
+        fn sample_unique_columns(
+            &mut self,
+            range: Range<usize>,
+            columns: &mut BTreeSet<usize>,
+            count: usize,
+        ) -> usize {
+            self.counter += 1;
+            let mut inserted = 0;
+            for i in range.clone() {
+                if columns.insert(i) {
+                    inserted += 1;
+                    if inserted == count {
+                        break;
+                    }
+                }
+            }
+            inserted
+        }
+    }
+
+    /// Helper function to set up common parameters for tests.
+    fn setup_test_params(
+        num_vars: usize,
+    ) -> (
+        MultilinearZipParams<ZT, ZipLinearCode<ZT>>,
+        DenseMultilinearExtension<Int<INT_LIMBS>>,
+    ) {
+        let poly_size = 1 << num_vars;
+        let num_rows = 1 << div_ceil(num_vars, 2);
+
+        let mut transcript = MockTranscript::default();
+        let code = ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
+        let pp = MultilinearZipParams::new(num_vars, num_rows, code);
+
+        let evaluations: Vec<_> = (1..=poly_size as i32).map(Int::from).collect();
+        let poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, evaluations);
+
+        (pp, poly)
+    }
+
+    fn random_point<I: Integer>(num_vars: usize, rng: &mut impl Rng) -> Vec<I> {
+        (0..num_vars).map(|_| I::random(rng)).collect()
+    }
+
+    #[test]
+    fn successful_opening_with_correct_polynomial_and_hint() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, _) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let mut rng = ark_std::test_rng();
+        let point_int = random_point::<Int<INT_LIMBS>>(num_vars, &mut rng);
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+
+        let result = TestZip::open(&pp, &poly, &data, &point_f, config, &mut prover_transcript);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn successful_opening_with_a_close_codeword() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (original_data, _) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let mut corrupted_rows = original_data.rows.clone();
+        if !corrupted_rows.is_empty() {
+            corrupted_rows[0] += <ZT as ZipTypes>::K::from(1);
+        }
+
+        let codeword_len = pp.linear_code.codeword_len();
+        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let corrupted_merkle_trees = corrupted_rows
+            .chunks_exact(codeword_len)
+            .map(|row| MerkleTree::new(merkle_depth, row))
+            .collect::<Vec<_>>();
+        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
+
+        let mut rng = ark_std::test_rng();
+        let point_int = random_point::<Int<INT_LIMBS>>(num_vars, &mut rng);
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+
+        let result = TestZip::open(
+            &pp,
+            &poly,
+            &corrupted_data,
+            &point_f,
+            config,
+            &mut prover_transcript,
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn failed_opening_due_to_incorrect_polynomial() {
+        let num_vars = 4;
+        let (pp, poly1) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly1).unwrap();
+
+        let different_evals: Vec<_> = (20..=35).map(Int::from).collect();
+        let poly2 = DenseMultilinearExtension::from_evaluations_vec(num_vars, different_evals);
+
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result =
+            TestZip::open(&pp, &poly2, &data, &point_f, config, &mut prover_transcript);
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval = match poly1.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p.map_to_field(config),
+        };
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_err());
+    }
+
+    #[test]
+    fn failed_opening_due_to_a_hint_that_is_not_close() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (original_data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let mut corrupted_rows = original_data.rows.clone();
+        let codeword_len = pp.linear_code.codeword_len();
+        // Proximity distance is half the codeword length for the default spec.
+        // We corrupt more than half of the first row to ensure it's not close.
+        let corruption_count = codeword_len / 2 + 1;
+        for i in 0..corruption_count {
+            if i < corrupted_rows.len() {
+                corrupted_rows[i] += <ZT as ZipTypes>::K::from(1);
+            }
+        }
+
+        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
+        let corrupted_merkle_trees = corrupted_rows
+            .chunks_exact(codeword_len)
+            .map(|row| MerkleTree::new(merkle_depth, row))
+            .collect::<Vec<_>>();
+        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
+
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result = TestZip::open(
+            &pp,
+            &poly,
+            &corrupted_data,
+            &point_f,
+            config,
+            &mut prover_transcript,
+        );
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval = match poly.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p.map_to_field(config),
+        };
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_err());
+    }
+
+    #[test]
+    fn failed_opening_due_to_oversized_polynomial_coefficients() {
+        let num_vars = 4;
+        let (pp, _) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let oversized_num_vars = 5;
+        let oversized_evals: Vec<_> = (0..1 << oversized_num_vars)
+            .map(Int::from)
+            .collect();
+        let oversized_poly =
+            DenseMultilinearExtension::from_evaluations_vec(oversized_num_vars, oversized_evals);
+
+        // This data is for a 4-variable poly, but we need it as a placeholder.
+        let (data, _) = TestZip::<_>::commit::<F>(&pp, &setup_test_params(num_vars).1).unwrap();
+
+        let mut rng = ark_std::test_rng();
+        let point_int = random_point::<Int<INT_LIMBS>>(oversized_num_vars, &mut rng);
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+
+        let result = TestZip::open(
+            &pp,
+            &oversized_poly,
+            &data,
+            &point_f,
+            config,
+            &mut prover_transcript,
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn successful_testing_phase_with_strong_witness() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, _) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let mut prover_transcript = PcsTranscript::<F>::new();
+
+        let result =
+            TestZip::prove_testing_phase(&pp, &poly, &data, &mut prover_transcript, config);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn failed_testing_phase_with_inconsistent_codeword() {
+        let num_vars = 4;
+        let (pp, poly1) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (_, comm) = TestZip::<_>::commit::<F>(&pp, &poly1).unwrap();
+
+        let different_evals: Vec<_> = (20..=35).map(Int::from).collect();
+        let poly2 = DenseMultilinearExtension::from_evaluations_vec(num_vars, different_evals);
+        let (inconsistent_data, _) = TestZip::<_>::commit::<F>(&pp, &poly2).unwrap();
+
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result = TestZip::open(
+            &pp,
+            &poly1,
+            &inconsistent_data,
+            &point_f,
+            config,
+            &mut prover_transcript,
+        );
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        //    will not match the roots in the original public commitment.
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval = match poly1.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p.map_to_field(config),
+        };
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_err());
+    }
+
+    #[test]
+    fn successful_evaluation_phase_with_correct_evaluation() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let mut prover_transcript = PcsTranscript::new();
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+
+        let result =
+            TestZip::prove_evaluation_phase(&pp, &mut prover_transcript, &point_f, &poly, config);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn failed_evaluation_phase_with_incorrect_evaluation() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result =
+            TestZip::open(&pp, &poly, &data, &point_f, config, &mut prover_transcript);
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let correct_eval: F = match poly.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p,
+        }
+        .map_to_field(config);
+        let incorrect_eval = correct_eval + <i32 as FieldMap<F>>::map_to_field(&1i32, config);
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let verification_result = TestZip::verify(
+            &pp,
+            &comm,
+            &point_f,
+            incorrect_eval, // Use the wrong evaluation here
+            &mut verifier_transcript,
+            config,
+        );
+
+        assert!(verification_result.is_err());
+    }
+
+    #[test]
+    fn opening_and_evaluation_of_the_zero_polynomial() {
+        let num_vars = 4;
+        let (pp, _) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let zero_evals: Vec<_> = (0..1 << num_vars).map(|_| Int::from(0)).collect();
+        let zero_poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, zero_evals);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &zero_poly).unwrap();
+
+        let point_int: Vec<Int<INT_LIMBS>> =
+            (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result = TestZip::open(
+            &pp,
+            &zero_poly,
+            &data,
+            &point_f,
+            config,
+            &mut prover_transcript,
+        );
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval = F::zero();
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_ok());
+    }
+
+    #[test]
+    fn evaluation_at_the_zero_point() {
+        let num_vars = 4;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let point_int: Vec<Int<INT_LIMBS>> = (0..num_vars).map(|_| Int::from(0)).collect();
+        let point_f: Vec<F> = point_int.map_to_field(config);
+
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result =
+            TestZip::open(&pp, &poly, &data, &point_f, config, &mut prover_transcript);
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval: F = match poly.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p,
+        }
+        .map_to_field(config);
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_ok());
+    }
+
+    #[test]
+    fn polynomial_coefficients_at_maximum_bit_size_boundary() {
+        let num_vars = 4;
+        let (pp, _) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let mut evals: Vec<Int<INT_LIMBS>> =
+            (0..1 << num_vars as i32).map(Int::from).collect();
+        evals[1] = Int::from(i64::MAX);
+        let poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, evals);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        // A point of [1, 0, 0, 0] will evaluate to poly.evaluations[1].
+        let mut point_coords = vec![Int::from(0); num_vars];
+        point_coords[0] = Int::from(1);
+        let point_int = point_coords;
+        let point_f: Vec<F> = point_int.map_to_field(config);
+
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result =
+            TestZip::open(&pp, &poly, &data, &point_f, config, &mut prover_transcript);
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval: F = match poly.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p,
+        }
+        .map_to_field(config);
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_ok());
+    }
+
+    #[test]
+    fn evaluation_succeeds_with_minimal_polynomial_size_mu_is_2() {
+        let num_vars = 2;
+        let (pp, poly) = setup_test_params(num_vars);
+        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
+        let config = ConfigRef::from(&config);
+
+        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+
+        let point_int: Vec<Int<INT_LIMBS>> = vec![Int::from(1), Int::from(2)];
+        let point_f: Vec<F> = point_int.map_to_field(config);
+        let mut prover_transcript = PcsTranscript::new();
+        let open_result =
+            TestZip::open(&pp, &poly, &data, &point_f, config, &mut prover_transcript);
+        assert!(open_result.is_ok());
+        let proof = prover_transcript.into_proof();
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let eval: F = match poly.evaluate(&point_int) {
+            None => panic!("failed to evaluate polynomial"),
+            Some(p) => p,
+        }
+        .map_to_field(config);
+
+        let verification_result =
+            TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+
+        assert!(verification_result.is_ok());
+    }
+}

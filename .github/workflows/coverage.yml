@@ -2,9 +2,9 @@ name: Coverage
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [ opened, synchronize, reopened ]
 
 permissions:
   contents: read
@@ -26,11 +26,75 @@ jobs:
         run: rustup component add llvm-tools-preview
 
       - name: Run code coverage
-        run: cargo llvm-cov --workspace --lcov --output-path lcov.info --ignore-filename-regex '^examples/'
+        run: |
+          cargo llvm-cov --workspace --lcov \
+            --output-path lcov.info \
+            --ignore-filename-regex '^examples/'
+
+      - name: Compute total line coverage %
+        id: cov
+        shell: bash
+        run: |
+          pct=$(awk -F: '
+            /^LF:/ { lf += $2 }
+            /^LH:/ { lh += $2 }
+            END {
+              if (lf > 0) printf "%.2f", (lh/lf)*100;
+              else print "0.00";
+            }' lcov.info)
+          echo "current=$pct" >> "$GITHUB_OUTPUT"
+          echo "CURRENT_COV=$pct" >> "$GITHUB_ENV"
+
+      - name: Find previous coverage from PR comments
+        id: prev
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request?.number;
+            if (!pr) { core.setOutput('prev', ''); return; }
+            const {owner, repo} = context.repo;
+            const {data: comments} = await github.rest.issues.listComments({
+              owner, repo, issue_number: pr, per_page: 50
+            });
+            let prev = '';
+            for (const c of comments.slice().reverse()) {
+              const m = c.body?.match(/Total\s+Coverage:\s*([0-9]+(?:\.[0-9]+)?)%/i);
+              if (m) { prev = m[1]; break; }
+            }
+            core.setOutput('prev', prev);
+
+      - name: Decide whether to post a comment
+        id: decide
+        run: |
+          post=false
+          reason=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ github.event.action }}" = "opened" ] || [ "${{ github.event.action }}" = "reopened" ]; then
+              post=true
+              reason="first_run"
+            elif [ -n "${{ steps.prev.outputs.prev }}" ]; then
+              current=$(printf "%.2f" "${{ steps.cov.outputs.current }}")
+              prev=$(printf "%.2f" "${{ steps.prev.outputs.prev }}")
+              if (( $(echo "$current < $prev" | bc -l) )); then
+                post=true
+                reason="coverage_drop"
+              fi
+            fi
+          fi
+          echo "POST=$post" >> "$GITHUB_OUTPUT"
+          echo "REASON=$reason" >> "$GITHUB_OUTPUT"
 
       - name: Comment PR with coverage
-        continue-on-error: true
+        if: github.event_name == 'pull_request' && steps.decide.outputs.POST == 'true'
         uses: romeovs/lcov-reporter-action@v0.4.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           lcov-file: lcov.info
+          delete-old-comments: true
+
+      - name: Debug decision
+        run: |
+          echo "Current coverage: ${{ steps.cov.outputs.current }}%"
+          echo "Previous coverage: ${{ steps.prev.outputs.prev }}"
+          echo "Will comment: ${{ steps.decide.outputs.POST }} (reason=${{ steps.decide.outputs.REASON }})"

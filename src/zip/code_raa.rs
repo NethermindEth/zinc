@@ -58,7 +58,7 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
                 .ilog2()
                 .try_into()
                 .expect("Repetition factor logarithm is too large");
-            let num_vars_even = if num_vars.is_power_of_two() {
+            let num_vars_even = if num_vars.is_multiple_of(2) {
                 num_vars
             } else {
                 num_vars + 1

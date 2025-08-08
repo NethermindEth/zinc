@@ -483,8 +483,7 @@ fn prover_panics_if_round_exceeds_num_vars() {
 }
 
 #[test]
-#[should_panic(expected = "insufficient rounds")]
-fn verifier_panics_on_incomplete_proof() {
+fn verifier_errors_on_incomplete_proof() {
     let mut rng = ark_std::test_rng();
     let num_vars = 3;
 
@@ -507,17 +506,22 @@ fn verifier_panics_on_incomplete_proof() {
     );
 
     let mut incomplete_proof = proof.clone();
-    incomplete_proof.0.pop(); // Remove the last prover message
+    incomplete_proof.0.pop();
 
     let mut verifier_transcript = KeccakTranscript::default();
 
-    let _ = MLSumcheck::verify_as_subprotocol(
+    let res = MLSumcheck::verify_as_subprotocol(
         &mut verifier_transcript,
         num_vars,
         poly_degree,
         sum,
         &incomplete_proof,
         config_ref,
+    );
+
+    assert!(
+        matches!(res, Err(super::SumCheckError::InvalidProofLength { expected, got }) if expected == num_vars && got == num_vars - 1),
+        "expected IncorrectRoundCount error"
     );
 }
 
@@ -655,13 +659,15 @@ fn zero_variable_case_returns_correct_subclaim() {
         &proof,
         config_ref,
     )
-        .expect("zero-variable verification should succeed");
+    .expect("zero-variable verification should succeed");
 
     // Point should be empty, and expected evaluation should match claimed_sum
-    assert!(subclaim.point.is_empty(), "point should be empty for nvars=0");
+    assert!(
+        subclaim.point.is_empty(),
+        "point should be empty for nvars=0"
+    );
     assert_eq!(
-        subclaim.expected_evaluation,
-        claimed_sum,
+        subclaim.expected_evaluation, claimed_sum,
         "expected evaluation should equal claimed sum"
     );
 }

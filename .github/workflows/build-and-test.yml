@@ -11,11 +11,18 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  build:
+  build_and_test:
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.88
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: cargo test --workspace --verbose --no-run
-      - name: Run tests
-        run: cargo test --workspace --verbose
+
+      - name: Build all targets
+        run: cargo test --workspace --no-run
+
+      - name: Run library tests
+        run: cargo test --workspace --lib
+
+      - name: Run documentation tests
+        run: cargo test --workspace --doc

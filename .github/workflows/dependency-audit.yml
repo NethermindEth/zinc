@@ -14,28 +14,13 @@ jobs:
   security_audit:
     timeout-minutes: 10
     runs-on: ubuntu-latest
+    # No container needed, the action handles the environment
     permissions:
       contents: read
-      checks: write
+      checks: write # This permission is now used by the action
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Cache audit-check build
-        id: cache-audit-check
-        uses: actions/cache@v4
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
-      - name: Run audit-check action
-        run: |
-          which cargo-deny || cargo install cargo-deny
-          cargo deny check
+      - name: Run cargo-deny security audit
+        uses: EmbarkStudios/cargo-deny-action@v1

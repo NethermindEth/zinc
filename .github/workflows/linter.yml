@@ -11,13 +11,16 @@ env:
 jobs:
   linter_check:
     runs-on: ubuntu-latest
+    container:
+      image: rust:1.88
     steps:
       - uses: actions/checkout@v4
 
       - name: Install nightly components
         run: |
           rustup install nightly
-          rustup component add clippy rustfmt --toolchain nightly
+          rustup component add rustfmt --toolchain nightly
+          rustup component add clippy
 
       - name: Run Fmt
         run: cargo +nightly fmt --all -- --check

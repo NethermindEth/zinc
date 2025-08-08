@@ -66,7 +66,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         let codeword_len = pp.linear_code.codeword_len();
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
         let rows_merkle_trees = rows
             .chunks_exact(codeword_len)
@@ -110,7 +110,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
         Ok((
             MultilinearZipData::new(rows, vec![]),
@@ -159,7 +159,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         pp: &MultilinearZipParams<ZT, LC>,
         codeword_len: usize,
         row_len: usize,
-        poly: &DenseMultilinearExtension<ZT::N>,
+        evals: &[ZT::N],
     ) -> Vec<ZT::K> {
         let rows_per_thread = div_ceil(pp.num_rows, num_threads());
         let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
@@ -167,7 +167,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         parallelize_iter(
             encoded_rows
                 .chunks_exact_mut(rows_per_thread * codeword_len)
-                .zip(poly.evaluations.chunks_exact(rows_per_thread * row_len)),
+                .zip(evals.chunks_exact(rows_per_thread * row_len)),
             |(encoded_chunk, evals)| {
                 for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)
@@ -392,7 +392,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         assert_eq!(encoded.len(), pp.num_rows * pp.linear_code.codeword_len());
@@ -407,7 +407,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         for (i, row_chunk) in encoded
@@ -466,7 +466,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         assert_eq!(encoded.len(), pp.num_rows * pp.linear_code.codeword_len());
@@ -504,7 +504,7 @@ mod tests {
                     &pp,
                     pp.linear_code.codeword_len(),
                     pp.linear_code.row_len(),
-                    &poly,
+                    &poly.evaluations,
                 )
             })
             .collect();
@@ -558,7 +558,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         assert_eq!(encoded.len(), pp.linear_code.codeword_len());
     }
@@ -618,7 +618,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
@@ -689,7 +689,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         assert_eq!(
             encoded_rows.len(),

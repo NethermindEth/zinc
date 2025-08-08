@@ -3,9 +3,9 @@ name: Semver checks
 on:
   pull_request:
     branches: [ "main" ]
-    paths: ['**/Cargo.toml']  # Only run when Cargo.toml changes
+    paths: [ '**/Cargo.toml' ]  # Only run when Cargo.toml changes
   push:
-    tags: ['v*']  # Run on version tags
+    tags: [ 'v*' ]  # Run on version tags
 
 # Limit permissions to minimum required
 permissions:

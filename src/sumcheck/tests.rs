@@ -633,3 +633,35 @@ fn verifier_produces_correct_subclaim() {
 
     assert_eq!(manual_eval, subclaim.expected_evaluation);
 }
+
+#[test]
+fn zero_variable_case_returns_correct_subclaim() {
+    let config_ref = get_config();
+    let num_vars = 0;
+    let degree = 2;
+
+    // No prover rounds for zero-variable case
+    let proof = SumcheckProof::<F>(Vec::new());
+
+    // Let's pick some arbitrary "claimed sum"
+    let claimed_sum: F = 42i32.map_to_field(config_ref);
+
+    let mut transcript = KeccakTranscript::default();
+    let subclaim = MLSumcheck::verify_as_subprotocol(
+        &mut transcript,
+        num_vars,
+        degree,
+        claimed_sum,
+        &proof,
+        config_ref,
+    )
+        .expect("zero-variable verification should succeed");
+
+    // Point should be empty, and expected evaluation should match claimed_sum
+    assert!(subclaim.point.is_empty(), "point should be empty for nvars=0");
+    assert_eq!(
+        subclaim.expected_evaluation,
+        claimed_sum,
+        "expected evaluation should equal claimed sum"
+    );
+}

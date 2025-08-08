@@ -191,15 +191,13 @@ mod tests {
     use crate::zip::code_raa::RaaCode;
     use crate::zip::pcs_transcript::PcsTranscript;
     use crate::{
-        define_random_field_zip_types,
         field::{Int, RandomField},
-        field_config, implement_random_field_zip_types,
+        field_config,
         poly_z::mle::DenseMultilinearExtension,
-        traits::Integer,
         zip::{
             code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
             pcs::{
-                structs::{MultilinearZip, MultilinearZipParams, ZipTranscript},
+                structs::{MultilinearZip, MultilinearZipParams},
                 MerkleTree,
             },
             utils::div_ceil,
@@ -207,56 +205,20 @@ mod tests {
     };
     use ark_std::slice::from_ref;
 
+    use crate::zip::pcs::tests::{MockTranscript, RandomFieldZipTypes};
     use ark_std::mem::size_of;
     use ark_std::vec::Vec;
-    use ark_std::{collections::BTreeSet, ops::Range, vec, UniformRand};
+    use ark_std::{vec, UniformRand};
     use crypto_bigint::Random;
     use sha3::{Digest, Keccak256};
 
     const INT_LIMBS: usize = 1;
     const FIELD_LIMBS: usize = 4;
 
-    define_random_field_zip_types!();
-    implement_random_field_zip_types!(INT_LIMBS);
-
     type ZT = RandomFieldZipTypes<INT_LIMBS>;
     type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
     type TestZip<LC> = MultilinearZip<ZT, LC>;
     type LC = RaaCode<ZT>;
-
-    #[derive(Default)]
-    pub struct MockTranscript {
-        pub counter: i64,
-    }
-
-    impl<L: Integer> ZipTranscript<L> for MockTranscript {
-        fn get_encoding_element(&mut self) -> L {
-            self.counter += 1;
-            L::from(self.counter)
-        }
-        fn get_u64(&mut self) -> u64 {
-            self.counter += 1;
-            self.counter as u64
-        }
-        fn sample_unique_columns(
-            &mut self,
-            range: Range<usize>,
-            columns: &mut BTreeSet<usize>,
-            count: usize,
-        ) -> usize {
-            self.counter += 1;
-            let mut inserted = 0;
-            for i in range.clone() {
-                if columns.insert(i) {
-                    inserted += 1;
-                    if inserted == count {
-                        break;
-                    }
-                }
-            }
-            inserted
-        }
-    }
 
     /// Helper function to set up common parameters for tests.
     fn setup_test_params(

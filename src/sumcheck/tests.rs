@@ -570,8 +570,7 @@ fn prover_panics_with_zero_variables() {
 }
 
 #[test]
-#[should_panic(expected = "insufficient rounds")]
-fn verifier_rejects_proof_with_mismatched_nvars() {
+fn verifier_errors_on_mismatched_nvars() {
     let mut rng = ark_std::test_rng();
     let nvars_prover = 3;
     let nvars_verifier = 4;
@@ -581,13 +580,21 @@ fn verifier_rejects_proof_with_mismatched_nvars() {
         generate_sumcheck_proof::<F>(nvars_prover, &mut rng, config_ref);
 
     let mut transcript = KeccakTranscript::default();
-    let _ = MLSumcheck::verify_as_subprotocol(
+    let res = MLSumcheck::verify_as_subprotocol(
         &mut transcript,
-        nvars_verifier,
+        nvars_verifier, // verifier expects more rounds than the proof contains
         poly_degree,
         sum,
         &proof,
         config_ref,
+    );
+
+    assert!(
+        matches!(res, Err(super::SumCheckError::InvalidProofLength { expected, got })
+            if expected == nvars_verifier && got == nvars_prover),
+        "expected IncorrectRoundCount: expected {}, got {:?}",
+        nvars_verifier,
+        res
     );
 }
 

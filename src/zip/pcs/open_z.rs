@@ -147,67 +147,30 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 mod tests {
     use super::*;
     use crate::field::ConfigRef;
+    use crate::zip::pcs::tests::MockTranscript;
     use crate::zip::pcs::MerkleTree;
     use crate::{
-        define_random_field_zip_types,
         field::{Int, RandomField},
-        field_config, implement_random_field_zip_types,
+        field_config,
         poly_z::mle::DenseMultilinearExtension,
         traits::Integer,
         zip::{
             code::{DefaultLinearCodeSpec, ZipLinearCode},
-            pcs::structs::{MultilinearZip, MultilinearZipParams, ZipTranscript},
+            pcs::structs::{MultilinearZip, MultilinearZipParams},
             utils::div_ceil,
         },
     };
     use ark_std::rand::Rng;
     use ark_std::vec;
-    use ark_std::{collections::BTreeSet, ops::Range, vec::Vec};
+    use ark_std::vec::Vec;
     use num_traits::Zero;
 
     const INT_LIMBS: usize = 1;
     const FIELD_LIMBS: usize = 4;
 
-    define_random_field_zip_types!();
-    implement_random_field_zip_types!(INT_LIMBS);
-
-    type ZT = RandomFieldZipTypes<INT_LIMBS>;
+    type ZT = crate::zip::pcs::tests::RandomFieldZipTypes<INT_LIMBS>;
     type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
     type TestZip<LC> = MultilinearZip<ZT, LC>;
-
-    #[derive(Default)]
-    pub struct MockTranscript {
-        pub counter: i64,
-    }
-
-    impl<L: Integer> ZipTranscript<L> for MockTranscript {
-        fn get_encoding_element(&mut self) -> L {
-            self.counter += 1;
-            L::from(self.counter)
-        }
-        fn get_u64(&mut self) -> u64 {
-            self.counter += 1;
-            self.counter as u64
-        }
-        fn sample_unique_columns(
-            &mut self,
-            range: Range<usize>,
-            columns: &mut BTreeSet<usize>,
-            count: usize,
-        ) -> usize {
-            self.counter += 1;
-            let mut inserted = 0;
-            for i in range.clone() {
-                if columns.insert(i) {
-                    inserted += 1;
-                    if inserted == count {
-                        break;
-                    }
-                }
-            }
-            inserted
-        }
-    }
 
     /// Helper function to set up common parameters for tests.
     fn setup_test_params(
@@ -387,9 +350,7 @@ mod tests {
         let config = ConfigRef::from(&config);
 
         let oversized_num_vars = 5;
-        let oversized_evals: Vec<_> = (0..1 << oversized_num_vars)
-            .map(Int::from)
-            .collect();
+        let oversized_evals: Vec<_> = (0..1 << oversized_num_vars).map(Int::from).collect();
         let oversized_poly =
             DenseMultilinearExtension::from_evaluations_vec(oversized_num_vars, oversized_evals);
 
@@ -600,8 +561,7 @@ mod tests {
         let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
         let config = ConfigRef::from(&config);
 
-        let mut evals: Vec<Int<INT_LIMBS>> =
-            (0..1 << num_vars as i32).map(Int::from).collect();
+        let mut evals: Vec<Int<INT_LIMBS>> = (0..1 << num_vars as i32).map(Int::from).collect();
         evals[1] = Int::from(i64::MAX);
         let poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, evals);
 

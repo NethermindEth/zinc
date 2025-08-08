@@ -14,6 +14,9 @@ pub mod prover;
 pub mod utils;
 pub mod verifier;
 
+#[cfg(test)]
+mod tests;
+
 /// Interactive Proof for Multilinear Sumcheck
 pub struct IPForMLSumcheck<F>(PhantomData<F>);
 #[derive(Error, Debug)]
@@ -123,72 +126,5 @@ impl<F: Field> MLSumcheck<F> {
         }
 
         IPForMLSumcheck::check_and_generate_subclaim(verifier_state, claimed_sum, config)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use ark_std::rand;
-    use rand::Rng;
-
-    use super::{
-        utils::{rand_poly, rand_poly_comb_fn},
-        MLSumcheck, SumcheckProof,
-    };
-    use crate::{
-        big_int,
-        field::{ConfigRef, RandomField},
-        field_config,
-        traits::{ConfigReference, Field},
-        transcript::KeccakTranscript,
-    };
-
-    fn generate_sumcheck_proof<F: Field>(
-        nvars: usize,
-        mut rng: &mut (impl Rng + Sized),
-        config: F::R,
-    ) -> (usize, F, SumcheckProof<F>) {
-        let mut transcript = KeccakTranscript::default();
-
-        let ((poly_mles, poly_degree), products, sum) =
-            rand_poly(nvars, (2, 5), 7, config, &mut rng).unwrap();
-
-        let comb_fn = |vals: &[F]| -> F { rand_poly_comb_fn(vals, &products, config) };
-
-        let (proof, _) = MLSumcheck::prove_as_subprotocol(
-            &mut transcript,
-            poly_mles,
-            nvars,
-            poly_degree,
-            comb_fn,
-            config,
-        );
-        (poly_degree, sum, proof)
-    }
-    #[test]
-    fn test_sumcheck() {
-        const N: usize = 2;
-        let mut rng = ark_std::test_rng();
-        let nvars = 3;
-        let config = field_config!(57316695564490278656402085503, N);
-
-        let config_ptr = ConfigRef::from(&config);
-        config_ptr.reference().expect("FieldConfig cannot be null");
-        for _ in 0..20 {
-            let (poly_degree, sum, proof) =
-                generate_sumcheck_proof::<RandomField<N>>(nvars, &mut rng, config_ptr);
-
-            let mut transcript = KeccakTranscript::default();
-            let res = MLSumcheck::verify_as_subprotocol(
-                &mut transcript,
-                nvars,
-                poly_degree,
-                sum,
-                &proof,
-                config_ptr,
-            );
-            assert!(res.is_ok())
-        }
     }
 }

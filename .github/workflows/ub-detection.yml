@@ -1,0 +1,37 @@
+name: UB (undefined behavior) detection
+
+on:
+  schedule:
+    # Runs every day at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Make sure CI fails on all warnings, including Clippy lints
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  ub-detection:
+    name: Check for undefined behaviour (UB)
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    # Using the nightly container is slightly cleaner, but not required
+    container:
+      image: rustlang/rust:nightly
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install and set up Miri
+        run: |
+          # Correct way to install the Miri component
+          rustup component add miri
+          cargo miri setup
+
+      - name: Run Miri to detect UB
+        run: |
+          # The -Zmiri-strict-provenance flag is excellent for catching more bugs
+          # The --workspace flag ensures all your crates and tests are checked
+          MIRIFLAGS="-Zmiri-strict-provenance" cargo miri test --workspace

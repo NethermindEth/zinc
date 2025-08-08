@@ -1,0 +1,32 @@
+name: Linter check
+
+on: push
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Make sure CI fails on all warnings, including Clippy lints
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  linter_check:
+    runs-on: ubuntu-latest
+    container:
+      image: rust:1.88
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install nightly components
+        run: |
+          rustup install nightly
+          rustup component add rustfmt --toolchain nightly
+          rustup component add clippy
+
+      - name: Run Fmt
+        run: cargo +nightly fmt --all -- --check
+
+      - name: Run Clippy with all features enabled
+        run: cargo clippy --all-targets --all-features
+
+      - name: Run Clippy with no features
+        run: cargo clippy --all-targets --no-default-features

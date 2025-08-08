@@ -1,4 +1,5 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use ark_std::hint::black_box;
+use criterion::{criterion_group, criterion_main, Criterion};
 use zinc::{
     ccs::test_utils::get_dummy_ccs_Z_from_z_length,
     define_random_field_zip_types,

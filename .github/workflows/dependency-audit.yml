@@ -1,0 +1,26 @@
+name: Dependency security audit
+
+on:
+  push:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  security_audit:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    # No container needed, the action handles the environment
+    permissions:
+      contents: read
+      checks: write # This permission is now used by the action
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Run cargo-deny security audit
+        uses: EmbarkStudios/cargo-deny-action@v1

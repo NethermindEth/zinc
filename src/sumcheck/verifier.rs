@@ -110,17 +110,28 @@ impl<F: Field> IPForMLSumcheck<F> {
         for i in 0..verifier_state.nv {
             let evaluations = &verifier_state.polynomials_received[i];
             if evaluations.len() != verifier_state.max_multiplicands + 1 {
-                panic!("incorrect number of evaluations");
+                return Err(SumCheckError::MaxDegreeExceeded);
             }
 
             let p0 = &evaluations[0];
-            let p1 = &evaluations[1];
-            if p0.clone() + p1.clone() != expected {
-                return Err(SumCheckError::SumCheckFailed(
-                    Box::new((p0.clone() + p1.clone()).into()),
-                    Box::new(expected.into()),
-                ));
+            if verifier_state.max_multiplicands > 0 {
+                let p1 = &evaluations[1];
+                if p0.clone() + p1.clone() != expected {
+                    return Err(SumCheckError::SumCheckFailed(
+                        Box::new((p0.clone() + p1.clone()).into()),
+                        Box::new(expected.into()),
+                    ));
+                }
+            } else {
+                // Degree 0, constant polynomial
+                if p0.clone() != expected {
+                    return Err(SumCheckError::SumCheckFailed(
+                        Box::new(p0.clone().into()),
+                        Box::new(expected.into()),
+                    ));
+                }
             }
+
             expected =
                 interpolate_uni_poly(evaluations, verifier_state.randomness[i].clone(), config);
         }

@@ -185,7 +185,7 @@ mod tests {
         let num_rows = 1 << div_ceil(num_vars, 2);
 
         let mut transcript = MockTranscript::default();
-        let code = RaaCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
+        let code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
         let pp = MultilinearZipParams::new(num_vars, num_rows, code);
 
         let evaluations: Vec<_> = (1..=poly_size as i32).map(Int::from).collect();

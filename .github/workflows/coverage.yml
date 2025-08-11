@@ -11,13 +11,10 @@ permissions:
 jobs:
   coverage-push:
     runs-on: ubuntu-latest
-    container:
-      image: rust:1.88
     steps:
       - uses: actions/checkout@v4
 
       - run: cargo install cargo-llvm-cov
-      - run: rustup component add llvm-tools-preview
       - run: cargo llvm-cov --workspace --lcov --output-path lcov.info --ignore-filename-regex '^examples/'
 
       - name: Upload branch coverage artifact

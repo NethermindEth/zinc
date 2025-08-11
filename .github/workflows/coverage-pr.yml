@@ -12,8 +12,6 @@ permissions:
 jobs:
   cov-head:
     runs-on: ubuntu-latest
-    container:
-      image: rust:1.88
     outputs:
       pct: ${{ steps.cov.outputs.coverage }}
     steps:
@@ -46,8 +44,6 @@ jobs:
   compare-and-comment:
     needs: cov-head
     runs-on: ubuntu-latest
-    container:
-      image: rust:1.88
     steps:
       # 1) Try to download base artifact from the base branch
       - name: Download base branch artifact (if present)

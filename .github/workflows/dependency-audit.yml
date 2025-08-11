@@ -14,7 +14,6 @@ jobs:
   security_audit:
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    # No container needed, the action handles the environment
     permissions:
       contents: read
       checks: write # This permission is now used by the action

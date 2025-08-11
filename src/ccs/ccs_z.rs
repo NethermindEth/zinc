@@ -5,12 +5,12 @@
 use ark_std::{log2, marker::PhantomData, sync::atomic::AtomicPtr, vec, vec::Vec};
 
 use super::{
-    ccs_f::{Statement_F, Witness_F, CCS_F},
+    ccs_f::{CCS_F, Statement_F, Witness_F},
     utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul},
 };
 use crate::{
     ccs::error::CSError as Error,
-    sparse_matrix::{dense_matrix_to_sparse, SparseMatrix},
+    sparse_matrix::{SparseMatrix, dense_matrix_to_sparse},
     traits::{ConfigReference, Field, FieldMap, Integer},
 };
 
@@ -326,11 +326,11 @@ pub(crate) fn get_test_ccs_stuff_Z<I: Integer>(
 mod tests {
     use ark_std::vec::Vec;
 
-    use super::{get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z, Arith_Z};
+    use super::{Arith_Z, get_test_ccs_Z, get_test_ccs_Z_statement, get_test_z_Z};
     use crate::{
         big_int,
         ccs::{
-            ccs_f::{Arith, Instance_F, CCS_F},
+            ccs_f::{Arith, CCS_F, Instance_F},
             ccs_z::CCS_Z,
         },
         field::{ConfigRef, Int, RandomField},

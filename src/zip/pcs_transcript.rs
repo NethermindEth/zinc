@@ -7,7 +7,7 @@ use ark_std::{
     vec::Vec,
 };
 
-use super::{pcs::utils::MerkleProof, Error};
+use super::{Error, pcs::utils::MerkleProof};
 use crate::{
     poly::alloc::string::ToString,
     traits::{BigInteger, Field, FromBytes, Integer, PrimitiveConversion, Words},

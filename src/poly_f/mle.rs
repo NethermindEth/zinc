@@ -2,11 +2,11 @@ mod dense;
 mod sparse;
 
 use ark_std::{
+    Zero,
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
     rand::Rng,
     vec::Vec,
-    Zero,
 };
 
 /// This trait describes an interface for the multilinear extension

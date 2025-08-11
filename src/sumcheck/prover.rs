@@ -9,7 +9,7 @@ use ark_std::{
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use super::{verifier::VerifierMsg, IPForMLSumcheck};
+use super::{IPForMLSumcheck, verifier::VerifierMsg};
 use crate::{
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{ConfigReference, Field, FieldMap},

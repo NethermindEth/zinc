@@ -8,7 +8,7 @@ use ark_std::{
     time::{Duration, Instant},
 };
 use criterion::{
-    criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+    BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
 use crypto_bigint::Random;
 use itertools::Itertools;
@@ -22,7 +22,7 @@ use zinc::{
     zip::{
         code::{DefaultLinearCodeSpec, LinearCode},
         code_raa::RaaCode,
-        pcs::{structs::MultilinearZip, MerkleTree},
+        pcs::{MerkleTree, structs::MultilinearZip},
         pcs_transcript::PcsTranscript,
     },
 };

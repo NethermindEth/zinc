@@ -1,4 +1,4 @@
-use ark_std::{vec::Vec, Zero};
+use ark_std::{Zero, vec::Vec};
 
 use crate::traits::{
     BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Uinteger,

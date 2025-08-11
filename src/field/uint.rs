@@ -4,8 +4,8 @@ use crypto_primes::hazmat::MillerRabin;
 use num_traits::One;
 
 use crate::{
-    field::{biginteger::Words, Int},
-    traits::{types::PrimalityTest, FromBytes, Uinteger},
+    field::{Int, biginteger::Words},
+    traits::{FromBytes, Uinteger, types::PrimalityTest},
 };
 
 #[derive(Clone)]

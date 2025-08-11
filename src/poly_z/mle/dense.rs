@@ -11,7 +11,7 @@ use ark_std::{
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use super::{swap_bits, MultilinearExtension};
+use super::{MultilinearExtension, swap_bits};
 use crate::{
     poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
@@ -44,7 +44,8 @@ impl<I: Integer> DenseMultilinearExtension<I> {
         // assert that the number of variables matches the size of evaluations
         assert!(
             evaluations.len() <= 1 << num_vars,
-            "The size of evaluations should not exceed 2^num_vars. \n eval len: {:?}. num vars: {num_vars}", evaluations.len()
+            "The size of evaluations should not exceed 2^num_vars. \n eval len: {:?}. num vars: {num_vars}",
+            evaluations.len()
         );
 
         if evaluations.len() != 1 << num_vars {

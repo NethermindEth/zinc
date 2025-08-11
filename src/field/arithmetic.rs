@@ -184,7 +184,7 @@ mod test {
 
     use crate::{
         big_int,
-        field::{biginteger::BigInt, config::ConfigRef, RandomField},
+        field::{RandomField, biginteger::BigInt, config::ConfigRef},
         field_config, random_field,
     };
 

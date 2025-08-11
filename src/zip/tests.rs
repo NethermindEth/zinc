@@ -1,4 +1,4 @@
-use ark_std::{vec, vec::Vec, UniformRand};
+use ark_std::{UniformRand, vec, vec::Vec};
 
 use crate::{
     define_random_field_zip_types,

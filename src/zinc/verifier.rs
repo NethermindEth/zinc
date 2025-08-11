@@ -3,15 +3,15 @@ use ark_std::{boxed::Box, vec::Vec};
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
-    utils::{draw_random_field, SqueezeBeta, SqueezeGamma},
+    utils::{SqueezeBeta, SqueezeGamma, draw_random_field},
 };
 use crate::{
     ccs::{
-        ccs_f::{Statement_F, CCS_F},
-        ccs_z::{Statement_Z, CCS_Z},
+        ccs_f::{CCS_F, Statement_F},
+        ccs_z::{CCS_Z, Statement_Z},
     },
     poly_f::mle::DenseMultilinearExtension,
-    sumcheck::{utils::eq_eval, MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
+    sumcheck::{MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof, utils::eq_eval},
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{

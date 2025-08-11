@@ -13,7 +13,7 @@ use num_traits::Zero;
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use super::{swap_bits, MultilinearExtension};
+use super::{MultilinearExtension, swap_bits};
 use crate::{sparse_matrix::SparseMatrix, traits::Integer};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

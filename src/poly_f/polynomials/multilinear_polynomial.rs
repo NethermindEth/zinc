@@ -8,7 +8,7 @@ use ark_std::{end_timer, rand::RngCore, start_timer, vec, vec::Vec};
 use super::RefCounter;
 pub use crate::poly_f::mle::DenseMultilinearExtension;
 use crate::{
-    poly::{get_batched_nv, ArithErrors},
+    poly::{ArithErrors, get_batched_nv},
     poly_f::mle::MultilinearExtension,
     traits::{Field, FieldMap},
 };

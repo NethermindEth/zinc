@@ -4,7 +4,7 @@ use ark_std::{
     vec::Vec,
 };
 use num_integer::Integer as NumInteger;
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 use crate::traits::{Integer, Words};
 

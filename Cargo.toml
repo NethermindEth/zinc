@@ -1,11 +1,18 @@
 [package]
 name = "zinc"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/NethermindEth/zinc/"
 license = "MIT"
 
-authors = ["Ilia Vlasov <ilia@nethermind.io>", "Matthew Klein <matthew.klein@nethermind.io>", "Isaac Villalobos <isaac@nethermind.io>", "Marko Čupić <marko.cupic@nethermind.io>"]
+authors = [
+    "Ilia Vlasov <ilia@nethermind.io>",
+    "Matthew Klein <matthew.klein@nethermind.io>",
+    "Isaac Villalobos <isaac@nethermind.io>",
+    "Marko Čupić <marko.cupic@nethermind.io>",
+    "Nikolaos Dimitriou <nikolaos@nethermind.io>",
+    "Alexander Abdugafarov <alexander.abdugafarov@nethermind.io>"
+]
 
 [dependencies]
 ark-ff = "0.5.0"

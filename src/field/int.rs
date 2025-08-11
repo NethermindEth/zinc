@@ -6,8 +6,8 @@ use ark_std::{
     vec::Vec,
 };
 use crypto_bigint::{
-    subtle::{Choice, ConstantTimeEq},
     Int as CryptoInt, NonZero, Random,
+    subtle::{Choice, ConstantTimeEq},
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
 

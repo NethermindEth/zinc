@@ -1,15 +1,15 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    AxisScale, BenchmarkId, Criterion, PlotConfiguration, criterion_group, criterion_main,
 };
 use zinc::{
     big_int,
     field::{ConfigRef, RandomField},
     field_config,
     sumcheck::{
-        utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck,
+        utils::{rand_poly, rand_poly_comb_fn},
     },
     transcript::KeccakTranscript,
 };

@@ -26,8 +26,8 @@ use crate::{
 /// \text{mle}[M\_j](\vec{\mathbf{x}}, \vec{\mathbf{b}}) \cdot \text{mle}\[\mathbf{z}\_{ccs}\](\vec{b})
 /// \right)
 /// \right]
-/// \right) $$  
-///  
+/// \right) $$
+///
 /// # Parameters:
 ///
 /// * `c` (`&[NTT]`): The second multiplicand of the polynomial is a linear combination of products of lists of MLEs, c is the coefficients of the lists

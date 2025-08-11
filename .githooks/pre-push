@@ -1,0 +1,70 @@
+#!/bin/sh
+set -e
+
+# --- Color Definitions ---
+# Adds color to the output for better readability.
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# --- Dependency Sorting ---
+echo "› Checking dependency sorting..."
+if ! output=$(cargo sort --workspace --check 2>&1); then
+    echo -e "${RED}❌ Dependencies should be sorted.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    echo -e "${YELLOW}💡 To fix, run: 'cargo sort --workspace'${NC}"
+    exit 1
+fi
+
+# --- Dependency Audit ---
+echo "› Auditing dependencies..."
+if ! output=$(cargo deny check 2>&1); then
+    echo -e "${RED}❌ Critical: Vulnerable dependencies detected.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    echo -e "${YELLOW}💡 To review, run: 'cargo deny check'${NC}"
+    exit 2
+fi
+
+# --- Formatting Check ---
+echo "› Checking code formatting..."
+if ! output=$(cargo fmt --all -- --check 2>&1); then
+    echo -e "${RED}❌ Formatting issues found.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    echo -e "${YELLOW}💡 To fix, run: 'cargo fmt --all'${NC}"
+    exit 3
+fi
+
+# --- Typo Check ---
+echo "› Checking for typos..."
+if ! output=$(typos 2>&1); then
+    echo -e "${RED}❌ Spelling mistakes found.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    echo -e "${YELLOW}💡 To fix, run: 'typos --write-changes'${NC}"
+    exit 4
+fi
+
+# --- Linting (no default features) ---
+echo "› Linting (no default features)..."
+if ! output=$(cargo clippy --all-targets --no-default-features -- -D warnings 2>&1); then
+    echo -e "${RED}❌ Clippy (no default features) violations found.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    exit 5
+fi
+
+# --- Linting (all features) ---
+echo "› Linting (all features)..."
+if ! output=$(cargo clippy --all-targets --all-features -- -D warnings 2>&1); then
+    echo -e "${RED}❌ Clippy (all features) violations found.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    exit 5
+fi
+
+# --- Tests ---
+echo "› Running tests..."
+if ! output=$(cargo test --workspace --verbose 2>&1); then
+    echo -e "${RED}❌ Test failures detected.${NC}"
+    echo -e "${RED}--- Failure Output ---${NC}\n$output\n${RED}----------------------${NC}"
+    exit 6
+fi
+
+echo "✅ All checks passed!"

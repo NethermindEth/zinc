@@ -84,7 +84,7 @@ fn verifier_rejects_proof_with_incorrect_claimed_sum() {
     let mut transcript = KeccakTranscript::default();
     let ((poly_mles, poly_degree), products, sum) =
         rand_poly(num_vars, (2, 5), 7, config_ref, &mut rng).unwrap();
-    
+
     let comb_fn =
         move |vals: &[F<'static>]| -> F<'static> { rand_poly_comb_fn(vals, &products, config_ref) };
 
@@ -209,7 +209,7 @@ fn protocol_is_deterministic_with_same_transcript() {
 
     let comb_fn =
         move |vals: &[F<'static>]| -> F<'static> { rand_poly_comb_fn(vals, &products, config_ref) };
-    
+
     let mut transcript1 = KeccakTranscript::default();
     let (proof1, _) = MLSumcheck::prove_as_subprotocol(
         &mut transcript1,
@@ -219,7 +219,7 @@ fn protocol_is_deterministic_with_same_transcript() {
         comb_fn.clone(),
         config_ref,
     );
-    
+
     let mut transcript2 = KeccakTranscript::default();
     let (proof2, _) = MLSumcheck::prove_as_subprotocol(
         &mut transcript2,
@@ -239,7 +239,7 @@ fn different_polynomials_produce_different_proofs() {
     let num_vars = 3;
 
     let config_ref = get_config();
-    
+
     let ((poly_mles1, poly_degree1), products1, _) =
         rand_poly(num_vars, (2, 5), 7, config_ref, &mut rng).unwrap();
 
@@ -257,7 +257,7 @@ fn different_polynomials_produce_different_proofs() {
         comb_fn1,
         config_ref,
     );
-    
+
     let mut poly_mles2 = poly_mles1;
     let one: F = 1i32.map_to_field(config_ref);
     poly_mles2[0].evaluations[0] += one;
@@ -265,7 +265,7 @@ fn different_polynomials_produce_different_proofs() {
     let comb_fn2 = move |vals: &[F<'static>]| -> F<'static> {
         rand_poly_comb_fn(vals, &products1, config_ref)
     };
-    
+
     let mut transcript2 = KeccakTranscript::default();
     let (proof2, _) = MLSumcheck::prove_as_subprotocol(
         &mut transcript2,
@@ -433,7 +433,7 @@ fn verifier_rejects_proof_if_transcript_is_tampered() {
         comb_fn,
         config_ref,
     );
-    
+
     let mut clean_transcript = KeccakTranscript::default();
     let clean_res = MLSumcheck::verify_as_subprotocol(
         &mut clean_transcript,
@@ -444,7 +444,7 @@ fn verifier_rejects_proof_if_transcript_is_tampered() {
         config_ref,
     );
     assert!(clean_res.is_ok());
-    
+
     let mut tampered_transcript = KeccakTranscript::default();
     tampered_transcript.absorb(b"tampering the transcript");
     let tampered_res = MLSumcheck::verify_as_subprotocol(
@@ -474,17 +474,16 @@ fn prover_panics_if_round_exceeds_num_vars() {
     };
 
     let comb_fn = |_vals: &[F<'static>]| F::zero();
-    
+
     let verifier_msg = Some(super::verifier::VerifierMsg {
         randomness: F::zero(),
     });
-    
+
     IPForMLSumcheck::prove_round(&mut prover_state, &verifier_msg, comb_fn, config_ref);
 }
 
 #[test]
-#[should_panic(expected = "proof is incomplete")]
-fn verifier_panics_on_incomplete_proof() {
+fn verifier_errors_on_incomplete_proof() {
     let mut rng = ark_std::test_rng();
     let num_vars = 3;
 
@@ -507,17 +506,22 @@ fn verifier_panics_on_incomplete_proof() {
     );
 
     let mut incomplete_proof = proof.clone();
-    incomplete_proof.0.pop(); // Remove the last prover message
+    incomplete_proof.0.pop();
 
     let mut verifier_transcript = KeccakTranscript::default();
 
-    let _ = MLSumcheck::verify_as_subprotocol(
+    let res = MLSumcheck::verify_as_subprotocol(
         &mut verifier_transcript,
         num_vars,
         poly_degree,
         sum,
         &incomplete_proof,
         config_ref,
+    );
+
+    assert!(
+        matches!(res, Err(super::SumCheckError::InvalidProofLength { expected, got }) if expected == num_vars && got == num_vars - 1),
+        "expected IncorrectRoundCount error"
     );
 }
 
@@ -554,4 +558,123 @@ fn prover_handles_empty_mle_list() {
     );
 
     assert!(res.is_ok());
+}
+
+#[test]
+#[should_panic(expected = "Attempt to prove a constant.")]
+fn prover_panics_with_zero_variables() {
+    let num_vars = 0;
+    let degree = 2;
+
+    IPForMLSumcheck::<F>::prover_init(Vec::new(), num_vars, degree);
+}
+
+#[test]
+fn verifier_errors_on_mismatched_nvars() {
+    let mut rng = ark_std::test_rng();
+    let nvars_prover = 3;
+    let nvars_verifier = 4;
+    let config_ref = get_config();
+
+    let (poly_degree, sum, proof) =
+        generate_sumcheck_proof::<F>(nvars_prover, &mut rng, config_ref);
+
+    let mut transcript = KeccakTranscript::default();
+    let res = MLSumcheck::verify_as_subprotocol(
+        &mut transcript,
+        nvars_verifier, // verifier expects more rounds than the proof contains
+        poly_degree,
+        sum,
+        &proof,
+        config_ref,
+    );
+
+    assert!(
+        matches!(res, Err(super::SumCheckError::InvalidProofLength { expected, got })
+            if expected == nvars_verifier && got == nvars_prover),
+        "expected IncorrectRoundCount: expected {}, got {:?}",
+        nvars_verifier,
+        res
+    );
+}
+
+#[test]
+fn verifier_produces_correct_subclaim() {
+    let mut rng = ark_std::test_rng();
+    let nvars = 3;
+    let config_ref = get_config();
+
+    let mut prover_transcript = KeccakTranscript::default();
+    let ((poly_mles, poly_degree), products, sum) =
+        rand_poly(nvars, (2, 5), 7, config_ref, &mut rng).unwrap();
+
+    let original_mles = poly_mles.clone();
+    let products_for_verification = products.clone();
+
+    let comb_fn =
+        move |vals: &[F<'static>]| -> F<'static> { rand_poly_comb_fn(vals, &products, config_ref) };
+
+    let (proof, _) = MLSumcheck::prove_as_subprotocol(
+        &mut prover_transcript,
+        poly_mles,
+        nvars,
+        poly_degree,
+        comb_fn,
+        config_ref,
+    );
+
+    let mut verifier_transcript = KeccakTranscript::default();
+    let subclaim = MLSumcheck::verify_as_subprotocol(
+        &mut verifier_transcript,
+        nvars,
+        poly_degree,
+        sum,
+        &proof,
+        config_ref,
+    )
+    .unwrap();
+
+    let mle_evals_at_point: Vec<F> = original_mles
+        .iter()
+        .map(|mle| mle.evaluate(&subclaim.point, config_ref).unwrap())
+        .collect();
+
+    let manual_eval =
+        rand_poly_comb_fn(&mle_evals_at_point, &products_for_verification, config_ref);
+
+    assert_eq!(manual_eval, subclaim.expected_evaluation);
+}
+
+#[test]
+fn zero_variable_case_returns_correct_subclaim() {
+    let config_ref = get_config();
+    let num_vars = 0;
+    let degree = 2;
+
+    // No prover rounds for zero-variable case
+    let proof = SumcheckProof::<F>(Vec::new());
+
+    // Let's pick some arbitrary "claimed sum"
+    let claimed_sum: F = 42i32.map_to_field(config_ref);
+
+    let mut transcript = KeccakTranscript::default();
+    let subclaim = MLSumcheck::verify_as_subprotocol(
+        &mut transcript,
+        num_vars,
+        degree,
+        claimed_sum,
+        &proof,
+        config_ref,
+    )
+    .expect("zero-variable verification should succeed");
+
+    // Point should be empty, and expected evaluation should match claimed_sum
+    assert!(
+        subclaim.point.is_empty(),
+        "point should be empty for nvars=0"
+    );
+    assert_eq!(
+        subclaim.expected_evaluation, claimed_sum,
+        "expected evaluation should equal claimed sum"
+    );
 }

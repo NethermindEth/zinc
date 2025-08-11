@@ -71,7 +71,7 @@ impl<F: Field> IPForMLSumcheck<F> {
             }
             prover_state.randomness.push(msg.randomness.clone());
 
-            // fix argument
+            // fix the next variable at the verifier randomness for this round
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1].clone();
 
@@ -107,13 +107,15 @@ impl<F: Field> IPForMLSumcheck<F> {
             levals: Vec<R>,
         }
         let zero: F = 0u64.map_to_field(config);
+        let zero_vec_deg = vec![zero.clone(); degree + 1];
+        let zero_vec_poly = vec![zero.clone(); polys.len()];
         let scratch = || Scratch {
-            evals: vec![zero.clone(); degree + 1],
-            steps: vec![zero.clone(); polys.len()],
-            vals0: vec![zero.clone(); polys.len()],
-            vals1: vec![zero.clone(); polys.len()],
-            vals: vec![zero.clone(); polys.len()],
-            levals: vec![zero.clone(); degree + 1],
+            evals: zero_vec_deg.clone(),
+            steps: zero_vec_poly.clone(),
+            vals0: zero_vec_poly.clone(),
+            vals1: zero_vec_poly.clone(),
+            vals: zero_vec_poly.clone(),
+            levals: zero_vec_deg.clone(),
         };
 
         #[cfg(not(feature = "parallel"))]

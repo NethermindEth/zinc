@@ -17,6 +17,17 @@ pub struct MultilinearZipParams<ZT: ZipTypes, LC: LinearCode<ZT>> {
     phantom_data_zt: PhantomData<ZT>,
 }
 
+impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZipParams<ZT, LC> {
+    pub fn new(num_vars: usize, num_rows: usize, linear_code: LC) -> MultilinearZipParams<ZT, LC> {
+        Self {
+            num_vars,
+            num_rows,
+            linear_code,
+            phantom_data_zt: PhantomData,
+        }
+    }
+}
+
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipData<K: Integer> {

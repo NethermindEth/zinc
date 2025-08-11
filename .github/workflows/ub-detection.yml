@@ -17,9 +17,6 @@ jobs:
     name: Check for undefined behaviour (UB)
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    # Using the nightly container is slightly cleaner, but not required
-    container:
-      image: rustlang/rust:nightly
 
     steps:
       - uses: actions/checkout@v4

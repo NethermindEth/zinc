@@ -13,8 +13,6 @@ env:
 jobs:
   build_and_test:
     runs-on: ubuntu-latest
-    container:
-      image: rust:1.88
     steps:
       - uses: actions/checkout@v4
 

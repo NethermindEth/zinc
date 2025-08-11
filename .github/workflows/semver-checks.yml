@@ -18,8 +18,6 @@ env:
 jobs:
   semver:
     runs-on: ubuntu-latest
-    container:
-      image: rust:1.88
     permissions:
       contents: read
     steps:

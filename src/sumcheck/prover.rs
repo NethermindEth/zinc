@@ -71,7 +71,7 @@ impl<F: Field> IPForMLSumcheck<F> {
             }
             prover_state.randomness.push(msg.randomness.clone());
 
-            // fix argument
+            // fix the next variable at the verifier randomness for this round
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1].clone();
 
@@ -107,13 +107,15 @@ impl<F: Field> IPForMLSumcheck<F> {
             levals: Vec<R>,
         }
         let zero: F = 0u64.map_to_field(config);
+        let zero_vec_deg = vec![zero.clone(); degree + 1];
+        let zero_vec_poly = vec![zero.clone(); polys.len()];
         let scratch = || Scratch {
-            evals: vec![zero.clone(); degree + 1],
-            steps: vec![zero.clone(); polys.len()],
-            vals0: vec![zero.clone(); polys.len()],
-            vals1: vec![zero.clone(); polys.len()],
-            vals: vec![zero.clone(); polys.len()],
-            levals: vec![zero.clone(); degree + 1],
+            evals: zero_vec_deg.clone(),
+            steps: zero_vec_poly.clone(),
+            vals0: zero_vec_poly.clone(),
+            vals1: zero_vec_poly.clone(),
+            vals: zero_vec_poly.clone(),
+            levals: zero_vec_deg.clone(),
         };
 
         #[cfg(not(feature = "parallel"))]
@@ -130,22 +132,24 @@ impl<F: Field> IPForMLSumcheck<F> {
                 .for_each(|(v0, poly)| *v0 = poly[index].clone());
             s.levals[0] = comb_fn(&s.vals0);
 
-            s.vals1
-                .iter_mut()
-                .zip(polys.iter())
-                .for_each(|(v1, poly)| *v1 = poly[index + 1].clone());
-            s.levals[1] = comb_fn(&s.vals1);
+            if degree > 0 {
+                s.vals1
+                    .iter_mut()
+                    .zip(polys.iter())
+                    .for_each(|(v1, poly)| *v1 = poly[index + 1].clone());
+                s.levals[1] = comb_fn(&s.vals1);
 
-            for (i, (v1, v0)) in s.vals1.iter().zip(s.vals0.iter()).enumerate() {
-                s.steps[i] = v1.clone() - v0.clone();
-                s.vals[i] = v1.clone();
-            }
-
-            for eval_point in s.levals.iter_mut().take(degree + 1).skip(2) {
-                for poly_i in 0..polys.len() {
-                    s.vals[poly_i] += &s.steps[poly_i];
+                for (i, (v1, v0)) in s.vals1.iter().zip(s.vals0.iter()).enumerate() {
+                    s.steps[i] = v1.clone() - v0.clone();
+                    s.vals[i] = v1.clone();
                 }
-                *eval_point = comb_fn(&s.vals);
+
+                for eval_point in s.levals.iter_mut().take(degree + 1).skip(2) {
+                    for poly_i in 0..polys.len() {
+                        s.vals[poly_i] += &s.steps[poly_i];
+                    }
+                    *eval_point = comb_fn(&s.vals);
+                }
             }
 
             s.evals

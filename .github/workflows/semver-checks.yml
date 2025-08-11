@@ -51,7 +51,7 @@ jobs:
           else
             # Extract version without 'v' prefix for comparison
             version=${latest_tag#v}
-          
+
             # Check if version is >= 0.1.0 (using semver comparison)
             if printf '%s\n%s\n' "0.1.0" "$version" | sort -V | head -n1 | grep -q "^0\.1\.0$"; then
               echo "Found suitable baseline tag: $latest_tag (>= v0.1.0)"

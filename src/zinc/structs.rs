@@ -15,9 +15,9 @@ use crate::{
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
 #[derive(Debug, Clone)]
 pub struct SpartanProof<F> {
-    /// A list of non-interactive sumcheck prover messages.  
+    /// A list of non-interactive sumcheck prover messages.
     ///
-    /// Sent in step 2 of linearization subprotocol.  
+    /// Sent in step 2 of linearization subprotocol.
     pub linearization_sumcheck: sumcheck::SumcheckProof<F>,
     pub second_sumcheck: sumcheck::SumcheckProof<F>,
     pub V_s: Vec<F>,

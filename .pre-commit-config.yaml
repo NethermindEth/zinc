@@ -1,0 +1,70 @@
+# .pre-commit-config.yaml
+repos:
+  -   repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v4.6.0
+      hooks:
+        -   id: trailing-whitespace
+            stages: [pre-push] # Added stage
+        -   id: end-of-file-fixer
+            stages: [pre-push] # Added stage
+        -   id: check-toml
+            stages: [pre-push] # Added stage
+        -   id: check-merge-conflict
+            stages: [pre-push] # Added stage
+
+  -   repo: local
+      hooks:
+        # ---- PRE-PUSH HOOK ----
+        -   id: rust-fmt
+            name: 📖 Format code
+            description: "Format Rust files with rustfmt."
+            entry: cargo fmt -- --check
+            language: rust
+            types: [rust]
+            stages: [pre-push]
+
+        -   id: rust-clippy-all-features
+            name: 📎 Clippy (all features)
+            description: "Run clippy lints with all features enabled."
+            entry: cargo clippy --all-targets --all-features -- -D warnings
+            language: rust
+            types: [rust]
+            stages: [pre-push]
+            pass_filenames: false # Run against the whole crate
+
+        -   id: rust-clippy-no-default-features
+            name: 📎 Clippy (no-default-features)
+            description: "Run clippy lints with default features disabled."
+            entry: cargo clippy --all-targets --no-default-features -- -D warnings
+            language: rust
+            types: [rust]
+            stages: [pre-push]
+            pass_filenames: false # Run against the whole crate
+
+        -   id: cargo-sort
+            name: 📎 cargo-sort
+            description: "Checking if dependencies are sorted."
+            entry: cargo sort --workspace --check
+            language: rust
+            types: [ rust ]
+            stages: [ pre-push ]
+            pass_filenames: false # Run against the whole crate
+
+        -   id: rust-deny
+            name: 📎 cargo-deny
+            description: "Run cargo deny to check for dependency vulnerabilities."
+          # FIXED: The command is 'cargo deny check', not 'cargo check deny'.
+            entry: cargo deny check
+            language: rust
+            types: [ rust ]
+            stages: [ pre-push ]
+            pass_filenames: false # Run against the whole crate
+
+        -   id: rust-test
+            name: 🧪 Run tests
+            description: "Run tests with cargo test."
+            entry: cargo test --features parallel
+            language: rust
+            types: [rust]
+            stages: [pre-push]
+            pass_filenames: false # Run against the whole crate

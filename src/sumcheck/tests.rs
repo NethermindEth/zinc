@@ -1,22 +1,18 @@
-use ark_std::boxed::Box;
-use ark_std::rand;
-use ark_std::vec;
-use ark_std::vec::Vec;
+use ark_std::{boxed::Box, rand, vec, vec::Vec};
 use num_traits::Zero;
 use rand::Rng;
 
 use super::{
-    utils::{rand_poly, rand_poly_comb_fn},
     IPForMLSumcheck, MLSumcheck, SumcheckProof,
+    utils::{rand_poly, rand_poly_comb_fn},
 };
-use crate::poly_f::mle::DenseMultilinearExtension;
-use crate::sumcheck::prover::ProverState;
-use crate::traits::FieldMap;
 use crate::{
     big_int,
     field::{ConfigRef, RandomField},
     field_config,
-    traits::{ConfigReference, Field},
+    poly_f::mle::DenseMultilinearExtension,
+    sumcheck::prover::ProverState,
+    traits::{ConfigReference, Field, FieldMap},
     transcript::KeccakTranscript,
 };
 
@@ -592,9 +588,7 @@ fn verifier_errors_on_mismatched_nvars() {
     assert!(
         matches!(res, Err(super::SumCheckError::InvalidProofLength { expected, got })
             if expected == nvars_verifier && got == nvars_prover),
-        "expected IncorrectRoundCount: expected {}, got {:?}",
-        nvars_verifier,
-        res
+        "expected IncorrectRoundCount: expected {nvars_verifier}, got {res:?}"
     );
 }
 

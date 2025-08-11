@@ -182,7 +182,7 @@ mod tests {
         traits::ZipTypes,
         zip::{
             code::{DefaultLinearCodeSpec, LinearCode},
-            code_raa::{accumulate, repeat, RaaCode},
+            code_raa::{RaaCode, accumulate, repeat},
             pcs::tests::MockTranscript,
             utils::shuffle_seeded,
         },

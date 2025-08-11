@@ -5,19 +5,19 @@ use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincProver, ZipProof},
     utils::{
-        calculate_Mz_mles, prepare_lin_sumcheck_polynomial, sumcheck_polynomial_comb_fn_1,
-        SqueezeBeta, SqueezeGamma,
+        SqueezeBeta, SqueezeGamma, calculate_Mz_mles, prepare_lin_sumcheck_polynomial,
+        sumcheck_polynomial_comb_fn_1,
     },
 };
 use crate::{
     ccs::{
-        ccs_f::{Statement_F, CCS_F},
-        ccs_z::{Instance_Z, Statement_Z, Witness_Z, CCS_Z},
+        ccs_f::{CCS_F, Statement_F},
+        ccs_z::{CCS_Z, Instance_Z, Statement_Z, Witness_Z},
     },
     poly_f::mle::DenseMultilinearExtension,
     poly_z::mle::DenseMultilinearExtension as DenseMultilinearExtensionZ,
     sparse_matrix::SparseMatrix,
-    sumcheck::{utils::build_eq_x_r, MLSumcheck, SumcheckProof},
+    sumcheck::{MLSumcheck, SumcheckProof, utils::build_eq_x_r},
     traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
     transcript::KeccakTranscript,
     zip::{

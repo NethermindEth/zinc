@@ -18,7 +18,7 @@ use crate::{
     poly::ArithErrors,
     poly_f::{
         mle::DenseMultilinearExtension,
-        polynomials::{random_mle_list, RefCounter},
+        polynomials::{RefCounter, random_mle_list},
     },
     traits::{Field, FieldMap},
 };

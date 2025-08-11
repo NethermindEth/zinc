@@ -133,8 +133,8 @@ mod tests {
     use rand::Rng;
 
     use super::{
-        utils::{rand_poly, rand_poly_comb_fn},
         MLSumcheck, SumcheckProof,
+        utils::{rand_poly, rand_poly_comb_fn},
     };
     use crate::{
         big_int,

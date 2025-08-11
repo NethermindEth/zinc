@@ -3,8 +3,8 @@
 use ark_std::{log2, marker::PhantomData, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
 
 use super::{
-    ccs_f::{Statement_F, Witness_F, CCS_F},
-    ccs_z::{Statement_Z, Witness_Z, CCS_Z},
+    ccs_f::{CCS_F, Statement_F, Witness_F},
+    ccs_z::{CCS_Z, Statement_Z, Witness_Z},
 };
 use crate::{
     sparse_matrix::SparseMatrix,

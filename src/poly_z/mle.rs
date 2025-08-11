@@ -2,11 +2,11 @@ mod dense;
 mod sparse;
 
 use ark_std::{
+    Zero,
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
     rand::Rng,
     vec::Vec,
-    Zero,
 };
 
 /// This trait describes an interface for the multilinear extension
@@ -66,9 +66,9 @@ pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {
     x ^ global_xor_mask
 }
 
-pub use dense::build_eq_x_r;
 /// Exports
 pub use dense::DenseMultilinearExtension;
+pub use dense::build_eq_x_r;
 pub use sparse::SparseMultilinearExtension;
 
 use crate::traits::Integer;

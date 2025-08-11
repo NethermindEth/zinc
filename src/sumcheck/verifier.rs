@@ -1,7 +1,7 @@
 //! Verifier
 use ark_std::{boxed::Box, vec, vec::Vec};
 
-use super::{prover::ProverMsg, IPForMLSumcheck, SumCheckError};
+use super::{IPForMLSumcheck, SumCheckError, prover::ProverMsg};
 use crate::{
     traits::{Field, FieldMap},
     transcript::KeccakTranscript as Transcript,

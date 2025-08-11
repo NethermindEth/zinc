@@ -12,7 +12,7 @@ use hashbrown::HashMap;
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use super::{swap_bits, MultilinearExtension};
+use super::{MultilinearExtension, swap_bits};
 use crate::{
     sparse_matrix::SparseMatrix,
     traits::{BigInteger, ConfigReference, Field, FieldMap},

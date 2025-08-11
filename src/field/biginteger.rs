@@ -6,6 +6,7 @@ use ark_serialize::{
 };
 use ark_std::ops::{Index, IndexMut, Range, RangeTo};
 use ark_std::{
+    Zero,
     borrow::Borrow,
     // convert::TryFrom,
     fmt::{Debug, Display, UpperHex},
@@ -15,12 +16,11 @@ use ark_std::{
         ShrAssign,
     },
     rand::{
-        distributions::{Distribution, Standard},
         Rng,
+        distributions::{Distribution, Standard},
     },
     str::FromStr,
     vec::Vec,
-    Zero,
 };
 use num_bigint::BigUint;
 use zeroize::Zeroize;
@@ -28,7 +28,7 @@ use zeroize::Zeroize;
 use crate::{
     adc,
     const_helpers::SerBuffer,
-    field::{config, Int},
+    field::{Int, config},
     traits::{BigInteger, FromBytes, Integer, Uinteger},
 };
 
@@ -693,7 +693,7 @@ impl<const N: usize> PartialOrd for BigInt<N> {
 
 impl<const N: usize> Distribution<BigInt<N>> for Standard {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BigInt<N> {
-        BigInt::from([(); N].map(|_| rng.gen()))
+        BigInt::from([(); N].map(|_| rng.r#gen()))
     }
 }
 

@@ -2,16 +2,16 @@ use ark_std::{vec, vec::Vec};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
-    utils::{validate_input, MerkleTree},
+    utils::{MerkleTree, validate_input},
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{Field, ZipTypes},
     zip::{
+        Error,
         code::LinearCode,
         pcs::structs::MultilinearZipParams,
         utils::{div_ceil, num_threads, parallelize_iter},
-        Error,
     },
 };
 

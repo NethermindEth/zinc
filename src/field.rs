@@ -14,8 +14,8 @@ mod int;
 mod uint;
 
 pub use biginteger::{
-    signed_mod_reduction, BigInt, BigInteger128, BigInteger256, BigInteger320, BigInteger384,
-    BigInteger448, BigInteger64, BigInteger768, BigInteger832, Words,
+    BigInt, BigInteger64, BigInteger128, BigInteger256, BigInteger320, BigInteger384,
+    BigInteger448, BigInteger768, BigInteger832, Words, signed_mod_reduction,
 };
 pub use config::{ConfigRef, DebugFieldConfig, FieldConfig};
 pub use int::Int;
@@ -582,7 +582,7 @@ where
 mod tests {
     use crate::{
         big_int,
-        field::{config::ConfigRef, RandomField},
+        field::{RandomField, config::ConfigRef},
         field_config,
     };
 

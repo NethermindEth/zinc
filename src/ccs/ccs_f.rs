@@ -13,7 +13,7 @@ use super::utils::{hadamard, mat_vec_mul, vec_add, vec_scalar_mul};
 use crate::{
     ccs::error::CSError as Error,
     poly_f::mle::{DenseMultilinearExtension, SparseMultilinearExtension},
-    sparse_matrix::{compute_eval_table_sparse, dense_matrix_to_sparse, SparseMatrix},
+    sparse_matrix::{SparseMatrix, compute_eval_table_sparse, dense_matrix_to_sparse},
     traits::{ConfigReference, Field, FieldMap},
 };
 
@@ -313,7 +313,7 @@ pub(crate) fn get_test_z_F<F: Field>(input: u64, config: F::R) -> Vec<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F, Arith};
+    use super::{Arith, get_test_ccs_F, get_test_ccs_F_statement, get_test_z_F};
     use crate::{
         big_int,
         ccs::test_utils::get_dummy_ccs_F_from_z_length,

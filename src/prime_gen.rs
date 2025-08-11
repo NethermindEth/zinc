@@ -1,7 +1,7 @@
 use num_traits::One;
 
 use crate::{
-    traits::{types::PrimalityTest, BigInteger, Field, FromBytes, Uinteger, Words},
+    traits::{BigInteger, Field, FromBytes, Uinteger, Words, types::PrimalityTest},
     transcript::KeccakTranscript,
 };
 

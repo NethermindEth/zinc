@@ -4,17 +4,17 @@ use itertools::izip;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipData},
-    utils::{left_point_to_tensor, validate_input, ColumnOpening},
+    utils::{ColumnOpening, left_point_to_tensor, validate_input},
 };
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{Field, FieldMap, ZipTypes},
     zip::{
+        Error,
         code::LinearCode,
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{combine_rows, expand},
-        Error,
     },
 };
 

@@ -8,18 +8,16 @@ use crate::{
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
     traits::{Field, Integer},
     zip::{
+        Error,
         pcs_transcript::PcsTranscript,
         utils::{div_ceil, num_threads, parallelize, parallelize_iter},
-        Error,
     },
 };
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
-    Error::InvalidPcsParam(
-        format!(
-            "Too many variates of poly to {function} (param supports variates up to {upto} but got {got})"
-        )
-    )
+    Error::InvalidPcsParam(format!(
+        "Too many variates of poly to {function} (param supports variates up to {upto} but got {got})"
+    ))
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size

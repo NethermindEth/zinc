@@ -3,7 +3,7 @@
 
 use ark_std::hint::black_box;
 use criterion::{
-    criterion_group, criterion_main, AxisScale, BenchmarkId, Criterion, PlotConfiguration,
+    AxisScale, BenchmarkId, Criterion, PlotConfiguration, criterion_group, criterion_main,
 };
 use zinc::{
     field::{BigInt, RandomField},

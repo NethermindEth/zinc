@@ -2,16 +2,16 @@ use ark_std::{iterable::Iterable, vec::Vec};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{point_to_tensor, validate_input, ColumnOpening},
+    utils::{ColumnOpening, point_to_tensor, validate_input},
 };
 use crate::{
     traits::{Field, FieldMap, ZipTypes},
     zip::{
+        Error,
         code::LinearCode,
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
-        Error,
     },
 };
 

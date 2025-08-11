@@ -52,7 +52,7 @@ fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
             let codeword_len = params.linear_code.codeword_len();
             let poly = DenseMultilinearExtension::rand(P, &mut rng);
             b.iter(|| {
-                let _ = BenchZip::encode_rows(&params, codeword_len, row_len, &poly);
+                let _ = BenchZip::encode_rows(&params, codeword_len, row_len, &poly.evaluations);
             })
         },
     );

@@ -1,14 +1,18 @@
-use crate::field::Int;
-use crate::poly_z::mle::DenseMultilinearExtension;
-use crate::traits::Integer;
-use crate::zinc::prelude::DefaultLinearCodeSpec;
-use crate::zip::code::ZipLinearCode;
-use crate::zip::pcs::structs::{MultilinearZipParams, ZipTranscript};
-use crate::zip::utils::div_ceil;
-use crate::{define_random_field_zip_types, implement_random_field_zip_types};
-use ark_std::collections::BTreeSet;
-use ark_std::ops::Range;
-use ark_std::vec::Vec;
+use ark_std::{collections::BTreeSet, ops::Range, vec::Vec};
+
+use crate::{
+    define_random_field_zip_types,
+    field::Int,
+    implement_random_field_zip_types,
+    poly_z::mle::DenseMultilinearExtension,
+    traits::Integer,
+    zinc::prelude::DefaultLinearCodeSpec,
+    zip::{
+        code::ZipLinearCode,
+        pcs::structs::{MultilinearZipParams, ZipTranscript},
+        utils::div_ceil,
+    },
+};
 
 const INT_LIMBS: usize = 1;
 

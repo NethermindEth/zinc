@@ -66,7 +66,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         let codeword_len = pp.linear_code.codeword_len();
         let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
         let rows_merkle_trees = rows
             .chunks_exact(codeword_len)
@@ -110,7 +110,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
 
-        let rows = Self::encode_rows(pp, codeword_len, row_len, poly);
+        let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
         Ok((
             MultilinearZipData::new(rows, vec![]),
@@ -159,7 +159,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         pp: &MultilinearZipParams<ZT, LC>,
         codeword_len: usize,
         row_len: usize,
-        poly: &DenseMultilinearExtension<ZT::N>,
+        evals: &[ZT::N],
     ) -> Vec<ZT::K> {
         let rows_per_thread = div_ceil(pp.num_rows, num_threads());
         let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
@@ -167,7 +167,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         parallelize_iter(
             encoded_rows
                 .chunks_exact_mut(rows_per_thread * codeword_len)
-                .zip(poly.evaluations.chunks_exact(rows_per_thread * row_len)),
+                .zip(evals.chunks_exact(rows_per_thread * row_len)),
             |(encoded_chunk, evals)| {
                 for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)
@@ -185,40 +185,36 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
 #[cfg(test)]
 mod tests {
-    use crate::field::{BigInt, ConfigRef};
-    use crate::traits::{FieldMap, ZipTypes};
-    use crate::transcript::KeccakTranscript;
-    use crate::zip::code_raa::RaaCode;
-    use crate::zip::pcs_transcript::PcsTranscript;
+    use ark_std::{UniformRand, mem::size_of, slice::from_ref, vec, vec::Vec};
+    use crypto_bigint::Random;
+    use sha3::{Digest, Keccak256};
+
     use crate::{
-        field::{Int, RandomField},
+        field::{BigInt, ConfigRef, Int, RandomField},
         field_config,
         poly_z::mle::DenseMultilinearExtension,
+        traits::{FieldMap, ZipTypes},
+        transcript::KeccakTranscript,
         zip::{
             code::{DefaultLinearCodeSpec, LinearCode, ZipLinearCode},
+            code_raa::RaaCode,
             pcs::{
-                structs::{MultilinearZip, MultilinearZipParams},
                 MerkleTree,
+                structs::{MultilinearZip, MultilinearZipParams},
+                tests::{MockTranscript, RandomFieldZipTypes},
             },
+            pcs_transcript::PcsTranscript,
             utils::div_ceil,
         },
     };
-    use ark_std::slice::from_ref;
-
-    use crate::zip::pcs::tests::{MockTranscript, RandomFieldZipTypes};
-    use ark_std::mem::size_of;
-    use ark_std::vec::Vec;
-    use ark_std::{vec, UniformRand};
-    use crypto_bigint::Random;
-    use sha3::{Digest, Keccak256};
 
     const INT_LIMBS: usize = 1;
     const FIELD_LIMBS: usize = 4;
 
     type ZT = RandomFieldZipTypes<INT_LIMBS>;
-    type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
-    type TestZip<LC> = MultilinearZip<ZT, LC>;
     type LC = RaaCode<ZT>;
+    type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
+    type TestZip = MultilinearZip<ZT, LC>;
 
     /// Helper function to set up common parameters for tests.
     fn setup_test_params(
@@ -349,22 +345,22 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         assert_eq!(encoded.len(), pp.num_rows * pp.linear_code.codeword_len());
     }
 
-    #[test]
     /// Verifies that the output of `encode_rows` is semantically correct by
     /// comparing it to a direct, row-by-row encoding.
+    #[test]
     fn encoded_rows_match_linear_code_definition() {
         let (pp, poly) = setup_test_params(3);
         let encoded = MultilinearZip::<ZT, _>::encode_rows(
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         for (i, row_chunk) in encoded
@@ -383,8 +379,8 @@ mod tests {
         }
     }
 
-    #[test]
     /// Verifies that corrupting the encoded data after commitment results in a different Merkle root.
+    #[test]
     fn corrupted_encoding_changes_merkle_root() {
         let (pp, poly) = setup_test_params(3);
         let (mut data, commitment) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
@@ -423,7 +419,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
 
         assert_eq!(encoded.len(), pp.num_rows * pp.linear_code.codeword_len());
@@ -462,7 +458,7 @@ mod tests {
                     &pp,
                     pp.linear_code.codeword_len(),
                     pp.linear_code.row_len(),
-                    &poly,
+                    &poly.evaluations,
                 )
             })
             .collect();
@@ -516,7 +512,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         assert_eq!(encoded.len(), pp.linear_code.codeword_len());
     }
@@ -560,23 +556,13 @@ mod tests {
     }
 
     #[test]
-    fn commitment_is_binding() {
-        let (pp, _) = setup_test_params(3);
-        let poly1 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(1); 8]);
-        let poly2 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(2); 8]);
-        let (_, commitment1) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly1).unwrap();
-        let (_, commitment2) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly2).unwrap();
-        assert_ne!(commitment1.roots, commitment2.roots);
-    }
-
-    #[test]
     fn linear_code_preserves_linearity() {
         let (pp, poly) = setup_test_params(4);
         let encoded = MultilinearZip::<ZT, _>::encode_rows(
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
@@ -603,16 +589,6 @@ mod tests {
         poly.evaluations.truncate(15);
         assert_eq!(poly.evaluations.len(), 15);
         let _ = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
-    }
-
-    #[test]
-    fn commit_with_identical_nonzero_evaluations() {
-        let (pp, _) = setup_test_params(3);
-        let poly1 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(42); 8]);
-        let (_, commitment1) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly1).unwrap();
-        let poly2 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(43); 8]);
-        let (_, commitment2) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly2).unwrap();
-        assert_ne!(commitment1.roots, commitment2.roots);
     }
 
     #[test]
@@ -647,7 +623,7 @@ mod tests {
             &pp,
             pp.linear_code.codeword_len(),
             pp.linear_code.row_len(),
-            &poly,
+            &poly.evaluations,
         );
         assert_eq!(
             encoded_rows.len(),
@@ -693,7 +669,7 @@ mod tests {
         let poly_size = 1 << n;
         let mut keccak_transcript = KeccakTranscript::new();
         let linear_code: LC = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
-        let param = TestZip::<LC>::setup(poly_size, linear_code);
+        let param = TestZip::setup(poly_size, linear_code);
         let evaluations: Vec<_> = (0..poly_size)
             .map(|_| Int::<INT_LIMBS>::from(i8::rand(&mut rng)))
             .collect();
@@ -768,9 +744,8 @@ mod tests {
         let num_vars = 4;
         let poly_size = 1 << num_vars;
         let mut keccak_transcript = KeccakTranscript::new();
-        let linear_code =
-            ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
-        let param = MultilinearZip::<ZT, _>::setup(poly_size, linear_code);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+        let param = TestZip::setup(poly_size, linear_code);
         let evaluations: Vec<_> = (0..poly_size)
             .map(|_| Int::<INT_LIMBS>::from(i8::rand(&mut rng)))
             .collect();

@@ -190,51 +190,59 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
 #[cfg(test)]
 mod tests {
+    use ark_std::{boxed::Box, vec, vec::Vec};
+
     use super::*;
-    use crate::traits::{ConfigReference, Words};
-    use crate::zip::code_raa::RaaCode;
-    use crate::zip::pcs;
-    use crate::zip::pcs::tests::MockTranscript;
     use crate::{
         field::{ConfigRef, Int, RandomField},
         field_config,
         poly_z::mle::DenseMultilinearExtension,
-        traits::{Integer, ZipTypes},
+        traits::{ConfigReference, Integer, Words, ZipTypes},
         zip::{
-            code::{DefaultLinearCodeSpec, ZipLinearCode},
-            pcs::structs::{MultilinearZip, MultilinearZipParams},
+            code::DefaultLinearCodeSpec,
+            code_raa::RaaCode,
+            pcs,
+            pcs::{
+                structs::{MultilinearZip, MultilinearZipParams},
+                tests::MockTranscript,
+            },
         },
     };
-    use ark_std::boxed::Box;
-    use ark_std::vec;
-    use ark_std::vec::Vec;
 
     const INT_LIMBS: usize = 1;
     const FIELD_LIMBS: usize = 4;
 
     type ZT = pcs::tests::RandomFieldZipTypes<1>;
     type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
-    type TestZip<LC> = MultilinearZip<ZT, LC>;
+    type LC = RaaCode<ZT>;
+    type TestZip = MultilinearZip<ZT, LC>;
 
     #[allow(clippy::type_complexity)]
     fn setup_full_protocol(
         num_vars: usize,
     ) -> (
-        MultilinearZipParams<ZT, ZipLinearCode<ZT>>,
+        MultilinearZipParams<ZT, LC>,
         MultilinearZipCommitment,
         Vec<F<'static>>,
         F<'static>,
         Vec<u8>,
         ConfigRef<'static, FIELD_LIMBS>,
     ) {
-        let (pp, poly) = pcs::tests::setup_test_params(num_vars);
+        let poly_size = 1 << num_vars;
+        let evaluations: Vec<_> = (0..poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
+        let poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, evaluations);
+
+        let mut keccak = MockTranscript::default();
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let pp = TestZip::setup(poly_size, linear_code);
+
         let config: &'static crate::field::FieldConfig<FIELD_LIMBS> = Box::leak(Box::new(
             field_config!(57316695564490278656402085503, FIELD_LIMBS),
         ));
 
         let config_ref = ConfigRef::from(config);
 
-        let (data, comm) = TestZip::<_>::commit::<F>(&pp, &poly).unwrap();
+        let (data, comm) = TestZip::commit::<F>(&pp, &poly).unwrap();
 
         let point_int: Vec<Int<INT_LIMBS>> =
             (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
@@ -292,6 +300,7 @@ mod tests {
 
         assert!(result.is_err());
     }
+
     #[test]
     fn verification_fails_with_tampered_proof() {
         let num_vars = 4;
@@ -313,7 +322,7 @@ mod tests {
 
         let different_evals: Vec<_> = (20..(20 + (1 << num_vars))).map(Int::from).collect();
         let poly2 = DenseMultilinearExtension::from_evaluations_vec(num_vars, different_evals);
-        let (_, comm_poly2) = TestZip::<_>::commit::<F>(&pp, &poly2).unwrap();
+        let (_, comm_poly2) = TestZip::commit::<F>(&pp, &poly2).unwrap();
 
         let mut transcript = PcsTranscript::from_proof(&proof_poly1);
         let result = TestZip::verify(&pp, &comm_poly2, &point_f, eval, &mut transcript, config);
@@ -340,7 +349,7 @@ mod tests {
     fn verification_fails_if_proximity_check_is_invalid() {
         let mut keccak = MockTranscript::default();
         let poly_size = 8; // row_len=4, num_rows=2 -> proximity checks are active
-        let linear_code = RaaCode::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
         let evaluations: Vec<_> = (0..poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
@@ -391,7 +400,7 @@ mod tests {
     fn verification_fails_if_evaluation_consistency_check_is_invalid() {
         let mut keccak = MockTranscript::default();
         let poly_size = 8;
-        let linear_code = RaaCode::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
         let evaluations: Vec<_> = (0..poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
@@ -442,7 +451,7 @@ mod tests {
     fn verification_succeeds_for_zero_polynomial() {
         let mut keccak = MockTranscript::default();
         let poly_size = 8;
-        let linear_code = RaaCode::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
         let evaluations: Vec<_> = vec![Int::<INT_LIMBS>::from(0); poly_size];
@@ -473,7 +482,7 @@ mod tests {
     fn verification_succeeds_at_zero_point() {
         let mut keccak = MockTranscript::default();
         let poly_size = 8;
-        let linear_code = RaaCode::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
         let evaluations: Vec<_> = (1..=poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
@@ -503,7 +512,7 @@ mod tests {
     fn verification_fails_if_proximity_values_are_too_large() {
         let mut keccak = MockTranscript::default();
         let poly_size = 8;
-        let linear_code = RaaCode::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+        let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
         let evaluations: Vec<_> = (1..=poly_size as i32).map(Int::<INT_LIMBS>::from).collect();

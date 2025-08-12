@@ -28,10 +28,20 @@ jobs:
         if: github.event_name == 'pull_request'
         run: cargo bench --bench zip_benches "Core" -- --nocapture --output-format bencher > output.txt
 
-      - name: Store and Analyze Benchmark Results
+      - name: Post Benchmark Results on PR
+        if: github.event_name == 'pull_request'
         uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
         with:
           tool: 'cargo'
           output-file-path: 'output.txt'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           comment-on-alert: true
+
+      - name: Save Benchmark History
+        if: github.event_name == 'push'
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
+        with:
+          tool: 'cargo'
+          output-file-path: 'output.txt'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true # This is the key change

@@ -71,7 +71,7 @@ cargo bench
 
 ## **Example**
 
-For usage example you can refer to the example [r1cs.rs](src/zinc/examples/r1cs.rs) file.
+For usage example you can refer to the example [r1cs.rs](examples/simple_r1cs.rs) file.
 
 
 ## Usage

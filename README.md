@@ -84,7 +84,7 @@ zinc = { git = "https://github.com/NethermindEth/zinc.git" }
 ## License
 The crates in this repository are licensed under the following licence.
 
-* MIT license ([LICENSE-MIT](LICENSE-MIT))
+* MIT license ([LICENSE](./LICENSE))
 
 ## Would like to contribute?
 

@@ -1,6 +1,5 @@
 name: Continuous Benchmarking
 
-# This workflow runs on pushes to the main branch and on pull requests that target the main branch.
 on:
   push:
     branches:
@@ -21,15 +20,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-
       - name: Run Full Benchmark Suite (on main)
         if: github.event_name == 'push'
-        run: cargo bench -- --nocapture > output.txt
+        run: cargo bench -- --nocapture --output-format bencher > output.txt
 
       - name: Run Lighter Benchmark Suite (on PR)
         if: github.event_name == 'pull_request'
-        run: |
-          cargo bench --bench zip_benches Core -- --nocapture >> output.txt
+        run: cargo bench --bench zip_benches "Core" -- --nocapture --output-format bencher > output.txt
 
       - name: Store and Analyze Benchmark Results
         uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
@@ -37,4 +34,4 @@ jobs:
           tool: 'cargo'
           output-file-path: 'output.txt'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          comment-on-alert: true # Post a comment on PRs for regressions.
+          comment-on-alert: true

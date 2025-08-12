@@ -222,31 +222,14 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
 }
 
 fn zip_benchmarks(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Zip");
+    // Group of selected benchmarks to be run on each pull request.
+    let mut group = c.benchmark_group("Core/Zip");
 
     encode_rows::<12>(&mut group, 1);
-    encode_rows::<16>(&mut group, 1);
-
     encode_single_row::<128>(&mut group, 1);
-    encode_single_row::<256>(&mut group, 1);
-    encode_single_row::<512>(&mut group, 1);
-    encode_single_row::<1024>(&mut group, 1);
-    encode_single_row::<2048>(&mut group, 1);
-    encode_single_row::<4096>(&mut group, 1);
-
     merkle_root::<12>(&mut group, 1);
-    merkle_root::<16>(&mut group, 1);
-    merkle_root::<22>(&mut group, 1);
-
     commit::<12>(&mut group, 1);
-    commit::<16>(&mut group, 1);
-
     open::<12>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-    open::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
@@ -257,6 +240,30 @@ fn zip_benchmarks(c: &mut Criterion) {
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+
+    group.finish();
+
+    let mut group = c.benchmark_group("Zip");
+
+    encode_rows::<16>(&mut group, 1);
+
+    encode_single_row::<256>(&mut group, 1);
+    encode_single_row::<512>(&mut group, 1);
+    encode_single_row::<1024>(&mut group, 1);
+    encode_single_row::<2048>(&mut group, 1);
+    encode_single_row::<4096>(&mut group, 1);
+
+    merkle_root::<16>(&mut group, 1);
+    merkle_root::<22>(&mut group, 1);
+
+    commit::<16>(&mut group, 1);
+
+    open::<16>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+
     verify::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",

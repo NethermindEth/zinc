@@ -21,8 +21,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
 
       - name: Run Full Benchmark Suite (on main)
         if: github.event_name == 'push'
@@ -31,20 +29,12 @@ jobs:
       - name: Run Lighter Benchmark Suite (on PR)
         if: github.event_name == 'pull_request'
         run: |
-          # We run cargo bench multiple times, filtering for each of your desired fast benchmarks.
-          # The output of each command is appended (>>) to the same output file.
-          cargo bench -- "Zip/EncodeRows: Int<4>, poly_size = 2^12" -- --nocapture > output.txt
-          cargo bench -- "Zip/EncodeMessage: Int<4>, row_len = 128" -- --nocapture >> output.txt
-          cargo bench -- "Zip/MerkleRoot: Int<1>, leaves=2^12" -- --nocapture >> output.txt
-          cargo bench -- "Zip/Commit: Int<4>, poly_size = 2^12" -- --nocapture >> output.txt
-          cargo bench -- "Zip/Open: RandomField<4>, poly_size = 2^12" -- --nocapture >> output.txt
-          cargo bench -- "Zip/Verify: RandomField<4>, poly_size = 2^12" -- --nocapture >> output.txt
+          cargo bench Core -- --nocapture >> output.txt
 
       - name: Store and Analyze Benchmark Results
-        uses: benchmark-action/github-action-benchmark@v1.20.4
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
         with:
           tool: 'cargo'
           output-file-path: 'output.txt'
           github-token: ${{ secrets.GITHUB_TOKEN }}
           comment-on-alert: true # Post a comment on PRs for regressions.
-          alert-on-commit: true # Create an alert for every commit on the main branch.

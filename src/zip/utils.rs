@@ -1,10 +1,13 @@
 use ark_std::{
+    cfg_iter_mut,
     ops::{Add, Mul},
     vec,
     vec::Vec,
 };
 use num_integer::Integer as NumInteger;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use crate::traits::{Integer, Words};
 
@@ -33,43 +36,56 @@ pub(crate) fn num_threads() -> usize {
     return 1;
 }
 
-pub(crate) fn parallelize_iter<I, T, F>(iter: I, f: F)
+/// Computes a linear combination of multiple evaluation rows into a single combined row.
+///
+/// Given a flat `evaluations` vector, interpreted as a matrix with `row_len` columns,
+/// this function treats each consecutive `row_len` values as one row. The output is a single row,
+/// computed by multiplying each input row by the corresponding coefficient from `coeffs`,
+/// and summing these scaled rows column-wise.
+///
+/// This is equivalent to performing a matrix-vector multiplication where the matrix is formed by
+/// the evaluations and the vector is formed by the coefficients.
+///
+/// # Arguments
+///
+/// - `coeffs`: A slice of coefficients to be applied to each row.
+/// - `evaluations`: A flattened slice of evaluations, arranged row-wise.
+/// - `row_len`: The number of columns in each evaluation row.
+///
+/// # Returns
+///
+/// A vector of length `row_len` representing the combined row.
+pub(super) fn combine_rows<F>(coeffs: &[F], evaluations: &[F], row_len: usize) -> Vec<F>
 where
-    I: Send + Iterator<Item = T>,
-    T: Send,
-    F: Fn(T) + Send + Sync + Clone,
+    F: Clone
+        + Default
+        + Send
+        + Sync
+        + for<'b> ark_std::ops::AddAssign<&'b F>
+        + for<'b> ark_std::ops::Mul<&'b F, Output = F>,
 {
-    #[cfg(feature = "parallel")]
-    rayon::scope(|scope| {
-        iter.for_each(|item| {
-            let f = &f;
-            scope.spawn(move |_| f(item))
-        })
-    });
+    let mut combined_row = vec![F::default(); row_len];
 
-    #[cfg(not(feature = "parallel"))]
-    iter.for_each(f);
-}
+    cfg_iter_mut!(combined_row)
+        .enumerate()
+        .for_each(|(column_index, combined_val)| {
+            // Get an iterator over all values in the current column.
+            let column_evals = evaluations.iter().skip(column_index).step_by(row_len);
 
-pub(crate) fn parallelize<T, F>(v: &mut [T], f: F)
-where
-    T: Send,
-    F: Fn((&mut [T], usize)) + Send + Sync + Clone,
-{
-    #[cfg(feature = "parallel")]
-    {
-        use crate::zip::utils::div_ceil;
-        let num_threads = num_threads();
-        let chunk_size = div_ceil(v.len(), num_threads);
-        if chunk_size < num_threads {
-            f((v, 0));
-        } else {
-            parallelize_iter(v.chunks_mut(chunk_size).zip((0..).step_by(chunk_size)), f);
-        }
-    }
+            // Compute the dot product of the coefficients and the column values.
+            let sum = coeffs
+                .iter()
+                .zip(column_evals)
+                .map(|(coeff, eval)| coeff.clone() * eval)
+                .fold(F::default(), |mut acc, val| {
+                    acc += &val;
+                    acc
+                });
 
-    #[cfg(not(feature = "parallel"))]
-    f((v, 0));
+            *combined_val = sum;
+        });
+
+    combined_row
 }
 
 /// Computes a linear combination of multiple evaluation rows into a single combined row.
@@ -91,7 +107,7 @@ where
 /// # Returns
 ///
 /// A vector of length `row_len` representing the combined row.
-pub(super) fn combine_rows<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
+pub(super) fn combine_rows_as_iter<'a, F, C, E>(coeffs: C, evaluations: E, row_len: usize) -> Vec<F>
 where
     F: Clone
         + Default
@@ -108,20 +124,17 @@ where
     let evaluations_iter = evaluations.into_iter();
 
     let mut combined_row = vec![F::default(); row_len];
-    parallelize(&mut combined_row, |(combined_row, offset)| {
-        combined_row
-            .iter_mut()
-            .zip(offset..)
-            .for_each(|(combined, column)| {
-                *combined = F::default();
-                coeffs_iter
-                    .clone()
-                    .zip(evaluations_iter.clone().skip(column).step_by(row_len))
-                    .for_each(|(coeff, eval)| {
-                        *combined += &(coeff * &eval);
-                    });
-            })
-    });
+    cfg_iter_mut!(combined_row)
+        .enumerate()
+        .for_each(|(offset, combined)| {
+            *combined = F::default();
+            coeffs_iter
+                .clone()
+                .zip(evaluations_iter.clone().skip(offset).step_by(row_len))
+                .for_each(|(coeff, eval)| {
+                    *combined += &(coeff * &eval);
+                });
+        });
 
     combined_row
 }

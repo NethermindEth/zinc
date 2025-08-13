@@ -29,30 +29,28 @@ pub struct SparseMultilinearExtension<F: Field> {
     pub config: F::R,
 }
 impl<F: Field> SparseMultilinearExtension<F> {
-    pub fn from_evaluations<'a>(
+    pub fn from_evaluations(
         num_vars: usize,
-        evaluations: impl IntoIterator<Item = &'a (usize, F)>,
+        evaluations: &[(usize, F)], // Elided lifetime
         config: F::R,
     ) -> Self
     where
-        F: 'a,
+        F: Clone, // No more 'a needed here either
     {
         let bit_mask = 1 << num_vars;
 
-        let evaluations: Vec<_> = evaluations
-            .into_iter()
-            .map(|(i, v): &(usize, F)| {
-                assert!(*i < bit_mask, "index out of range");
-                (*i, v.clone())
-            })
-            .collect();
+        for (i, _v) in evaluations {
+            assert!(*i < bit_mask, "index out of range");
+        }
+
         Self {
-            evaluations: tuples_to_treemap(&evaluations),
+            evaluations: tuples_to_treemap(evaluations),
             num_vars,
             zero: F::zero(),
             config,
         }
     }
+
     pub fn evaluate(&self, point: &[F], config: F::R) -> F {
         assert!(point.len() == self.num_vars);
         self.fixed_variables(point, config)[0].clone()

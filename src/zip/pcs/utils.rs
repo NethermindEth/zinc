@@ -1,5 +1,9 @@
 use ark_ff::Zero;
-use ark_std::{format, iterable::Iterable, vec, vec::Vec};
+use ark_std::{
+    cfg_chunks, cfg_chunks_mut, cfg_iter_mut, format, iterable::Iterable, vec, vec::Vec,
+};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -10,7 +14,7 @@ use crate::{
     zip::{
         Error,
         pcs_transcript::PcsTranscript,
-        utils::{div_ceil, num_threads, parallelize, parallelize_iter},
+        utils::{div_ceil, num_threads},
     },
 };
 
@@ -85,11 +89,9 @@ impl MerkleTree {
     }
 
     fn compute_leaves_hashes<T: ToBytes + Send + Sync>(hashes: &mut [blake3::Hash], leaves: &[T]) {
-        parallelize(hashes, |(hashes, start)| {
-            for (hash, row) in hashes.iter_mut().zip(start..) {
-                *hash = blake3::hash(&leaves[row].to_bytes());
-            }
-        });
+        cfg_iter_mut!(hashes)
+            .enumerate()
+            .for_each(|(row, hash)| *hash = blake3::hash(&leaves[row].to_bytes()));
     }
 
     fn merklize_leaves_hashes(depth: usize, hashes: &mut [blake3::Hash]) {
@@ -99,11 +101,10 @@ impl MerkleTree {
             let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
 
             let chunk_size = div_ceil(next_layer.len(), num_threads());
-            parallelize_iter(
-                current_layer
-                    .chunks(2 * chunk_size)
-                    .zip(next_layer.chunks_mut(chunk_size)),
-                |(input, output)| {
+
+            cfg_chunks!(current_layer, 2 * chunk_size) // Use chunks twice the size for the input layer
+                .zip(cfg_chunks_mut!(next_layer, chunk_size))
+                .for_each(|(input, output)| {
                     let mut hasher = blake3::Hasher::new();
                     for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
                         hasher.update(input[0].as_bytes());
@@ -111,8 +112,8 @@ impl MerkleTree {
                         *output = hasher.finalize();
                         hasher.reset();
                     }
-                },
-            );
+                });
+
             offset += width;
         }
     }
@@ -304,7 +305,7 @@ mod tests {
         let evaluations = vec![3, 4, 5, 6];
         let row_len = 2;
 
-        let result = combine_rows(coeffs, evaluations, row_len);
+        let result = combine_rows(&coeffs, &evaluations, row_len);
 
         assert_eq!(result, vec![(3 + 2 * 5), (4 + 2 * 6)]);
     }
@@ -315,7 +316,7 @@ mod tests {
         let evaluations = vec![2, 4, 6, 8];
         let row_len = 2;
 
-        let result = combine_rows(coeffs, evaluations, row_len);
+        let result = combine_rows(&coeffs, &evaluations, row_len);
 
         assert_eq!(result, vec![(3 * 2 + 4 * 6), (3 * 4 + 4 * 8)]);
     }
@@ -325,7 +326,7 @@ mod tests {
         let evaluations = vec![2000, -3000, 4000, -5000];
         let row_len = 2;
 
-        let result = combine_rows(coeffs, evaluations, row_len);
+        let result = combine_rows(&coeffs, &evaluations, row_len);
 
         assert_eq!(
             result,

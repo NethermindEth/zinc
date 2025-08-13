@@ -14,7 +14,7 @@ use crate::{
         code::LinearCode,
         pcs::structs::MultilinearZipParams,
         pcs_transcript::PcsTranscript,
-        utils::{combine_rows, expand},
+        utils::{combine_rows, combine_rows_as_iter, expand},
     },
 };
 
@@ -79,7 +79,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
         let q_0_combined_row = if num_rows > 1 {
             // Return the evaluation row combination
-            let combined_row = combine_rows(q_0, evaluations, row_len);
+            let combined_row = combine_rows(&q_0, &evaluations, row_len);
             Cow::<Vec<F>>::Owned(combined_row)
         } else {
             // If there is only one row, we have no need to take linear combinations
@@ -107,7 +107,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                 let evals = poly.evaluations.iter().map(expand::<ZT::N, ZT::M>);
 
                 // u' in the Zinc paper
-                let combined_row = combine_rows(coeffs, evals, pp.linear_code.row_len());
+                let combined_row = combine_rows_as_iter(coeffs, evals, pp.linear_code.row_len());
 
                 transcript.write_integers(combined_row.iter())?;
             }

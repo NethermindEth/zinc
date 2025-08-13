@@ -1,4 +1,6 @@
-use ark_std::{vec, vec::Vec};
+use ark_std::{cfg_chunks, cfg_chunks_mut, vec, vec::Vec};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
@@ -7,12 +9,7 @@ use super::{
 use crate::{
     poly_z::mle::DenseMultilinearExtension,
     traits::{Field, ZipTypes},
-    zip::{
-        Error,
-        code::LinearCode,
-        pcs::structs::MultilinearZipParams,
-        utils::{div_ceil, num_threads, parallelize_iter},
-    },
+    zip::{Error, code::LinearCode, pcs::structs::MultilinearZipParams},
 };
 
 impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
@@ -161,14 +158,11 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         row_len: usize,
         evals: &[ZT::N],
     ) -> Vec<ZT::K> {
-        let rows_per_thread = div_ceil(pp.num_rows, num_threads());
         let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
 
-        parallelize_iter(
-            encoded_rows
-                .chunks_exact_mut(rows_per_thread * codeword_len)
-                .zip(evals.chunks_exact(rows_per_thread * row_len)),
-            |(encoded_chunk, evals)| {
+        cfg_chunks_mut!(encoded_rows, codeword_len)
+            .zip(cfg_chunks!(evals, row_len))
+            .for_each(|(encoded_chunk, evals)| {
                 for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)
                     .zip(evals.chunks_exact(row_len))
@@ -176,8 +170,21 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                     let encoded: Vec<ZT::K> = pp.linear_code.encode_wide(evals);
                     row.clone_from_slice(encoded.as_slice());
                 }
-            },
-        );
+            });
+        // parallelize_iter(
+        //     encoded_rows
+        //         .chunks_exact_mut(rows_per_thread * codeword_len)
+        //         .zip(evals.chunks_exact(rows_per_thread * row_len)),
+        //     |(encoded_chunk, evals)| {
+        //         for (row, evals) in encoded_chunk
+        //             .chunks_exact_mut(codeword_len)
+        //             .zip(evals.chunks_exact(row_len))
+        //         {
+        //             let encoded: Vec<ZT::K> = pp.linear_code.encode_wide(evals);
+        //             row.clone_from_slice(encoded.as_slice());
+        //         }
+        //     },
+        // );
 
         encoded_rows
     }

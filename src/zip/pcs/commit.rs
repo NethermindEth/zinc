@@ -1,6 +1,4 @@
 use ark_std::{cfg_chunks, cfg_chunks_mut, vec, vec::Vec};
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
@@ -160,8 +158,9 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     ) -> Vec<ZT::K> {
         let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
 
-        cfg_chunks_mut!(encoded_rows, codeword_len)
-            .zip(cfg_chunks!(evals, row_len))
+        encoded_rows
+            .chunks_mut(codeword_len)
+            .zip(evals.chunks(row_len))
             .for_each(|(encoded_chunk, evals)| {
                 for (row, evals) in encoded_chunk
                     .chunks_exact_mut(codeword_len)

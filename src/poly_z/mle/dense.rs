@@ -8,8 +8,6 @@ use ark_std::{
     rand, vec,
     vec::Vec,
 };
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
 
 use super::{MultilinearExtension, swap_bits};
 use crate::{
@@ -227,8 +225,10 @@ impl<'a, I: Integer> Add<&'a DenseMultilinearExtension<I>> for &DenseMultilinear
             "trying to add two dense MLEs with different numbers of variables"
         );
 
-        let result = cfg_iter!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        let result = self
+            .evaluations
+            .iter()
+            .zip(rhs.evaluations.iter())
             .map(|(a, b)| a.clone() + b)
             .collect();
 
@@ -258,8 +258,9 @@ impl<'a, I: Integer> AddAssign<&'a DenseMultilinearExtension<I>> for DenseMultil
             "trying to add two dense MLEs with different numbers of variables"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(other.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(other.evaluations.iter())
             .for_each(|(a, b)| a.add_assign(b));
     }
 }
@@ -269,7 +270,9 @@ impl<I: Integer> AddAssign<(I, &DenseMultilinearExtension<I>)> for DenseMultilin
         if self.is_zero() {
             *self = other.clone();
 
-            cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.clone() * &r);
+            self.evaluations
+                .iter_mut()
+                .for_each(|a| *a = a.clone() * &r);
 
             return;
         }
@@ -283,8 +286,9 @@ impl<I: Integer> AddAssign<(I, &DenseMultilinearExtension<I>)> for DenseMultilin
             "trying to add two dense MLEs with different numbers of variables"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(other.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(other.evaluations.iter())
             .for_each(|(a, b)| a.add_assign(&(r.clone() * b)));
     }
 }
@@ -293,7 +297,7 @@ impl<I: Integer> Neg for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn neg(mut self) -> Self {
-        cfg_iter_mut!(self.evaluations).for_each(|a| *a = I::ZERO - a);
+        self.evaluations.iter_mut().for_each(|a| *a = I::ZERO - a);
 
         self
     }
@@ -324,8 +328,10 @@ impl<'a, I: Integer> Sub<&'a DenseMultilinearExtension<I>> for &DenseMultilinear
             "trying to subtract two dense MLEs with different numbers of variables"
         );
 
-        let result = cfg_iter!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        let result = self
+            .evaluations
+            .iter()
+            .zip(rhs.evaluations.iter())
             .map(|(a, b)| a.clone() - b)
             .collect();
 
@@ -355,8 +361,9 @@ impl<'a, I: Integer> SubAssign<&'a DenseMultilinearExtension<I>> for DenseMultil
             "trying to subtract two dense MLEs with different numbers of variables"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(rhs.evaluations.iter())
             .for_each(|(a, b)| *a = a.clone() - b);
     }
 }
@@ -485,7 +492,7 @@ fn build_eq_x_r_helper<I: Integer>(r: &[I], buf: &mut Vec<I>) -> Result<(), Arit
         // *buf = res;
 
         let mut res = vec![Zero::zero(); buf.len() << 1];
-        cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
+        res.iter_mut().enumerate().for_each(|(i, val)| {
             let bi = buf[i >> 1].clone();
             let tmp = r[0].clone() * &bi;
             if (i & 1) == 0 {

@@ -11,8 +11,6 @@ use ark_std::{
     start_timer, vec,
     vec::Vec,
 };
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
 
 use crate::{
     poly::ArithErrors,
@@ -161,7 +159,7 @@ fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithE
         // *buf = res;
 
         let mut res = vec![F::zero(); buf.len() << 1];
-        cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
+        res.iter_mut().enumerate().for_each(|(i, val)| {
             let bi = buf[i >> 1].clone();
             let tmp = r[0].clone() * bi.clone();
             if (i & 1) == 0 {

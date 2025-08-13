@@ -9,8 +9,6 @@ use ark_std::{
     vec::Vec,
 };
 use hashbrown::HashMap;
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
 
 use super::{MultilinearExtension, swap_bits};
 use crate::{
@@ -157,7 +155,9 @@ impl<F: Field> MultilinearExtension<F> for SparseMultilinearExtension<F> {
             return self.clone();
         }
         assert!(a + k <= b, "overlapped swap window is not allowed");
-        let ev: Vec<_> = cfg_iter!(self.evaluations)
+        let ev: Vec<_> = self
+            .evaluations
+            .iter()
             .map(|(&i, v)| (swap_bits(i, a, b, k), v.clone()))
             .collect();
         Self {
@@ -309,7 +309,9 @@ impl<F: Field> AddAssign<(F, &Self)> for SparseMultilinearExtension<F> {
                 "trying to add two MLEs in different fields"
             );
         }
-        let ev: Vec<_> = cfg_iter!(other.evaluations)
+        let ev: Vec<_> = other
+            .evaluations
+            .iter()
             .map(|(i, v)| (*i, r.clone() * v))
             .collect();
         let other = Self {
@@ -325,7 +327,9 @@ impl<F: Field> Neg for SparseMultilinearExtension<F> {
     type Output = Self;
 
     fn neg(self) -> Self {
-        let ev: Vec<_> = cfg_iter!(self.evaluations)
+        let ev: Vec<_> = self
+            .evaluations
+            .iter()
             .map(|(i, v)| (*i, -v.clone()))
             .collect();
         Self::Output {

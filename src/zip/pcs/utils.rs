@@ -2,8 +2,6 @@ use ark_ff::Zero;
 use ark_std::{
     cfg_chunks, cfg_chunks_mut, cfg_iter_mut, format, iterable::Iterable, vec, vec::Vec,
 };
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -89,7 +87,8 @@ impl MerkleTree {
     }
 
     fn compute_leaves_hashes<T: ToBytes + Send + Sync>(hashes: &mut [blake3::Hash], leaves: &[T]) {
-        cfg_iter_mut!(hashes)
+        hashes
+            .iter_mut()
             .enumerate()
             .for_each(|(row, hash)| *hash = blake3::hash(&leaves[row].to_bytes()));
     }
@@ -102,8 +101,9 @@ impl MerkleTree {
 
             let chunk_size = div_ceil(next_layer.len(), num_threads());
 
-            cfg_chunks!(current_layer, 2 * chunk_size) // Use chunks twice the size for the input layer
-                .zip(cfg_chunks_mut!(next_layer, chunk_size))
+            current_layer
+                .chunks(2 * chunk_size) // Use chunks twice the size for the input layer
+                .zip(next_layer.chunks_mut(chunk_size))
                 .for_each(|(input, output)| {
                     let mut hasher = blake3::Hasher::new();
                     for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {

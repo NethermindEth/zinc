@@ -6,8 +6,6 @@ use ark_std::{
 };
 use num_integer::Integer as NumInteger;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
 
 use crate::traits::{Integer, Words};
 
@@ -66,7 +64,8 @@ where
 {
     let mut combined_row = vec![F::default(); row_len];
 
-    cfg_iter_mut!(combined_row)
+    combined_row
+        .iter_mut()
         .enumerate()
         .for_each(|(column_index, combined_val)| {
             // Get an iterator over all values in the current column.
@@ -124,7 +123,8 @@ where
     let evaluations_iter = evaluations.into_iter();
 
     let mut combined_row = vec![F::default(); row_len];
-    cfg_iter_mut!(combined_row)
+    combined_row
+        .iter_mut()
         .enumerate()
         .for_each(|(offset, combined)| {
             *combined = F::default();

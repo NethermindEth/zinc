@@ -10,8 +10,6 @@ use ark_std::{
 };
 use hashbrown::HashMap;
 use num_traits::Zero;
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
 
 use super::{MultilinearExtension, swap_bits};
 use crate::{sparse_matrix::SparseMatrix, traits::Integer};
@@ -152,7 +150,9 @@ impl<I: Integer> MultilinearExtension<I> for SparseMultilinearExtension<I> {
             return self.clone();
         }
         assert!(a + k <= b, "overlapped swap window is not allowed");
-        let ev: Vec<_> = cfg_iter!(self.evaluations)
+        let ev: Vec<_> = self
+            .evaluations
+            .iter()
             .map(|(&i, v)| (swap_bits(i, a, b, k), v.clone()))
             .collect();
         Self {
@@ -292,7 +292,9 @@ impl<I: Integer> AddAssign<(I, &SparseMultilinearExtension<I>)> for SparseMultil
                 "trying to add non-zero polynomial with different number of variables"
             );
         }
-        let ev: Vec<_> = cfg_iter!(other.evaluations)
+        let ev: Vec<_> = other
+            .evaluations
+            .iter()
             .map(|(i, v)| (*i, r.clone() * v))
             .collect();
         let other = Self {
@@ -307,7 +309,9 @@ impl<I: Integer> Neg for SparseMultilinearExtension<I> {
     type Output = SparseMultilinearExtension<I>;
 
     fn neg(self) -> Self {
-        let ev: Vec<_> = cfg_iter!(self.evaluations)
+        let ev: Vec<_> = self
+            .evaluations
+            .iter()
             .map(|(i, v)| (*i, I::ZERO - v))
             .collect();
         Self::Output {

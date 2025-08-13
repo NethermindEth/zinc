@@ -8,8 +8,6 @@ use ark_std::{
     rand, vec,
     vec::Vec,
 };
-#[cfg(feature = "parallel")]
-use rayon::iter::*;
 
 use super::{MultilinearExtension, swap_bits};
 use crate::{
@@ -221,8 +219,10 @@ impl<F: Field> Add for &DenseMultilinearExtension<F> {
             "trying to add two dense MLEs in different fields"
         );
 
-        let result = cfg_iter!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        let result = self
+            .evaluations
+            .iter()
+            .zip(rhs.evaluations.iter())
             .map(|(a, b)| a.clone() + b.clone())
             .collect();
 
@@ -256,8 +256,9 @@ impl<F: Field> AddAssign<&Self> for DenseMultilinearExtension<F> {
             "trying to add two dense MLEs in different fields"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(other.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(other.evaluations.iter())
             .for_each(|(a, b)| a.add_assign(b));
     }
 }
@@ -267,7 +268,7 @@ impl<F: Field> AddAssign<(F, &Self)> for DenseMultilinearExtension<F> {
         if self.is_zero() {
             *self = other.clone();
 
-            cfg_iter_mut!(self.evaluations).for_each(|a| a.mul_assign(&r));
+            self.evaluations.iter_mut().for_each(|a| a.mul_assign(&r));
 
             return;
         }
@@ -286,8 +287,9 @@ impl<F: Field> AddAssign<(F, &Self)> for DenseMultilinearExtension<F> {
             "trying to add two dense MLEs in different fields"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(other.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(other.evaluations.iter())
             .for_each(|(a, b)| a.add_assign(&(r.clone() * b)));
     }
 }
@@ -296,7 +298,9 @@ impl<F: Field> Neg for DenseMultilinearExtension<F> {
     type Output = Self;
 
     fn neg(mut self) -> Self::Output {
-        cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.clone().neg());
+        self.evaluations
+            .iter_mut()
+            .for_each(|a| *a = a.clone().neg());
 
         self
     }
@@ -330,8 +334,10 @@ impl<F: Field> Sub for &DenseMultilinearExtension<F> {
             self.config, rhs.config,
             "trying to add two dense MLEs in different fields"
         );
-        let result = cfg_iter!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        let result = self
+            .evaluations
+            .iter()
+            .zip(rhs.evaluations.iter())
             .map(|(a, b)| a.clone() - b.clone())
             .collect();
 
@@ -361,8 +367,9 @@ impl<F: Field> SubAssign<&Self> for DenseMultilinearExtension<F> {
             "trying to subtract two dense MLEs with different numbers of variables"
         );
 
-        cfg_iter_mut!(self.evaluations)
-            .zip(cfg_iter!(rhs.evaluations))
+        self.evaluations
+            .iter_mut()
+            .zip(rhs.evaluations.iter())
             .for_each(|(a, b)| a.sub_assign(b.clone()));
     }
 }

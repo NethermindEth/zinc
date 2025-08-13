@@ -1,6 +1,4 @@
-use ark_std::{Zero, cfg_iter, vec::Vec};
-#[cfg(feature = "parallel")]
-use rayon::prelude::*;
+use ark_std::{Zero, vec::Vec};
 
 use crate::traits::{
     BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Uinteger,
@@ -103,42 +101,27 @@ where
 
 // Implementation of FieldMap for Vec<T>
 
-impl<F: Field, T: FieldMap<F> + Send + Sync> FieldMap<F> for Vec<T>
-where
-    T::Output: Send,
-{
+impl<F: Field, T: FieldMap<F>> FieldMap<F> for Vec<T> {
     type Output = Vec<T::Output>;
 
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        cfg_iter!(self)
-            .map(|x| x.map_to_field(config_ref))
-            .collect()
+        self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
 
-impl<F: Field, T: FieldMap<F> + Send + Sync> FieldMap<F> for &Vec<T>
-where
-    T::Output: Send,
-{
+impl<F: Field, T: FieldMap<F>> FieldMap<F> for &Vec<T> {
     type Output = Vec<T::Output>;
 
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        cfg_iter!(self)
-            .map(|x| x.map_to_field(config_ref))
-            .collect()
+        self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
 
-impl<F: Field, T: FieldMap<F> + Send + Sync> FieldMap<F> for &[T]
-where
-    T::Output: Send,
-{
+impl<F: Field, T: FieldMap<F>> FieldMap<F> for &[T] {
     type Output = Vec<T::Output>;
 
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        cfg_iter!(self)
-            .map(|x| x.map_to_field(config_ref))
-            .collect()
+        self.iter().map(|x| x.map_to_field(config_ref)).collect()
     }
 }
 

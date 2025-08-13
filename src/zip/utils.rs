@@ -26,6 +26,18 @@ pub(crate) fn div_ceil(dividend: usize, divisor: usize) -> usize {
     NumInteger::div_ceil(&dividend, &divisor)
 }
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
+/// combine_rows* is slower for num_vars < 17
+#[cfg(feature = "parallel")]
+const IS_PARALLEL: bool = true;
+
+#[cfg(not(feature = "parallel"))]
+const IS_PARALLEL: bool = false;
+
+const SWITCH_TO_PARALLEL_DEPTH: usize = 17;
+
 pub(crate) fn num_threads() -> usize {
     #[cfg(feature = "parallel")]
     return rayon::current_num_threads();
@@ -115,16 +127,35 @@ where
         + for<'b> ark_std::ops::AddAssign<&'b F>
         + for<'b> ark_std::ops::Mul<&'b F, Output = F>,
     C: IntoIterator<Item = F> + Sync,
-    E: IntoIterator<Item = F> + Sync,
+    E: IntoIterator<Item = F> + Sync + ExactSizeIterator,
     C::IntoIter: Clone + Send + Sync,
     E::IntoIter: Clone + Send + Sync,
 {
     let coeffs_iter = coeffs.into_iter();
+    let num_vars = usize::BITS as usize - evaluations.len().leading_zeros() as usize;
     let evaluations_iter = evaluations.into_iter();
 
     let mut combined_row = vec![F::default(); row_len];
-    combined_row
-        .iter_mut()
+
+    if !IS_PARALLEL || num_vars < SWITCH_TO_PARALLEL_DEPTH {
+        // Use sequential processing for small inputs or when parallelism is disabled.
+        combined_row
+            .iter_mut()
+            .enumerate()
+            .for_each(|(offset, combined)| {
+                *combined = F::default();
+                coeffs_iter
+                    .clone()
+                    .zip(evaluations_iter.clone().skip(offset).step_by(row_len))
+                    .for_each(|(coeff, eval)| {
+                        *combined += &(coeff * &eval);
+                    });
+            });
+
+        return combined_row;
+    }
+
+    cfg_iter_mut!(combined_row)
         .enumerate()
         .for_each(|(offset, combined)| {
             *combined = F::default();

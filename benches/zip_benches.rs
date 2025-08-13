@@ -157,7 +157,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
                         field_config,
                         &mut transcript,
                     )
-                    .expect("Failed to make opening");
+                        .expect("Failed to make opening");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32
@@ -212,7 +212,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
                         &mut transcript,
                         field_config,
                     )
-                    .expect("Failed to verify");
+                        .expect("Failed to verify");
                     total_duration += timer.elapsed();
                 }
                 total_duration / iters as u32
@@ -235,18 +235,79 @@ fn zip_benchmarks(c: &mut Criterion) {
     encode_single_row::<4096>(&mut group, 1);
 
     merkle_root::<12>(&mut group, 1);
+    merkle_root::<13>(&mut group, 1);
+    merkle_root::<14>(&mut group, 1);
+    merkle_root::<15>(&mut group, 1);
     merkle_root::<16>(&mut group, 1);
+    merkle_root::<18>(&mut group, 1);
+    merkle_root::<19>(&mut group, 1);
+    merkle_root::<20>(&mut group, 1);
+    merkle_root::<21>(&mut group, 1);
     merkle_root::<22>(&mut group, 1);
 
     commit::<12>(&mut group, 1);
+    commit::<13>(&mut group, 1);
+    commit::<14>(&mut group, 1);
+    commit::<15>(&mut group, 1);
     commit::<16>(&mut group, 1);
+    commit::<17>(&mut group, 1);
+    commit::<18>(&mut group, 1);
+    commit::<19>(&mut group, 1);
+    commit::<20>(&mut group, 1);
+    commit::<21>(&mut group, 1);
+    commit::<22>(&mut group, 1);
 
     open::<12>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+    open::<13>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<14>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<15>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
     open::<16>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<17>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<18>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<19>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<20>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<21>(
+        &mut group,
+        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
+        1,
+    );
+    open::<22>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,

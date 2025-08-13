@@ -88,7 +88,7 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
     /// Do the actual encoding, as per RAA spec
     fn encode_inner<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
-        Out: Zero + AddAssign<Out> + for<'a> From<&'a In> + Clone,
+        Out: Zero + for<'a> AddAssign<&'a Out> + for<'a> From<&'a In> + Clone,
     {
         debug_assert_eq!(
             row.len(),
@@ -163,10 +163,17 @@ fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
 /// ```
 fn accumulate<I>(input: &mut [I])
 where
-    I: Zero + AddAssign<I> + Clone,
+    I: Zero + for<'a> AddAssign<&'a I> + Clone,
 {
+    if input.len() < 2 {
+        return;
+    }
+
     for i in 1..input.len() {
-        input[i] += input[i - 1].clone();
+        let (left, right) = input.split_at_mut(i);
+        let prev = &left[i - 1];
+        let current = &mut right[0];
+        *current += prev;
     }
 }
 

@@ -1,8 +1,10 @@
 #![allow(non_snake_case)]
 
 use ark_ff::Zero;
-use ark_std::{rand::Rng, vec, vec::Vec};
+use ark_std::{cfg_iter, rand::Rng, vec, vec::Vec};
 use crypto_bigint::Random;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use crate::{
     poly::alloc::string::ToString,
@@ -42,19 +44,17 @@ where
 {
     type Output = SparseMatrix<T::Output>;
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        let mut matrix = SparseMatrix::<F> {
+        let coeffs = cfg_iter!(self.coeffs)
+            .map(|row| {
+                // Manually map each value in the row to the field because outer loop is parallelized
+                row.iter().map(|v| v.map_to_field(config_ref)).collect()
+            })
+            .collect();
+        SparseMatrix::<F> {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
-            coeffs: Vec::new(),
-        };
-        for row in self.coeffs.iter() {
-            let mut new_row = Vec::new();
-            for (value, col) in row.iter() {
-                new_row.push((value.map_to_field(config_ref), *col));
-            }
-            matrix.coeffs.push(new_row);
+            coeffs,
         }
-        matrix
     }
 }
 

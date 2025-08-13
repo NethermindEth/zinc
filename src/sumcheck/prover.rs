@@ -77,7 +77,7 @@ impl<F: Field> IPForMLSumcheck<F> {
 
             let atomic_config =
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
-            prover_state.mles.iter_mut().for_each(|multiplicand| {
+            cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(slice::from_ref(&r), unsafe {
                     F::R::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });

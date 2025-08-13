@@ -3,7 +3,7 @@ use core::ops::IndexMut;
 use ark_ff::Zero;
 use ark_std::{
     borrow::ToOwned,
-    cfg_iter, cfg_iter_mut, log2,
+    log2,
     ops::{Add, AddAssign, Index, Mul, MulAssign, Neg, Sub, SubAssign},
     rand, vec,
     vec::Vec,

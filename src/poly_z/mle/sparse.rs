@@ -1,6 +1,5 @@
 use ark_ff::UniformRand;
 use ark_std::{
-    cfg_iter,
     collections::BTreeMap,
     log2,
     ops::{Add, AddAssign, Index, Neg, Sub, SubAssign},

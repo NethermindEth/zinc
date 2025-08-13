@@ -1,4 +1,6 @@
-use ark_std::{iterable::Iterable, vec::Vec};
+use ark_std::{cfg_iter, iterable::Iterable, vec::Vec};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
@@ -86,15 +88,18 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
             let column_idx = transcript.squeeze_challenge_idx(field, vp.linear_code.codeword_len());
             let column_values = transcript.read_integers(vp.num_rows)?;
 
-            for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
-                Self::verify_column_testing(
-                    coeffs,
-                    encoded_combined_row,
-                    &column_values,
-                    column_idx,
-                    vp.num_rows,
-                )?;
-            }
+            let result: Result<(), Error> =
+                cfg_iter!(encoded_combined_rows).try_for_each(|(coeffs, encoded_combined_row)| {
+                    Self::verify_column_testing(
+                        coeffs,
+                        encoded_combined_row,
+                        &column_values,
+                        column_idx,
+                        vp.num_rows,
+                    )
+                });
+
+            result?;
 
             let _ = ColumnOpening::verify_column(roots, &column_values, column_idx, transcript);
             // TODO: Verify column opening is taking a long time.
@@ -148,16 +153,20 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                 "Evaluation consistency failure".into(),
             ));
         }
-        for (column_idx, column_values) in columns_opened.iter() {
-            Self::verify_proximity_q_0(
-                &q_0,
-                &encoded_combined_row,
-                column_values,
-                *column_idx,
-                vp.num_rows,
-                field,
-            )?;
-        }
+
+        let result: Result<(), Error> =
+            cfg_iter!(columns_opened).try_for_each(|(column_idx, column_values)| {
+                Self::verify_proximity_q_0(
+                    &q_0,
+                    &encoded_combined_row,
+                    column_values,
+                    *column_idx,
+                    vp.num_rows,
+                    field,
+                )
+            });
+
+        result?;
 
         Ok(())
     }

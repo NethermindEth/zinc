@@ -165,11 +165,7 @@ where
 
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         Self::Output {
-            constraints: self
-                .constraints
-                .iter()
-                .map(|m| m.map_to_field(config_ref))
-                .collect(),
+            constraints: self.constraints.map_to_field(config_ref),
             public_input: self.public_input.map_to_field(config_ref),
         }
     }
@@ -197,11 +193,7 @@ where
 
     fn map_to_field(&self, config_ref: F::R) -> Self::Output {
         Witness_F {
-            w_ccs: self
-                .w_ccs
-                .iter()
-                .map(|i| i.map_to_field(config_ref))
-                .collect(),
+            w_ccs: self.w_ccs.map_to_field(config_ref),
         }
     }
 }

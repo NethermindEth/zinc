@@ -1,7 +1,5 @@
 use ark_ff::Zero;
-use ark_std::{
-    cfg_chunks, cfg_chunks_mut, cfg_iter_mut, format, iterable::Iterable, vec, vec::Vec,
-};
+use ark_std::{format, iterable::Iterable, vec, vec::Vec};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{

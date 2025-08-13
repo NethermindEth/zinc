@@ -6,7 +6,7 @@
 //! This module defines our main mathematical object `DensePolynomial`; and
 //! various functions associated with it.
 use ark_std::{
-    cfg_iter_mut, end_timer,
+    end_timer,
     rand::{Rng, RngCore},
     start_timer, vec,
     vec::Vec,

@@ -1,0 +1,47 @@
+name: Continuous Benchmarking
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Full Benchmark Suite (on main)
+        if: github.event_name == 'push'
+        run: cargo bench -- --nocapture --output-format bencher > output.txt
+
+      - name: Run Lighter Benchmark Suite (on PR)
+        if: github.event_name == 'pull_request'
+        run: cargo bench --bench zip_benches "Core" -- --nocapture --output-format bencher > output.txt
+
+      - name: Post Benchmark Results on PR
+        if: github.event_name == 'pull_request'
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
+        with:
+          tool: 'cargo'
+          output-file-path: 'output.txt'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-on-alert: true
+
+      - name: Save Benchmark History
+        if: github.event_name == 'push'
+        uses: benchmark-action/github-action-benchmark@d48d326b4ca9ba73ca0cd0d59f108f9e02a381c7 # v1.20.4
+        with:
+          tool: 'cargo'
+          output-file-path: 'output.txt'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true

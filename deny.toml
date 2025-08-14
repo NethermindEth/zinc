@@ -23,11 +23,8 @@ feature-depth = 1
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
 yanked = "deny"
-ignore = [
-    "RUSTSEC-2024-0388", # https://rustsec.org/advisories/RUSTSEC-2024-0388
-    "RUSTSEC-2024-0436"
-
-]
+ignore = []
+unmaintained = "workspace"
 
 [licenses]
 allow = [
@@ -40,17 +37,17 @@ allow = [
     "Zlib",
 ]
 confidence-threshold = 0.8
-
+unused-allowed-license = "allow"
 
 [licenses.private]
 ignore = false
 registries = []
 
 [bans]
+wildcards = "deny"
+allow-wildcard-paths = true
 multiple-versions = "warn"
-wildcards = "allow"        # TODO change to deny when publishing to crates.io (and remove all git and path deps)
 highlight = "all"
-
 
 [bans.workspace-dependencies]
 duplicates = 'deny'
@@ -59,8 +56,9 @@ unused = 'deny'
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
+allow-git = []
 
 [sources.allow-org]
-github = []
+github = ["NethermindEth"]
 gitlab = []
 bitbucket = []

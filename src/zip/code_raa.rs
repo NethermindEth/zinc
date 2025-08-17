@@ -2,7 +2,8 @@ use ark_std::{fmt::Debug, marker::PhantomData, ops::AddAssign, vec::Vec};
 use num_traits::Zero;
 
 use crate::{
-    traits::{Field, FieldMap, Integer, Words, ZipTypes},
+    field::RandomField,
+    traits::{ConfigReference, FromRef, Integer, MapsToField, Words, ZipTypes},
     zip::{
         code::{LinearCode, LinearCodeSpec},
         pcs::structs::ZipTranscript,
@@ -88,7 +89,7 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
     /// Do the actual encoding, as per RAA spec
     fn encode_inner<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
-        Out: Zero + AddAssign<Out> + for<'a> From<&'a In> + Clone,
+        Out: Zero + AddAssign<Out> + FromRef<In> + Clone,
     {
         debug_assert_eq!(
             row.len(),
@@ -125,24 +126,21 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
     fn encode_wide<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
         In: Integer,
-        Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
+        Out: Integer + FromRef<In> + FromRef<ZT::L>,
     {
         self.encode_inner(row)
     }
 
-    fn encode_f<F: Field>(&self, row: &[F], _field: F::R) -> Vec<F>
+    fn encode_f<C: ConfigReference>(&self, row: &[RandomField<C>], _field: C) -> Vec<RandomField<C>>
     where
-        ZT::L: FieldMap<F, Output = F>,
+        ZT::L: MapsToField<C>,
     {
         self.encode_inner(row)
     }
 }
 
 /// Repeat the given slice N times, e.g `[1,2,3] => [1,2,3,1,2,3]`
-fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
-    input: &[In],
-    repetition_factor: usize,
-) -> Vec<Out> {
+fn repeat<In, Out: FromRef<In> + Clone>(input: &[In], repetition_factor: usize) -> Vec<Out> {
     input
         .iter()
         .map(|i| Out::from(i))

@@ -22,7 +22,7 @@ use ark_std::{
     str::FromStr,
     vec::Vec,
 };
-use num_bigint::BigUint;
+use num_bigint::{BigUint, ToBigInt, ToBigUint};
 use zeroize::Zeroize;
 
 use crate::{
@@ -315,30 +315,6 @@ impl<const N: usize> BigInt<N> {
 }
 
 impl<const N: usize> BigInt<N> {
-    #[unroll_for_loops(6)]
-    #[inline]
-    pub fn add_with_carry(&mut self, other: &Self) -> bool {
-        let mut carry = 0;
-
-        for i in 0..N {
-            carry = arithmetic::adc_for_add_with_carry(&mut self.0[i], other.0[i], carry);
-        }
-
-        carry != 0
-    }
-
-    #[unroll_for_loops(6)]
-    #[inline]
-    pub fn sub_with_borrow(&mut self, other: &Self) -> bool {
-        let mut borrow = 0;
-
-        for i in 0..N {
-            borrow = arithmetic::sbb_for_sub_with_borrow(&mut self.0[i], other.0[i], borrow);
-        }
-
-        borrow != 0
-    }
-
     #[inline]
     #[allow(unused)]
     pub fn mul2(&mut self) -> bool {
@@ -396,28 +372,6 @@ impl<const N: usize> BigInt<N> {
                 t = t2;
             }
         }
-    }
-
-    #[inline]
-    pub fn mul(&self, other: &Self) -> (Self, Self) {
-        if self.is_zero() || other.is_zero() {
-            let zero = Self::zero();
-            return (zero, zero);
-        }
-
-        let mut r = crate::const_helpers::MulBuffer::zeroed();
-
-        let mut carry = 0;
-
-        for i in 0..N {
-            for j in 0..N {
-                r[i + j] = mac_with_carry!(r[i + j], self.0[i], other.0[j], &mut carry);
-            }
-            r.b1[i] = carry;
-            carry = 0;
-        }
-
-        (Self(r.b0), Self(r.b1))
     }
 
     #[inline]
@@ -558,30 +512,6 @@ impl<const N: usize> BigInt<N> {
 
         carry2 != 0
     }
-
-    #[inline]
-    pub fn demontgomery(&self, modulus: &Self, inv: u64) -> Self {
-        let mut r = self.0;
-        // Montgomery Reduction
-        for i in 0..N {
-            let k = r[i].wrapping_mul(inv);
-            let mut carry = 0;
-
-            config::mac_with_carry(r[i], k, modulus.0[0], &mut carry);
-            for j in 1..N {
-                r[(j + i) % N] =
-                    config::mac_with_carry(r[(j + i) % N], k, modulus.0[j], &mut carry);
-            }
-            r[i % N] = carry;
-        }
-
-        BigInt::new(r)
-    }
-
-    #[inline]
-    pub fn last_mut(&mut self) -> &mut u64 {
-        &mut self.0[N - 1]
-    }
 }
 
 impl<const N: usize> BigInteger for BigInt<N> {
@@ -592,6 +522,60 @@ impl<const N: usize> BigInteger for BigInt<N> {
 
     fn one() -> Self {
         Self::one()
+    }
+
+    fn zero() -> Self {
+        Self::zero()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.is_zero()
+    }
+
+    #[unroll_for_loops(6)]
+    #[inline]
+    fn add_with_carry(&mut self, other: &Self) -> bool {
+        let mut carry = 0;
+
+        for i in 0..N {
+            carry = arithmetic::adc_for_add_with_carry(&mut self.0[i], other.0[i], carry);
+        }
+
+        carry != 0
+    }
+
+    #[unroll_for_loops(6)]
+    #[inline]
+    fn sub_with_borrow(&mut self, other: &Self) -> bool {
+        let mut borrow = 0;
+
+        for i in 0..N {
+            borrow = arithmetic::sbb_for_sub_with_borrow(&mut self.0[i], other.0[i], borrow);
+        }
+
+        borrow != 0
+    }
+
+    #[inline]
+    fn mul(&self, other: &Self) -> (Self, Self) {
+        if self.is_zero() || other.is_zero() {
+            let zero = Self::zero();
+            return (zero, zero);
+        }
+
+        let mut r = crate::const_helpers::MulBuffer::zeroed();
+
+        let mut carry = 0;
+
+        for i in 0..N {
+            for j in 0..N {
+                r[i + j] = mac_with_carry!(r[i + j], self.0[i], other.0[j], &mut carry);
+            }
+            r.b1[i] = carry;
+            carry = 0;
+        }
+
+        (Self(r.b0), Self(r.b1))
     }
 
     #[inline]
@@ -640,23 +624,46 @@ impl<const N: usize> BigInteger for BigInt<N> {
     fn to_bytes_le(self) -> Vec<u8> {
         self.0.iter().flat_map(|&limb| limb.to_le_bytes()).collect()
     }
+    #[inline]
+    fn demontgomery(&self, modulus: &Self, inv: u64) -> Self {
+        let mut r = self.0;
+        // Montgomery Reduction
+        for i in 0..N {
+            let k = r[i].wrapping_mul(inv);
+            let mut carry = 0;
+
+            config::mac_with_carry(r[i], k, modulus.0[0], &mut carry);
+            for j in 1..N {
+                r[(j + i) % N] =
+                    config::mac_with_carry(r[(j + i) % N], k, modulus.0[j], &mut carry);
+            }
+            r[i % N] = carry;
+        }
+
+        BigInt::new(r)
+    }
+
+    #[inline]
+    fn last_mut(&mut self) -> &mut u64 {
+        &mut self.0[N - 1]
+    }
 }
 
 impl<const N: usize> UpperHex for BigInt<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:016X}", BigUint::from(*self))
+        write!(f, "{:016X}", self.to_biguint().unwrap())
     }
 }
 
 impl<const N: usize> Debug for BigInt<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", BigUint::from(*self))
+        write!(f, "{:?}", self.to_biguint().unwrap())
     }
 }
 
 impl<const N: usize> Display for BigInt<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", BigUint::from(*self))
+        write!(f, "{}", self.to_biguint().unwrap())
     }
 }
 
@@ -717,13 +724,14 @@ macro_rules! impl_from_uint {
             #[inline]
             fn from(val: $type) -> BigInt<N> {
                 let mut repr = Self::default();
-                repr.0[0] = val.into();
+                repr.0[0] = val as u64;
                 repr
             }
         }
     };
 }
 
+impl_from_uint!(usize);
 impl_from_uint!(u64);
 impl_from_uint!(u32);
 impl_from_uint!(u16);
@@ -740,6 +748,18 @@ impl<const N: usize> From<u128> for BigInt<N> {
         repr.0[0] = val as u64;
         repr.0[1] = (val >> 64) as u64;
         repr
+    }
+}
+
+impl<const N: usize> ToBigInt for BigInt<N> {
+    fn to_bigint(&self) -> Option<num_bigint::BigInt> {
+        use num_bigint::Sign;
+        let sign = if self.is_zero() {
+            Sign::NoSign
+        } else {
+            Sign::Plus
+        };
+        Some(num_bigint::BigInt::from_bytes_le(sign, &self.to_bytes_le()))
     }
 }
 
@@ -767,32 +787,18 @@ impl<const N: usize> TryFrom<BigUint> for BigInt<N> {
     }
 }
 
+impl<const N: usize> ToBigUint for BigInt<N> {
+    fn to_biguint(&self) -> Option<BigUint> {
+        Some(BigUint::from_bytes_le(&self.to_bytes_le()))
+    }
+}
+
 impl<const N: usize> FromStr for BigInt<N> {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let biguint = BigUint::from_str(s).unwrap();
         Self::try_from(biguint)
-    }
-}
-
-impl<const N: usize> From<BigInt<N>> for BigUint {
-    #[inline]
-    fn from(val: BigInt<N>) -> num_bigint::BigUint {
-        BigUint::from_bytes_le(&val.to_bytes_le())
-    }
-}
-
-impl<const N: usize> From<BigInt<N>> for num_bigint::BigInt {
-    #[inline]
-    fn from(val: BigInt<N>) -> num_bigint::BigInt {
-        use num_bigint::Sign;
-        let sign = if val.is_zero() {
-            Sign::NoSign
-        } else {
-            Sign::Plus
-        };
-        num_bigint::BigInt::from_bytes_le(sign, &val.to_bytes_le())
     }
 }
 

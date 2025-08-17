@@ -5,7 +5,10 @@
 
 use ark_std::{log2, vec::Vec};
 
-use crate::traits::{Field, FieldMap};
+use crate::{
+    field::RandomField,
+    traits::{ConfigReference, FieldMap},
+};
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -20,13 +23,13 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<F: Field>(
+pub fn gen_eval_point<C: ConfigReference>(
     index: usize,
     index_len: usize,
-    point: &[F],
-    config: F::R,
-) -> Vec<F> {
-    let index_vec: Vec<F> = bit_decompose(index as u64, index_len)
+    point: &[RandomField<C>],
+    config: C,
+) -> Vec<RandomField<C>> {
+    let index_vec: Vec<RandomField<C>> = bit_decompose(index as u64, index_len)
         .into_iter()
         .map(|i| i.map_to_field(config))
         .collect();

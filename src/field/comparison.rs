@@ -5,10 +5,10 @@ use crate::{
         RandomField,
         RandomField::{Initialized, Raw},
     },
-    traits::Field,
+    traits::ConfigReference,
 };
 
-impl<const N: usize> PartialEq for RandomField<'_, N> {
+impl<C: ConfigReference> PartialEq for RandomField<C> {
     fn eq(&self, other: &Self) -> bool {
         if self.is_one() & other.is_one() {
             return true;
@@ -27,4 +27,4 @@ impl<const N: usize> PartialEq for RandomField<'_, N> {
     }
 }
 
-impl<const N: usize> Eq for RandomField<'_, N> {} // Eq requires PartialEq and ensures reflexivity.
+impl<C: ConfigReference> Eq for RandomField<C> {} // Eq requires PartialEq and ensures reflexivity.

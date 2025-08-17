@@ -14,7 +14,7 @@ use crypto_bigint::Random;
 use itertools::Itertools;
 use zinc::{
     define_random_field_zip_types,
-    field::{BigInt, ConfigRef, FieldConfig, RandomField},
+    field::{BigInt, ConfigRef, FieldConfig},
     implement_random_field_zip_types,
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap, ZipTypes},
@@ -29,6 +29,7 @@ use zinc::{
 
 const INT_LIMBS: usize = 1;
 const FIELD_LIMBS: usize = 4;
+type C<'cfg> = ConfigRef<'cfg, FIELD_LIMBS>;
 
 define_random_field_zip_types!();
 implement_random_field_zip_types!(INT_LIMBS);
@@ -115,8 +116,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly)
-                        .expect("Failed to commit");
+                    let _ = BenchZip::commit::<C>(&params, &poly).expect("Failed to commit");
                     total_duration += timer.elapsed()
                 }
 
@@ -138,7 +138,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, _) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
+    let (data, _) = BenchZip::commit::<C>(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
@@ -147,7 +147,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::new();
+                    let mut transcript = PcsTranscript::<C>::new();
                     let timer = Instant::now();
                     BenchZip::open(
                         &params,
@@ -177,10 +177,10 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, commitment) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
+    let (data, commitment) = BenchZip::commit::<C>(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
-    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::new();
+    let mut transcript = PcsTranscript::<C>::new();
 
     BenchZip::open(
         &params,
@@ -202,7 +202,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::from_proof(&proof);
+                    let mut transcript = PcsTranscript::<C>::from_proof(&proof);
                     let timer = Instant::now();
                     BenchZip::verify(
                         &params,

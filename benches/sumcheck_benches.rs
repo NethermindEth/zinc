@@ -5,7 +5,7 @@ use criterion::{
 };
 use zinc::{
     big_int,
-    field::{ConfigRef, RandomField},
+    field::ConfigRef,
     field_config,
     sumcheck::{
         MLSumcheck,
@@ -20,9 +20,7 @@ fn run_sumcheck<'cfg, const N: usize>(config: ConfigRef<'cfg, N>) {
     let ((poly_mles, poly_degree), products, sum) =
         rand_poly(nvars, (2, 5), 7, config, &mut rng).unwrap();
 
-    let comb_fn = |vals: &[RandomField<'cfg, N>]| -> RandomField<'cfg, N> {
-        rand_poly_comb_fn(vals, &products, config)
-    };
+    let comb_fn = |vals: &[_]| -> _ { rand_poly_comb_fn(vals, &products, config) };
 
     let mut transcript = KeccakTranscript::new();
     let (proof, _) = MLSumcheck::prove_as_subprotocol(

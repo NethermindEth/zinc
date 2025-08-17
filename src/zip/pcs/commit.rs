@@ -5,8 +5,9 @@ use super::{
     utils::{MerkleTree, validate_input},
 };
 use crate::{
+    field::RandomField,
     poly_z::mle::DenseMultilinearExtension,
-    traits::{Field, ZipTypes},
+    traits::{ConfigReference, ZipTypes},
     zip::{
         Error,
         code::LinearCode,
@@ -47,11 +48,11 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     /// # Panics
     /// - Panics if the number of polynomial evaluations does not perfectly match the expected matrix size (`pp.num_rows * pp.linear_code.row_len()`).
     /// - Panics if the number of generated Merkle trees does not match `pp.num_rows`, indicating an internal logic error.
-    pub fn commit<F: Field>(
+    pub fn commit<C: ConfigReference>(
         pp: &MultilinearZipParams<ZT, LC>,
         poly: &DenseMultilinearExtension<ZT::N>,
     ) -> Result<(MultilinearZipData<ZT::K>, MultilinearZipCommitment), Error> {
-        validate_input("commit", pp.num_vars, [poly], None::<&[F]>)?;
+        validate_input("commit", pp.num_vars, [poly], None::<&[RandomField<C>]>)?;
 
         let expected_num_evals = pp.num_rows * pp.linear_code.row_len();
         assert_eq!(
@@ -101,11 +102,11 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     /// A `Result` containing `MultilinearZipData` with the encoded rows but empty Merkle trees,
     /// and a `MultilinearZipCommitment` with an empty vector of roots.
     #[allow(dead_code)]
-    pub fn commit_no_merkle<F: Field>(
+    pub fn commit_no_merkle<C: ConfigReference>(
         pp: &MultilinearZipParams<ZT, LC>,
         poly: &DenseMultilinearExtension<ZT::N>,
     ) -> Result<(MultilinearZipData<ZT::K>, MultilinearZipCommitment), Error> {
-        validate_input("commit", pp.num_vars, [poly], None::<&[F]>)?;
+        validate_input("commit", pp.num_vars, [poly], None::<&[RandomField<C>]>)?;
 
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
@@ -131,13 +132,13 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     /// A `Result` containing a `Vec` of commitment tuples, where each tuple corresponds
     /// to a polynomial in the input slice.
     #[allow(clippy::type_complexity)]
-    pub fn batch_commit<F: Field>(
+    pub fn batch_commit<C: ConfigReference>(
         pp: &MultilinearZipParams<ZT, LC>,
         polys: &[DenseMultilinearExtension<ZT::N>],
     ) -> Result<Vec<(MultilinearZipData<ZT::K>, MultilinearZipCommitment)>, Error> {
         polys
             .iter()
-            .map(|poly| Self::commit::<F>(pp, poly))
+            .map(|poly| Self::commit::<C>(pp, poly))
             .collect()
     }
 
@@ -213,7 +214,7 @@ mod tests {
 
     type ZT = RandomFieldZipTypes<INT_LIMBS>;
     type LC = RaaCode<ZT>;
-    type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
+    type C<'cfg> = ConfigRef<'cfg, FIELD_LIMBS>;
     type TestZip = MultilinearZip<ZT, LC>;
 
     /// Helper function to set up common parameters for tests.
@@ -245,7 +246,7 @@ mod tests {
         let evaluations = (1..=16).map(Int::from).collect();
         let poly = DenseMultilinearExtension::from_evaluations_vec(4, evaluations);
 
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_err());
     }
 
@@ -253,8 +254,8 @@ mod tests {
     fn commit_is_deterministic() {
         let (pp, poly) = setup_test_params(3);
 
-        let result1 = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
-        let result2 = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
+        let result1 = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
+        let result2 = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
 
         assert_eq!(result1.1.roots, result2.1.roots);
     }
@@ -266,8 +267,8 @@ mod tests {
         let poly1 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(1); 8]);
         let poly2 = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(2); 8]);
 
-        let (_, commitment1) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly1).unwrap();
-        let (_, commitment2) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly2).unwrap();
+        let (_, commitment1) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly1).unwrap();
+        let (_, commitment2) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly2).unwrap();
 
         assert_ne!(commitment1.roots, commitment2.roots);
     }
@@ -281,7 +282,7 @@ mod tests {
         let evaluations = vec![Int::from(42); 16];
         let poly = DenseMultilinearExtension::from_evaluations_vec(4, evaluations);
 
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_ok());
     }
 
@@ -294,14 +295,14 @@ mod tests {
         let evaluations = vec![Int::from(1), Int::from(2), Int::from(3), Int::from(4)];
         let poly = DenseMultilinearExtension::from_evaluations_vec(2, evaluations);
 
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_ok());
     }
 
     #[test]
     fn merkle_tree_has_correct_depth() {
         let (pp, poly) = setup_test_params(3);
-        let (data, _) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
+        let (data, _) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
 
         let expected_depth = pp.linear_code.codeword_len().next_power_of_two().ilog2() as usize;
         for tree in &data.rows_merkle_trees {
@@ -312,7 +313,7 @@ mod tests {
     #[test]
     fn commit_no_merkle_produces_empty_trees() {
         let (pp, poly) = setup_test_params(3);
-        let result = MultilinearZip::<ZT, _>::commit_no_merkle::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit_no_merkle::<C>(&pp, &poly);
         assert!(result.is_ok());
 
         let (data, commitment) = result.unwrap();
@@ -330,7 +331,7 @@ mod tests {
             DenseMultilinearExtension::from_evaluations_vec(3, (9..=16).map(Int::from).collect()),
         ];
 
-        let results = MultilinearZip::<ZT, _>::batch_commit::<F>(&pp, &polys);
+        let results = MultilinearZip::<ZT, _>::batch_commit::<C>(&pp, &polys);
         assert!(results.is_ok());
 
         let outputs = results.unwrap();
@@ -383,7 +384,7 @@ mod tests {
     #[test]
     fn corrupted_encoding_changes_merkle_root() {
         let (pp, poly) = setup_test_params(3);
-        let (mut data, commitment) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
+        let (mut data, commitment) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
 
         if !data.rows.is_empty() {
             data.rows[0] = Int::from(999999);
@@ -401,11 +402,11 @@ mod tests {
     fn batch_commit_with_single_polynomial_is_consistent() {
         let (pp, poly) = setup_test_params(3);
 
-        let batch_result = MultilinearZip::<ZT, _>::batch_commit::<F>(&pp, from_ref(&poly));
+        let batch_result = MultilinearZip::<ZT, _>::batch_commit::<C>(&pp, from_ref(&poly));
         let mut batch_outputs = batch_result.unwrap();
         let (batch_data, batch_commitment) = batch_outputs.remove(0);
 
-        let single_result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let single_result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         let (single_data, single_commitment) = single_result.unwrap();
 
         assert_eq!(batch_commitment.roots, single_commitment.roots);
@@ -430,7 +431,7 @@ mod tests {
     #[test]
     fn commit_produces_correct_merkle_tree_count() {
         let (pp, poly) = setup_test_params(3);
-        let (data, _) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
+        let (data, _) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
 
         assert_eq!(data.rows_merkle_trees.len(), pp.num_rows);
         assert_eq!(data.rows.len(), pp.num_rows * pp.linear_code.codeword_len());
@@ -473,7 +474,7 @@ mod tests {
     fn commit_succeeds_for_zero_polynomial() {
         let (pp, _) = setup_test_params(3);
         let zero_poly = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(0); 8]);
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &zero_poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &zero_poly);
         assert!(result.is_ok());
 
         let (data, commitment) = result.unwrap();
@@ -488,7 +489,7 @@ mod tests {
             .map(|i| Int::from(if i % 2 == 0 { 1 } else { -1 }))
             .collect();
         let poly = DenseMultilinearExtension::from_evaluations_vec(3, alternating);
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_ok());
     }
 
@@ -496,7 +497,7 @@ mod tests {
     fn batch_commit_on_empty_slice_is_ok() {
         let (pp, _) = setup_test_params(3);
         let empty_polys: Vec<DenseMultilinearExtension<Int<INT_LIMBS>>> = vec![];
-        let results = MultilinearZip::<ZT, _>::batch_commit::<F>(&pp, &empty_polys);
+        let results = MultilinearZip::<ZT, _>::batch_commit::<C>(&pp, &empty_polys);
         assert!(results.is_ok());
         assert!(results.unwrap().is_empty());
     }
@@ -521,7 +522,7 @@ mod tests {
     fn merkle_root_integrity_is_maintained() {
         let (pp, _) = setup_test_params(3);
         let poly = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(42); 8]);
-        let (data, commitment) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
+        let (data, commitment) = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly).unwrap();
 
         let codeword_len = pp.linear_code.codeword_len();
         for (i, tree) in data.rows_merkle_trees.iter().enumerate() {
@@ -542,7 +543,7 @@ mod tests {
 
             let (pp, poly) = setup_test_params(num_vars);
             assert_eq!(pp.num_rows, expected_rows);
-            let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+            let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
             assert!(result.is_ok());
         }
     }
@@ -552,7 +553,7 @@ mod tests {
     fn reject_incompatible_dimensions() {
         let (pp, poly) = setup_test_params(3);
         let incompatible_pp = MultilinearZipParams::new(3, 3, pp.linear_code);
-        let _ = MultilinearZip::<ZT, _>::commit::<F>(&incompatible_pp, &poly);
+        let _ = MultilinearZip::<ZT, _>::commit::<C>(&incompatible_pp, &poly);
     }
 
     #[test]
@@ -588,7 +589,7 @@ mod tests {
         let (pp, mut poly) = setup_test_params(4);
         poly.evaluations.truncate(15);
         assert_eq!(poly.evaluations.len(), 15);
-        let _ = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let _ = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
     }
 
     #[test]
@@ -596,7 +597,7 @@ mod tests {
         let num_vars = 16;
         let (pp, poly) = setup_test_params(num_vars);
         assert_eq!(pp.num_vars, num_vars);
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_ok());
         let (_, commitment) = result.unwrap();
         assert_eq!(commitment.roots.len(), pp.num_rows);
@@ -607,7 +608,7 @@ mod tests {
         let (pp, poly) = setup_test_params(2);
         assert_eq!(pp.num_rows, 2);
         assert_eq!(pp.linear_code.row_len(), 2);
-        let result = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly);
+        let result = MultilinearZip::<ZT, _>::commit::<C>(&pp, &poly);
         assert!(result.is_ok());
         let (data, commitment) = result.unwrap();
         assert_eq!(commitment.roots.len(), 2);
@@ -643,14 +644,14 @@ mod tests {
     fn verifier_rejects_commitment_with_bad_proximity() {
         fn evaluate_in_field<'cfg>(
             evaluations: &[Int<INT_LIMBS>],
-            point: &[RandomField<'cfg, FIELD_LIMBS>],
+            point: &[RandomField<ConfigRef<'cfg, FIELD_LIMBS>>],
             config: ConfigRef<'cfg, FIELD_LIMBS>,
         ) -> F<'cfg> {
             let num_vars = point.len();
             assert_eq!(evaluations.len(), 1 << num_vars);
-            let mut current_evals: Vec<F> = evaluations.map_to_field(config);
+            let mut current_evals = evaluations.map_to_field(config);
             for p in point.iter().take(num_vars) {
-                let one_minus_p_i = FieldMap::<F>::map_to_field(&1i32, config) - p;
+                let one_minus_p_i = 1i32.map_to_field(config) - p;
                 let mut next_evals = Vec::with_capacity(current_evals.len() / 2);
                 for j in (0..current_evals.len()).step_by(2) {
                     let val = current_evals[j] * one_minus_p_i + current_evals[j + 1] * p;
@@ -661,7 +662,8 @@ mod tests {
             current_evals[0]
         }
 
-        type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
+        type C<'cfg> = ConfigRef<'cfg, FIELD_LIMBS>;
+        type F<'cfg> = RandomField<C<'cfg>>;
         let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
         let config = ConfigRef::from(&config);
         let mut rng = ark_std::test_rng();
@@ -677,7 +679,7 @@ mod tests {
         let point_int: Vec<_> = (0..n).map(|_| Int::<INT_LIMBS>::random(&mut rng)).collect();
         let point_f = point_int.map_to_field(config);
 
-        let (mut data, comm) = TestZip::commit::<F>(&param, &mle).unwrap();
+        let (mut data, comm) = TestZip::commit::<C>(&param, &mle).unwrap();
         if !data.rows.is_empty() {
             data.rows[0] += Int::<{ 4 * INT_LIMBS }>::from(1);
         }
@@ -737,7 +739,7 @@ mod tests {
             (proximity_phase_size + column_opening_phase_size + evaluation_phase_size) * 8
         }
 
-        type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
+        type C<'cfg> = ConfigRef<'cfg, FIELD_LIMBS>;
         let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
         let config = ConfigRef::from(&config);
         let mut rng = ark_std::test_rng();
@@ -753,9 +755,9 @@ mod tests {
         let point_int: Vec<_> = (0..num_vars)
             .map(|_| Int::<INT_LIMBS>::random(&mut rng))
             .collect();
-        let point_f: Vec<F> = point_int.map_to_field(config);
+        let point_f = point_int.map_to_field(config);
 
-        let (data, _) = TestZip::commit::<F>(&param, &mle).unwrap();
+        let (data, _) = TestZip::commit::<C>(&param, &mle).unwrap();
         let mut prover_transcript = PcsTranscript::new();
         TestZip::open(
             &param,

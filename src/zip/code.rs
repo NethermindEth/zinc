@@ -2,10 +2,12 @@
 
 use ark_std::{collections::BTreeSet, fmt::Debug, iter, marker::PhantomData, vec, vec::Vec};
 use itertools::Itertools;
+use num_traits::Zero;
 
 use super::pcs::structs::ZipTranscript;
 use crate::{
-    traits::{Field, FieldMap, Integer, Words, ZipTypes},
+    field::RandomField,
+    traits::{ConfigReference, FromRef, Integer, MapsToField, Words, ZipTypes},
     zip::utils::expand,
 };
 
@@ -49,7 +51,7 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     fn encode_wide<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
         In: Integer,
-        Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>;
+        Out: Integer + FromRef<In> + FromRef<ZT::L>;
 
     /// Encodes a row of field elements using this linear encoding scheme.
     ///
@@ -62,9 +64,9 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     ///
     /// # Returns
     /// A vector of field elements representing the encoded row
-    fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
+    fn encode_f<C: ConfigReference>(&self, row: &[RandomField<C>], field: C) -> Vec<RandomField<C>>
     where
-        ZT::L: FieldMap<F, Output = F>;
+        ZT::L: MapsToField<C>;
 }
 
 /// A linear code implementation used for the Zip PCS.
@@ -183,7 +185,7 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
     fn encode_wide<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
         In: Integer,
-        Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
+        Out: Integer + FromRef<In> + FromRef<ZT::L>,
     {
         debug_assert_eq!(
             row.len(),
@@ -196,9 +198,9 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
         code
     }
 
-    fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
+    fn encode_f<C: ConfigReference>(&self, row: &[RandomField<C>], field: C) -> Vec<RandomField<C>>
     where
-        ZT::L: FieldMap<F, Output = F>,
+        ZT::L: MapsToField<C>,
     {
         debug_assert_eq!(
             row.len(),
@@ -300,7 +302,7 @@ impl<L: Integer> SparseMatrixZ<L> {
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    pub fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
+    pub fn mat_vec_mul<N: Integer, M: Integer + FromRef<N> + FromRef<L>>(
         &self,
         vector: &[N],
     ) -> Vec<M> {
@@ -334,17 +336,14 @@ impl<L: Integer> SparseMatrixZ<L> {
 
 /// Sparse matrix over a field.
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<F: Field> {
+pub struct SparseMatrixF<C: ConfigReference> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, F)>,
+    cells: Vec<(usize, RandomField<C>)>,
 }
 
-impl<F: Field> SparseMatrixF<F> {
-    pub fn new<L: Integer + FieldMap<F, Output = F>>(
-        sparse_matrix: &SparseMatrixZ<L>,
-        config: F::R,
-    ) -> Self {
-        let cells_f: Vec<(usize, F)> = sparse_matrix
+impl<C: ConfigReference> SparseMatrixF<C> {
+    pub fn new<L: Integer + MapsToField<C>>(sparse_matrix: &SparseMatrixZ<L>, config: C) -> Self {
+        let cells_f: Vec<(usize, RandomField<C>)> = sparse_matrix
             .cells
             .iter()
             .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
@@ -355,22 +354,22 @@ impl<F: Field> SparseMatrixF<F> {
         }
     }
 
-    fn rows(&self) -> impl Iterator<Item = &[(usize, F)]> {
+    fn rows(&self) -> impl Iterator<Item = &[(usize, RandomField<C>)]> {
         self.cells.chunks(self.dimension.d)
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    pub fn mat_vec_mul(&self, vector: &[F]) -> Vec<F> {
+    pub fn mat_vec_mul(&self, vector: &[RandomField<C>]) -> Vec<RandomField<C>> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![F::zero(); self.dimension.n];
+        let mut result = vec![RandomField::zero(); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = F::zero();
+            let mut sum = RandomField::zero();
             for (column, coeff) in cells.iter() {
                 sum += &(coeff.clone() * &vector[*column]);
             }

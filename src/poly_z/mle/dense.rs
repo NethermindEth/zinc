@@ -16,7 +16,7 @@ use crate::{
     poly::ArithErrors,
     poly_f::mle::DenseMultilinearExtension as DenseMultilinearExtensionF,
     sparse_matrix::SparseMatrix,
-    traits::{Field, FieldMap, Integer},
+    traits::{ConfigReference, FieldMap, Integer, MapsToField},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -118,12 +118,12 @@ impl<I: Integer> DenseMultilinearExtension<I> {
     }
 }
 
-impl<F: Field, I: Integer> FieldMap<F> for DenseMultilinearExtension<I>
+impl<C: ConfigReference, I: Integer> FieldMap<C> for DenseMultilinearExtension<I>
 where
-    I: FieldMap<F, Output = F>,
+    I: MapsToField<C>,
 {
-    type Output = DenseMultilinearExtensionF<F>;
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    type Output = DenseMultilinearExtensionF<C>;
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,
             self.evaluations.map_to_field(config_ref),

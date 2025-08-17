@@ -17,9 +17,9 @@ use zinc::{
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
     let config = field_config!(695962179703626800597079116051991347);
-    let field_config = ConfigRef::from(&config);
+    let field_config = ConfigRef::<4>::from(&config);
 
-    let field_elem = random_field!(695962179703, 4, field_config);
+    let field_elem: RandomField<_> = random_field!(695962179703u64, field_config);
     group.bench_with_input(
         BenchmarkId::new("Multiply", "Random128BitFieldElement"),
         &field_elem,

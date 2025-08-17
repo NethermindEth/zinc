@@ -2,10 +2,8 @@ use ark_std::vec::Vec;
 use sha3::{Digest, Keccak256};
 
 use crate::{
-    field::Int,
-    traits::{
-        BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Words,
-    },
+    field::{Int, RandomField},
+    traits::{BigInteger, Config, ConfigReference, FieldMap, Integer, PrimitiveConversion, Words},
     zip::pcs::structs::ZipTranscript,
 };
 
@@ -56,13 +54,13 @@ impl KeccakTranscript {
 
     /// Absorbs a field element into the transcript.
     /// Delegates to the field element's implementation of absorb_into_transcript.
-    pub fn absorb_random_field<F: Field>(&mut self, v: &F) {
+    pub fn absorb_random_field<C: ConfigReference>(&mut self, v: &RandomField<C>) {
         v.absorb_into_transcript(self)
     }
 
     /// Absorbs a slice of field elements into the transcript.
     /// Processes each field element in the slice sequentially.
-    pub fn absorb_slice<F: Field>(&mut self, slice: &[F]) {
+    pub fn absorb_slice<C: ConfigReference>(&mut self, slice: &[RandomField<C>]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -85,17 +83,17 @@ impl KeccakTranscript {
 
     /// Generates a pseudorandom field element as a challenge based on the current transcript state.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<F: Field>(&mut self, config_ref: F::R) -> F {
+    pub fn get_challenge<C: ConfigReference>(&mut self, config_ref: C) -> RandomField<C> {
         let (lo, hi) = self.get_challenge_limbs();
         let config = config_ref.reference().expect("Field config cannot be none");
         let modulus = config.modulus();
         let challenge_num_bits = modulus.num_bits() - 1;
-        if F::W::num_words() == 1 {
+        if C::N == 1 {
             let lo_mask = (1u64 << challenge_num_bits) - 1;
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge: F = truncated_lo.map_to_field(config_ref);
+            let mut challenge = truncated_lo.map_to_field(config_ref);
             challenge.set_config(config_ref);
             return challenge;
         }
@@ -104,15 +102,15 @@ impl KeccakTranscript {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge: F = truncated_lo.map_to_field(config_ref);
+            let mut challenge = truncated_lo.map_to_field(config_ref);
             challenge.set_config(config_ref);
             challenge
         } else if challenge_num_bits >= 256 {
-            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+            let two_to_128 = C::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
                 .map_to_field(config_ref);
 
-            let mut challenge: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
-                + two_to_128 * <u128 as FieldMap<F>>::map_to_field(&hi, config_ref);
+            let mut challenge =
+                lo.map_to_field(config_ref) + two_to_128 * hi.map_to_field(config_ref);
             challenge.set_config(config_ref);
             challenge
         } else {
@@ -121,20 +119,24 @@ impl KeccakTranscript {
 
             let truncated_hi = hi & hi_mask;
 
-            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
+            let two_to_128 = C::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
                 .map_to_field(config_ref);
 
-            let mut ret: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
-                + two_to_128 * <u128 as FieldMap<F>>::map_to_field(&truncated_hi, config_ref);
+            let mut ret =
+                lo.map_to_field(config_ref) + two_to_128 * truncated_hi.map_to_field(config_ref);
             ret.set_config(config_ref);
             ret
         }
     }
 
     /// Generates pseudorandom field elements as challenges based on the current transcript state.
-    pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::R) -> Vec<F> {
+    pub fn get_challenges<C: ConfigReference>(
+        &mut self,
+        n: usize,
+        config: C,
+    ) -> Vec<RandomField<C>> {
         let mut challenges = Vec::with_capacity(n);
-        challenges.extend((0..n).map(|_| self.get_challenge::<F>(config)));
+        challenges.extend((0..n).map(|_| self.get_challenge(config)));
         challenges
     }
 
@@ -206,7 +208,7 @@ mod tests {
 
     use super::KeccakTranscript;
     use crate::{
-        field::{BigInt, ConfigRef, FieldConfig, RandomField},
+        field::{BigInt, ConfigRef, FieldConfig},
         traits::{Config, FieldMap},
     };
 
@@ -222,7 +224,7 @@ mod tests {
         let field_config = ConfigRef::from(&config);
 
         transcript.absorb(b"This is a test string!");
-        let challenge: RandomField<32> = transcript.get_challenge(field_config);
+        let challenge = transcript.get_challenge(field_config);
 
         let expected_bigint = BigInt::<32>::from_str(
             "693058076479703886486101269644733982722902192016595549603371045888466087870",

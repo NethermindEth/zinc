@@ -1,6 +1,6 @@
 use crate::{
-    field::BigInt,
-    traits::{Config, ConfigReference},
+    field::{BigInt, Int, Uint, Words},
+    traits::{BigInteger, Config, ConfigReference},
 };
 
 #[macro_export]
@@ -49,15 +49,45 @@ pub struct FieldConfig<const N: usize> {
     modulus_has_spare_bit: bool,
 }
 
-impl<const N: usize> FieldConfig<N> {
-    pub fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+impl<const N: usize> Config for FieldConfig<N> {
+    type B = BigInt<N>;
+    fn modulus(&self) -> &BigInt<N> {
+        &self.modulus
+    }
+
+    fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+        let (mut lo, mut hi) = a.mul_naive(b);
+
+        // Montgomery reduction
+        let carry = a.montgomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
+
+        self.reduce_modulus(a, carry);
+    }
+
+    fn r2(&self) -> &BigInt<N> {
+        &self.r2
+    }
+
+    fn new(modulus: BigInt<N>) -> Self {
+        let modulus_has_spare_bit = modulus.has_spare_bit();
+        Self {
+            modulus,
+            r: modulus.montgomery_r(),
+            r2: modulus.montgomery_r2(),
+            inv: inv(modulus),
+
+            modulus_has_spare_bit,
+        }
+    }
+
+    fn add_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // This cannot exceed the backing capacity.
         let c = a.add_with_carry(b);
         // However, it may need to be reduced
         self.reduce_modulus(a, c);
     }
 
-    pub fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
+    fn sub_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
         // If `other` is larger than `self`, add the modulus to self first.
         if b > a {
             a.add_with_carry(&self.modulus);
@@ -75,7 +105,7 @@ impl<const N: usize> FieldConfig<N> {
         }
     }
 
-    pub fn inverse(&self, a: &BigInt<N>) -> Option<BigInt<N>> {
+    fn inverse(&self, a: &BigInt<N>) -> Option<BigInt<N>> {
         if a.is_zero() {
             return None;
         }
@@ -144,45 +174,13 @@ impl<const N: usize> FieldConfig<N> {
     }
 
     #[inline]
-    pub fn r(&self) -> &BigInt<N> {
+    fn r(&self) -> &BigInt<N> {
         &self.r
     }
 
     #[inline]
-    pub fn inv(&self) -> u64 {
+    fn inv(&self) -> u64 {
         self.inv
-    }
-}
-
-impl<const N: usize> Config for FieldConfig<N> {
-    type B = BigInt<N>;
-    fn modulus(&self) -> &BigInt<N> {
-        &self.modulus
-    }
-
-    fn mul_assign(&self, a: &mut BigInt<N>, b: &BigInt<N>) {
-        let (mut lo, mut hi) = a.mul_naive(b);
-
-        // Montgomery reduction
-        let carry = a.montgomery_reduction(&mut lo, &mut hi, &self.modulus, self.inv);
-
-        self.reduce_modulus(a, carry);
-    }
-
-    fn r2(&self) -> &BigInt<N> {
-        &self.r2
-    }
-
-    fn new(modulus: BigInt<N>) -> Self {
-        let modulus_has_spare_bit = modulus.has_spare_bit();
-        Self {
-            modulus,
-            r: modulus.montgomery_r(),
-            r2: modulus.montgomery_r2(),
-            inv: inv(modulus),
-
-            modulus_has_spare_bit,
-        }
     }
 }
 
@@ -225,42 +223,6 @@ impl<const N: usize> PartialEq for FieldConfig<N> {
 
 impl<const N: usize> Eq for FieldConfig<N> {}
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct DebugFieldConfig {
-    /// The modulus of the field.
-    modulus: num_bigint::BigInt,
-
-    /// Let `M` be the power of 2^64 nearest to `Self::MODULUS_BITS`. Then
-    /// `R = M % Self::MODULUS`.
-    r: num_bigint::BigInt,
-
-    /// R2 = R^2 % Self::MODULUS
-    r2: num_bigint::BigInt,
-
-    /// INV = -MODULUS^{-1} mod 2^64
-    inv: u64,
-
-    /// Does the modulus have a spare unused bit
-    ///
-    /// This condition applies if
-    /// (a) `Self::MODULUS[N-1] >> 63 == 0`
-    #[doc(hidden)]
-    modulus_has_spare_bit: bool,
-}
-
-impl<const N: usize> From<FieldConfig<N>> for DebugFieldConfig {
-    fn from(value: FieldConfig<N>) -> Self {
-        Self {
-            modulus: value.modulus.into(),
-            r: value.r.into(),
-            r2: value.r2.into(),
-            inv: value.inv,
-            modulus_has_spare_bit: value.modulus_has_spare_bit,
-        }
-    }
-}
-
 /// A wrapper around an optional reference to a `FieldConfig`.
 ///
 /// This struct is used to represent a pointer to a `FieldConfig` instance,
@@ -275,6 +237,12 @@ pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
 
 impl<'cfg, const N: usize> ConfigReference for ConfigRef<'cfg, N> {
     type C = FieldConfig<N>;
+    type B = BigInt<N>;
+    type I = Int<N>;
+    type U = Uint<N>;
+    type W = Words<N>;
+    const N: usize = N;
+
     fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
         self.0
     }
@@ -288,6 +256,12 @@ impl<'cfg, const N: usize> ConfigReference for ConfigRef<'cfg, N> {
     }
 
     const NONE: Self = Self(None);
+}
+
+impl<const N: usize> Default for ConfigRef<'_, N> {
+    fn default() -> Self {
+        Self::NONE
+    }
 }
 
 impl<const N: usize> PartialEq for ConfigRef<'_, N> {

@@ -6,7 +6,7 @@ use ark_std::{
 use num_integer::Integer as NumInteger;
 use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
 
-use crate::traits::{Integer, Words};
+use crate::traits::{FromRef, Integer, Words};
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
 where
@@ -126,7 +126,7 @@ where
     combined_row
 }
 
-pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &N) -> M {
+pub(super) fn expand<N: Integer, M: Integer + FromRef<N>>(narrow_int: &N) -> M {
     assert!(
         N::W::num_words() <= M::W::num_words(),
         "Cannot squeeze a wide integer into a narrow integer."

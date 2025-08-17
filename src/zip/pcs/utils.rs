@@ -3,10 +3,11 @@ use ark_std::{format, iterable::Iterable, vec, vec::Vec};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
+    field::RandomField,
     poly_f::mle::DenseMultilinearExtension as MLE_F,
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    traits::{Field, Integer},
+    traits::{ConfigReference, Integer, ToBytes},
     zip::{
         Error,
         pcs_transcript::PcsTranscript,
@@ -21,11 +22,11 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
+pub(super) fn validate_input<'a, I: Integer + 'a, C: ConfigReference + 'a>(
     function: &str,
     param_num_vars: usize,
     polys: impl Iterable<Item = &'a MLE_Z<I>>,
-    points: impl Iterable<Item = &'a [F]>,
+    points: impl Iterable<Item = &'a [RandomField<C>]>,
 ) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
     for poly in polys.iter() {
@@ -55,11 +56,6 @@ pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
         }
     }
     Ok(())
-}
-
-// Define a new trait for converting to bytes
-pub trait ToBytes {
-    fn to_bytes(&self) -> Vec<u8>;
 }
 
 /// A merkle tree in which its layers are concatenated together in a single vector
@@ -218,10 +214,10 @@ impl MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<F: Field, M: Integer>(
+    pub fn open_at_column<C: ConfigReference, M: Integer>(
         column: usize,
         commit_data: &MultilinearZipData<M>,
-        transcript: &mut PcsTranscript<F>,
+        transcript: &mut PcsTranscript<C>,
     ) -> Result<(), MerkleError> {
         for row_merkle_tree in commit_data.rows_merkle_trees.iter() {
             let merkle_path = MerkleProof::create_proof(row_merkle_tree, column)?;
@@ -232,11 +228,11 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<F: Field, T: ToBytes>(
+    pub fn verify_column<C: ConfigReference, T: ToBytes>(
         rows_roots: &[blake3::Hash],
         column: &[T],
         column_index: usize,
-        transcript: &mut PcsTranscript<F>,
+        transcript: &mut PcsTranscript<C>,
     ) -> Result<(), MerkleError> {
         for (root, leaf) in rows_roots.iter().zip(column) {
             let proof = transcript
@@ -250,11 +246,12 @@ impl ColumnOpening {
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
-pub(super) fn point_to_tensor<F: Field>(
+#[allow(clippy::type_complexity)]
+pub(super) fn point_to_tensor<C: ConfigReference>(
     num_rows: usize,
-    point: &[F],
-    config: F::R,
-) -> Result<(Vec<F>, Vec<F>), Error> {
+    point: &[RandomField<C>],
+    config: C,
+) -> Result<(Vec<RandomField<C>>, Vec<RandomField<C>>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
@@ -276,17 +273,17 @@ pub(super) fn point_to_tensor<F: Field>(
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
-pub(super) fn left_point_to_tensor<F: Field>(
+pub(super) fn left_point_to_tensor<C: ConfigReference>(
     num_rows: usize,
-    point: &[F],
-    config: F::R,
-) -> Result<Vec<F>, Error> {
+    point: &[RandomField<C>],
+    config: C,
+) -> Result<Vec<RandomField<C>>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {
         build_eq_x_r_f(lo, config).unwrap()
     } else {
-        MLE_F::<F>::zero()
+        MLE_F::zero()
     };
     Ok(q_0.evaluations)
 }

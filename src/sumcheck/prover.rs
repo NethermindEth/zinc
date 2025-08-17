@@ -11,23 +11,24 @@ use rayon::iter::*;
 
 use super::{IPForMLSumcheck, verifier::VerifierMsg};
 use crate::{
+    field::RandomField,
     poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{ConfigReference, Field, FieldMap},
+    traits::{ConfigReference, FieldMap},
 };
 
 /// Prover Message
 #[derive(Clone, Debug, PartialEq)]
-pub struct ProverMsg<F> {
+pub struct ProverMsg<C: ConfigReference> {
     /// evaluations on P(0), P(1), P(2), ...
-    pub(crate) evaluations: Vec<F>,
+    pub(crate) evaluations: Vec<RandomField<C>>,
 }
 
 /// Prover State
-pub struct ProverState<F: Field> {
+pub struct ProverState<C: ConfigReference> {
     /// sampled randomness given by the verifier
-    pub randomness: Vec<F>,
+    pub randomness: Vec<RandomField<C>>,
     /// Stores a list of multilinear extensions
-    pub mles: Vec<DenseMultilinearExtension<F>>,
+    pub mles: Vec<DenseMultilinearExtension<C>>,
     /// Number of variables
     pub num_vars: usize,
     /// Max degree
@@ -36,13 +37,13 @@ pub struct ProverState<F: Field> {
     pub round: usize,
 }
 
-impl<F: Field> IPForMLSumcheck<F> {
+impl<C: ConfigReference> IPForMLSumcheck<C> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
     pub fn prover_init(
-        mles: Vec<DenseMultilinearExtension<F>>,
+        mles: Vec<DenseMultilinearExtension<C>>,
         nvars: usize,
         degree: usize,
-    ) -> ProverState<F> {
+    ) -> ProverState<C> {
         if nvars == 0 {
             panic!("Attempt to prove a constant.")
         }
@@ -60,11 +61,11 @@ impl<F: Field> IPForMLSumcheck<F> {
     ///
     /// Adapted Jolt's sumcheck implementation
     pub fn prove_round(
-        prover_state: &mut ProverState<F>,
-        v_msg: &Option<VerifierMsg<F>>,
-        comb_fn: impl Fn(&[F]) -> F + Send + Sync,
-        config: F::R,
-    ) -> ProverMsg<F> {
+        prover_state: &mut ProverState<C>,
+        v_msg: &Option<VerifierMsg<C>>,
+        comb_fn: impl Fn(&[RandomField<C>]) -> RandomField<C> + Send + Sync,
+        config: C,
+    ) -> ProverMsg<C> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");
@@ -79,7 +80,7 @@ impl<F: Field> IPForMLSumcheck<F> {
                 AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
                 multiplicand.fix_variables(slice::from_ref(&r), unsafe {
-                    F::R::new(atomic_config.load(atomic::Ordering::Relaxed))
+                    C::new(atomic_config.load(atomic::Ordering::Relaxed))
                 });
             });
         } else if prover_state.round > 0 {
@@ -106,7 +107,7 @@ impl<F: Field> IPForMLSumcheck<F> {
             vals: Vec<R>,
             levals: Vec<R>,
         }
-        let zero: F = 0u64.map_to_field(config);
+        let zero = 0u64.map_to_field(config);
         let zero_vec_deg = vec![zero.clone(); degree + 1];
         let zero_vec_poly = vec![zero.clone(); polys.len()];
         let scratch = || Scratch {

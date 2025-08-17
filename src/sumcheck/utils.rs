@@ -11,30 +11,32 @@ use ark_std::{
     start_timer, vec,
     vec::Vec,
 };
+use num_traits::{One, Zero};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
 use crate::{
+    field::RandomField,
     poly::ArithErrors,
     poly_f::{
         mle::DenseMultilinearExtension,
         polynomials::{RefCounter, random_mle_list},
     },
-    traits::{Field, FieldMap},
+    traits::{ConfigReference, FieldMap},
 };
 
 #[allow(clippy::type_complexity)]
-pub fn rand_poly<F: Field>(
+pub fn rand_poly<C: ConfigReference>(
     nv: usize,
     num_multiplicands_range: (usize, usize),
     num_products: usize,
-    config: F::R,
+    config: C,
     rng: &mut impl RngCore,
 ) -> Result<
     (
-        (Vec<DenseMultilinearExtension<F>>, usize),
-        Vec<(F, Vec<usize>)>,
-        F,
+        (Vec<DenseMultilinearExtension<C>>, usize),
+        Vec<(RandomField<C>, Vec<usize>)>,
+        RandomField<C>,
     ),
     ArithErrors,
 > {
@@ -52,7 +54,7 @@ pub fn rand_poly<F: Field>(
             .map(|p| RefCounter::into_inner(p).unwrap())
             .collect::<Vec<_>>();
 
-        let coefficient = F::rand_with_config(rng, config);
+        let coefficient = RandomField::rand_with_config(rng, config);
         mles.extend(product);
         sum += &(product_sum * &coefficient);
 
@@ -65,7 +67,11 @@ pub fn rand_poly<F: Field>(
     Ok(((mles, degree), products, sum))
 }
 
-pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], config: F::R) -> F {
+pub fn rand_poly_comb_fn<C: ConfigReference>(
+    vals: &[RandomField<C>],
+    products: &[(RandomField<C>, Vec<usize>)],
+    config: C,
+) -> RandomField<C> {
     let mut result = 0u64.map_to_field(config);
     for (coef, indices) in products {
         let mut term = coef.clone();
@@ -79,17 +85,20 @@ pub fn rand_poly_comb_fn<F: Field>(vals: &[F], products: &[(F, Vec<usize>)], con
 }
 
 /// Evaluate eq polynomial.
-pub fn eq_eval<F: Field>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
+pub fn eq_eval<C: ConfigReference>(
+    x: &[RandomField<C>],
+    y: &[RandomField<C>],
+) -> Result<RandomField<C>, ArithErrors> {
     if x.len() != y.len() {
         return Err(ArithErrors::InvalidParameters(
             "x and y have different length".into(),
         ));
     }
     let start = start_timer!(|| "eq_eval");
-    let mut res = F::one();
+    let mut res = RandomField::one();
     for (xi, yi) in x.iter().zip(y.iter()) {
         let xi_yi = xi.clone() * yi;
-        res *= xi_yi.clone() + xi_yi - xi.clone() - yi.clone() + F::one();
+        res *= xi_yi.clone() + xi_yi - xi.clone() - yi.clone() + RandomField::one();
     }
     end_timer!(start);
     Ok(res)
@@ -101,10 +110,10 @@ pub fn eq_eval<F: Field>(x: &[F], y: &[F]) -> Result<F, ArithErrors> {
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r<F: Field>(
-    r: &[F],
-    config: F::R,
-) -> Result<DenseMultilinearExtension<F>, ArithErrors> {
+pub fn build_eq_x_r<C: ConfigReference>(
+    r: &[RandomField<C>],
+    config: C,
+) -> Result<DenseMultilinearExtension<C>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
     let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
 
@@ -117,7 +126,9 @@ pub fn build_eq_x_r<F: Field>(
 ///      eq(x,y) = \prod_i=1^num_var (x_i * y_i + (1-x_i)*(1-y_i))
 /// over r, which is
 ///      eq(x,y) = \prod_i=1^num_var (x_i * r_i + (1-x_i)*(1-r_i))
-pub fn build_eq_x_r_vec<F: Field>(r: &[F]) -> Result<Vec<F>, ArithErrors> {
+pub fn build_eq_x_r_vec<C: ConfigReference>(
+    r: &[RandomField<C>],
+) -> Result<Vec<RandomField<C>>, ArithErrors> {
     // we build eq(x,r) from its evaluations
     // we want to evaluate eq(x,r) over x \in {0, 1}^num_vars
     // for example, with num_vars = 4, x is a binary vector of 4, then
@@ -138,12 +149,15 @@ pub fn build_eq_x_r_vec<F: Field>(r: &[F]) -> Result<Vec<F>, ArithErrors> {
 /// A helper function to build eq(x, r) recursively.
 /// This function takes `r.len()` steps, and for each step it requires a maximum
 /// `r.len()-1` multiplications.
-fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithErrors> {
+fn build_eq_x_r_helper<C: ConfigReference>(
+    r: &[RandomField<C>],
+    buf: &mut Vec<RandomField<C>>,
+) -> Result<(), ArithErrors> {
     if r.is_empty() {
         return Err(ArithErrors::InvalidParameters("r length is 0".into()));
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
-        buf.push(F::one() - r[0].clone());
+        buf.push(RandomField::one() - r[0].clone());
         buf.push(r[0].clone());
     } else {
         build_eq_x_r_helper(&r[1..], buf)?;
@@ -160,7 +174,7 @@ fn build_eq_x_r_helper<F: Field>(r: &[F], buf: &mut Vec<F>) -> Result<(), ArithE
         // }
         // *buf = res;
 
-        let mut res = vec![F::zero(); buf.len() << 1];
+        let mut res = vec![RandomField::zero(); buf.len() << 1];
         cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
             let bi = buf[i >> 1].clone();
             let tmp = r[0].clone() * bi.clone();

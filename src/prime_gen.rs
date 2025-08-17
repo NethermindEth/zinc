@@ -1,40 +1,40 @@
 use num_traits::One;
 
 use crate::{
-    traits::{BigInteger, Field, FromBytes, Uinteger, Words, types::PrimalityTest},
+    traits::{BigInteger, ConfigReference, FromBytes, Uinteger, types::PrimalityTest},
     transcript::KeccakTranscript,
 };
 
-fn hash_int<F: Field>(hasher: &mut KeccakTranscript) -> F::U {
-    let n_bytes = F::W::num_words() * 8;
+fn hash_int<C: ConfigReference>(hasher: &mut KeccakTranscript) -> C::U {
+    let n_bytes = C::N * 8;
     let bytes = hasher.get_random_bytes(n_bytes);
     hasher.absorb(&bytes);
-    F::U::from_bytes_be(&bytes).expect("Failed to convert bytes to CryptoUint")
+    C::U::from_bytes_be(&bytes).expect("Failed to convert bytes to CryptoUint")
 }
 
-pub fn get_prime<F: Field>(hasher: &mut KeccakTranscript) -> F::B {
+pub fn get_prime<C: ConfigReference>(hasher: &mut KeccakTranscript) -> C::B {
     let prime = loop {
-        let mut prime_candidate: F::U = hash_int::<F>(hasher);
+        let mut prime_candidate = hash_int::<C>(hasher);
         if prime_candidate.is_even() {
-            prime_candidate -= &F::U::one();
+            prime_candidate -= &C::U::one();
         }
-        let mr = <<F as Field>::U as Uinteger>::PrimalityTest::new(prime_candidate.clone());
+        let mr = <C::U as Uinteger>::PrimalityTest::new(prime_candidate.clone());
 
         if mr.is_probably_prime() {
             break prime_candidate;
         }
     };
-    F::B::new(prime.to_words())
+    C::B::new(prime.to_words())
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{field::RandomField, prime_gen::get_prime, transcript::KeccakTranscript};
+    use crate::{field::ConfigRef, prime_gen::get_prime, transcript::KeccakTranscript};
 
     #[test]
     fn test_prime_generator() {
         let mut hasher = KeccakTranscript::new();
         const N: usize = 3;
-        get_prime::<RandomField<N>>(&mut hasher);
+        get_prime::<ConfigRef<N>>(&mut hasher);
     }
 }

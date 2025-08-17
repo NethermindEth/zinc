@@ -1,8 +1,9 @@
 use ark_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
+    field::RandomField,
     sumcheck,
-    traits::{Field, ZipTypes},
+    traits::{ConfigReference, ZipTypes},
     zip::{code::LinearCodeSpec, pcs::structs::MultilinearZipCommitment},
 };
 
@@ -14,33 +15,33 @@ use crate::{
 /// * `v` - The MLE of `wit.f_hat` evaluated at the sumcheck challenge point.
 /// * `u` - The MLEs of $\\{ M_j \mathbf{z} \mid j = 1, 2, \dots, t \\}$ evaluated at sumcheck challenge point.
 #[derive(Debug, Clone)]
-pub struct SpartanProof<F> {
+pub struct SpartanProof<C: ConfigReference> {
     /// A list of non-interactive sumcheck prover messages.
     ///
     /// Sent in step 2 of linearization subprotocol.
-    pub linearization_sumcheck: sumcheck::SumcheckProof<F>,
-    pub second_sumcheck: sumcheck::SumcheckProof<F>,
-    pub V_s: Vec<F>,
+    pub linearization_sumcheck: sumcheck::SumcheckProof<C>,
+    pub second_sumcheck: sumcheck::SumcheckProof<C>,
+    pub V_s: Vec<RandomField<C>>,
 }
 
-pub struct ZipProof<F> {
+pub struct ZipProof<C: ConfigReference> {
     pub z_comm: MultilinearZipCommitment,
-    pub v: F,
+    pub v: RandomField<C>,
     pub pcs_proof: Vec<u8>,
 }
 
-pub struct ZincProof<F> {
-    pub spartan_proof: SpartanProof<F>,
-    pub zip_proof: ZipProof<F>,
+pub struct ZincProof<C: ConfigReference> {
+    pub spartan_proof: SpartanProof<C>,
+    pub zip_proof: ZipProof<C>,
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
-pub struct ZincProver<ZT: ZipTypes, F: Field, S: LinearCodeSpec> {
+pub struct ZincProver<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> {
     pub lc_spec: S,
-    phantom_data: PhantomData<(ZT, F)>,
+    phantom_data: PhantomData<(ZT, C)>,
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S> {
+impl<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> ZincProver<ZT, C, S> {
     pub fn new(lc_spec: S) -> Self {
         ZincProver {
             lc_spec,
@@ -50,12 +51,12 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S> {
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<ZT: ZipTypes, F: Field, S: LinearCodeSpec> {
+pub struct ZincVerifier<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> {
     pub lc_spec: S,
-    phantom_data: PhantomData<(ZT, F, S)>,
+    phantom_data: PhantomData<(ZT, C, S)>,
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
+impl<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> ZincVerifier<ZT, C, S> {
     pub fn new(lc_spec: S) -> Self {
         ZincVerifier {
             lc_spec,

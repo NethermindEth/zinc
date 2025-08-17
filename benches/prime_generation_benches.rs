@@ -6,7 +6,7 @@ use criterion::{
     AxisScale, BenchmarkId, Criterion, PlotConfiguration, criterion_group, criterion_main,
 };
 use zinc::{
-    field::{BigInt, RandomField},
+    field::{BigInt, ConfigRef},
     prime_gen,
     transcript::KeccakTranscript,
 };
@@ -16,8 +16,7 @@ fn bench_prime_generation(group: &mut criterion::BenchmarkGroup<criterion::measu
     const N: usize = 3;
     group.bench_with_input(BenchmarkId::new("PrimeGen", "196bits"), &hasher, |b, _| {
         b.iter(|| {
-            let _: BigInt<N> =
-                black_box(prime_gen::get_prime::<RandomField<N>>(&mut hasher.clone()));
+            let _: BigInt<N> = black_box(prime_gen::get_prime::<ConfigRef<N>>(&mut hasher.clone()));
         });
     });
 }

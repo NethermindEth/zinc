@@ -79,7 +79,7 @@ mod tests {
     use super::*;
     use crate::{
         big_int,
-        field::{ConfigRef, FieldConfig, RandomField},
+        field::{ConfigRef, FieldConfig},
         field_config,
         sparse_matrix::dense_matrix_to_sparse,
         traits::FieldMap,
@@ -95,7 +95,7 @@ mod tests {
         let config = get_config();
         let config_ptr = ConfigRef::from(&config);
 
-        let a: Vec<RandomField<N>> = vec![1u64, 2u64, 3u64].map_to_field(config_ptr);
+        let a = vec![1u64, 2u64, 3u64].map_to_field(config_ptr);
         let b = vec![4u64, 5u64, 6u64].map_to_field(config_ptr);
         let result = vec_add(&a, &b);
         let expected = vec![5u64, 7u64, 9u64].map_to_field(config_ptr);
@@ -107,7 +107,7 @@ mod tests {
         let config = get_config();
         let config = ConfigRef::from(&config);
 
-        let a: Vec<RandomField<N>> = vec![1u64, 2].map_to_field(config);
+        let a = vec![1u64, 2].map_to_field(config);
         let b = vec![3u64, 4u64, 5u64].map_to_field(config);
         let result = vec_add(&a, &b);
         assert!(result.is_err());
@@ -118,7 +118,7 @@ mod tests {
         let config = get_config();
         let config = ConfigRef::from(&config);
 
-        let vec: Vec<RandomField<N>> = vec![1u64, 2u64, 3u64].map_to_field(config);
+        let vec = vec![1u64, 2u64, 3u64].map_to_field(config);
         let c = 3u64.map_to_field(config);
         let result = vec_scalar_mul(&vec, &c);
         let expected = vec![3u64, 6u64, 9u64].map_to_field(config);
@@ -130,7 +130,7 @@ mod tests {
         let config = get_config();
         let config = ConfigRef::from(&config);
 
-        let a: Vec<RandomField<N>> = vec![2u64, 3u64, 4u64].map_to_field(config);
+        let a = vec![2u64, 3u64, 4u64].map_to_field(config);
         let b = vec![5u64, 6u64, 7u64].map_to_field(config);
         let result = hadamard(&a, &b);
         let expected = vec![10u64, 18u64, 28u64].map_to_field(config);
@@ -142,7 +142,7 @@ mod tests {
         let config = get_config();
         let config = ConfigRef::from(&config);
 
-        let a: Vec<RandomField<N>> = vec![2u64, 3u64].map_to_field(config);
+        let a = vec![2u64, 3u64].map_to_field(config);
         let b = vec![5u64, 6u64, 7u64].map_to_field(config);
         let result = hadamard(&a, &b);
         assert!(result.is_err());
@@ -158,7 +158,7 @@ mod tests {
             vec![0u64, 2u64, 1u64].map_to_field(config),
             vec![0u64, 0u64, 3u64].map_to_field(config),
         ];
-        let M: SparseMatrix<RandomField<N>> = dense_matrix_to_sparse(dense_matrix);
+        let M = dense_matrix_to_sparse(dense_matrix);
 
         let z = vec![1u64, 1u64, 1u64].map_to_field(config);
         let result = mat_vec_mul(&M, &z);
@@ -176,7 +176,7 @@ mod tests {
             vec![0u64, 2u64, 1u64].map_to_field(config),
             vec![0u64, 0u64, 3u64].map_to_field(config),
         ];
-        let M: SparseMatrix<RandomField<N>> = dense_matrix_to_sparse(dense_matrix);
+        let M = dense_matrix_to_sparse(dense_matrix);
 
         let z = vec![1u32, 1u32].map_to_field(config);
         let result = mat_vec_mul(&M, &z);

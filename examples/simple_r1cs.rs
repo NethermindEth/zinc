@@ -1,7 +1,7 @@
 use ark_std::{log2, marker::PhantomData};
 use zinc::{
     define_random_field_zip_types,
-    field::{ConfigRef, Int, RandomField},
+    field::{ConfigRef, Int},
     implement_random_field_zip_types,
     zinc::prelude::*,
 };
@@ -15,16 +15,15 @@ fn main() {
     // Example code goes here
     const FIELD_LIMBS: usize = 4;
     const INT_LIMBS: usize = 1;
-    let prover = ZincProver::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
-        DefaultLinearCodeSpec,
-    );
+
+    type C<'cfg> = ConfigRef<'cfg, FIELD_LIMBS>;
+
+    let prover = ZincProver::<RandomFieldZipTypes<INT_LIMBS>, C, _>::new(DefaultLinearCodeSpec);
     let mut prover_transcript = KeccakTranscript::new();
 
     let (ccs, statement, witness) = get_ccs_stuff(3);
-    let field_config = draw_random_field::<Int<INT_LIMBS>, RandomField<FIELD_LIMBS>>(
-        &statement.public_input,
-        &mut prover_transcript,
-    );
+    let field_config =
+        draw_random_field::<Int<INT_LIMBS>, C>(&statement.public_input, &mut prover_transcript);
 
     let config_ref = ConfigRef::from(&field_config);
 
@@ -38,9 +37,7 @@ fn main() {
         )
         .expect("Proof generation failed");
 
-    let verifier = ZincVerifier::<RandomFieldZipTypes<INT_LIMBS>, RandomField<FIELD_LIMBS>, _>::new(
-        DefaultLinearCodeSpec,
-    );
+    let verifier = ZincVerifier::<RandomFieldZipTypes<INT_LIMBS>, C, _>::new(DefaultLinearCodeSpec);
 
     let mut verifier_transcript = KeccakTranscript::new();
     verifier

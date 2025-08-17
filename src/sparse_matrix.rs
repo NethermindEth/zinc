@@ -5,8 +5,9 @@ use ark_std::{rand::Rng, vec, vec::Vec};
 use crypto_bigint::Random;
 
 use crate::{
+    field::RandomField,
     poly::alloc::string::ToString,
-    traits::{Field, FieldMap},
+    traits::{ConfigReference, FieldMap, MapsToField},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -36,13 +37,13 @@ impl<R1: Clone + Send + Sync + ark_std::fmt::Display> ark_std::fmt::Display for 
 
 // At the moment only using i128 for the sparse matrix, macro later if needed
 
-impl<F: Field, T: FieldMap<F, Output = F> + Clone + Send + Sync> FieldMap<F> for SparseMatrix<T>
+impl<C: ConfigReference, T: MapsToField<C> + Clone + Send + Sync> FieldMap<C> for SparseMatrix<T>
 where
-    <T as FieldMap<F>>::Output: Clone + Send + Sync,
+    <T as FieldMap<C>>::Output: Clone + Send + Sync,
 {
     type Output = SparseMatrix<T::Output>;
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
-        let mut matrix = SparseMatrix::<F> {
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
+        let mut matrix = SparseMatrix {
             n_rows: self.n_rows,
             n_cols: self.n_cols,
             coeffs: Vec::new(),
@@ -162,13 +163,13 @@ where
     r
 }
 
-pub fn compute_eval_table_sparse<F: Field>(
-    M: &SparseMatrix<F>,
-    rx: &[F],
+pub fn compute_eval_table_sparse<C: ConfigReference>(
+    M: &SparseMatrix<RandomField<C>>,
+    rx: &[RandomField<C>],
     num_rows: usize,
     num_cols: usize,
-    config: F::R,
-) -> Vec<F> {
+    config: C,
+) -> Vec<RandomField<C>> {
     assert_eq!(rx.len(), num_rows);
     M.coeffs.iter().enumerate().fold(
         vec![0u32.map_to_field(config); num_cols],

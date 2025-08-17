@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
 
 use ark_ff::UniformRand;
+use ark_std::{format, string::String};
 use crypto_bigint::Random;
 
-use crate::traits::{Config, ConfigReference, FieldMap, FromBytes, Words as WordsTrait};
+use crate::traits::{Config, ConfigReference, FieldMap, FromBytes, FromRef, MapsToField};
 
 mod arithmetic;
 mod biginteger;
@@ -17,28 +18,20 @@ pub use biginteger::{
     BigInt, BigInteger64, BigInteger128, BigInteger256, BigInteger320, BigInteger384,
     BigInteger448, BigInteger768, BigInteger832, Words, signed_mod_reduction,
 };
-pub use config::{ConfigRef, DebugFieldConfig, FieldConfig};
+pub use config::{ConfigRef, FieldConfig};
 pub use int::Int;
 pub use uint::Uint;
 #[derive(Copy, Clone)]
-pub enum RandomField<'cfg, const N: usize> {
-    Raw {
-        value: BigInt<N>,
-    },
-    Initialized {
-        config: ConfigRef<'cfg, N>,
-        value: BigInt<N>,
-    },
+pub enum RandomField<C: ConfigReference> {
+    Raw { value: C::B },
+    Initialized { config: C, value: C::B },
 }
 
 use RandomField::*;
 
-use crate::{
-    traits::{BigInteger, Field},
-    transcript::KeccakTranscript,
-};
+use crate::{traits::BigInteger, transcript::KeccakTranscript};
 
-impl<'cfg, const N: usize> RandomField<'cfg, N> {
+impl<C: ConfigReference> RandomField<C> {
     pub fn is_raw(&self) -> bool {
         matches!(self, Raw { .. })
     }
@@ -49,7 +42,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_raw_value_or<F, A>(&self, f: F, default: A) -> A
     where
-        F: Fn(&BigInt<N>) -> A,
+        F: Fn(&C::B) -> A,
     {
         match self {
             Raw { value } => f(value),
@@ -59,7 +52,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_raw_value_mut_or<F, A>(&mut self, f: F, default: A) -> A
     where
-        F: Fn(&mut BigInt<N>) -> A,
+        F: Fn(&mut C::B) -> A,
     {
         match self {
             Raw { value } => f(value),
@@ -69,7 +62,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_init_value<'a, F, A>(&'a self, f: F) -> Option<A>
     where
-        F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
+        F: Fn(&'a C::C, &'a C::B) -> A,
     {
         match self {
             Initialized { config, value } => Some(f(
@@ -82,7 +75,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_init_value_or<'a, F, A>(&'a self, f: F, default: A) -> A
     where
-        F: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
+        F: Fn(&'a C::C, &'a C::B) -> A,
     {
         match self {
             Initialized { config, value } => f(
@@ -95,8 +88,8 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_either<'a, R, I, A>(&'a self, raw_fn: R, init_fn: I) -> A
     where
-        I: Fn(&'a FieldConfig<N>, &'a BigInt<N>) -> A,
-        R: Fn(&'a BigInt<N>) -> A,
+        I: Fn(&'a C::C, &'a C::B) -> A,
+        R: Fn(&'a C::B) -> A,
     {
         match self {
             Raw { value } => raw_fn(value),
@@ -109,8 +102,8 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_either_mut<'a, R, I, A>(&'a mut self, raw_fn: R, init_fn: I) -> A
     where
-        I: Fn(&'a FieldConfig<N>, &'a mut BigInt<N>) -> A,
-        R: Fn(&'a mut BigInt<N>) -> A,
+        I: Fn(&'a C::C, &'a mut C::B) -> A,
+        R: Fn(&'a mut C::B) -> A,
     {
         match self {
             Raw { value } => raw_fn(value),
@@ -123,8 +116,8 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
 
     pub fn with_either_owned<R, I, A>(self, raw_fn: R, init_fn: I) -> A
     where
-        I: Fn(&FieldConfig<N>, BigInt<N>) -> A,
-        R: Fn(BigInt<N>) -> A,
+        I: Fn(&C::C, C::B) -> A,
+        R: Fn(C::B) -> A,
     {
         match self {
             Raw { value } => raw_fn(value),
@@ -142,8 +135,8 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         without_config: G,
     ) -> A
     where
-        F: Fn(&mut BigInt<N>, &BigInt<N>, &FieldConfig<N>) -> A,
-        G: Fn(&mut BigInt<N>, &BigInt<N>) -> A,
+        F: Fn(&mut C::B, &C::B, &C::C) -> A,
+        G: Fn(&mut C::B, &C::B) -> A,
     {
         match (self, rhs) {
             (Raw { value: value_self }, Raw { value: rhs }) => without_config(value_self, rhs),
@@ -167,7 +160,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
                 },
                 rhs @ Raw { .. },
             ) => {
-                let rhs = (*rhs).set_config_owned(*config);
+                let rhs = rhs.clone().set_config_owned(*config);
                 with_config(
                     value_self,
                     rhs.value(),
@@ -192,30 +185,30 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn config_copied(&self) -> Option<FieldConfig<N>> {
+    pub fn config_copied(&self) -> Option<C::C> {
         match self {
             Raw { .. } => None,
-            Initialized { config, .. } => config.reference().copied(),
+            Initialized { config, .. } => config.reference().cloned(),
         }
     }
 
-    pub fn zero_with_config(config: ConfigRef<'cfg, N>) -> Self {
+    pub fn zero_with_config(config: C) -> Self {
         Initialized {
             config,
-            value: BigInt::zero(),
+            value: C::B::zero(),
         }
     }
 
     /// Config setter that can be used after a `RandomField::rand(...)` call.
-    pub fn set_config_owned(mut self, config: ConfigRef<'cfg, N>) -> Self {
+    pub fn set_config_owned(mut self, config: C) -> Self {
         self.set_config(config);
         self
     }
 
     #[inline(always)]
-    pub fn config_ptr(&self) -> ConfigRef<'cfg, N> {
+    pub fn config_ptr(&self) -> C {
         match self {
-            Raw { .. } => ConfigRef::NONE,
+            Raw { .. } => C::NONE,
             Initialized { config, .. } => *config,
         }
     }
@@ -223,7 +216,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     /// Convert from `BigInteger` to `RandomField`
     ///
     /// If `BigInteger` is greater then field modulus return `None`
-    pub fn from_bigint(config: ConfigRef<N>, value: BigInt<N>) -> Option<RandomField<N>> {
+    pub fn from_bigint(config: C, value: C::B) -> Option<RandomField<C>> {
         let config_ref = match config.reference() {
             Some(config) => config,
             None => return Some(Raw { value }),
@@ -239,7 +232,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
         }
     }
 
-    pub fn from_i64(value: i64, config: ConfigRef<N>) -> Option<RandomField<N>> {
+    pub fn from_i64(value: i64, config: C) -> Option<RandomField<C>> {
         let config_ref = match config.reference() {
             Some(config) => config,
             None => {
@@ -247,7 +240,7 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
             }
         };
 
-        if BigInt::from(value.unsigned_abs()) >= *config_ref.modulus() {
+        if &C::B::from(value.unsigned_abs()) >= config_ref.modulus() {
             None
         } else {
             let mut r = value.unsigned_abs().into();
@@ -262,41 +255,33 @@ impl<'cfg, const N: usize> RandomField<'cfg, N> {
     }
 
     #[inline]
-    pub fn into_bigint(self) -> BigInt<N> {
+    pub fn into_bigint(self) -> C::B {
         self.with_either_owned(|value| value, Self::demontgomery)
     }
 
     #[inline]
-    fn demontgomery(config: &FieldConfig<N>, value: BigInt<N>) -> BigInt<N> {
+    fn demontgomery(config: &C::C, value: C::B) -> C::B {
         value.demontgomery(config.modulus(), config.inv())
     }
 }
 
-impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
-    type B = BigInt<N>;
-    type C = FieldConfig<N>;
-    type R = ConfigRef<'cfg, N>;
-    type W = Words<N>;
-    type I = Int<N>;
-    type U = Uint<N>;
-    type DebugField = DebugRandomField;
-
-    fn new_unchecked(config: ConfigRef<'cfg, N>, value: BigInt<N>) -> Self {
+impl<C: ConfigReference> RandomField<C> {
+    pub fn new_unchecked(config: C, value: C::B) -> Self {
         Initialized { config, value }
     }
 
-    fn without_config(value: Self::B) -> Self {
+    pub fn without_config(value: C::B) -> Self {
         Raw { value }
     }
 
-    fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: Self::R) -> Self {
+    pub fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: C) -> Self {
         loop {
-            let mut value = BigInt::rand(rng);
+            let mut value = C::B::rand(rng);
             let modulus = config
                 .reference()
                 .expect("Field config cannot be none")
                 .modulus();
-            let shave_bits = 64 * N - modulus.num_bits() as usize;
+            let shave_bits = 64 * C::N - modulus.num_bits() as usize;
             // Mask away the unused bits at the beginning.
             assert!(shave_bits <= 64);
             let mask = if shave_bits == 64 {
@@ -308,19 +293,19 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
             let val = value.last_mut();
             *val &= mask;
 
-            if value < *modulus {
+            if &value < modulus {
                 return value.map_to_field(config);
             }
         }
     }
 
-    fn set_config(&mut self, config: Self::R) {
+    pub fn set_config(&mut self, config: C) {
         self.with_raw_value_mut_or(
             |value| {
                 // Ideally we should do something like:
                 //
                 // ```
-                // let modulus: BigInt<N> = unsafe { (*config).modulus };
+                // let modulus: C::B = unsafe { (*config).modulus };
                 // *value = *value % modulus;
                 // ```
                 //
@@ -329,9 +314,10 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
 
                 // TODO: prettify this
 
-                *value = *Self::from_bigint(config, *value)
+                *value = Self::from_bigint(config, value.clone())
                     .expect("Should not end up with a None here.")
-                    .value();
+                    .value()
+                    .clone();
             },
             (),
         );
@@ -342,7 +328,7 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
     }
 
     #[inline(always)]
-    fn value(&self) -> &BigInt<N> {
+    pub fn value(&self) -> &C::B {
         match self {
             Raw { value } => value,
             Initialized { value, .. } => value,
@@ -350,132 +336,93 @@ impl<'cfg, const N: usize> Field for RandomField<'cfg, N> {
     }
 
     #[inline(always)]
-    fn value_mut(&mut self) -> &mut BigInt<N> {
+    pub fn value_mut(&mut self) -> &mut C::B {
         match self {
             Raw { value } => value,
             Initialized { value, .. } => value,
         }
     }
 
-    fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript) {
+    pub fn absorb_into_transcript(&self, transcript: &mut KeccakTranscript) {
         match self {
             Raw { value } => {
                 transcript.absorb(&[0x1]);
-                transcript.absorb(&value.to_bytes_be());
+                transcript.absorb(&value.clone().to_bytes_be());
                 transcript.absorb(&[0x3])
             }
             Initialized { config, value } => {
                 let config = config.reference().expect("Field config cannot be none");
 
                 transcript.absorb(&[0x3]);
-                transcript.absorb(&config.modulus().to_bytes_be());
+                transcript.absorb(&config.modulus().clone().to_bytes_be());
                 transcript.absorb(&[0x5]);
 
                 transcript.absorb(&[0x1]);
-                transcript.absorb(&value.to_bytes_be());
+                transcript.absorb(&value.clone().to_bytes_be());
                 transcript.absorb(&[0x3])
             }
         }
     }
 }
 
-impl<const N: usize> UniformRand for RandomField<'_, N> {
+impl<C: ConfigReference> UniformRand for RandomField<C> {
     fn rand<R: ark_std::rand::Rng + ?Sized>(rng: &mut R) -> Self {
-        let value = BigInt::rand(rng);
+        let value = C::B::rand(rng);
 
         Self::Raw { value }
     }
 }
 
-impl<const N: usize> Random for RandomField<'_, N> {
+impl<C: ConfigReference> Random for RandomField<C> {
     fn random(rng: &mut (impl ark_std::rand::RngCore + ?Sized)) -> Self {
-        let value = BigInt::rand(rng);
+        let value = C::B::rand(rng);
 
         Self::Raw { value }
     }
 }
 
-impl<const N: usize> ark_std::fmt::Debug for RandomField<'_, N> {
+impl<C: ConfigReference> ark_std::fmt::Debug for RandomField<C> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         match self {
-            Raw { value } => write!(f, "{value}, no config"),
+            Raw { value } => write!(f, "{value:?}, no config"),
             self_ => write!(
                 f,
-                "{} in Z_{}",
-                self_.into_bigint(),
+                "{:?} in Z_{:?}",
+                self_.clone().into_bigint(),
                 self.config_ptr().reference().unwrap().modulus()
             ),
         }
     }
 }
 
-impl<const N: usize> ark_std::fmt::Display for RandomField<'_, N> {
+impl<C: ConfigReference> ark_std::fmt::Display for RandomField<C> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
         // TODO: we should go back from Montgomery here.
         match self {
             Raw { value } => {
-                write!(f, "{value}")
+                write!(f, "{value:?}")
             }
             self_ @ Initialized { .. } => {
-                write!(f, "{}", self_.into_bigint())
+                write!(f, "{:?}", self_.clone().into_bigint())
             }
         }
     }
 }
 
-impl<const N: usize> Default for RandomField<'_, N> {
+impl<C: ConfigReference> Default for RandomField<C> {
     fn default() -> Self {
         Raw {
-            value: BigInt::zero(),
+            value: C::B::zero(),
         }
     }
 }
 
-unsafe impl<const N: usize> Send for RandomField<'_, N> {}
-unsafe impl<const N: usize> Sync for RandomField<'_, N> {}
+unsafe impl<C: ConfigReference> Send for RandomField<C> {}
+unsafe impl<C: ConfigReference> Sync for RandomField<C> {}
 
-#[derive(Debug)]
-pub enum DebugRandomField {
-    Raw {
-        value: num_bigint::BigInt,
-    },
-
-    Initialized {
-        config: DebugFieldConfig,
-        value: num_bigint::BigInt,
-    },
-}
-
-impl<const N: usize> From<RandomField<'_, N>> for DebugRandomField {
-    fn from(value: RandomField<'_, N>) -> Self {
-        match value {
-            Raw { value } => Self::Raw {
-                value: value.into(),
-            },
-            Initialized { config, value } => Self::Initialized {
-                config: (*config.reference().unwrap()).into(),
-                value: value.into(),
-            },
-        }
-    }
-}
-
-impl ark_std::fmt::Display for DebugRandomField {
-    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
-        match self {
-            Self::Raw { value } => {
-                write!(f, "{value}")
-            }
-            self_ @ Self::Initialized { .. } => {
-                write!(f, "{self_}")
-            }
-        }
-    }
-}
-
-impl<const N: usize> From<u128> for RandomField<'_, N> {
+impl<C: ConfigReference> From<u128> for RandomField<C> {
     fn from(value: u128) -> Self {
-        let value = BigInt::from(value);
+        let value = C::B::from(value);
 
         Raw { value }
     }
@@ -483,9 +430,9 @@ impl<const N: usize> From<u128> for RandomField<'_, N> {
 
 macro_rules! impl_from_uint {
     ($type:ty) => {
-        impl<const N: usize> From<$type> for RandomField<'_, N> {
+        impl<C: ConfigReference> From<$type> for RandomField<C> {
             fn from(value: $type) -> Self {
-                let value = BigInt::from(value);
+                let value = C::B::from(value);
                 Raw { value }
             }
         }
@@ -497,65 +444,71 @@ impl_from_uint!(u32);
 impl_from_uint!(u16);
 impl_from_uint!(u8);
 
-impl<const N: usize> From<bool> for RandomField<'_, N> {
+impl<C: ConfigReference> From<bool> for RandomField<C> {
     fn from(value: bool) -> Self {
-        let value = BigInt::from(value as u8);
+        let value = C::B::from(value as u8);
         Raw { value }
     }
 }
 
-impl<const N: usize> FromBytes for RandomField<'_, N> {
+impl<C: ConfigReference> FromBytes for RandomField<C> {
     fn from_bytes_le(bytes: &[u8]) -> Option<Self> {
         Some(Raw {
-            value: BigInt::<N>::from_bytes_le(bytes)?,
+            value: C::B::from_bytes_le(bytes)?,
         })
     }
 
     fn from_bytes_be(bytes: &[u8]) -> Option<Self> {
         Some(Raw {
-            value: BigInt::<N>::from_bytes_be(bytes)?,
+            value: C::B::from_bytes_be(bytes)?,
         })
     }
 }
 
-impl<'cfg, const N: usize> RandomField<'cfg, N> {
-    pub fn from_bytes_le_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
-        let value = BigInt::<N>::from_bytes_le(bytes);
+impl<C: ConfigReference> From<RandomField<C>> for String {
+    fn from(value: RandomField<C>) -> Self {
+        format!("{value:?}")
+    }
+}
+
+impl<C: ConfigReference> RandomField<C> {
+    pub fn from_bytes_le_with_config(config: C, bytes: &[u8]) -> Option<Self> {
+        let value = C::B::from_bytes_le(bytes);
 
         Self::from_bigint(config, value?)
     }
 
-    pub fn from_bytes_be_with_config(config: ConfigRef<'cfg, N>, bytes: &[u8]) -> Option<Self> {
-        let value = BigInt::<N>::from_bytes_be(bytes);
+    pub fn from_bytes_be_with_config(config: C, bytes: &[u8]) -> Option<Self> {
+        let value = C::B::from_bytes_be(bytes);
 
         Self::from_bigint(config, value?)
     }
 }
 
-// Implementation of FieldMap for BigInt<N>
-impl<F: Field, const M: usize> FieldMap<F> for BigInt<M>
+// Implementation of FieldMap for C::B
+impl<C: ConfigReference, const M: usize> FieldMap<C> for BigInt<M>
 where
-    for<'a> Int<M>: From<&'a F::B>,
-    F::B: From<Int<M>>,
-    for<'a> F::I: From<&'a BigInt<M>>,
+    C::I: FromRef<BigInt<M>>,
+    Int<M>: FromRef<C::B>,
+    C::B: From<Int<M>>,
 {
-    type Output = F;
+    type Output = RandomField<C>;
 
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         let config = match config_ref.reference() {
             Some(config) => config,
             None => panic!("Cannot convert BigInt to prime field element without a modulus"),
         };
 
-        let mut value = if M > F::W::num_words() {
+        let mut value = if M > C::N {
             let modulus: Int<M> = config.modulus().into();
             let mut value: Int<M> = self.into();
             value %= modulus;
 
-            F::B::from(value)
+            C::B::from(value)
         } else {
-            let modulus: F::I = config.modulus().into();
-            let mut value: F::I = self.into();
+            let modulus: C::I = config.modulus().into();
+            let mut value: C::I = self.into();
             value %= modulus;
 
             value.into()
@@ -563,17 +516,17 @@ where
 
         config.mul_assign(&mut value, config.r2());
 
-        F::new_unchecked(config_ref, value)
+        RandomField::new_unchecked(config_ref, value)
     }
 }
 
-// Implementation of FieldMap for reference to BigInt<N>
-impl<F: Field, const M: usize> FieldMap<F> for &BigInt<M>
+// Implementation of FieldMap for reference to C::B
+impl<C: ConfigReference, const M: usize> FieldMap<C> for &BigInt<M>
 where
-    BigInt<M>: FieldMap<F, Output = F>,
+    BigInt<M>: MapsToField<C>,
 {
-    type Output = F;
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    type Output = RandomField<C>;
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         (*self).map_to_field(config_ref)
     }
 }
@@ -588,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_with_raw_value_or_for_raw_variant() {
-        let raw_field: RandomField<'_, 1> = RandomField::Raw {
+        let raw_field = RandomField::<ConfigRef<1>>::Raw {
             value: big_int!(42),
         };
 
@@ -601,8 +554,8 @@ mod tests {
     #[test]
     fn test_with_raw_value_or_for_initialized_variant() {
         let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-        let init_field: RandomField<'_, 1> = RandomField::Initialized {
+        let config = ConfigRef::<1>::from(&config);
+        let init_field = RandomField::Initialized {
             config,
             value: big_int!(10),
         };
@@ -615,8 +568,8 @@ mod tests {
     #[test]
     fn test_with_init_value_or_initialized() {
         let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-        let init_field: RandomField<'_, 1> = RandomField::Initialized {
+        let config = ConfigRef::<1>::from(&config);
+        let init_field = RandomField::Initialized {
             config,
             value: big_int!(10),
         };
@@ -629,7 +582,7 @@ mod tests {
 
     #[test]
     fn test_with_init_value_or_raw() {
-        let raw_field: RandomField<'_, 1> = RandomField::Raw {
+        let raw_field = RandomField::<ConfigRef<1>>::Raw {
             value: big_int!(42),
         };
 

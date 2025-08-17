@@ -4,7 +4,7 @@ use crate::{
     big_int,
     ccs::{ccs_z::get_test_ccs_stuff_Z, test_utils::get_dummy_ccs_Z_from_z_length},
     define_random_field_zip_types,
-    field::{ConfigRef, Int, RandomField},
+    field::{ConfigRef, Int},
     field_config, implement_random_field_zip_types,
     traits::ConfigReference,
     transcript::KeccakTranscript,
@@ -23,6 +23,7 @@ implement_random_field_zip_types!(1);
 fn test_dummy_spartan_prover() {
     const I: usize = 1;
     const N: usize = 3;
+    type C<'cfg> = ConfigRef<'cfg, N>;
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
     let config = field_config!(312829638388039969874974628075306023441, N);
@@ -31,19 +32,18 @@ fn test_dummy_spartan_prover() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let prover = ZincProver::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
 
     let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
         RandomFieldZipTypes<I>,
-        RandomField<N>,
+        C,
         DefaultLinearCodeSpec,
     >::prepare_for_random_field_piop(
         &statement, &wit, &ccs, config
     )
     .expect("Failed to prepare for random field PIOP");
 
-    let proof = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let proof = SpartanProver::<Int<I>, C>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -60,6 +60,7 @@ fn test_dummy_spartan_prover() {
 fn test_spartan_verifier() {
     const I: usize = 1;
     const N: usize = 3;
+    type C<'cfg> = ConfigRef<'cfg, N>;
     let input = 3;
     let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
@@ -67,19 +68,18 @@ fn test_spartan_verifier() {
     let (ccs, statement, wit, _) = get_test_ccs_stuff_Z(input);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let prover = ZincProver::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
 
     let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
         RandomFieldZipTypes<I>,
-        RandomField<N>,
+        C,
         DefaultLinearCodeSpec,
     >::prepare_for_random_field_piop(
         &statement, &wit, &ccs, config
     )
     .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, C>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -90,13 +90,12 @@ fn test_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier =
-        ZincVerifier::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");
 
-    let res = SpartanVerifier::<RandomField<N>>::verify(
+    let res = SpartanVerifier::<C>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
@@ -111,6 +110,8 @@ fn test_spartan_verifier() {
 fn test_dummy_spartan_verifier() {
     const I: usize = 1;
     const N: usize = 3;
+    type C<'cfg> = ConfigRef<'cfg, N>;
+
     let n = 1 << 13;
     let mut rng = ark_std::test_rng();
     let config = field_config!(312829638388039969874974628075306023441, N);
@@ -118,19 +119,18 @@ fn test_dummy_spartan_verifier() {
     let (_, ccs, statement, wit) = get_dummy_ccs_Z_from_z_length(n, &mut rng);
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let prover = ZincProver::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
 
     let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
         RandomFieldZipTypes<I>,
-        RandomField<N>,
+        C,
         DefaultLinearCodeSpec,
     >::prepare_for_random_field_piop(
         &statement, &wit, &ccs, config
     )
     .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, C>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -141,11 +141,10 @@ fn test_dummy_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier =
-        ZincVerifier::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
     config.reference().expect("Field config cannot be none");
-    let res = SpartanVerifier::<RandomField<N>>::verify(
+    let res = SpartanVerifier::<C>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,
@@ -160,6 +159,7 @@ fn test_dummy_spartan_verifier() {
 fn test_failing_spartan_verifier() {
     const I: usize = 1;
     const N: usize = 3;
+    type C<'cfg> = ConfigRef<'cfg, N>;
     let input = 3;
     let config = field_config!(312829638388039969874974628075306023441, N);
     let config = ConfigRef::from(&config);
@@ -169,19 +169,18 @@ fn test_failing_spartan_verifier() {
     wit.w_ccs[3] = Int::<I>::zero();
     let mut prover_transcript = KeccakTranscript::new();
 
-    let prover =
-        ZincProver::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let prover = ZincProver::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
 
     let (z_ccs, z_mle, ccs_f, statement_f) = ZincProver::<
         RandomFieldZipTypes<I>,
-        RandomField<N>,
+        C,
         DefaultLinearCodeSpec,
     >::prepare_for_random_field_piop(
         &statement, &wit, &ccs, config
     )
     .expect("Failed to prepare for random field PIOP");
 
-    let (spartan_proof, _) = SpartanProver::<Int<I>, RandomField<N>>::prove(
+    let (spartan_proof, _) = SpartanProver::<Int<I>, C>::prove(
         &prover,
         &statement_f,
         &z_ccs,
@@ -192,12 +191,11 @@ fn test_failing_spartan_verifier() {
     )
     .expect("Failed to generate Spartan proof");
 
-    let verifier =
-        ZincVerifier::<RandomFieldZipTypes<I>, RandomField<N>, _>::new(DefaultLinearCodeSpec);
+    let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
 
     config.reference().expect("Field config cannot be none");
-    let res = SpartanVerifier::<RandomField<N>>::verify(
+    let res = SpartanVerifier::<C>::verify(
         &verifier,
         &spartan_proof,
         &ccs_f,

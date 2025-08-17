@@ -1,4 +1,5 @@
 use ark_std::{boxed::Box, rand, vec, vec::Vec};
+use itertools::Itertools;
 use num_traits::Zero;
 use rand::Rng;
 
@@ -12,29 +13,29 @@ use crate::{
     field_config,
     poly_f::mle::DenseMultilinearExtension,
     sumcheck::prover::ProverState,
-    traits::{ConfigReference, Field, FieldMap},
+    traits::{ConfigReference, FieldMap},
     transcript::KeccakTranscript,
 };
 
 const N: usize = 2;
-type F<'cfg> = RandomField<'cfg, N>;
+type F<'cfg> = RandomField<ConfigRef<'cfg, N>>;
 
 fn get_config() -> ConfigRef<'static, 2> {
     let config: &'static _ = Box::leak(Box::new(field_config!(57316695564490278656402085503, N)));
     ConfigRef::from(config)
 }
 
-fn generate_sumcheck_proof<F: Field>(
+fn generate_sumcheck_proof<C: ConfigReference>(
     num_vars: usize,
     mut rng: &mut (impl Rng + Sized),
-    config: F::R,
-) -> (usize, F, SumcheckProof<F>) {
+    config: C,
+) -> (usize, RandomField<C>, SumcheckProof<C>) {
     let mut transcript = KeccakTranscript::default();
 
     let ((poly_mles, poly_degree), products, sum) =
         rand_poly(num_vars, (2, 5), 7, config, &mut rng).unwrap();
 
-    let comb_fn = |vals: &[F]| -> F { rand_poly_comb_fn(vals, &products, config) };
+    let comb_fn = |vals: &[RandomField<C>]| -> _ { rand_poly_comb_fn(vals, &products, config) };
 
     let (proof, _) = MLSumcheck::prove_as_subprotocol(
         &mut transcript,
@@ -54,8 +55,7 @@ fn full_sumcheck_protocol_works_correctly() {
 
     config_ref.reference().expect("FieldConfig cannot be null");
     for _ in 0..20 {
-        let (poly_degree, sum, proof) =
-            generate_sumcheck_proof::<F>(num_vars, &mut rng, config_ref);
+        let (poly_degree, sum, proof) = generate_sumcheck_proof(num_vars, &mut rng, config_ref);
 
         let mut transcript = KeccakTranscript::default();
         let res = MLSumcheck::verify_as_subprotocol(
@@ -284,7 +284,7 @@ fn sumcheck_with_zero_polynomial() {
     let poly_degree = 2;
     let num_mles = 2;
     let zero_evals = vec![0i32; 1 << num_vars].map_to_field(config_ref);
-    let poly_mles: Vec<DenseMultilinearExtension<F>> = (0..num_mles)
+    let poly_mles: Vec<_> = (0..num_mles)
         .map(|_| {
             DenseMultilinearExtension::from_evaluations_vec(
                 num_vars,
@@ -333,7 +333,7 @@ fn sumcheck_with_constant_polynomial() {
     let num_mles = 2;
     let one: F = 1i32.map_to_field(config_ref);
     let const_evals = vec![one; 1 << num_vars];
-    let poly_mles: Vec<DenseMultilinearExtension<F>> = (0..num_mles)
+    let poly_mles: Vec<_> = (0..num_mles)
         .map(|_| {
             DenseMultilinearExtension::from_evaluations_vec(
                 num_vars,
@@ -527,7 +527,7 @@ fn prover_handles_empty_mle_list() {
 
     let config_ref = get_config();
 
-    let poly_mles: Vec<DenseMultilinearExtension<F>> = Vec::new();
+    let poly_mles = Vec::new();
     let poly_degree = 0;
     let sum = F::zero();
 
@@ -562,7 +562,7 @@ fn prover_panics_with_zero_variables() {
     let num_vars = 0;
     let degree = 2;
 
-    IPForMLSumcheck::<F>::prover_init(Vec::new(), num_vars, degree);
+    IPForMLSumcheck::<ConfigRef<1>>::prover_init(Vec::new(), num_vars, degree);
 }
 
 #[test]
@@ -572,8 +572,7 @@ fn verifier_errors_on_mismatched_nvars() {
     let nvars_verifier = 4;
     let config_ref = get_config();
 
-    let (poly_degree, sum, proof) =
-        generate_sumcheck_proof::<F>(nvars_prover, &mut rng, config_ref);
+    let (poly_degree, sum, proof) = generate_sumcheck_proof(nvars_prover, &mut rng, config_ref);
 
     let mut transcript = KeccakTranscript::default();
     let res = MLSumcheck::verify_as_subprotocol(
@@ -628,10 +627,10 @@ fn verifier_produces_correct_subclaim() {
     )
     .unwrap();
 
-    let mle_evals_at_point: Vec<F> = original_mles
+    let mle_evals_at_point = original_mles
         .iter()
         .map(|mle| mle.evaluate(&subclaim.point, config_ref).unwrap())
-        .collect();
+        .collect_vec();
 
     let manual_eval =
         rand_poly_comb_fn(&mle_evals_at_point, &products_for_verification, config_ref);
@@ -646,7 +645,7 @@ fn zero_variable_case_returns_correct_subclaim() {
     let degree = 2;
 
     // No prover rounds for zero-variable case
-    let proof = SumcheckProof::<F>(Vec::new());
+    let proof = SumcheckProof(Vec::new());
 
     // Let's pick some arbitrary "claimed sum"
     let claimed_sum: F = 42i32.map_to_field(config_ref);

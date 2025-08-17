@@ -54,8 +54,8 @@ macro_rules! big_int {
 /// use zinc::field::{ConfigRef, RandomField};
 /// use zinc::{field_config, random_field};
 /// let config = field_config!(19);
-/// let config_ref = ConfigRef::from(&config);
-/// let f: RandomField<1> = random_field!(1u32, config_ref);
+/// let config_ref = ConfigRef::<1>::from(&config);
+/// let f = random_field!(1u32, config_ref);
 /// ```
 ///
 /// ### 2. `field_config!(value, N)`
@@ -104,24 +104,24 @@ macro_rules! field_config {
 /// - Useful for testing or constructing raw field elements.
 ///
 /// ```rust
-/// use zinc::field::RandomField;
+/// use zinc::field::{ConfigRef, RandomField};
 /// use zinc::random_field;
-/// let x: RandomField<1> = random_field!(42u32);
+/// let x: RandomField<ConfigRef<1>> = random_field!(42u32);
 /// ```
 ///
 /// ### 2. `random_field!(value, config)`
 /// Converts a numeric literal into a `RandomField` element using a provided field configuration.
 ///
 /// - This leverages the `FieldMap` trait’s `.map_to_field()` method.
-/// - The `config` argument must be a valid configuration object of type `F::R`.
+/// - The `config` argument must be a valid configuration object of type `C`.
 ///
 /// ```rust
 /// use zinc::field::{ConfigRef, RandomField};
 /// use zinc::{big_int, field_config, random_field};
 ///
 /// let config = field_config!(19);
-/// let config_ref = ConfigRef::from(&config);
-/// let x: RandomField<1> = random_field!(123, config_ref);
+/// let config_ref = ConfigRef::<1>::from(&config);
+/// let x = random_field!(123, config_ref);
 /// ```
 ///
 /// ## Notes
@@ -155,6 +155,6 @@ macro_rules! random_field {
 
     ($v:expr, $n:literal, $config:expr) => {{
         use $crate::{big_int, field::BigInt, random_field, traits::FieldMap};
-        <BigInt<$n> as FieldMap<RandomField<$n>>>::map_to_field(&big_int!($v), $config)
+        &big_int!($v, $n).map_to_field($config)
     }};
 }

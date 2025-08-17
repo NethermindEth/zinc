@@ -16,8 +16,7 @@ use crate::{
         biginteger::{BigInt, Words},
         uint::Uint,
     },
-    traits::Integer,
-    zip::pcs::utils::ToBytes,
+    traits::{Integer, ToBytes},
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

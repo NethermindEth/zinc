@@ -11,7 +11,7 @@ use super::{
 use crate::{
     ccs::error::CSError as Error,
     sparse_matrix::{SparseMatrix, dense_matrix_to_sparse},
-    traits::{ConfigReference, Field, FieldMap, Integer},
+    traits::{ConfigReference, FieldMap, Integer, MapsToField},
 };
 
 ///  * `R: Ring` - the ring algebra over which the constraint system operates
@@ -129,10 +129,10 @@ impl<I: Integer> CCS_Z<I> {
     }
 }
 
-impl<F: Field, I: Integer + FieldMap<F, Output = F>> FieldMap<F> for CCS_Z<I> {
-    type Output = CCS_F<F>;
+impl<C: ConfigReference, I: Integer + MapsToField<C>> FieldMap<C> for CCS_Z<I> {
+    type Output = CCS_F<C>;
 
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         match config_ref.pointer() {
             Some(config_ptr) => CCS_F {
                 m: self.m,
@@ -157,13 +157,13 @@ pub struct Statement_Z<I: Integer> {
     pub public_input: Vec<I>,
 }
 
-impl<F: Field, I: Integer> FieldMap<F> for Statement_Z<I>
+impl<C: ConfigReference, I: Integer> FieldMap<C> for Statement_Z<I>
 where
-    I: FieldMap<F, Output = F>,
+    I: MapsToField<C>,
 {
-    type Output = Statement_F<F>;
+    type Output = Statement_F<C>;
 
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         Self::Output {
             constraints: self
                 .constraints
@@ -189,13 +189,13 @@ impl<I: Integer> Witness_Z<I> {
 }
 
 // TODO Refactor, it might have lost performance because it's generalized over Int<M>
-impl<F: Field, I: Field> FieldMap<F> for Witness_Z<I>
+impl<C: ConfigReference, I: Integer> FieldMap<C> for Witness_Z<I>
 where
-    I: FieldMap<F, Output = F>,
+    I: MapsToField<C>,
 {
-    type Output = Witness_F<F>;
+    type Output = Witness_F<C>;
 
-    fn map_to_field(&self, config_ref: F::R) -> Self::Output {
+    fn map_to_field(&self, config_ref: C) -> Self::Output {
         Witness_F {
             w_ccs: self
                 .w_ccs
@@ -330,10 +330,10 @@ mod tests {
     use crate::{
         big_int,
         ccs::{
-            ccs_f::{Arith, CCS_F, Instance_F},
+            ccs_f::{Arith, Instance_F},
             ccs_z::CCS_Z,
         },
-        field::{ConfigRef, Int, RandomField},
+        field::{ConfigRef, Int},
         field_config,
         sparse_matrix::SparseMatrix,
         traits::FieldMap,
@@ -398,7 +398,7 @@ mod tests {
 
         let config_ptr = ConfigRef::from(&config);
 
-        let ccs_f: CCS_F<RandomField<N>> = ccs.map_to_field(config_ptr);
+        let ccs_f = ccs.map_to_field(config_ptr);
         let statement_f = statement.map_to_field(config_ptr);
         let witness_f = wit.map_to_field(config_ptr);
         let z_f = statement_f.get_z_vector(&witness_f, config_ptr);

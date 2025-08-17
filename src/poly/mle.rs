@@ -1,13 +1,10 @@
-mod dense;
-mod sparse;
-
-use ark_std::{
-    Zero,
+use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Index, Neg, SubAssign},
-    rand::Rng,
-    vec::Vec,
 };
+
+use num_traits::Zero;
+use rand_core::RngCore;
 
 /// This trait describes an interface for the multilinear extension
 /// of an array.
@@ -16,7 +13,7 @@ use ark_std::{
 ///
 /// Index represents a point, which is a vector in {0,1}^`num_vars` in little
 /// endian form. For example, `0b1011` represents `P(1,1,0,1)`
-pub trait MultilinearExtension<I: Integer>:
+pub trait MultilinearExtension<F>:
     Sized
     + Clone
     + Debug
@@ -26,7 +23,7 @@ pub trait MultilinearExtension<I: Integer>:
     + Neg
     + Zero
     + for<'a> AddAssign<&'a Self>
-    + for<'a> AddAssign<(I, &'a Self)>
+    + for<'a> AddAssign<(F, &'a Self)>
     + for<'a> SubAssign<&'a Self>
     + Index<usize>
 {
@@ -35,7 +32,7 @@ pub trait MultilinearExtension<I: Integer>:
 
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random.
-    fn rand<Rn: Rng>(num_vars: usize, rng: &mut Rn) -> Self;
+    fn rand<R: RngCore + ?Sized>(num_vars: usize, rng: &mut R) -> Self;
 
     /// Relabel the point by swapping `k` scalars from positions `a..a+k` to
     /// positions `b..b+k`, and from position `b..b+k` to position `a..a+k`
@@ -47,16 +44,17 @@ pub trait MultilinearExtension<I: Integer>:
 
     /// Reduce the number of variables of `self` by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fix_variables(&mut self, partial_point: &[I]);
+    fn fix_variables(&mut self, partial_point: &[F]);
 
     /// Creates a new object with the number of variables of `self` reduced by fixing the
     /// `partial_point.len()` variables at `partial_point`.
-    fn fixed_variables(&self, partial_point: &[I]) -> Self;
+    fn fixed_variables(&self, partial_point: &[F]) -> Self;
 
     /// Returns a list of evaluations over the domain, which is the boolean
     /// hypercube. The evaluations are in little-endian order.
-    fn to_evaluations(&self) -> Vec<I>;
+    fn to_evaluations(&self) -> Vec<F>;
 }
+
 /// swap the bits of `x` from position `a..a+n` to `b..b+n` and from `b..b+n` to `a..a+n` in little endian order
 pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {
     let a_bits = (x >> a) & ((1usize << n) - 1);
@@ -65,10 +63,3 @@ pub(crate) fn swap_bits(x: usize, a: usize, b: usize, n: usize) -> usize {
     let global_xor_mask = (local_xor_mask << a) | (local_xor_mask << b);
     x ^ global_xor_mask
 }
-
-/// Exports
-pub use dense::DenseMultilinearExtension;
-pub use dense::build_eq_x_r;
-pub use sparse::SparseMultilinearExtension;
-
-use crate::traits::Integer;

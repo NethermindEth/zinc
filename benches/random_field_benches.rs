@@ -1,25 +1,28 @@
 #![allow(non_local_definitions)]
 #![allow(clippy::eq_op)]
 
-use ark_std::{
+use std::{
     hint::black_box,
     iter::{Product, Sum},
-    iterable::Iterable,
 };
+
 use criterion::{
     AxisScale, BenchmarkId, Criterion, PlotConfiguration, criterion_group, criterion_main,
 };
-use zinc::{
-    big_int,
-    field::{ConfigRef, RandomField},
-    field_config, random_field,
-};
+use crypto_bigint::{NonZero, U256, const_monty_params};
+use zinc::field::{RandomField, WORD_FACTOR};
+
+const_monty_params!(
+    Params,
+    U256,
+    "0000000000000000000000000000000000860995AE68FC80E1B1BD1E39D54B33"
+);
+
+type F = RandomField<Params, { 4 * WORD_FACTOR }>;
 
 fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measurement::WallTime>) {
-    let config = field_config!(695962179703626800597079116051991347);
-    let field_config = ConfigRef::from(&config);
+    let field_elem = F::from(695962179703u64);
 
-    let field_elem = random_field!(695962179703, 4, field_config);
     group.bench_with_input(
         BenchmarkId::new("Multiply", "Random128BitFieldElement"),
         &field_elem,
@@ -50,7 +53,7 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
         |b, unop_elem| {
             b.iter(|| {
                 for _ in 0..10000 {
-                    let _ = black_box(*unop_elem / *unop_elem);
+                    let _ = black_box(*unop_elem / NonZero::new(*unop_elem).unwrap());
                 }
             });
         },
@@ -76,7 +79,7 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
         |b, v| {
             b.iter(|| {
                 for _ in 0..10000 {
-                    let _ = black_box(RandomField::sum(v.iter()));
+                    let _ = black_box(F::sum(v.iter()));
                 }
             });
         },
@@ -88,7 +91,7 @@ fn bench_random_field(group: &mut criterion::BenchmarkGroup<criterion::measureme
         |b, v| {
             b.iter(|| {
                 for _ in 0..10000 {
-                    let _ = black_box(RandomField::product(v.iter()));
+                    let _ = black_box(F::product(v.iter()));
                 }
             });
         },

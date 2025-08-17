@@ -3,21 +3,17 @@
 
 use ark_std::{
     hint::black_box,
-    str::FromStr,
-    test_rng,
     time::{Duration, Instant},
 };
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::WallTime,
 };
-use crypto_bigint::Random;
+use crypto_bigint::{Int, Random, U256, const_monty_params, modular::ConstMontyParams};
 use itertools::Itertools;
+use rand::rng;
 use zinc::{
-    define_random_field_zip_types,
-    field::{BigInt, ConfigRef, FieldConfig, RandomField},
-    implement_random_field_zip_types,
-    poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{Config, ConfigReference, FieldMap, ZipTypes},
+    field::{F256, WORD_FACTOR},
+    poly::{dense::DenseMultilinearExtension, mle::MultilinearExtension},
     transcript::KeccakTranscript,
     zip::{
         code::{DefaultLinearCodeSpec, LinearCode},
@@ -27,21 +23,30 @@ use zinc::{
     },
 };
 
-const INT_LIMBS: usize = 1;
-const FIELD_LIMBS: usize = 4;
+const INT_LIMBS: usize = WORD_FACTOR;
 
-define_random_field_zip_types!();
-implement_random_field_zip_types!(INT_LIMBS);
+const FIELD_LIMBS: usize = 4 * WORD_FACTOR;
 
-type ZT = RandomFieldZipTypes<INT_LIMBS>;
-type LC = RaaCode<ZT>;
-type BenchZip = MultilinearZip<ZT, LC>;
+const N: usize = INT_LIMBS;
+const L: usize = INT_LIMBS * 2;
+const K: usize = INT_LIMBS * 4;
+const M: usize = INT_LIMBS * 8;
+
+type LC = RaaCode<N, L, K, M>;
+type BenchZip = MultilinearZip<N, L, K, M, LC>;
+
+const_monty_params!(
+    ModP,
+    U256,
+    "EB0E9F20F7BFC231327A11792F585AC6C20C74ACCCAB538BE6B0C3AB2E3D176F"
+);
+type F = F256<ModP>;
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     group.bench_function(
         format!("EncodeRows: Int<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
         |b| {
-            let mut rng = test_rng();
+            let mut rng = rng();
             type T = KeccakTranscript;
             let mut keccak_transcript = T::new();
             let poly_size = 1 << P;
@@ -62,15 +67,15 @@ fn encode_single_row<const ROW_LEN: usize>(group: &mut BenchmarkGroup<WallTime>,
     group.bench_function(
         format!("EncodeMessage: Int<{FIELD_LIMBS}>, row_len = {ROW_LEN}(Int limbs = {INT_LIMBS}), ZipSpec{spec}"),
         |b| {
-            let mut rng = test_rng();
+            let mut rng = rng();
             let mut keccak_transcript = KeccakTranscript::new();
             let poly_size = ROW_LEN * ROW_LEN;
             let linear_code =
                 LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
             assert_eq!(linear_code.row_len(), ROW_LEN, "Unexpected row_len");
-            let message: Vec<_> = (0..ROW_LEN).map(|_i| <ZT as ZipTypes>::N::random(&mut rng)).collect();
+            let message: Vec<_> = (0..ROW_LEN).map(|_i| Int::<N>::random(&mut rng)).collect();
             b.iter(|| {
-                let encoded_row: Vec<<ZT as ZipTypes>::K> = linear_code.encode_wide(&message);
+                let encoded_row: Vec<Int<K>> = linear_code.encode_wide(&message);
                 black_box(encoded_row);
             })
         },
@@ -78,12 +83,11 @@ fn encode_single_row<const ROW_LEN: usize>(group: &mut BenchmarkGroup<WallTime>,
 }
 
 fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
-    use ark_std::test_rng;
-    let mut rng = test_rng();
+    let mut rng = rng();
 
     let num_leaves = 1 << P;
     let leaves = (0..num_leaves)
-        .map(|_| <ZT as ZipTypes>::K::random(&mut rng))
+        .map(|_| Int::<K>::random(&mut rng))
         .collect_vec();
 
     group.bench_function(
@@ -98,7 +102,7 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
 }
 
 fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
-    let mut rng = test_rng();
+    let mut rng = rng();
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
@@ -115,7 +119,7 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let res = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly)
+                    let res = BenchZip::commit::<F, FIELD_LIMBS>(&params, &poly)
                         .expect("Failed to commit");
                     black_box(res);
                     total_duration += timer.elapsed();
@@ -127,10 +131,8 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     );
 }
 
-fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
-    let mut rng = test_rng();
-    let config = FieldConfig::new(BigInt::<FIELD_LIMBS>::from_str(modulus).unwrap());
-    let field_config = ConfigRef::from(&config);
+fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    let mut rng = rng();
 
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
@@ -139,26 +141,25 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, _) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
+    let (data, _) = BenchZip::commit::<F, FIELD_LIMBS>(&params, &poly).unwrap();
     let point = vec![1i64; P];
 
     group.bench_function(
-        format!("Open: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
+        format!("Open: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={}", ModP::PARAMS.modulus()),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::new();
+                    let mut transcript = PcsTranscript::<F, FIELD_LIMBS>::new();
                     let timer = Instant::now();
                     BenchZip::open(
                         &params,
                         &poly,
                         &data,
-                        &point.map_to_field(field_config),
-                        field_config,
+                        &point.iter().map(F::from).collect::<Vec<_>>(),
                         &mut transcript,
                     )
-                    .expect("Failed to make opening");
+                        .expect("Failed to make opening");
                     total_duration += timer.elapsed();
                 }
                 total_duration
@@ -166,11 +167,8 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
         },
     );
 }
-fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
-    let mut rng = test_rng();
-    let config = FieldConfig::new(BigInt::<FIELD_LIMBS>::from_str(modulus).unwrap());
-    let field_config = ConfigRef::from(&config);
-
+fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    let mut rng = rng();
     type T = KeccakTranscript;
     let mut keccak_transcript = T::new();
     let poly_size = 1 << P;
@@ -178,42 +176,38 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     let params = BenchZip::setup(poly_size, linear_code);
 
     let poly = DenseMultilinearExtension::rand(P, &mut rng);
-    let (data, commitment) = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly).unwrap();
+    let (data, commitment) = BenchZip::commit::<F, FIELD_LIMBS>(&params, &poly).unwrap();
     let point = vec![1i64; P];
     let eval = poly.evaluations.last().unwrap();
-    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::new();
+    let mut transcript = PcsTranscript::<F, FIELD_LIMBS>::new();
 
     BenchZip::open(
         &params,
         &poly,
         &data,
-        &point.map_to_field(field_config),
-        field_config,
+        &point.iter().map(F::from).collect::<Vec<_>>(),
         &mut transcript,
     )
     .unwrap();
 
     let proof = transcript.into_proof();
-    field_config
-        .reference()
-        .expect("Field config cannot be none");
+
     group.bench_function(
-        format!("Verify: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
+        format!("Verify: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={}", ModP::PARAMS.modulus()),
         |b| {
             b.iter_custom(|iters| {
                 let mut total_duration = Duration::ZERO;
                 for _ in 0..iters {
-                    let mut transcript = PcsTranscript::<RandomField<FIELD_LIMBS>>::from_proof(&proof);
+                    let mut transcript = PcsTranscript::from_proof(&proof);
                     let timer = Instant::now();
                     BenchZip::verify(
                         &params,
                         &commitment,
-                        &point.map_to_field(field_config),
-                        eval.map_to_field(field_config),
+                        &point.iter().map(F::from).collect::<Vec<_>>(),
+                        eval.resize().into(),
                         &mut transcript,
-                        field_config,
                     )
-                    .expect("Failed to verify");
+                        .expect("Failed to verify");
                     total_duration += timer.elapsed();
                 }
                 total_duration
@@ -250,19 +244,17 @@ fn zip_benchmarks(c: &mut Criterion) {
     commit::<15>(&mut group, 1);
     commit::<16>(&mut group, 1);
 
-    let modulus = "106319353542452952636349991594949358997917625194731877894581586278529202198383";
+    open::<12>(&mut group, 1);
+    open::<13>(&mut group, 1);
+    open::<14>(&mut group, 1);
+    open::<15>(&mut group, 1);
+    open::<16>(&mut group, 1);
 
-    open::<12>(&mut group, modulus, 1);
-    open::<13>(&mut group, modulus, 1);
-    open::<14>(&mut group, modulus, 1);
-    open::<15>(&mut group, modulus, 1);
-    open::<16>(&mut group, modulus, 1);
-
-    verify::<12>(&mut group, modulus, 1);
-    verify::<13>(&mut group, modulus, 1);
-    verify::<14>(&mut group, modulus, 1);
-    verify::<15>(&mut group, modulus, 1);
-    verify::<16>(&mut group, modulus, 1);
+    verify::<12>(&mut group, 1);
+    verify::<13>(&mut group, 1);
+    verify::<14>(&mut group, 1);
+    verify::<15>(&mut group, 1);
+    verify::<16>(&mut group, 1);
 
     group.finish();
 }

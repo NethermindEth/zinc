@@ -1,10 +1,11 @@
 //! Verifier
-use ark_std::{boxed::Box, vec, vec::Vec};
 
-use super::{IPForMLSumcheck, SumCheckError, prover::ProverMsg};
+use crypto_bigint::NonZero;
+
 use crate::{
-    traits::{Field, FieldMap},
-    transcript::KeccakTranscript as Transcript,
+    sumcheck::{IPForMLSumcheck, SumCheckError, prover::ProverMsg},
+    traits::{Field, Ring},
+    transcript::KeccakTranscript,
 };
 
 pub const SQUEEZE_NATIVE_ELEMENTS_NUM: usize = 1;
@@ -17,7 +18,7 @@ pub struct VerifierMsg<F> {
 }
 
 /// Verifier State
-pub struct VerifierState<F: Field> {
+pub struct VerifierState<F> {
     round: usize,
     nv: usize,
     max_multiplicands: usize,
@@ -26,8 +27,6 @@ pub struct VerifierState<F: Field> {
     polynomials_received: Vec<Vec<F>>,
     /// a list storing the randomness sampled by the verifier at each round
     randomness: Vec<F>,
-    /// The configuration of the field that the sumcheck protocol is working in
-    config: F::R,
 }
 
 /// Subclaim when verifier is convinced
@@ -39,9 +38,9 @@ pub struct SubClaim<F> {
     pub expected_evaluation: F,
 }
 
-impl<F: Field> IPForMLSumcheck<F> {
+impl<F: Field<LIMBS>, const LIMBS: usize> IPForMLSumcheck<F, LIMBS> {
     /// initialize the verifier
-    pub fn verifier_init(nvars: usize, degree: usize, config: F::R) -> VerifierState<F> {
+    pub fn verifier_init(nvars: usize, degree: usize) -> VerifierState<F> {
         VerifierState {
             round: 1,
             nv: nvars,
@@ -49,7 +48,6 @@ impl<F: Field> IPForMLSumcheck<F> {
             finished: false,
             polynomials_received: Vec::with_capacity(nvars),
             randomness: Vec::with_capacity(nvars),
-            config,
         }
     }
 
@@ -61,7 +59,7 @@ impl<F: Field> IPForMLSumcheck<F> {
     pub fn verify_round(
         prover_msg: &ProverMsg<F>,
         verifier_state: &mut VerifierState<F>,
-        transcript: &mut Transcript,
+        transcript: &mut KeccakTranscript,
     ) -> VerifierMsg<F> {
         if verifier_state.finished {
             panic!("Incorrect verifier state: Verifier is already finished.");
@@ -70,8 +68,8 @@ impl<F: Field> IPForMLSumcheck<F> {
         // Now, verifier should check if the received P(0) + P(1) = expected. The check is moved to
         // `check_and_generate_subclaim`, and will be done after the last round.
 
-        let msg = Self::sample_round(transcript, verifier_state.config);
-        verifier_state.randomness.push(msg.randomness.clone());
+        let msg = Self::sample_round(transcript);
+        verifier_state.randomness.push(msg.randomness);
         verifier_state
             .polynomials_received
             .push(prover_msg.evaluations.clone());
@@ -97,7 +95,6 @@ impl<F: Field> IPForMLSumcheck<F> {
     pub fn check_and_generate_subclaim(
         verifier_state: VerifierState<F>,
         asserted_sum: F,
-        config: F::R,
     ) -> Result<SubClaim<F>, SumCheckError<F>> {
         if !verifier_state.finished {
             panic!("Verifier has not finished.");
@@ -116,24 +113,23 @@ impl<F: Field> IPForMLSumcheck<F> {
             let p0 = &evaluations[0];
             if verifier_state.max_multiplicands > 0 {
                 let p1 = &evaluations[1];
-                if p0.clone() + p1.clone() != expected {
+                if *p0 + *p1 != expected {
                     return Err(SumCheckError::SumCheckFailed(
-                        Box::new((p0.clone() + p1.clone()).into()),
-                        Box::new(expected.into()),
+                        Box::new(*p0 + *p1),
+                        Box::new(expected),
                     ));
                 }
             } else {
                 // Degree 0, constant polynomial
-                if p0.clone() != expected {
+                if *p0 != expected {
                     return Err(SumCheckError::SumCheckFailed(
-                        Box::new(p0.clone().into()),
-                        Box::new(expected.into()),
+                        Box::new(*p0),
+                        Box::new(expected),
                     ));
                 }
             }
 
-            expected =
-                interpolate_uni_poly(evaluations, verifier_state.randomness[i].clone(), config);
+            expected = interpolate_uni_poly(evaluations, verifier_state.randomness[i]);
         }
 
         Ok(SubClaim {
@@ -147,9 +143,9 @@ impl<F: Field> IPForMLSumcheck<F> {
     /// Given the same calling context, `transcript_round` output exactly the same message as
     /// `verify_round`
     #[inline]
-    pub fn sample_round(transcript: &mut Transcript, config: F::R) -> VerifierMsg<F> {
+    pub fn sample_round(transcript: &mut KeccakTranscript) -> VerifierMsg<F> {
         VerifierMsg {
-            randomness: transcript.get_challenge(config),
+            randomness: transcript.get_challenge(),
         }
     }
 }
@@ -158,34 +154,38 @@ impl<F: Field> IPForMLSumcheck<F> {
 /// p_i.len()-1 passing through the y-values in p_i at x = 0,..., p_i.len()-1
 /// and evaluate this  polynomial at `eval_at`. In other words, efficiently compute
 ///  \sum_{i=0}^{len p_i - 1} p_i[i] * (\prod_{j!=i} (eval_at - j)/(i-j))
-pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F {
+pub(crate) fn interpolate_uni_poly<F: Ring + From<u64> + From<i64> + From<i128> + From<u128>>(
+    p_i: &[F],
+    x: F,
+) -> F {
     // We will need these a few times
-    let zero: F = 0u64.map_to_field(config);
-    let one = 1u64.map_to_field(config);
+    let zero = F::ZERO;
+    let one = F::one();
 
     let len = p_i.len();
 
-    let mut evals = vec![];
-
-    let mut prod = x.clone();
-    evals.push(x.clone());
-
-    //`prod = \prod_{j} (x - j)`
-    // we return early if 0 <= x < len, i.e. if the desired value has been passed
-    let mut j = zero.clone();
-    for i in 1..len {
-        if x == j {
-            return p_i[i - 1].clone();
-        }
-        j += &one;
-
-        let tmp = x.clone() - j.clone();
-        evals.push(tmp.clone());
-        prod *= tmp;
+    // Handle edge cases first
+    if len == 0 {
+        return zero;
+    }
+    if len == 1 {
+        return p_i[0];
     }
 
-    if x == j {
-        return p_i[len - 1].clone();
+    let mut evals = Vec::with_capacity(len);
+
+    // Build evals = [x-0, x-1, ..., x-(len-1)] and prod = prod_j (x - j)
+    let mut prod = one;
+    let mut j = zero;
+    for coeff in p_i {
+        let tmp = x - j;
+        // Early return if x equals some integer j in [0, len-1]
+        if tmp.is_zero() {
+            return *coeff;
+        }
+        evals.push(tmp);
+        prod = prod * tmp;
+        j += &one;
     }
 
     let mut res = zero;
@@ -215,31 +215,19 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F
     //  - for len <= 33 with i128
     //  - for len >  33 with BigInt
     if p_i.len() <= 20 {
-        let mut last_denom: F = u64_factorial(len - 1).map_to_field(config);
-
-        last_denom.set_config(config);
+        let last_denom = F::from(u64_factorial(len - 1));
 
         let mut ratio_numerator = 1i64;
         let mut ratio_enumerator = 1u64;
 
         for i in (0..len).rev() {
-            let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res: F = (-ratio_numerator as u64).map_to_field(config);
-                res.set_config(config);
-                -res
-            } else {
-                let mut res: F = (ratio_numerator as u64).map_to_field(config);
-                res.set_config(config);
-                res
-            };
+            let ratio_numerator_f = F::from(ratio_numerator);
+            let ratio_enumerator_f = F::from(ratio_enumerator);
 
-            let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
-            ratio_enumerator_f.set_config(config);
+            let x = prod * ratio_enumerator_f
+                / NonZero::new(last_denom * ratio_numerator_f * evals[i]).unwrap();
 
-            let x = prod.clone() * ratio_enumerator_f
-                / (last_denom.clone() * ratio_numerator_f * &evals[i]);
-
-            res += &(p_i[i].clone() * x);
+            res += &(p_i[i] * x.unwrap());
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
             if i != 0 {
@@ -248,27 +236,18 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F
             }
         }
     } else if p_i.len() <= 33 {
-        let last_denom: F = u128_factorial(len - 1).map_to_field(config);
+        let last_denom = F::from(u128_factorial(len - 1));
         let mut ratio_numerator = 1i128;
         let mut ratio_enumerator = 1u128;
 
         for i in (0..len).rev() {
-            let ratio_numerator_f = if ratio_numerator < 0 {
-                let mut res: F = (-ratio_numerator as u128).map_to_field(config);
-                res.set_config(config);
-                -res
-            } else {
-                let mut res: F = (ratio_numerator as u128).map_to_field(config);
-                res.set_config(config);
-                res
-            };
+            let ratio_numerator_f = F::from(ratio_numerator);
 
-            let mut ratio_enumerator_f: F = ratio_enumerator.map_to_field(config);
-            ratio_enumerator_f.set_config(config);
+            let ratio_enumerator_f = F::from(ratio_enumerator);
 
-            let x: F = prod.clone() * ratio_enumerator_f
-                / (last_denom.clone() * ratio_numerator_f * &evals[i]);
-            res += &(p_i[i].clone() * x);
+            let x = prod * ratio_enumerator_f
+                / NonZero::new(last_denom * ratio_numerator_f * evals[i]).unwrap();
+            res += &(p_i[i] * x.unwrap());
 
             // compute ratio for the next step which is current_ratio * -(len-i)/i
             if i != 0 {
@@ -279,22 +258,20 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F
     } else {
         // since we are using field operations, we can merge
         // `last_denom` and `ratio_numerator` into a single field element.
-        let mut denom_up = field_factorial::<F>(len - 1, config);
+        let mut denom_up = field_factorial::<F>(len - 1);
         let mut denom_down = one;
 
         for i in (0..len).rev() {
-            let x = prod.clone() * &denom_down / (denom_up.clone() * &evals[i]);
-            res += &(p_i[i].clone() * x);
+            let x = prod * denom_down / NonZero::new(denom_up * evals[i]).unwrap();
+            res += &(p_i[i] * x.unwrap());
 
             // compute denom for the next step is -current_denom * (len-i)/i
             if i != 0 {
-                let mut denom_up_factor: F = ((len - i) as u64).map_to_field(config);
-                denom_up_factor.set_config(config);
-                denom_up *= -denom_up_factor;
+                let denom_up_factor = F::from((len - i) as u64);
+                denom_up = denom_up * denom_up_factor.negate();
 
-                let mut denom_down_factor: F = (i as u64).map_to_field(config);
-                denom_down_factor.set_config(config);
-                denom_down *= denom_down_factor;
+                let denom_down_factor = F::from(i as u64);
+                denom_down = denom_down * denom_down_factor;
             }
         }
     }
@@ -304,10 +281,10 @@ pub(crate) fn interpolate_uni_poly<F: Field>(p_i: &[F], x: F, config: F::R) -> F
 
 /// compute the factorial(a) = 1 * 2 * ... * a
 #[inline]
-fn field_factorial<F: Field>(a: usize, config: F::R) -> F {
+fn field_factorial<F: Ring + From<u64>>(a: usize) -> F {
     let mut res: F = F::one();
     for i in 1..=(a as u64) {
-        res *= <u64 as FieldMap<F>>::map_to_field(&i, config);
+        res = res * F::from(i);
     }
     res
 }

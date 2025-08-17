@@ -4,9 +4,6 @@ pub mod pcs;
 pub mod pcs_transcript;
 pub mod utils;
 
-#[cfg(test)]
-mod tests;
-
 use ark_std::string::String;
 use thiserror::Error;
 #[derive(Clone, Debug, PartialEq, Error)]

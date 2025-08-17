@@ -1,39 +1,35 @@
 use ark_std::{collections::BTreeSet, ops::Range, vec::Vec};
+use crypto_bigint::{Int, Word};
 
 use crate::{
-    define_random_field_zip_types,
-    field::Int,
-    implement_random_field_zip_types,
-    poly_z::mle::DenseMultilinearExtension,
-    traits::Integer,
-    zinc::prelude::DefaultLinearCodeSpec,
+    poly::dense::DenseMultilinearExtension,
+    traits::Transcript,
     zip::{
-        code::ZipLinearCode,
-        pcs::structs::{MultilinearZipParams, ZipTranscript},
-        utils::div_ceil,
+        code::{DefaultLinearCodeSpec, ZipLinearCode},
+        pcs::structs::MultilinearZipParams,
     },
 };
 
 const INT_LIMBS: usize = 1;
 
-define_random_field_zip_types!();
-implement_random_field_zip_types!(INT_LIMBS);
-
-type ZT = RandomFieldZipTypes<INT_LIMBS>;
+const N: usize = INT_LIMBS;
+const L: usize = INT_LIMBS * 2;
+const K: usize = INT_LIMBS * 4;
+const M: usize = INT_LIMBS * 8;
 
 #[derive(Default)]
 pub struct MockTranscript {
     pub counter: i64,
 }
 
-impl<L: Integer> ZipTranscript<L> for MockTranscript {
-    fn get_encoding_element(&mut self) -> L {
+impl<const L: usize> Transcript<L> for MockTranscript {
+    fn get_encoding_element(&mut self) -> Int<L> {
         self.counter += 1;
-        L::from(self.counter)
+        Int::from(self.counter)
     }
-    fn get_u64(&mut self) -> u64 {
+    fn get_word(&mut self) -> Word {
         self.counter += 1;
-        self.counter as u64
+        self.counter as Word
     }
     fn sample_unique_columns(
         &mut self,
@@ -58,14 +54,14 @@ impl<L: Integer> ZipTranscript<L> for MockTranscript {
 pub fn setup_test_params(
     num_vars: usize,
 ) -> (
-    MultilinearZipParams<ZT, ZipLinearCode<ZT>>,
+    MultilinearZipParams<N, L, K, M, ZipLinearCode<N, L, K, M>>,
     DenseMultilinearExtension<Int<INT_LIMBS>>,
 ) {
     let poly_size = 1 << num_vars;
-    let num_rows = 1 << div_ceil(num_vars, 2);
+    let num_rows = 1 << num_vars.div_ceil(2);
 
     let mut transcript = MockTranscript::default();
-    let code = ZipLinearCode::<ZT>::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
+    let code = ZipLinearCode::<N, L, K, M>::new(&DefaultLinearCodeSpec, poly_size, &mut transcript);
     let pp = MultilinearZipParams::new(num_vars, num_rows, code);
 
     let evaluations: Vec<_> = (1..=poly_size).map(|v| Int::from(v as i32)).collect();

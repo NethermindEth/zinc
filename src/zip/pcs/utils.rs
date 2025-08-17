@@ -1,28 +1,32 @@
-use ark_ff::Zero;
-use ark_std::{
-    fmt::{Display, Formatter, Result as FmtResult},
-    format,
+use std::{
+    fmt,
+    fmt::{Display, Formatter},
     io::Write,
-    iterable::Iterable,
-    vec,
-    vec::Vec,
 };
-use crypto_bigint::Word;
+
+use ark_std::iterable::Iterable;
+use crypto_bigint::{Int, Word};
 use itertools::Itertools;
+use num_traits::Zero;
 use p3_commit::{BatchOpeningRef, Mmcs};
-use p3_field::Packable;
 use p3_matrix::{Dimensions, Matrix as P3Matrix, dense::RowMajorMatrix};
 use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
 use uninit::AsMaybeUninit;
 
-use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
-    poly_f::mle::DenseMultilinearExtension as MLE_F,
-    poly_z::mle::DenseMultilinearExtension as MLE_Z,
-    sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
-    traits::{Field, Integer},
-    zip::{Error, pcs_transcript::PcsTranscript},
+    poly::dense::DenseMultilinearExtension,
+    sumcheck::utils::build_eq_x_r,
+    traits::Field,
+    utils::ReinterpretVector,
+    zip::{
+        Error,
+        pcs::{
+            error::MerkleError,
+            structs::{MultilinearZipData, PackedInt},
+        },
+        pcs_transcript::PcsTranscript,
+    },
 };
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
@@ -32,10 +36,10 @@ fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
 }
 
 // Ensures that polynomials and evaluation points are of appropriate size
-pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
+pub(super) fn validate_input<'a, const I: usize, F: Field<LIMBS> + 'a, const LIMBS: usize>(
     function: &str,
     param_num_vars: usize,
-    polys: impl Iterable<Item = &'a MLE_Z<I>>,
+    polys: impl Iterable<Item = &'a DenseMultilinearExtension<Int<I>>>,
     points: impl Iterable<Item = &'a [F]>,
 ) -> Result<(), Error> {
     // Ensure all the number of variables in the polynomials don't exceed the limit
@@ -68,11 +72,6 @@ pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
     Ok(())
 }
 
-pub trait AsWords {
-    /// View the underlying byte array as a slice of `Word`s.
-    fn as_words(&self) -> &[Word];
-}
-
 /// Cannot reference blake3::OUT_LEN directly in some of the contexts below.
 const BLAKE3_OUT_LEN: usize = blake3::OUT_LEN;
 
@@ -87,7 +86,7 @@ impl Default for MtHash {
 }
 
 impl Display for MtHash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let blake3_hash: blake3::Hash = self.0.into();
         <blake3::Hash as Display>::fmt(&blake3_hash, f)
     }
@@ -96,15 +95,15 @@ impl Display for MtHash {
 #[derive(Debug, Default, Clone)]
 pub struct MtHasher;
 
-impl<T: AsWords + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
+impl<const N: usize> CryptographicHasher<PackedInt<N>, [u8; BLAKE3_OUT_LEN]> for MtHasher {
     fn hash_iter<I>(&self, input: I) -> [u8; BLAKE3_OUT_LEN]
     where
-        I: IntoIterator<Item = T>,
+        I: IntoIterator<Item = PackedInt<N>>,
     {
         let mut hasher = blake3::Hasher::new();
         let mut buf = [0_u8; size_of::<Word>()];
         for item in input {
-            for word in item.as_words() {
+            for word in item.0.as_words() {
                 // Performance: reuse buffer and help compiler optimize away materializing word bytes
                 buf.copy_from_slice(&word.to_be_bytes());
                 hasher.write_all(&buf).expect("Failed to write to hasher");
@@ -127,29 +126,24 @@ impl PseudoCompressionFunction<[u8; BLAKE3_OUT_LEN], 2> for MtPerm {
     }
 }
 
-type Matrix<T> = RowMajorMatrix<T>;
-type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, BLAKE3_OUT_LEN>;
-type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, BLAKE3_OUT_LEN>;
+type Matrix<const N: usize> = RowMajorMatrix<PackedInt<N>>;
+type MtMmcs<const N: usize> = MerkleTreeMmcs<PackedInt<N>, u8, MtHasher, MtPerm, BLAKE3_OUT_LEN>;
+type P3MerkleTree<const N: usize> =
+    p3_merkle_tree::MerkleTree<PackedInt<N>, u8, Matrix<N>, BLAKE3_OUT_LEN>;
 
 #[derive(Debug, Default)]
-pub struct MerkleTree<T>
-where
-    T: Packable + AsWords + Clone + Send + Sync,
-{
-    inner: Option<MerkleTreeInner<T>>,
+pub struct MerkleTree<const N: usize> {
+    inner: Option<MerkleTreeInner<N>>,
 }
 
 #[derive(Debug)]
-struct MerkleTreeInner<T> {
-    prover_data: P3MerkleTree<T>,
+struct MerkleTreeInner<const N: usize> {
+    prover_data: P3MerkleTree<N>,
     matrix_dims: Dimensions,
 }
 
-impl<T> MerkleTree<T>
-where
-    T: Packable + AsWords + Clone + Send + Sync,
-{
-    pub fn new(rows: &[T], row_width: usize) -> Self {
+impl<const N: usize> MerkleTree<N> {
+    pub fn new(rows: &[Int<N>], row_width: usize) -> Self {
         assert!(rows.len().is_power_of_two());
         assert!(rows.len().is_multiple_of(row_width));
         assert!(row_width > 0);
@@ -157,8 +151,9 @@ where
         // Each matrix row is hashed together to form a leaf in the Merkle tree.
         // Thus, we need to transpose a matrix to have original columns as leaves.
         let matrix = {
-            let mut columns: Vec<T> = Vec::with_capacity(rows.len());
+            let mut columns: Vec<PackedInt<N>> = Vec::with_capacity(rows.len());
             let column_height = rows.len() / row_width;
+            let rows = unsafe { ReinterpretVector::reinterpret_slice(rows) };
             transpose::transpose(
                 rows.as_ref_uninit(),
                 columns.spare_capacity_mut(),
@@ -173,7 +168,7 @@ where
         };
 
         let matrix_dims = matrix.dimensions();
-        let prover_data = P3MerkleTree::new::<T, _, _, _>(&MtHasher, &MtPerm, vec![matrix]);
+        let prover_data = P3MerkleTree::new(&MtHasher, &MtPerm, vec![matrix]);
 
         Self {
             inner: Some(MerkleTreeInner {
@@ -207,30 +202,29 @@ impl MerkleProof {
         MerkleProof { path, matrix_dims }
     }
 
-    pub fn create_proof<T>(merkle_tree: &MerkleTree<T>, leaf: usize) -> Result<Self, MerkleError>
-    where
-        T: Packable + AsWords + Clone,
-    {
+    pub fn create_proof<const N: usize>(
+        merkle_tree: &MerkleTree<N>,
+        leaf: usize,
+    ) -> Result<Self, MerkleError> {
         let mt = merkle_tree
             .inner
             .as_ref()
             .ok_or(MerkleError::InvalidRootHash)?;
-        let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
+        let prover = MtMmcs::<N>::new(MtHasher, MtPerm);
         let opening = prover.open_batch(leaf, &mt.prover_data);
         let path = opening.opening_proof.into_iter().map(MtHash).collect();
         Ok(Self::new(path, mt.matrix_dims))
     }
 
-    pub fn verify<T>(
+    pub fn verify<const N: usize>(
         &self,
         root: &MtHash,
-        leaf_values: Vec<T>,
+        leaf_values: Vec<Int<N>>,
         leaf_index: usize,
-    ) -> Result<(), MerkleError>
-    where
-        T: Packable + AsWords + Clone,
-    {
-        let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
+    ) -> Result<(), MerkleError> {
+        let prover = MtMmcs::<N>::new(MtHasher, MtPerm);
+
+        let leaf_values = unsafe { ReinterpretVector::reinterpret_vector(leaf_values) };
 
         let values = vec![leaf_values];
         let proof = self.path.iter().map(|h| h.0).collect_vec();
@@ -238,13 +232,13 @@ impl MerkleProof {
         prover
             .verify_batch(&root.0.into(), &[self.matrix_dims], leaf_index, proof)
             .map_err(|e| {
-                MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {:?}", e))
+                MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {e:?}"))
             })
     }
 }
 
 impl Display for MerkleProof {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         writeln!(f, "Merkle Path: {}", self.path.iter().join(", "))?;
         writeln!(f, "Matrix Dimensions: {}", self.matrix_dims)?;
         Ok(())
@@ -259,10 +253,10 @@ impl Display for MerkleProof {
 pub struct ColumnOpening {}
 
 impl ColumnOpening {
-    pub fn open_at_column<F: Field, M: Integer>(
+    pub fn open_at_column<F: Field<LIMBS>, const LIMBS: usize, const M: usize>(
         column: usize,
         commit_data: &MultilinearZipData<M>,
-        transcript: &mut PcsTranscript<F>,
+        transcript: &mut PcsTranscript<F, LIMBS>,
     ) -> Result<(), MerkleError> {
         let merkle_path = MerkleProof::create_proof(&commit_data.merkle_tree, column)?;
         transcript
@@ -271,11 +265,11 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<F: Field, T: Packable + AsWords + Clone>(
+    pub fn verify_column<F: Field<LIMBS>, const LIMBS: usize, const N: usize>(
         root: &MtHash,
-        column: &[T],
+        column: &[Int<N>],
         column_index: usize,
-        transcript: &mut PcsTranscript<F>,
+        transcript: &mut PcsTranscript<F, LIMBS>,
     ) -> Result<(), MerkleError> {
         let proof = transcript
             .read_merkle_proof()
@@ -287,24 +281,23 @@ impl ColumnOpening {
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
-pub(super) fn point_to_tensor<F: Field>(
+pub(super) fn point_to_tensor<F: Field<LIMBS>, const LIMBS: usize>(
     num_rows: usize,
     point: &[F],
-    config: F::R,
 ) -> Result<(Vec<F>, Vec<F>), Error> {
     assert!(num_rows.is_power_of_two());
     let (hi, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {
-        build_eq_x_r_f(lo, config).unwrap()
+        build_eq_x_r(lo).unwrap()
     } else {
-        MLE_F::zero()
+        DenseMultilinearExtension::zero()
     };
 
     let q_1 = if !hi.is_empty() {
-        build_eq_x_r_f(hi, config).unwrap()
+        build_eq_x_r(hi).unwrap()
     } else {
-        MLE_F::zero()
+        DenseMultilinearExtension::zero()
     };
 
     Ok((q_0.evaluations, q_1.evaluations))
@@ -313,27 +306,29 @@ pub(super) fn point_to_tensor<F: Field>(
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
 /// two vectors, `q_0` multiplying on the left and `q_1` multiplying on the right
 /// and returns the left vector only
-pub(super) fn left_point_to_tensor<F: Field>(
+pub(super) fn left_point_to_tensor<F: Field<LIMBS>, const LIMBS: usize>(
     num_rows: usize,
     point: &[F],
-    config: F::R,
 ) -> Result<Vec<F>, Error> {
     let (_, lo) = point.split_at(point.len() - num_rows.ilog2() as usize);
     // TODO: get rid of these unwraps.
     let q_0 = if !lo.is_empty() {
-        build_eq_x_r_f(lo, config).unwrap()
+        build_eq_x_r(lo).unwrap()
     } else {
-        MLE_F::<F>::zero()
+        DenseMultilinearExtension::zero()
     };
     Ok(q_0.evaluations)
 }
 
 #[cfg(test)]
 mod tests {
-    use crypto_bigint::Random;
+    use crypto_bigint::{Int, Random};
+    use rand::rng;
 
-    use super::*;
-    use crate::{field::Int, zip::utils::combine_rows};
+    use crate::zip::{
+        pcs::{MerkleTree, utils::MerkleProof},
+        utils::combine_rows,
+    };
 
     #[test]
     fn test_basic_combination() {
@@ -377,7 +372,7 @@ mod tests {
     fn test_merkle_proof() {
         const N: usize = 3;
         let leaves_len = 1024;
-        let mut rng = ark_std::test_rng();
+        let mut rng = rng();
         let leaves_data = (0..leaves_len)
             .map(|_| Int::random(&mut rng))
             .collect::<Vec<Int<N>>>();

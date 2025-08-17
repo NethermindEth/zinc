@@ -1,18 +1,15 @@
 //! Prover
 
-use ark_std::{
-    cfg_into_iter, cfg_iter_mut, slice,
-    sync::atomic::{self, AtomicPtr},
-    vec,
-    vec::Vec,
-};
+use core::slice;
+
+use ark_std::{cfg_into_iter, cfg_iter_mut};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
-use super::{IPForMLSumcheck, verifier::VerifierMsg};
 use crate::{
-    poly_f::mle::{DenseMultilinearExtension, MultilinearExtension},
-    traits::{ConfigReference, Field, FieldMap},
+    poly::{dense::DenseMultilinearExtension, mle::MultilinearExtension},
+    sumcheck::{IPForMLSumcheck, verifier::VerifierMsg},
+    traits::{Field, Ring},
 };
 
 /// Prover Message
@@ -23,7 +20,7 @@ pub struct ProverMsg<F> {
 }
 
 /// Prover State
-pub struct ProverState<F: Field> {
+pub struct ProverState<F: Ring> {
     /// sampled randomness given by the verifier
     pub randomness: Vec<F>,
     /// Stores a list of multilinear extensions
@@ -36,7 +33,7 @@ pub struct ProverState<F: Field> {
     pub round: usize,
 }
 
-impl<F: Field> IPForMLSumcheck<F> {
+impl<F: Field<LIMBS>, const LIMBS: usize> IPForMLSumcheck<F, LIMBS> {
     /// initialize the prover to argue for the sum of polynomial over {0,1}^`num_vars`
     pub fn prover_init(
         mles: Vec<DenseMultilinearExtension<F>>,
@@ -62,25 +59,20 @@ impl<F: Field> IPForMLSumcheck<F> {
     pub fn prove_round(
         prover_state: &mut ProverState<F>,
         v_msg: &Option<VerifierMsg<F>>,
-        comb_fn: impl Fn(&[F]) -> F + Send + Sync,
-        config: F::R,
+        comb_fn: impl Fn(&[F]) -> F + Sync,
     ) -> ProverMsg<F> {
         if let Some(msg) = v_msg {
             if prover_state.round == 0 {
                 panic!("first round should be prover first.");
             }
-            prover_state.randomness.push(msg.randomness.clone());
+            prover_state.randomness.push(msg.randomness);
 
             // fix the next variable at the verifier randomness for this round
             let i = prover_state.round;
-            let r = prover_state.randomness[i - 1].clone();
+            let r = prover_state.randomness[i - 1];
 
-            let atomic_config =
-                AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(slice::from_ref(&r), unsafe {
-                    F::R::new(atomic_config.load(atomic::Ordering::Relaxed))
-                });
+                multiplicand.fix_variables(slice::from_ref(&r));
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");
@@ -106,9 +98,9 @@ impl<F: Field> IPForMLSumcheck<F> {
             vals: Vec<R>,
             levals: Vec<R>,
         }
-        let zero: F = 0u64.map_to_field(config);
-        let zero_vec_deg = vec![zero.clone(); degree + 1];
-        let zero_vec_poly = vec![zero.clone(); polys.len()];
+        let zero: F = F::ZERO;
+        let zero_vec_deg = vec![zero; degree + 1];
+        let zero_vec_poly = vec![zero; polys.len()];
         let scratch = || Scratch {
             evals: zero_vec_deg.clone(),
             steps: zero_vec_poly.clone(),
@@ -129,19 +121,19 @@ impl<F: Field> IPForMLSumcheck<F> {
             s.vals0
                 .iter_mut()
                 .zip(polys.iter())
-                .for_each(|(v0, poly)| *v0 = poly[index].clone());
+                .for_each(|(v0, poly)| *v0 = poly[index]);
             s.levals[0] = comb_fn(&s.vals0);
 
             if degree > 0 {
                 s.vals1
                     .iter_mut()
                     .zip(polys.iter())
-                    .for_each(|(v1, poly)| *v1 = poly[index + 1].clone());
+                    .for_each(|(v1, poly)| *v1 = poly[index + 1]);
                 s.levals[1] = comb_fn(&s.vals1);
 
                 for (i, (v1, v0)) in s.vals1.iter().zip(s.vals0.iter()).enumerate() {
-                    s.steps[i] = v1.clone() - v0.clone();
-                    s.vals[i] = v1.clone();
+                    s.steps[i] = *v1 - *v0;
+                    s.vals[i] = *v1;
                 }
 
                 for eval_point in s.levals.iter_mut().take(degree + 1).skip(2) {
@@ -162,7 +154,7 @@ impl<F: Field> IPForMLSumcheck<F> {
         // Rayon's fold outputs an iter which still needs to be summed over
         #[cfg(feature = "parallel")]
         let evaluations = summer.map(|s| s.evals).reduce(
-            || vec![zero.clone(); degree + 1],
+            || vec![zero; degree + 1],
             |mut evaluations, levals| {
                 evaluations
                     .iter_mut()

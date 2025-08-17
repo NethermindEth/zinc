@@ -1,15 +1,18 @@
 #![allow(non_snake_case)]
 
-use ark_std::{collections::BTreeSet, fmt::Debug, iter, marker::PhantomData, vec, vec::Vec};
+use std::{collections::BTreeSet, fmt::Debug, iter};
+
+use crypto_bigint::Int;
 use itertools::Itertools;
 
-use super::pcs::structs::ZipTranscript;
 use crate::{
-    traits::{Field, FieldMap, Integer, Words, ZipTypes},
+    traits::{Field, Transcript},
     zip::utils::expand,
 };
 
-pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
+pub trait LinearCode<const N: usize, const L: usize, const K: usize, const M: usize>:
+    Sync + Send
+{
     /// Length of each input row before encoding
     fn row_len(&self) -> usize;
 
@@ -32,7 +35,7 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     ///
     /// # Returns
     /// A vector of cryptographic integers representing the encoded row
-    fn encode(&self, row: &[ZT::N]) -> Vec<ZT::M> {
+    fn encode(&self, row: &[Int<N>]) -> Vec<Int<M>> {
         self.encode_wide(row)
     }
 
@@ -46,10 +49,7 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     ///
     /// # Returns
     /// A vector of cryptographic integers representing the encoded row
-    fn encode_wide<In, Out>(&self, row: &[In]) -> Vec<Out>
-    where
-        In: Integer,
-        Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>;
+    fn encode_wide<const IN: usize, const OUT: usize>(&self, row: &[Int<IN>]) -> Vec<Int<OUT>>;
 
     /// Encodes a row of field elements using this linear encoding scheme.
     ///
@@ -62,9 +62,7 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
     ///
     /// # Returns
     /// A vector of field elements representing the encoded row
-    fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
-    where
-        ZT::L: FieldMap<F, Output = F>;
+    fn encode_f<F: Field<LIMBS>, const LIMBS: usize>(&self, row: &[F]) -> Vec<F>;
 }
 
 /// A linear code implementation used for the Zip PCS.
@@ -74,7 +72,7 @@ pub trait LinearCode<ZT: ZipTypes>: Sync + Send {
 /// - `L`: The matrix element type. A larger cryptographic integer type used for sparse matrix
 ///   operations to prevent overflow during encoding. Must be at least as large as `I`.
 #[derive(Clone, Debug)]
-pub struct ZipLinearCode<ZT: ZipTypes> {
+pub struct ZipLinearCode<const N: usize, const L: usize, const K: usize, const M: usize> {
     /// Length of each input row before encoding
     row_len: usize,
 
@@ -88,16 +86,14 @@ pub struct ZipLinearCode<ZT: ZipTypes> {
     num_proximity_testing: usize,
 
     /// First sparse matrix used in the encoding process
-    a: SparseMatrixZ<ZT::L>,
+    a: SparseMatrixZ<L>,
 
     /// Second sparse matrix used in the encoding process
-    b: SparseMatrixZ<ZT::L>,
-
-    phantom: PhantomData<ZT>,
+    b: SparseMatrixZ<L>,
 }
 
-impl<ZT: ZipTypes> ZipLinearCode<ZT> {
-    pub fn new<S: LinearCodeSpec, T: ZipTranscript<ZT::L>>(
+impl<const N: usize, const L: usize, const K: usize, const M: usize> ZipLinearCode<N, L, K, M> {
+    pub fn new<S: LinearCodeSpec, T: Transcript<L>>(
         spec: &S,
         poly_size: usize,
         transcript: &mut T,
@@ -113,7 +109,7 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
     /// - `num_vars`: Number of variables in the multilinear polynomial
     /// - `n_0`: Number of rows in the matrix representation of the polynomial
     /// - `transcript`: Reference to a transcript for generating random challenges
-    fn new_multilinear<S: LinearCodeSpec, T: ZipTranscript<ZT::L>>(
+    fn new_multilinear<S: LinearCodeSpec, T: Transcript<L>>(
         spec: &S,
         num_vars: usize,
         n_0: usize,
@@ -121,7 +117,7 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
     ) -> Self {
         assert!(1 << num_vars > n_0);
 
-        let log2_q = <ZT::N as Integer>::W::num_words();
+        let log2_q = N;
 
         let row_len = ((1 << num_vars) as u64).isqrt().next_power_of_two() as usize;
 
@@ -138,23 +134,22 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
             num_proximity_testing,
             a,
             b,
-            phantom: PhantomData,
         }
     }
 
     pub fn proof_size<S: LinearCodeSpec>(spec: S, n_0: usize, c: usize, r: usize) -> usize {
-        let log2_q = <ZT::N as Integer>::W::num_words();
+        let log2_q = N;
         // Number of low-degree tests
         let num_ldt = spec.num_proximity_testing(log2_q, c, n_0);
         (1 + num_ldt) * c + spec.num_column_opening() * r
     }
 
-    fn matrices<L: Integer, T: ZipTranscript<L>>(
+    fn matrices<const L1: usize, T: Transcript<L1>>(
         rows: usize,
         cols: usize,
         density: usize,
         transcript: &mut T,
-    ) -> (SparseMatrixZ<L>, SparseMatrixZ<L>) {
+    ) -> (SparseMatrixZ<L1>, SparseMatrixZ<L1>) {
         let dim = SparseMatrixDimension::new(rows, cols, density);
         (
             SparseMatrixZ::sample_new(dim, transcript),
@@ -163,7 +158,9 @@ impl<ZT: ZipTypes> ZipLinearCode<ZT> {
     }
 }
 
-impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
+impl<const N: usize, const L: usize, const K: usize, const M: usize> LinearCode<N, L, K, M>
+    for ZipLinearCode<N, L, K, M>
+{
     fn row_len(&self) -> usize {
         self.row_len
     }
@@ -180,34 +177,27 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
         self.num_proximity_testing
     }
 
-    fn encode_wide<In, Out>(&self, row: &[In]) -> Vec<Out>
-    where
-        In: Integer,
-        Out: Integer + for<'a> From<&'a In> + for<'a> From<&'a ZT::L>,
-    {
+    fn encode_wide<const IN: usize, const OUT: usize>(&self, row: &[Int<IN>]) -> Vec<Int<OUT>> {
         debug_assert_eq!(
             row.len(),
             self.row_len,
             "Row length must match the code's row length"
         );
         let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(self.a.mat_vec_mul::<In, Out>(row));
-        code.extend(self.b.mat_vec_mul::<In, Out>(row));
+        code.extend(self.a.mat_vec_mul::<IN, OUT>(row));
+        code.extend(self.b.mat_vec_mul::<IN, OUT>(row));
         code
     }
 
-    fn encode_f<F: Field>(&self, row: &[F], field: F::R) -> Vec<F>
-    where
-        ZT::L: FieldMap<F, Output = F>,
-    {
+    fn encode_f<F: Field<LIMBS>, const LIMBS: usize>(&self, row: &[F]) -> Vec<F> {
         debug_assert_eq!(
             row.len(),
             self.row_len,
             "Row length must match the code's row length"
         );
         let mut code = Vec::with_capacity(self.codeword_len);
-        let a_f = SparseMatrixF::new(&self.a, field);
-        let b_f = SparseMatrixF::new(&self.b, field);
+        let a_f = SparseMatrixF::new(&self.a);
+        let b_f = SparseMatrixF::new(&self.b);
         code.extend(a_f.mat_vec_mul(row));
         code.extend(b_f.mat_vec_mul(row));
         code
@@ -269,18 +259,15 @@ impl SparseMatrixDimension {
 
 /// Sparse matrix over a ring of integers.
 #[derive(Clone, Debug)]
-pub struct SparseMatrixZ<I: Integer> {
+pub struct SparseMatrixZ<const I: usize> {
     dimension: SparseMatrixDimension,
-    cells: Vec<(usize, I)>,
+    cells: Vec<(usize, Int<I>)>,
 }
 
-impl<L: Integer> SparseMatrixZ<L> {
+impl<const L: usize> SparseMatrixZ<L> {
     /// Creates a new sparse matrix with the given dimension and samples its cells using the
     /// provided transcript.
-    fn sample_new<T: ZipTranscript<L>>(
-        dimension: SparseMatrixDimension,
-        transcript: &mut T,
-    ) -> Self {
+    fn sample_new<T: Transcript<L>>(dimension: SparseMatrixDimension, transcript: &mut T) -> Self {
         let cells = iter::repeat_with(|| {
             let mut columns = BTreeSet::<usize>::new();
             transcript.sample_unique_columns(0..dimension.m, &mut columns, dimension.d);
@@ -295,25 +282,22 @@ impl<L: Integer> SparseMatrixZ<L> {
         Self { dimension, cells }
     }
 
-    pub fn rows(&self) -> impl Iterator<Item = &[(usize, L)]> {
+    pub fn rows(&self) -> impl Iterator<Item = &[(usize, Int<L>)]> {
         self.cells.chunks(self.dimension.d)
     }
 
     /// Multiplies the sparse matrix by a vector of cryptographic integers.
-    pub fn mat_vec_mul<N: Integer, M: Integer + for<'a> From<&'a N> + for<'a> From<&'a L>>(
-        &self,
-        vector: &[N],
-    ) -> Vec<M> {
+    pub fn mat_vec_mul<const N: usize, const M: usize>(&self, vector: &[Int<N>]) -> Vec<Int<M>> {
         assert_eq!(
             self.dimension.m,
             vector.len(),
             "Vector length must match matrix column dimension"
         );
 
-        let mut result = vec![M::from_i64(0i64); self.dimension.n];
+        let mut result = vec![Int::<M>::from_i64(0i64); self.dimension.n];
 
         self.rows().enumerate().for_each(|(row_idx, cells)| {
-            let mut sum = M::ZERO;
+            let mut sum = Int::<M>::ZERO;
             for (column, coeff) in cells.iter() {
                 sum += &(expand::<L, M>(coeff) * expand::<N, M>(&vector[*column]));
             }
@@ -323,8 +307,9 @@ impl<L: Integer> SparseMatrixZ<L> {
         result
     }
 
-    pub fn to_dense(&self) -> Vec<Vec<L>> {
-        let mut r: Vec<Vec<L>> = vec![vec![L::ZERO; self.dimension.m]; self.dimension.n];
+    pub fn to_dense(&self) -> Vec<Vec<Int<L>>> {
+        let mut r: Vec<Vec<Int<L>>> =
+            vec![vec![Int::<L>::ZERO; self.dimension.m]; self.dimension.n];
         for (row_i, (col_i, value)) in self.cells.iter().enumerate() {
             r[row_i][*col_i] = *value;
         }
@@ -334,20 +319,17 @@ impl<L: Integer> SparseMatrixZ<L> {
 
 /// Sparse matrix over a field.
 #[derive(Clone, Debug)]
-pub struct SparseMatrixF<F: Field> {
+pub struct SparseMatrixF<F: Field<LIMBS>, const LIMBS: usize> {
     dimension: SparseMatrixDimension,
     cells: Vec<(usize, F)>,
 }
 
-impl<F: Field> SparseMatrixF<F> {
-    pub fn new<L: Integer + FieldMap<F, Output = F>>(
-        sparse_matrix: &SparseMatrixZ<L>,
-        config: F::R,
-    ) -> Self {
+impl<F: Field<LIMBS>, const LIMBS: usize> SparseMatrixF<F, LIMBS> {
+    pub fn new<const L: usize>(sparse_matrix: &SparseMatrixZ<L>) -> Self {
         let cells_f: Vec<(usize, F)> = sparse_matrix
             .cells
             .iter()
-            .map(|(col_index, val)| (*col_index, val.map_to_field(config)))
+            .map(|(col_index, val)| (*col_index, val.resize().into()))
             .collect();
         Self {
             dimension: sparse_matrix.dimension,
@@ -372,7 +354,7 @@ impl<F: Field> SparseMatrixF<F> {
         self.rows().enumerate().for_each(|(row_idx, cells)| {
             let mut sum = F::zero();
             for (column, coeff) in cells.iter() {
-                sum += &(coeff.clone() * &vector[*column]);
+                sum += &(*coeff * vector[*column]);
             }
             result[row_idx] = sum;
         });

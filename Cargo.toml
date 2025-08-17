@@ -29,8 +29,8 @@ ark-serialize = "0.5.0"
 ark-std = "0.5.0"
 blake3 = "1.8.2"
 bytemuck = "1.23.2"
-crypto-bigint = "0.6.1"
-crypto-primes = "0.6.2"
+crypto-bigint = { version = "0.7.0-rc.2", features = ["zeroize"] }
+crypto-primes = "0.7.0-pre.1"
 displaydoc = "0.2.5"
 hashbrown = "0.15.4"
 itertools = "0.14.0"
@@ -38,6 +38,8 @@ num-bigint = "0.4.6"
 num-integer = "0.1.46"
 num-traits = "0.2.19"
 rand = "0.9.2"
+rand_core = "0.9.3"
+rand_chacha = "0.9.0"
 rayon = { version = "1.10.0", optional = true }
 sha3 = "0.10.8"
 thiserror = "2.0.12"
@@ -55,6 +57,7 @@ uninit = "0.6.2"
 
 [dev-dependencies]
 criterion = "0.7.0"
+proptest = "1.7.0"
 
 [[bench]]
 name = "random_field_benches"

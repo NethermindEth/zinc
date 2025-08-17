@@ -1,13 +1,9 @@
 use ark_std::vec::Vec;
+use crypto_bigint::{Int, Uint, Word, modular::ConstMontyParams};
+use num_traits::Zero;
 use sha3::{Digest, Keccak256};
 
-use crate::{
-    field::Int,
-    traits::{
-        BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Words,
-    },
-    zip::pcs::{structs::ZipTranscript, utils::AsWords},
-};
+use crate::traits::{Field, FromBits, Transcript};
 
 /// A cryptographic transcript implementation using the Keccak-256 hash function.
 /// Used for Fiat-Shamir transformations in zero-knowledge proof systems.
@@ -56,13 +52,19 @@ impl KeccakTranscript {
 
     /// Absorbs a field element into the transcript.
     /// Delegates to the field element's implementation of absorb_into_transcript.
-    pub fn absorb_random_field<F: Field>(&mut self, v: &F) {
-        v.absorb_into_transcript(self)
+    pub fn absorb_random_field<F: Field<LIMBS>, const LIMBS: usize>(&mut self, v: &F) {
+        //       self.absorb(&[0x3]);
+        //       self.absorb(&ToBytes::to_be_bytes(MOD::PARAMS.modulus().as_ref()));
+        //       self.absorb(&[0x5]);
+
+        self.absorb(&[0x1]);
+        self.absorb(&v.to_be_bytes());
+        self.absorb(&[0x3])
     }
 
     /// Absorbs a slice of field elements into the transcript.
     /// Processes each field element in the slice sequentially.
-    pub fn absorb_slice<F: Field>(&mut self, slice: &[F]) {
+    pub fn absorb_slice<F: Field<LIMBS>, const LIMBS: usize>(&mut self, slice: &[F]) {
         for field_element in slice.iter() {
             self.absorb_random_field(field_element);
         }
@@ -73,6 +75,8 @@ impl KeccakTranscript {
     fn get_challenge_limbs(&mut self) -> (u128, u128) {
         let challenge = self.hasher.clone().finalize();
 
+        // Interpret the digest as big-endian halves but keep the original ordering used by this protocol:
+        // lo = first 16 bytes, hi = last 16 bytes.
         let lo = u128::from_be_bytes(challenge[0..16].try_into().unwrap());
         let hi = u128::from_be_bytes(challenge[16..32].try_into().unwrap());
 
@@ -85,18 +89,16 @@ impl KeccakTranscript {
 
     /// Generates a pseudorandom field element as a challenge based on the current transcript state.
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
-    pub fn get_challenge<F: Field>(&mut self, config_ref: F::R) -> F {
+    pub fn get_challenge<F: Field<LIMBS>, const LIMBS: usize>(&mut self) -> F {
         let (lo, hi) = self.get_challenge_limbs();
-        let config = config_ref.reference().expect("Field config cannot be none");
-        let modulus = config.modulus();
-        let challenge_num_bits = modulus.num_bits() - 1;
-        if F::W::num_words() == 1 {
+        let modulus = F::Monty::PARAMS.modulus().as_ref();
+        let challenge_num_bits = modulus.bits() - 1;
+        if LIMBS == 1 {
             let lo_mask = (1u64 << challenge_num_bits) - 1;
 
             let truncated_lo = lo as u64 & lo_mask;
 
-            let mut challenge: F = truncated_lo.map_to_field(config_ref);
-            challenge.set_config(config_ref);
+            let challenge = truncated_lo.into();
             return challenge;
         }
         if challenge_num_bits < 128 {
@@ -104,58 +106,52 @@ impl KeccakTranscript {
 
             let truncated_lo = lo & lo_mask;
 
-            let mut challenge: F = truncated_lo.map_to_field(config_ref);
-            challenge.set_config(config_ref);
-            challenge
+            truncated_lo.into()
         } else if challenge_num_bits >= 256 {
-            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                .map_to_field(config_ref);
+            let two_to_128 = F::from(Uint::<LIMBS>::from_le_bits(
+                &(0..196).map(|i| i == 128).collect::<Vec<bool>>(),
+            ));
 
-            let mut challenge: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
-                + two_to_128 * <u128 as FieldMap<F>>::map_to_field(&hi, config_ref);
-            challenge.set_config(config_ref);
-            challenge
+            F::from(lo) + two_to_128 * F::from(hi)
         } else {
             let hi_bits_to_keep = challenge_num_bits - 128;
             let hi_mask = (1u128 << hi_bits_to_keep) - 1;
 
             let truncated_hi = hi & hi_mask;
 
-            let two_to_128 = F::B::from_bits_le(&(0..196).map(|i| i == 128).collect::<Vec<bool>>())
-                .map_to_field(config_ref);
+            let two_to_128 = F::from(Uint::<LIMBS>::from_le_bits(
+                &(0..196).map(|i| i == 128).collect::<Vec<bool>>(),
+            ));
 
-            let mut ret: F = <u128 as FieldMap<F>>::map_to_field(&lo, config_ref)
-                + two_to_128 * <u128 as FieldMap<F>>::map_to_field(&truncated_hi, config_ref);
-            ret.set_config(config_ref);
-            ret
+            F::from(lo) + two_to_128 * F::from(truncated_hi)
         }
     }
 
     /// Generates pseudorandom field elements as challenges based on the current transcript state.
-    pub fn get_challenges<F: Field>(&mut self, n: usize, config: F::R) -> Vec<F> {
+    pub fn get_challenges<F: Field<LIMBS>, const LIMBS: usize>(&mut self, n: usize) -> Vec<F> {
         let mut challenges = Vec::with_capacity(n);
-        challenges.extend((0..n).map(|_| self.get_challenge::<F>(config)));
+        challenges.extend((0..n).map(|_| self.get_challenge::<F, LIMBS>()));
         challenges
     }
 
     /// Generates a pseudorandom [Integer] as a challenge based on the current transcript state.
-    pub fn get_integer_challenge<I: Integer>(&mut self) -> I {
-        let mut words = I::W::default();
-
-        for i in 0..I::W::num_words() {
-            let mut challenge = [0u8; 8];
-            challenge.copy_from_slice(self.get_random_bytes(8).as_slice());
+    pub fn get_integer_challenge<const LIMBS: usize>(&mut self) -> Int<LIMBS> {
+        let mut words: [Word; LIMBS] = [Word::zero(); LIMBS];
+        for word in words.iter_mut().take(LIMBS) {
+            let mut challenge = [0u8; size_of::<Word>()];
+            let rand_bytes = self.get_random_bytes(size_of::<Word>());
+            challenge.copy_from_slice(&rand_bytes);
             self.hasher.update([0x12]);
             self.hasher.update(challenge);
             self.hasher.update([0x34]);
-            words[i] = PrimitiveConversion::from_primitive(u64::from_le_bytes(challenge));
+            *word = Word::from_le_bytes(challenge);
         }
 
-        I::from_words(words)
+        Int::from_words(words)
     }
 
     /// Generates pseudorandom [CryptoInt]s as challenges based on the current transcript state.
-    pub fn get_integer_challenges<I: Integer>(&mut self, n: usize) -> Vec<I> {
+    pub fn get_integer_challenges<const LIMBS: usize>(&mut self, n: usize) -> Vec<Int<LIMBS>> {
         (0..n).map(|_| self.get_integer_challenge()).collect()
     }
 
@@ -167,21 +163,21 @@ impl KeccakTranscript {
         self.hasher.update(challenge);
         self.hasher.update([0x11]);
 
-        let num = usize::from_le_bytes(challenge[..8].try_into().unwrap());
+        let num = usize::from_le_bytes(challenge[..size_of::<usize>()].try_into().unwrap());
         range.start + (num % (range.end - range.start))
     }
 }
 
-impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
-    fn get_encoding_element(&mut self) -> I {
+impl<const LIMBS: usize> Transcript<LIMBS> for KeccakTranscript {
+    fn get_encoding_element(&mut self) -> Int<LIMBS> {
         let byte = self.get_random_bytes(1)[0];
         // cancels all bits and depends only on whether the random byte LSB is 0 or 1
         let bit = byte & 1;
-        I::from(bit as i8)
+        Int::from(bit as i8)
     }
 
-    fn get_u64(&mut self) -> u64 {
-        self.get_integer_challenge::<Int<1>>().as_words()[0]
+    fn get_word(&mut self) -> Word {
+        self.get_integer_challenge::<1>().as_words()[0]
     }
 
     fn sample_unique_columns(
@@ -202,34 +198,30 @@ impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
 }
 #[cfg(test)]
 mod tests {
-    use ark_std::str::FromStr;
+    use crypto_bigint::{U256, Uint, const_monty_params};
 
     use super::KeccakTranscript;
-    use crate::{
-        field::{BigInt, ConfigRef, FieldConfig, RandomField},
-        traits::{Config, FieldMap},
-    };
+    use crate::field::{F256, RandomField, WORD_FACTOR};
+
+    const_monty_params!(
+        ModP,
+        U256,
+        "0800000000000011000000000000000000000000000000000000000000000001"
+    );
+
+    type F = F256<ModP>;
 
     #[test]
     fn test_keccak_transcript() {
         let mut transcript = KeccakTranscript::new();
-        let config = FieldConfig::new(
-            BigInt::<32>::from_str(
-                "3618502788666131213697322783095070105623107215331596699973092056135872020481",
-            )
-            .unwrap(),
-        );
-        let field_config = ConfigRef::from(&config);
 
         transcript.absorb(b"This is a test string!");
-        let challenge: RandomField<32> = transcript.get_challenge(field_config);
+        let challenge = transcript.get_challenge::<F, { 4 * WORD_FACTOR }>();
 
-        let expected_bigint = BigInt::<32>::from_str(
-            "693058076479703886486101269644733982722902192016595549603371045888466087870",
-        )
-        .unwrap();
-        let expected_field = expected_bigint.map_to_field(field_config);
+        let expected =
+            Uint::from_be_hex("018841C8CCF58149C2077504AEFE70BB2935E37F8168922CCFEF7DEE720FEFBE");
+        let expected = RandomField::from(expected);
 
-        assert_eq!(challenge, expected_field);
+        assert_eq!(challenge, expected);
     }
 }

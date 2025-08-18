@@ -23,22 +23,10 @@ macro_rules! impl_static_ref {
             type W = $crate::field::Words<{ $n }>;
             const N: usize = { $n };
 
-            fn reference(&self) -> Option<&'static $crate::field::FieldConfig<{ $n }>> {
+            fn reference(&self) -> &'static $crate::field::FieldConfig<{ $n }> {
                 use $crate::field::StaticReference;
-                Some(&Self::CONFIG)
+                &Self::CONFIG
             }
-
-            unsafe fn new(_: *mut $crate::field::FieldConfig<{ $n }>) -> Self {
-                // Passionately do nothing.
-                Self
-            }
-
-            fn pointer(&self) -> Option<*mut $crate::field::FieldConfig<{ $n }>> {
-                use $crate::field::StaticReference;
-                Some(&Self::CONFIG as *const _ as *mut _)
-            }
-
-            const NONE: Self = Self;
         }
 
         impl Default for $name {

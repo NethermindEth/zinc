@@ -110,7 +110,7 @@ fn benchmark_spartan_verifier<ZT: ZipTypes, C: ConfigReference>(
             config,
         )
         .expect("Failed to generate Spartan proof");
-        config.reference().expect("Field config cannot be none");
+        config.reference();
         group.bench_function(format!("n={n}"), |b| {
             b.iter_batched(
                 KeccakTranscript::new,

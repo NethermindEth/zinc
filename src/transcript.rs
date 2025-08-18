@@ -85,7 +85,7 @@ impl KeccakTranscript {
     #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn get_challenge<C: ConfigReference>(&mut self, config_ref: C) -> RandomField<C> {
         let (lo, hi) = self.get_challenge_limbs();
-        let config = config_ref.reference().expect("Field config cannot be none");
+        let config = config_ref.reference();
         let modulus = config.modulus();
         let challenge_num_bits = modulus.num_bits() - 1;
         if C::N == 1 {

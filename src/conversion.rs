@@ -15,12 +15,7 @@ macro_rules! impl_field_map_for_int {
             type Output = RandomField<C>;
 
             fn map_to_field(&self, config_ref: C) -> Self::Output {
-                let config = match config_ref.reference() {
-                    Some(config) => config,
-                    None => {
-                        panic!("Cannot convert integer to prime field element without a modulus")
-                    }
-                };
+                let config = config_ref.reference();
                 let value = self.abs_diff(0);
                 let mut words = C::W::default();
 
@@ -67,10 +62,7 @@ impl<C: ConfigReference> FieldMap<C> for bool {
     type Output = RandomField<C>;
 
     fn map_to_field(&self, config_ref: C) -> Self::Output {
-        let config = match config_ref.reference() {
-            Some(config) => config,
-            None => panic!("Cannot convert boolean to prime field element without a modulus"),
-        };
+        let config = config_ref.reference();
 
         let mut r = C::B::from(*self as u64);
         config.mul_assign(&mut r, config.r2());
@@ -514,20 +506,6 @@ mod tests {
         test_unsigned_type_edge_cases!(u64, field_1, config, ConfigRef::<1>);
         test_unsigned_type_edge_cases!(u128, field_1, config, ConfigRef::<1>);
     }
-
-    #[test]
-    #[should_panic(expected = "Cannot convert integer to prime field element without a modulus")]
-    fn test_signed_field_map_null_config() {
-        let i32_val: i32 = 5;
-        i32_val.map_to_field(ConfigRef::<1>::NONE);
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot convert integer to prime field element without a modulus")]
-    fn test_unsigned_field_map_null_config() {
-        let u32_val: u32 = 5;
-        u32_val.map_to_field(ConfigRef::<1>::NONE);
-    }
 }
 
 #[cfg(test)]
@@ -621,13 +599,6 @@ mod bigint_field_map_tests {
             direct_result.into_bigint(),
             "Reference implementation should match direct implementation"
         );
-    }
-
-    #[test]
-    #[should_panic(expected = "Cannot convert BigInt to prime field element without a modulus")]
-    fn test_null_config() {
-        let value = BigInt::<2>::from(123u64);
-        let _result = value.map_to_field(ConfigRef::<2>::NONE);
     }
 
     #[test]

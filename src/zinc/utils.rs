@@ -156,7 +156,9 @@ where
                 Err(MleEvaluationError::IncorrectLength(1 << n_vars, m.len()).into())
             } else {
                 Ok(DenseMultilinearExtension::from_evaluations_vec(
-                    n_vars, m, config,
+                    n_vars,
+                    m,
+                    Some(config),
                 ))
             }
         })

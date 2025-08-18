@@ -53,7 +53,7 @@ fn full_sumcheck_protocol_works_correctly() {
     let num_vars = 3;
     let config_ref = get_config();
 
-    config_ref.reference().expect("FieldConfig cannot be null");
+    config_ref.reference();
     for _ in 0..20 {
         let (poly_degree, sum, proof) = generate_sumcheck_proof(num_vars, &mut rng, config_ref);
 
@@ -289,7 +289,7 @@ fn sumcheck_with_zero_polynomial() {
             DenseMultilinearExtension::from_evaluations_vec(
                 num_vars,
                 zero_evals.clone(),
-                config_ref,
+                Some(config_ref),
             )
         })
         .collect();
@@ -338,7 +338,7 @@ fn sumcheck_with_constant_polynomial() {
             DenseMultilinearExtension::from_evaluations_vec(
                 num_vars,
                 const_evals.clone(),
-                config_ref,
+                Some(config_ref),
             )
         })
         .collect();

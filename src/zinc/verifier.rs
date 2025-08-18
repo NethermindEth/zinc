@@ -53,8 +53,7 @@ where
         ccs: &CCS_Z<ZT::N>,
         config: C,
     ) -> Result<(), ZincError> {
-        if draw_random_field::<ZT::N, C>(&statement.public_input, transcript)
-            != *config.reference().unwrap()
+        if &draw_random_field::<ZT::N, C>(&statement.public_input, transcript) != config.reference()
         {
             return Err(ZincError::FieldConfigError);
         }
@@ -160,7 +159,7 @@ impl<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> ZincVerifier<ZT, C, S>
             degree,
             RandomField::zero(),
             proof,
-            unsafe { C::new(*ccs.config.as_ptr()) },
+            ccs.config,
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
@@ -214,7 +213,7 @@ impl<ZT: ZipTypes, C: ConfigReference, S: LinearCodeSpec> ZincVerifier<ZT, C, S>
             degree,
             claimed_sum,
             proof,
-            unsafe { C::new(*ccs.config.as_ptr()) },
+            ccs.config,
         )?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))

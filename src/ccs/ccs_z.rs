@@ -2,7 +2,7 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use ark_std::{log2, marker::PhantomData, sync::atomic::AtomicPtr, vec, vec::Vec};
+use ark_std::{log2, marker::PhantomData, vec, vec::Vec};
 
 use super::{
     ccs_f::{CCS_F, Statement_F, Witness_F},
@@ -133,21 +133,18 @@ impl<C: ConfigReference, I: Integer + MapsToField<C>> FieldMap<C> for CCS_Z<I> {
     type Output = CCS_F<C>;
 
     fn map_to_field(&self, config_ref: C) -> Self::Output {
-        match config_ref.pointer() {
-            Some(config_ptr) => CCS_F {
-                m: self.m,
-                n: self.n,
-                l: self.l,
-                t: self.t,
-                q: self.q,
-                d: self.d,
-                s: self.s,
-                s_prime: self.s_prime,
-                S: self.S.clone(),
-                c: self.c.iter().map(|c| c.map_to_field(config_ref)).collect(),
-                config: AtomicPtr::new(config_ptr),
-            },
-            None => panic!("FieldConfig cannot be null"),
+        CCS_F {
+            m: self.m,
+            n: self.n,
+            l: self.l,
+            t: self.t,
+            q: self.q,
+            d: self.d,
+            s: self.s,
+            s_prime: self.s_prime,
+            S: self.S.clone(),
+            c: self.c.iter().map(|c| c.map_to_field(config_ref)).collect(),
+            config: config_ref,
         }
     }
 }

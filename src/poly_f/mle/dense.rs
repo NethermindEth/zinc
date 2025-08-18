@@ -22,7 +22,7 @@ pub struct DenseMultilinearExtension<C: ConfigReference> {
     /// Number of variables
     pub num_vars: usize,
     /// Field in which the MLE is operating
-    pub config: C,
+    pub config: Option<C>,
 }
 
 impl<C: ConfigReference> DenseMultilinearExtension<C> {
@@ -31,7 +31,7 @@ impl<C: ConfigReference> DenseMultilinearExtension<C> {
         evaluations: &[RandomField<C>],
         config: C,
     ) -> Self {
-        Self::from_evaluations_vec(num_vars, evaluations.to_vec(), config)
+        Self::from_evaluations_vec(num_vars, evaluations.to_vec(), Some(config))
     }
 
     pub fn evaluate(&self, point: &[RandomField<C>], config: C) -> Option<RandomField<C>> {
@@ -45,7 +45,7 @@ impl<C: ConfigReference> DenseMultilinearExtension<C> {
     pub fn from_evaluations_vec(
         num_vars: usize,
         evaluations: Vec<RandomField<C>>,
-        config: C,
+        config: Option<C>,
     ) -> Self {
         // assert that the number of variables matches the size of evaluations
         assert!(
@@ -58,7 +58,10 @@ impl<C: ConfigReference> DenseMultilinearExtension<C> {
             let mut evaluations = evaluations;
             evaluations.resize(
                 1 << num_vars,
-                RandomField::new_unchecked(config, 0u32.into()),
+                match config {
+                    None => RandomField::zero(),
+                    Some(config) => RandomField::new_unchecked(config, 0u32.into()),
+                },
             );
             return Self {
                 num_vars,
@@ -107,7 +110,7 @@ impl<C: ConfigReference> DenseMultilinearExtension<C> {
         } else {
             v.to_owned()
         };
-        Self::from_evaluations_vec(n_vars, v_padded, config)
+        Self::from_evaluations_vec(n_vars, v_padded, Some(config))
     }
 
     pub fn relabel_in_place(&mut self, mut a: usize, mut b: usize, k: usize) {
@@ -140,7 +143,7 @@ impl<C: ConfigReference> MultilinearExtension<C> for DenseMultilinearExtension<C
             (0..1 << num_vars)
                 .map(|_| RandomField::random(rng))
                 .collect(),
-            config,
+            Some(config),
         )
     }
 
@@ -194,7 +197,7 @@ impl<C: ConfigReference> Zero for DenseMultilinearExtension<C> {
         Self {
             num_vars: 0,
             evaluations: vec![RandomField::zero()],
-            config: C::NONE,
+            config: None,
         }
     }
 

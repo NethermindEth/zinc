@@ -51,7 +51,9 @@ pub fn random_mle_list<C: ConfigReference, Rn: RngCore>(
         .into_iter()
         .map(|x| {
             RefCounter::new(DenseMultilinearExtension::from_evaluations_vec(
-                nv, x, config,
+                nv,
+                x,
+                Some(config),
             ))
         })
         .collect();
@@ -84,7 +86,9 @@ pub fn random_zero_mle_list<C: ConfigReference, Rn: RngCore>(
         .into_iter()
         .map(|x| {
             RefCounter::new(DenseMultilinearExtension::from_evaluations_vec(
-                nv, x, config,
+                nv,
+                x,
+                Some(config),
             ))
         })
         .collect();
@@ -115,7 +119,7 @@ pub fn identity_permutation_mles<C: ConfigReference>(
             .map(|i| i.map_to_field(config))
             .collect();
         res.push(RefCounter::new(
-            DenseMultilinearExtension::from_evaluations_vec(num_vars, s_id_vec, config),
+            DenseMultilinearExtension::from_evaluations_vec(num_vars, s_id_vec, Some(config)),
         ));
     }
     res
@@ -152,7 +156,7 @@ pub fn random_permutation_mles<C: ConfigReference, Rn: RngCore>(
             DenseMultilinearExtension::from_evaluations_vec(
                 num_vars,
                 s_perm_vec[i * n..i * n + n].to_vec(),
-                config,
+                Some(config),
             ),
         ));
     }
@@ -262,7 +266,7 @@ pub fn merge_polynomials<C: ConfigReference>(
     }
     scalars.extend_from_slice(vec![RandomField::zero(); (1 << merged_nv) - scalars.len()].as_ref());
     Ok(RefCounter::new(
-        DenseMultilinearExtension::from_evaluations_vec(merged_nv, scalars, config),
+        DenseMultilinearExtension::from_evaluations_vec(merged_nv, scalars, Some(config)),
     ))
 }
 
@@ -291,7 +295,7 @@ fn fix_last_variable_no_par<C: ConfigReference>(
             + partial_point.clone()
                 * (poly.evaluations[i + half_len].clone() - poly.evaluations[i].clone());
     }
-    DenseMultilinearExtension::from_evaluations_vec(nv - 1, res, config)
+    DenseMultilinearExtension::from_evaluations_vec(nv - 1, res, Some(config))
 }
 pub fn fix_last_variables<C: ConfigReference>(
     poly: &DenseMultilinearExtension<C>,

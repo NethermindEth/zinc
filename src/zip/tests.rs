@@ -107,7 +107,7 @@ fn test_failing_zip_evaluation() {
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
-    config.reference().expect("Field config cannot be none");
+    config.reference();
     let res = TestZip::verify(&param, &comm, &point, eval, &mut transcript, config);
 
     assert!(res.is_err())
@@ -142,7 +142,7 @@ fn test_zip_evaluation() {
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
-    config.reference().expect("Field config cannot be none");
+    config.reference();
     TestZip::verify(&param, &comm, &point, eval, &mut transcript, config)
         .expect("Failed to verify");
 }
@@ -188,7 +188,7 @@ fn test_zip_batch_evaluation() {
 
     let proof = transcript.into_proof();
     let mut transcript = PcsTranscript::from_proof(&proof);
-    config.reference().expect("Field config cannot be none");
+    config.reference();
     TestZip::batch_verify_z(
         &param,
         &commitments,

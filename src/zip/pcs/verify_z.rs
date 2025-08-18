@@ -386,7 +386,7 @@ mod tests {
         proof[flip_at] ^= 0x01;
 
         let mut ver_tr = PcsTranscript::from_proof(&proof);
-        config_ref.reference().expect("Field config cannot be none");
+        config_ref.reference();
         let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
 
         match res {

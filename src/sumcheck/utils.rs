@@ -115,7 +115,7 @@ pub fn build_eq_x_r<C: ConfigReference>(
     config: C,
 ) -> Result<DenseMultilinearExtension<C>, ArithErrors> {
     let evals = build_eq_x_r_vec(r)?;
-    let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, config);
+    let mle = DenseMultilinearExtension::from_evaluations_vec(r.len(), evals, Some(config));
 
     Ok(mle)
 }

@@ -4,7 +4,9 @@ use ark_ff::UniformRand;
 use ark_std::{format, string::String};
 use crypto_bigint::Random;
 
-use crate::traits::{Config, ConfigReference, FieldMap, FromBytes, FromRef, MapsToField};
+use crate::traits::{
+    Config, ConfigReference, FieldMap, FromBytes, FromRef, InSameField, MapsToField,
+};
 
 mod arithmetic;
 mod biginteger;
@@ -68,10 +70,7 @@ impl<C: ConfigReference> RandomField<C> {
         F: Fn(&'a C::C, &'a C::B) -> A,
     {
         match self {
-            Initialized { config, value } => Some(f(
-                config.reference().expect("Field config cannot be none"),
-                value,
-            )),
+            Initialized { config, value } => Some(f(config.reference(), value)),
             _ => None,
         }
     }
@@ -81,10 +80,7 @@ impl<C: ConfigReference> RandomField<C> {
         F: Fn(&'a C::C, &'a C::B) -> A,
     {
         match self {
-            Initialized { config, value } => f(
-                config.reference().expect("Field config cannot be none"),
-                value,
-            ),
+            Initialized { config, value } => f(config.reference(), value),
             _ => default,
         }
     }
@@ -96,10 +92,7 @@ impl<C: ConfigReference> RandomField<C> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(
-                config.reference().expect("Field config cannot be none"),
-                value,
-            ),
+            Initialized { config, value } => init_fn(config.reference(), value),
         }
     }
 
@@ -110,10 +103,7 @@ impl<C: ConfigReference> RandomField<C> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(
-                config.reference().expect("Field config cannot be none"),
-                value,
-            ),
+            Initialized { config, value } => init_fn(config.reference(), value),
         }
     }
 
@@ -124,10 +114,7 @@ impl<C: ConfigReference> RandomField<C> {
     {
         match self {
             Raw { value } => raw_fn(value),
-            Initialized { config, value } => init_fn(
-                config.reference().expect("Field config cannot be none"),
-                value,
-            ),
+            Initialized { config, value } => init_fn(config.reference(), value),
         }
     }
 
@@ -151,11 +138,7 @@ impl<C: ConfigReference> RandomField<C> {
                 Initialized {
                     value: value_rhs, ..
                 },
-            ) => with_config(
-                value_self,
-                value_rhs,
-                config.reference().expect("Field config cannot be none"),
-            ),
+            ) => with_config(value_self, value_rhs, config.reference()),
             (
                 Initialized {
                     value: value_self,
@@ -164,11 +147,7 @@ impl<C: ConfigReference> RandomField<C> {
                 rhs @ Raw { .. },
             ) => {
                 let rhs = rhs.clone().set_config_owned(*config);
-                with_config(
-                    value_self,
-                    rhs.value(),
-                    config.reference().expect("Field config cannot be none"),
-                )
+                with_config(value_self, rhs.value(), config.reference())
             }
             (
                 lhs @ Raw { .. },
@@ -179,11 +158,7 @@ impl<C: ConfigReference> RandomField<C> {
             ) => {
                 lhs.set_config(*config);
 
-                with_config(
-                    lhs.value_mut(),
-                    value_rhs,
-                    config.reference().expect("Field config cannot be none"),
-                )
+                with_config(lhs.value_mut(), value_rhs, config.reference())
             }
         }
     }
@@ -191,7 +166,7 @@ impl<C: ConfigReference> RandomField<C> {
     pub fn config_copied(&self) -> Option<C::C> {
         match self {
             Raw { .. } => None,
-            Initialized { config, .. } => config.reference().cloned(),
+            Initialized { config, .. } => Some(config.reference().clone()),
         }
     }
 
@@ -208,11 +183,18 @@ impl<C: ConfigReference> RandomField<C> {
         self
     }
 
-    #[inline(always)]
-    pub fn config_ptr(&self) -> C {
+    pub fn config(&self) -> Option<C> {
         match self {
-            Raw { .. } => C::NONE,
-            Initialized { config, .. } => *config,
+            Raw { .. } => None,
+            Initialized { config, .. } => Some(*config),
+        }
+    }
+
+    #[inline(always)]
+    pub fn config_ref(&self) -> Option<&C::C> {
+        match self {
+            Raw { .. } => None,
+            Initialized { config, .. } => Some(config.reference()),
         }
     }
 
@@ -220,10 +202,7 @@ impl<C: ConfigReference> RandomField<C> {
     ///
     /// If `BigInteger` is greater then field modulus return `None`
     pub fn from_bigint(config: C, value: C::B) -> Option<RandomField<C>> {
-        let config_ref = match config.reference() {
-            Some(config) => config,
-            None => return Some(Raw { value }),
-        };
+        let config_ref = config.reference();
 
         if value >= *config_ref.modulus() {
             None
@@ -236,12 +215,7 @@ impl<C: ConfigReference> RandomField<C> {
     }
 
     pub fn from_i64(value: i64, config: C) -> Option<RandomField<C>> {
-        let config_ref = match config.reference() {
-            Some(config) => config,
-            None => {
-                panic!("Cannot convert signed integer to prime field element without a modulus")
-            }
-        };
+        let config_ref = config.reference();
 
         if &C::B::from(value.unsigned_abs()) >= config_ref.modulus() {
             None
@@ -268,6 +242,18 @@ impl<C: ConfigReference> RandomField<C> {
     }
 }
 
+impl<C: ConfigReference> InSameField for RandomField<C> {
+    fn is_in_same_field(&self, other: &RandomField<C>) -> bool {
+        match (self, other) {
+            (Raw { .. }, Raw { .. }) => true,
+            (Initialized { config: c1, .. }, Initialized { config: c2, .. }) => c1 == c2,
+            (Raw { .. }, Initialized { config, .. }) | (Initialized { config, .. }, Raw { .. }) => {
+                self.config_ref() == Some(config.reference())
+            }
+        }
+    }
+}
+
 impl<C: ConfigReference> RandomField<C> {
     pub fn new_unchecked(config: C, value: C::B) -> Self {
         Initialized { config, value }
@@ -280,10 +266,7 @@ impl<C: ConfigReference> RandomField<C> {
     pub fn rand_with_config<R: ark_std::rand::Rng + ?Sized>(rng: &mut R, config: C) -> Self {
         loop {
             let mut value = C::B::rand(rng);
-            let modulus = config
-                .reference()
-                .expect("Field config cannot be none")
-                .modulus();
+            let modulus = config.reference().modulus();
             let shave_bits = 64 * C::N - modulus.num_bits() as usize;
             // Mask away the unused bits at the beginning.
             assert!(shave_bits <= 64);
@@ -354,7 +337,7 @@ impl<C: ConfigReference> RandomField<C> {
                 transcript.absorb(&[0x3])
             }
             Initialized { config, value } => {
-                let config = config.reference().expect("Field config cannot be none");
+                let config = config.reference();
 
                 transcript.absorb(&[0x3]);
                 transcript.absorb(&config.modulus().clone().to_bytes_be());
@@ -392,7 +375,7 @@ impl<C: ConfigReference> ark_std::fmt::Debug for RandomField<C> {
                 f,
                 "{:?} in Z_{:?}",
                 self_.clone().into_bigint(),
-                self.config_ptr().reference().unwrap().modulus()
+                self.config_ref().unwrap().modulus()
             ),
         }
     }
@@ -498,10 +481,7 @@ where
     type Output = RandomField<C>;
 
     fn map_to_field(&self, config_ref: C) -> Self::Output {
-        let config = match config_ref.reference() {
-            Some(config) => config,
-            None => panic!("Cannot convert BigInt to prime field element without a modulus"),
-        };
+        let config = config_ref.reference();
 
         let mut value = if M > C::N {
             let modulus: Int<M> = config.modulus().into();

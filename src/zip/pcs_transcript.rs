@@ -29,9 +29,13 @@ pub struct PcsTranscript<C: ConfigReference> {
     _phantom: PhantomData<C>,
 }
 
-impl<C: ConfigReference + Default> PcsTranscript<C> {
+impl<C: ConfigReference> PcsTranscript<C> {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            fs_transcript: Default::default(),
+            stream: Default::default(),
+            _phantom: PhantomData,
+        }
     }
 
     /// Converts the transcript into a serialized proof as a byte vector.

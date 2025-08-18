@@ -85,7 +85,7 @@ pub trait Config: PartialEq + Eq + Clone {
 }
 
 /// Trait for references to field configuration.
-pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync + Default {
+pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync {
     type C: Config<B = Self::B>;
     type B: BigInteger<W = Self::W> + From<Self::I> + ToBigInt + ToBigUint + MapsToField<Self>;
     type I: Integer<W = Self::W, Uint = Self::U> + FromRef<Self::B>;
@@ -93,14 +93,7 @@ pub trait ConfigReference: Copy + Clone + PartialEq + Eq + Debug + Send + Sync +
     type W: Words;
     const N: usize;
     /// Returns a reference to the config, if available.
-    fn reference(&self) -> Option<&Self::C>;
-    /// Creates a new config reference from a pointer.
-    #[allow(clippy::missing_safety_doc)] // TODO Should be documented.
-    unsafe fn new(config_ptr: *mut Self::C) -> Self;
-    /// Returns a pointer to the config, if available.
-    fn pointer(&self) -> Option<*mut Self::C>;
-    /// Constant representing no config reference.
-    const NONE: Self;
+    fn reference(&self) -> &Self::C;
 }
 
 /// Trait for word-based representations of integers.
@@ -203,6 +196,10 @@ pub trait PrimalityTest<U: Uinteger> {
 
 pub trait PrimitiveConversion<T> {
     fn from_primitive(value: T) -> Self;
+}
+
+pub trait InSameField {
+    fn is_in_same_field(&self, other: &Self) -> bool;
 }
 
 macro_rules! impl_single_primitive_conversion {

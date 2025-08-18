@@ -242,9 +242,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     .unwrap();
 
     let proof = transcript.into_proof();
-    field_config
-        .reference()
-        .expect("Field config cannot be none");
+    field_config.reference();
     group.bench_function(
         format!("Verify: RandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={modulus}"),
         |b| {
@@ -298,9 +296,7 @@ fn verify_static<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usi
     .unwrap();
 
     let proof = transcript.into_proof();
-    field_config
-        .reference()
-        .expect("Field config cannot be none");
+    field_config.reference();
     group.bench_function(
         format!("Verify: StaticRandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={MODULUS}"),
         |b| {

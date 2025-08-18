@@ -1,11 +1,6 @@
 //! Prover
 
-use ark_std::{
-    cfg_into_iter, cfg_iter_mut, slice,
-    sync::atomic::{self, AtomicPtr},
-    vec,
-    vec::Vec,
-};
+use ark_std::{cfg_into_iter, cfg_iter_mut, slice, vec, vec::Vec};
 #[cfg(feature = "parallel")]
 use rayon::iter::*;
 
@@ -76,12 +71,8 @@ impl<C: ConfigReference> IPForMLSumcheck<C> {
             let i = prover_state.round;
             let r = prover_state.randomness[i - 1].clone();
 
-            let atomic_config =
-                AtomicPtr::new(config.pointer().expect("FieldConfig cannot be null"));
             cfg_iter_mut!(prover_state.mles).for_each(|multiplicand| {
-                multiplicand.fix_variables(slice::from_ref(&r), unsafe {
-                    C::new(atomic_config.load(atomic::Ordering::Relaxed))
-                });
+                multiplicand.fix_variables(slice::from_ref(&r), config);
             });
         } else if prover_state.round > 0 {
             panic!("verifier message is empty");

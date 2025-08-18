@@ -1,4 +1,4 @@
-use ark_std::{sync::atomic::Ordering, vec::Vec};
+use ark_std::vec::Vec;
 use num_traits::Zero;
 
 use super::{
@@ -295,9 +295,7 @@ where
         };
 
         let evals_mle =
-            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, unsafe {
-                C::new(ccs.config.load(Ordering::Acquire))
-            });
+            DenseMultilinearExtension::from_evaluations_vec(ccs.s_prime, evals, Some(config));
 
         sumcheck_2_mles.push(evals_mle);
         sumcheck_2_mles.push(z_mle.clone());

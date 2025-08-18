@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use ark_std::{log2, marker::PhantomData, rand::Rng, sync::atomic::AtomicPtr, vec, vec::Vec};
+use ark_std::{log2, marker::PhantomData, rand::Rng, vec, vec::Vec};
 
 use super::{
     ccs_f::{CCS_F, Statement_F, Witness_F},
@@ -126,21 +126,18 @@ fn get_dummy_ccs_F_from_z<C: ConfigReference>(
     pub_io_len: usize,
     config: C,
 ) -> (CCS_F<C>, Statement_F<C>, Witness_F<C>) {
-    let ccs = match config.pointer() {
-        None => panic!("FieldConfig cannot be null"),
-        Some(config_ptr) => CCS_F {
-            m: z.len(),
-            n: z.len(),
-            l: pub_io_len,
-            t: 3,
-            q: 2,
-            d: 2,
-            s: log2(z.len()) as usize,
-            s_prime: log2(z.len()) as usize,
-            S: vec![vec![0, 1], vec![2]],
-            c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
-            config: AtomicPtr::new(config_ptr),
-        },
+    let ccs = CCS_F {
+        m: z.len(),
+        n: z.len(),
+        l: pub_io_len,
+        t: 3,
+        q: 2,
+        d: 2,
+        s: log2(z.len()) as usize,
+        s_prime: log2(z.len()) as usize,
+        S: vec![vec![0, 1], vec![2]],
+        c: vec![1u32.map_to_field(config), (-1i32).map_to_field(config)],
+        config,
     };
 
     let A = create_dummy_identity_sparse_matrix_F(z.len(), z.len(), config);

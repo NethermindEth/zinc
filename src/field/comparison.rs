@@ -10,7 +10,7 @@ use crate::{
 
 impl<C: ConfigReference> PartialEq for RandomField<C> {
     fn eq(&self, other: &Self) -> bool {
-        if self.is_one() & other.is_one() {
+        if self.is_one() && other.is_one() {
             return true;
         }
         if self.is_zero() && other.is_zero() {
@@ -21,7 +21,7 @@ impl<C: ConfigReference> PartialEq for RandomField<C> {
             (Initialized { .. }, Raw { .. }) | (Raw { .. }, Initialized { .. }) => false,
             (Raw { .. }, Raw { .. }) => self.value() == other.value(),
             (Initialized { .. }, Initialized { .. }) => {
-                self.value() == other.value() && self.config_ptr() == other.config_ptr()
+                self.value() == other.value() && self.config_ref() == other.config_ref()
             }
         }
     }

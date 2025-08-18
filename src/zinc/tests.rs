@@ -93,7 +93,7 @@ fn test_spartan_verifier() {
     let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
 
-    config.reference().expect("Field config cannot be none");
+    config.reference();
 
     let res = SpartanVerifier::<C>::verify(
         &verifier,
@@ -143,7 +143,7 @@ fn test_dummy_spartan_verifier() {
 
     let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
-    config.reference().expect("Field config cannot be none");
+    config.reference();
     let res = SpartanVerifier::<C>::verify(
         &verifier,
         &spartan_proof,
@@ -194,7 +194,7 @@ fn test_failing_spartan_verifier() {
     let verifier = ZincVerifier::<RandomFieldZipTypes<I>, C, _>::new(DefaultLinearCodeSpec);
     let mut verifier_transcript = KeccakTranscript::new();
 
-    config.reference().expect("Field config cannot be none");
+    config.reference();
     let res = SpartanVerifier::<C>::verify(
         &verifier,
         &spartan_proof,

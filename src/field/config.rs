@@ -246,7 +246,7 @@ impl<const N: usize> Eq for FieldConfig<N> {}
 /// - `'cfg`: The lifetime of the `FieldConfig` reference.
 /// - `N`: The size of the `FieldConfig` (e.g., the number of limbs in the `BigInt` modulus).
 #[derive(Debug, Copy, Clone, Eq)]
-pub struct ConfigRef<'cfg, const N: usize>(Option<&'cfg FieldConfig<N>>);
+pub struct ConfigRef<'cfg, const N: usize>(&'cfg FieldConfig<N>);
 
 impl<'cfg, const N: usize> ConfigReference for ConfigRef<'cfg, N> {
     type C = FieldConfig<N>;
@@ -256,24 +256,8 @@ impl<'cfg, const N: usize> ConfigReference for ConfigRef<'cfg, N> {
     type W = Words<N>;
     const N: usize = N;
 
-    fn reference(&self) -> Option<&'cfg FieldConfig<N>> {
+    fn reference(&self) -> &'cfg FieldConfig<N> {
         self.0
-    }
-
-    unsafe fn new(config_ptr: *mut FieldConfig<N>) -> Self {
-        unsafe { Self(Option::from(config_ptr.as_ref().unwrap())) }
-    }
-
-    fn pointer(&self) -> Option<*mut FieldConfig<N>> {
-        self.0.map(|p| p as *const _ as *mut _)
-    }
-
-    const NONE: Self = Self(None);
-}
-
-impl<const N: usize> Default for ConfigRef<'_, N> {
-    fn default() -> Self {
-        Self::NONE
     }
 }
 
@@ -285,7 +269,7 @@ impl<const N: usize> PartialEq for ConfigRef<'_, N> {
 
 impl<'cfg, const N: usize> From<&'cfg FieldConfig<N>> for ConfigRef<'cfg, N> {
     fn from(value: &'cfg FieldConfig<N>) -> Self {
-        Self(Some(value))
+        Self(value)
     }
 }
 

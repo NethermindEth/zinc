@@ -2,12 +2,7 @@
 
 #![allow(non_snake_case, non_camel_case_types)]
 
-use ark_std::{
-    rand,
-    sync::atomic::{AtomicPtr, Ordering},
-    vec,
-    vec::Vec,
-};
+use ark_std::{rand, vec, vec::Vec};
 use crypto_bigint::Random;
 use num_traits::{One, Zero};
 
@@ -63,7 +58,7 @@ pub struct CCS_F<C: ConfigReference> {
     /// vector of coefficients
     pub c: Vec<RandomField<C>>,
     /// The field the constraint system operates in
-    pub config: AtomicPtr<C::C>,
+    pub config: C,
 }
 
 impl<C: ConfigReference> Arith<C> for CCS_F<C> {
@@ -147,11 +142,7 @@ impl<C: ConfigReference> Statement_F<C> {
 
         self.constraints
             .iter()
-            .map(|M| {
-                compute_eval_table_sparse(M, evals, num_rows, num_cols, unsafe {
-                    C::new(ccs.config.load(Ordering::Acquire))
-                })
-            })
+            .map(|M| compute_eval_table_sparse(M, evals, num_rows, num_cols, ccs.config))
             .collect()
     }
 }
@@ -254,25 +245,20 @@ pub(crate) fn get_test_ccs_F<C: ConfigReference>(config: C) -> CCS_F<C> {
 
     let m = 4;
     let n = 6;
-    match config.pointer() {
-        None => panic!("FieldConfig cannot be null"),
-        Some(config_ptr) => {
-            let mut c: Vec<RandomField<C>> = vec![1u32, 1].map_to_field(config);
-            c[1] = -c[1].clone();
-            CCS_F {
-                m,
-                n,
-                l: 1,
-                t: 3,
-                q: 2,
-                d: 2,
-                s: log2(m) as usize,
-                s_prime: log2(n) as usize,
-                S: vec![vec![0, 1], vec![2]],
-                c,
-                config: AtomicPtr::new(config_ptr),
-            }
-        }
+    let mut c: Vec<RandomField<C>> = vec![1u32, 1].map_to_field(config);
+    c[1] = -c[1].clone();
+    CCS_F {
+        m,
+        n,
+        l: 1,
+        t: 3,
+        q: 2,
+        d: 2,
+        s: log2(m) as usize,
+        s_prime: log2(n) as usize,
+        S: vec![vec![0, 1], vec![2]],
+        c,
+        config,
     }
 }
 

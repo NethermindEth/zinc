@@ -127,7 +127,7 @@ where
         DenseMultilinearExtensionF::from_evaluations_vec(
             self.num_vars,
             self.evaluations.map_to_field(config_ref),
-            config_ref,
+            Some(config_ref),
         )
     }
 }

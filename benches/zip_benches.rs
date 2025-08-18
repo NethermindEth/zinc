@@ -115,12 +115,13 @@ fn commit<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
                 for _ in 0..iters {
                     let poly = DenseMultilinearExtension::rand(P, &mut rng);
                     let timer = Instant::now();
-                    let _ = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly)
+                    let res = BenchZip::commit::<RandomField<FIELD_LIMBS>>(&params, &poly)
                         .expect("Failed to commit");
-                    total_duration += timer.elapsed()
+                    black_box(res);
+                    total_duration += timer.elapsed();
                 }
 
-                total_duration / iters as u32
+                total_duration
             })
         },
     );
@@ -160,7 +161,7 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
                     .expect("Failed to make opening");
                     total_duration += timer.elapsed();
                 }
-                total_duration / iters as u32
+                total_duration
             })
         },
     );
@@ -215,7 +216,7 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
                     .expect("Failed to verify");
                     total_duration += timer.elapsed();
                 }
-                total_duration / iters as u32
+                total_duration
             })
         },
     );
@@ -225,6 +226,9 @@ fn zip_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Zip");
 
     encode_rows::<12>(&mut group, 1);
+    encode_rows::<13>(&mut group, 1);
+    encode_rows::<14>(&mut group, 1);
+    encode_rows::<15>(&mut group, 1);
     encode_rows::<16>(&mut group, 1);
 
     encode_single_row::<128>(&mut group, 1);
@@ -235,33 +239,30 @@ fn zip_benchmarks(c: &mut Criterion) {
     encode_single_row::<4096>(&mut group, 1);
 
     merkle_root::<12>(&mut group, 1);
+    merkle_root::<13>(&mut group, 1);
+    merkle_root::<14>(&mut group, 1);
+    merkle_root::<15>(&mut group, 1);
     merkle_root::<16>(&mut group, 1);
-    merkle_root::<22>(&mut group, 1);
 
     commit::<12>(&mut group, 1);
+    commit::<13>(&mut group, 1);
+    commit::<14>(&mut group, 1);
+    commit::<15>(&mut group, 1);
     commit::<16>(&mut group, 1);
 
-    open::<12>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-    open::<16>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
+    let modulus = "106319353542452952636349991594949358997917625194731877894581586278529202198383";
 
-    verify::<12>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
-    verify::<16>(
-        &mut group,
-        "106319353542452952636349991594949358997917625194731877894581586278529202198383",
-        1,
-    );
+    open::<12>(&mut group, modulus, 1);
+    open::<13>(&mut group, modulus, 1);
+    open::<14>(&mut group, modulus, 1);
+    open::<15>(&mut group, modulus, 1);
+    open::<16>(&mut group, modulus, 1);
+
+    verify::<12>(&mut group, modulus, 1);
+    verify::<13>(&mut group, modulus, 1);
+    verify::<14>(&mut group, modulus, 1);
+    verify::<15>(&mut group, modulus, 1);
+    verify::<16>(&mut group, modulus, 1);
 
     group.finish();
 }

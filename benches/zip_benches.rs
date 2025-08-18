@@ -15,7 +15,7 @@ use itertools::Itertools;
 use zinc::{
     define_random_field_zip_types,
     field::{BigInt, ConfigRef, FieldConfig},
-    implement_random_field_zip_types,
+    impl_static_ref, implement_random_field_zip_types,
     poly_z::mle::{DenseMultilinearExtension, MultilinearExtension},
     traits::{Config, ConfigReference, FieldMap, ZipTypes},
     transcript::KeccakTranscript,
@@ -37,6 +37,14 @@ implement_random_field_zip_types!(INT_LIMBS);
 type ZT = RandomFieldZipTypes<INT_LIMBS>;
 type LC = RaaCode<ZT>;
 type BenchZip = MultilinearZip<ZT, LC>;
+
+const MODULUS: BigInt<FIELD_LIMBS> = BigInt([
+    0xE6B0_C3AB_2E3D_176F,
+    0xC20C_74AC_CCAB_538B,
+    0x327A_1179_2F58_5AC6,
+    0xEB0E_9F20_F7BF_C231,
+]);
+impl_static_ref!(StaticRef, FIELD_LIMBS, MODULUS);
 
 fn encode_rows<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
     group.bench_function(
@@ -165,6 +173,47 @@ fn open<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spe
         },
     );
 }
+
+fn open_static<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    let mut rng = test_rng();
+
+    let field_config = StaticRef;
+
+    type T = KeccakTranscript;
+    let mut keccak_transcript = T::new();
+    let poly_size = 1 << P;
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+    let params = BenchZip::setup(poly_size, linear_code);
+
+    let poly = DenseMultilinearExtension::rand(P, &mut rng);
+    let (data, _) = BenchZip::commit::<StaticRef>(&params, &poly).unwrap();
+    let point = vec![1i64; P];
+
+    group.bench_function(
+        format!("Open: StaticRandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={MODULUS}"),
+        |b| {
+            b.iter_custom(|iters| {
+                let mut total_duration = Duration::ZERO;
+                for _ in 0..iters {
+                    let mut transcript = PcsTranscript::new();
+                    let timer = Instant::now();
+                    BenchZip::open(
+                        &params,
+                        &poly,
+                        &data,
+                        &point.map_to_field(field_config),
+                        field_config,
+                        &mut transcript,
+                    )
+                        .expect("Failed to make opening");
+                    total_duration += timer.elapsed();
+                }
+                total_duration / iters as u32
+            })
+        },
+    );
+}
+
 fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, spec: usize) {
     let mut rng = test_rng();
     let config = FieldConfig::new(BigInt::<FIELD_LIMBS>::from_str(modulus).unwrap());
@@ -221,6 +270,62 @@ fn verify<const P: usize>(group: &mut BenchmarkGroup<WallTime>, modulus: &str, s
     );
 }
 
+fn verify_static<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize) {
+    let mut rng = test_rng();
+
+    let field_config = StaticRef;
+
+    type T = KeccakTranscript;
+    let mut keccak_transcript = T::new();
+    let poly_size = 1 << P;
+    let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak_transcript);
+    let params = BenchZip::setup(poly_size, linear_code);
+
+    let poly = DenseMultilinearExtension::rand(P, &mut rng);
+    let (data, commitment) = BenchZip::commit::<StaticRef>(&params, &poly).unwrap();
+    let point = vec![1i64; P];
+    let eval = poly.evaluations.last().unwrap();
+    let mut transcript = PcsTranscript::new();
+
+    BenchZip::open(
+        &params,
+        &poly,
+        &data,
+        &point.map_to_field(field_config),
+        field_config,
+        &mut transcript,
+    )
+    .unwrap();
+
+    let proof = transcript.into_proof();
+    field_config
+        .reference()
+        .expect("Field config cannot be none");
+    group.bench_function(
+        format!("Verify: StaticRandomField<{FIELD_LIMBS}>, poly_size = 2^{P}(Int limbs = {INT_LIMBS}), ZipSpec{spec}, modulus={MODULUS}"),
+        |b| {
+            b.iter_custom(|iters| {
+                let mut total_duration = Duration::ZERO;
+                for _ in 0..iters {
+                    let mut transcript = PcsTranscript::from_proof(&proof);
+                    let timer = Instant::now();
+                    BenchZip::verify(
+                        &params,
+                        &commitment,
+                        &point.map_to_field(field_config),
+                        eval.map_to_field(field_config),
+                        &mut transcript,
+                        field_config,
+                    )
+                        .expect("Failed to verify");
+                    total_duration += timer.elapsed();
+                }
+                total_duration / iters as u32
+            })
+        },
+    );
+}
+
 fn zip_benchmarks(c: &mut Criterion) {
     let mut group = c.benchmark_group("Zip");
 
@@ -246,22 +351,26 @@ fn zip_benchmarks(c: &mut Criterion) {
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+    open_static::<12>(&mut group, 1);
     open::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+    open_static::<16>(&mut group, 1);
 
     verify::<12>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+    verify_static::<12>(&mut group, 1);
     verify::<16>(
         &mut group,
         "106319353542452952636349991594949358997917625194731877894581586278529202198383",
         1,
     );
+    verify_static::<16>(&mut group, 1);
 
     group.finish();
 }

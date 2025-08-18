@@ -195,8 +195,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        field::{ConfigRef, Int, RandomField},
-        field_config,
+        field::{BigInt, ConfigRef, Int, RandomField},
+        field_config, impl_static_ref,
         poly_z::mle::DenseMultilinearExtension,
         traits::{ConfigReference, Integer, Words, ZipTypes},
         zip::{
@@ -552,5 +552,73 @@ mod tests {
         let mut ver_tr = PcsTranscript::from_proof(&proof);
         let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
         assert!(res.is_err());
+    }
+
+    impl_static_ref!(StaticRef, 4, MODULUS);
+    const MODULUS: BigInt<4> = BigInt([0, 0, 0x8918_9CB5_B47D_567F, 0xB933_4264]);
+
+    #[test]
+    fn test_full_static_random_field() {
+        #[allow(clippy::type_complexity)]
+        fn setup_full_protocol(
+            num_vars: usize,
+        ) -> (
+            MultilinearZipParams<ZT, LC>,
+            MultilinearZipCommitment,
+            Vec<RandomField<StaticRef>>,
+            RandomField<StaticRef>,
+            Vec<u8>,
+            StaticRef,
+        ) {
+            let poly_size = 1 << num_vars;
+            let evaluations: Vec<_> = (0..poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
+            let poly = DenseMultilinearExtension::from_evaluations_vec(num_vars, evaluations);
+
+            let mut keccak = MockTranscript::default();
+            let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
+            let pp = TestZip::setup(poly_size, linear_code);
+
+            let config_ref = StaticRef;
+
+            let (data, comm) = TestZip::commit::<StaticRef>(&pp, &poly).unwrap();
+
+            let point_int: Vec<Int<INT_LIMBS>> =
+                (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
+            let point_f = point_int.map_to_field(config_ref);
+
+            let mut prover_transcript = PcsTranscript::new();
+            TestZip::open(
+                &pp,
+                &poly,
+                &data,
+                &point_f,
+                config_ref,
+                &mut prover_transcript,
+            )
+            .unwrap();
+            let proof = prover_transcript.into_proof();
+
+            let eval = match poly.evaluate(&point_int) {
+                None => panic!("failed to evaluate polynomial"),
+                Some(p) => p,
+            }
+            .map_to_field(config_ref);
+
+            (pp, comm, point_f, eval, proof, config_ref)
+        }
+
+        let (pp, comm, point_f, eval, proof, config_ref) = setup_full_protocol(4);
+
+        let mut verifier_transcript = PcsTranscript::from_proof(&proof);
+        let result = TestZip::verify(
+            &pp,
+            &comm,
+            &point_f,
+            eval,
+            &mut verifier_transcript,
+            config_ref,
+        );
+
+        assert!(result.is_ok());
     }
 }

@@ -12,6 +12,7 @@ mod comparison;
 mod config;
 mod constant;
 mod int;
+mod static_config;
 mod uint;
 
 pub use biginteger::{
@@ -20,7 +21,9 @@ pub use biginteger::{
 };
 pub use config::{ConfigRef, FieldConfig};
 pub use int::Int;
+pub use static_config::StaticReference;
 pub use uint::Uint;
+
 #[derive(Copy, Clone)]
 pub enum RandomField<C: ConfigReference> {
     Raw { value: C::B },

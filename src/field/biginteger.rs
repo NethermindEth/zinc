@@ -36,7 +36,7 @@ use crate::{
 pub mod arithmetic;
 mod bits;
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Zeroize)]
-pub struct BigInt<const N: usize>([u64; N]);
+pub struct BigInt<const N: usize>(pub [u64; N]);
 
 impl<const N: usize> From<[u64; N]> for BigInt<N> {
     #[inline]

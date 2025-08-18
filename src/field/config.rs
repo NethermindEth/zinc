@@ -49,6 +49,19 @@ pub struct FieldConfig<const N: usize> {
     modulus_has_spare_bit: bool,
 }
 
+impl<const N: usize> FieldConfig<N> {
+    pub const fn const_new(modulus: BigInt<N>) -> Self {
+        let modulus_has_spare_bit = modulus.has_spare_bit();
+        Self {
+            modulus,
+            r: modulus.montgomery_r(),
+            r2: modulus.montgomery_r2(),
+            inv: inv(modulus),
+            modulus_has_spare_bit,
+        }
+    }
+}
+
 impl<const N: usize> Config for FieldConfig<N> {
     type B = BigInt<N>;
     fn modulus(&self) -> &BigInt<N> {

@@ -1,4 +1,5 @@
 use ark_std::{vec, vec::Vec};
+use itertools::Itertools;
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
@@ -69,8 +70,8 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
         let rows_merkle_trees = rows
             .chunks_exact(codeword_len)
-            .map(MerkleTree::new)
-            .collect::<Vec<_>>();
+            .map(|slice| MerkleTree::new(slice.to_vec()))
+            .collect_vec();
 
         assert_eq!(rows_merkle_trees.len(), pp.num_rows);
 
@@ -186,7 +187,6 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 mod tests {
     use ark_std::{UniformRand, mem::size_of, slice::from_ref, vec, vec::Vec};
     use crypto_bigint::Random;
-    use sha3::{Digest, Keccak256};
 
     use crate::{
         field::{BigInt, ConfigRef, Int, RandomField},
@@ -201,6 +201,7 @@ mod tests {
                 MerkleTree,
                 structs::{MultilinearZip, MultilinearZipParams},
                 tests::{MockTranscript, RandomFieldZipTypes},
+                utils::MtHash,
             },
             pcs_transcript::PcsTranscript,
             utils::div_ceil,
@@ -377,7 +378,7 @@ mod tests {
             data.rows[0] = Int::from(999999);
             let codeword_len = pp.linear_code.codeword_len();
             let corrupted_row = &data.rows[0..codeword_len];
-            let new_tree = MerkleTree::new(corrupted_row);
+            let new_tree = MerkleTree::new(corrupted_row.to_vec());
             assert_ne!(
                 new_tree.root(),
                 commitment.roots[0],
@@ -517,7 +518,7 @@ mod tests {
             let start = i * codeword_len;
             let end = start + codeword_len;
             let row_data = &data.rows[start..end];
-            let independent_tree = MerkleTree::new(row_data);
+            let independent_tree = MerkleTree::new(row_data.to_vec());
             assert_eq!(tree.root(), independent_tree.root());
             assert_eq!(commitment.roots[i], independent_tree.root());
         }
@@ -624,7 +625,7 @@ mod tests {
     #[should_panic(expected = "leaves.len().is_power_of_two()")]
     fn merkle_tree_new_panics_on_non_power_of_two_leaves() {
         let leaves_data: Vec<Int<INT_LIMBS>> = (0..7).map(Int::from).collect();
-        let _ = MerkleTree::new(&leaves_data);
+        let _ = MerkleTree::new(leaves_data);
     }
 
     #[test]
@@ -704,26 +705,20 @@ mod tests {
             let size_of_zt_k = size_of::<ZT::K>();
             let size_of_zt_m = size_of::<ZT::M>();
             let size_of_f_b = size_of::<BigInt<FIELD_LIMBS>>();
-            let size_of_hash = Keccak256::output_size();
             let size_of_path_len = size_of::<u64>();
-            let size_of_path_elem = size_of::<u64>();
-            let size_of_lemma_len = size_of::<u64>();
-            let size_of_flag = size_of::<u8>();
+            let size_of_path_elem = size_of::<MtHash>();
+            let size_of_num_leaves = size_of::<u64>();
 
             let codeword_len = pp.linear_code.codeword_len();
             let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
             let path_len = merkle_depth;
-            let num_of_lemmas = path_len + 2;
 
             let proximity_phase_size =
                 pp.linear_code.num_proximity_testing() * pp.linear_code.row_len() * size_of_zt_m;
 
             let column_values_size = pp.num_rows * size_of_zt_k;
-            let single_merkle_proof_size = size_of_path_len
-                + path_len * size_of_path_elem
-                + size_of_lemma_len
-                + num_of_lemmas * size_of_hash
-                + size_of_flag;
+            let single_merkle_proof_size =
+                size_of_num_leaves + size_of_path_len + path_len * size_of_path_elem;
             let all_merkle_proofs_size = pp.num_rows * single_merkle_proof_size;
             let size_per_column_opening = column_values_size + all_merkle_proofs_size;
             let column_opening_phase_size =

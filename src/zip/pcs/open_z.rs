@@ -235,7 +235,7 @@ mod tests {
         let codeword_len = pp.linear_code.codeword_len();
         let corrupted_merkle_trees = corrupted_rows
             .chunks_exact(codeword_len)
-            .map(MerkleTree::new)
+            .map(|slice| MerkleTree::new(slice.to_vec()))
             .collect::<Vec<_>>();
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
 
@@ -311,7 +311,7 @@ mod tests {
 
         let corrupted_merkle_trees = corrupted_rows
             .chunks_exact(codeword_len)
-            .map(MerkleTree::new)
+            .map(|slice| MerkleTree::new(slice.to_vec()))
             .collect::<Vec<_>>();
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
 

@@ -1,9 +1,18 @@
 use ark_ff::Zero;
 use ark_std::{
-    cmp::Ordering, fmt::Display, format, hash::Hasher, io::Write, iterable::Iterable, vec::Vec,
+    cmp::Ordering,
+    fmt::{Display, Formatter},
+    format,
+    io::Write,
+    iterable::Iterable,
+    vec::Vec,
 };
 use itertools::Itertools;
-use merkletree::{hash::Algorithm, merkle::Element, proof::Proof, store::VecStore};
+use p3_commit::{BatchOpeningRef, Mmcs};
+use p3_field::Packable;
+use p3_matrix::{Dimensions, dense::RowMajorMatrix};
+use p3_merkle_tree::MerkleTreeMmcs;
+use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -63,7 +72,8 @@ pub trait ToBytes {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MtHash(pub blake3::Hash);
+#[repr(transparent)]
+pub struct MtHash(pub(crate) [u8; blake3::OUT_LEN]);
 
 impl PartialOrd for MtHash {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -72,183 +82,192 @@ impl PartialOrd for MtHash {
 }
 
 impl Ord for MtHash {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.as_bytes().cmp(other.0.as_bytes())
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.cmp(&other.0)
     }
 }
 
 impl Default for MtHash {
     fn default() -> Self {
-        MtHash(blake3::Hash::from_bytes([0; blake3::OUT_LEN]))
+        MtHash([0; blake3::OUT_LEN])
     }
 }
 
 impl AsRef<[u8]> for MtHash {
     fn as_ref(&self) -> &[u8] {
-        self.0.as_bytes()
+        &self.0
     }
 }
 
-impl Element for MtHash {
-    fn byte_len() -> usize {
-        blake3::OUT_LEN
-    }
-
-    fn from_slice(bytes: &[u8]) -> Self {
-        assert_eq!(bytes.len(), blake3::OUT_LEN);
-        MtHash(blake3::Hash::from_slice(bytes).expect("Invalid hash length"))
-    }
-
-    fn copy_to_slice(&self, bytes: &mut [u8]) {
-        assert_eq!(bytes.len(), blake3::OUT_LEN);
-        bytes.copy_from_slice(self.as_ref());
+impl Display for MtHash {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let blake3_hash: blake3::Hash = self.0.into();
+        <blake3::Hash as Display>::fmt(&blake3_hash, f)
     }
 }
+
+#[derive(Debug, Default, Clone)]
+pub struct MtHasher;
+
+impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; 32]> for MtHasher {
+    fn hash_iter<I>(&self, input: I) -> [u8; 32]
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let mut hasher = blake3::Hasher::new();
+        for item in input {
+            hasher
+                .write_all(&item.to_bytes())
+                .expect("Failed to write to hasher");
+        }
+        let hash = hasher.finalize();
+        hash.into()
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct MtPerm;
+
+impl PseudoCompressionFunction<[u8; 32], 2> for MtPerm {
+    fn compress(&self, input: [[u8; 32]; 2]) -> [u8; 32] {
+        let mut hasher = blake3::Hasher::new();
+        for ref item in input {
+            hasher.write_all(item).expect("Failed to write to hasher");
+        }
+        let hash = hasher.finalize();
+        hash.into()
+    }
+}
+
+// cannot reference blake3::OUT_LEN directly
+type Matrix<T> = RowMajorMatrix<T>;
+type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, 32>;
+type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, 32>;
 
 #[derive(Debug, Default)]
-pub struct MtHasher {
-    hasher: blake3::Hasher,
+pub struct MerkleTree<T>
+where
+    T: Packable + ToBytes + Clone + Send + Sync,
+{
+    inner: Option<MerkleTreeInner<T>>,
 }
 
-impl Hasher for MtHasher {
-    fn finish(&self) -> u64 {
-        let hashed = self.hasher.finalize();
-        hashed
-            .as_bytes()
-            .chunks(u64::BITS as usize / 8)
-            .fold(0_u64, |acc, chunk| {
-                acc ^ u64::from_le_bytes(chunk.try_into().unwrap())
-            })
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.hasher.write_all(bytes).unwrap();
-    }
+#[derive(Debug)]
+struct MerkleTreeInner<T> {
+    prover_data: P3MerkleTree<T>,
+    num_leaves: usize,
 }
 
-impl Algorithm<MtHash> for MtHasher {
-    fn hash(&mut self) -> MtHash {
-        MtHash(self.hasher.finalize())
-    }
-
-    fn reset(&mut self) {
-        self.hasher.reset();
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct MerkleTree {
-    inner: Option<merkletree::merkle::MerkleTree<MtHash, MtHasher, VecStore<MtHash>>>,
-}
-
-impl MerkleTree {
-    pub fn new<T: ToBytes + Send + Sync>(leaves: &[T]) -> Self {
+impl<T> MerkleTree<T>
+where
+    T: Packable + ToBytes + Clone + Send + Sync,
+{
+    pub fn new(leaves: Vec<T>) -> Self {
         assert!(leaves.len().is_power_of_two());
         let depth = leaves.len().ilog2() as usize;
         assert_eq!(leaves.len(), 1 << depth);
 
-        let leaf_hashes = leaves
-            .iter()
-            .map(|leaf| MtHash(blake3::hash(&leaf.to_bytes())))
-            .collect::<Vec<_>>();
+        let num_leaves = leaves.len();
+        let matrix = RowMajorMatrix::new_col(leaves);
+
+        let prover_data = P3MerkleTree::new::<T, _, _, _>(&MtHasher, &MtPerm, vec![matrix]);
+
         Self {
-            inner: Some(merkletree::merkle::MerkleTree::new(leaf_hashes).unwrap()),
+            inner: Some(MerkleTreeInner {
+                prover_data,
+                num_leaves,
+            }),
         }
     }
 
     pub fn root(&self) -> MtHash {
-        self.inner
-            .as_ref()
-            .expect("Merkle tree not initialized")
-            .root()
+        // TODO: Avoid cloning
+        MtHash(
+            *self
+                .inner
+                .as_ref()
+                .expect("Merkle tree not initialized")
+                .prover_data
+                .root()
+                .as_ref(),
+        )
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MerkleProof {
-    inner: Option<Proof<MtHash>>,
+    path: Option<Vec<MtHash>>,
+    pub num_leaves: usize,
 }
 
 impl MerkleProof {
-    pub fn new(proof: Proof<MtHash>) -> Self {
-        MerkleProof { inner: Some(proof) }
+    pub fn new(path: Vec<MtHash>, num_leaves: usize) -> Self {
+        MerkleProof {
+            path: Some(path),
+            num_leaves,
+        }
     }
 
-    pub fn create_proof(merkle_tree: &MerkleTree, leaf: usize) -> Result<Self, MerkleError> {
+    pub fn create_proof<T>(merkle_tree: &MerkleTree<T>, leaf: usize) -> Result<Self, MerkleError>
+    where
+        T: Packable + ToBytes + Clone,
+    {
         let mt = merkle_tree
             .inner
             .as_ref()
             .ok_or(MerkleError::InvalidRootHash)?;
-        let proof = mt.gen_proof(leaf).map_err(|e| {
-            MerkleError::InvalidMerkleProof(format!("Failed to create Merkle proof: {}", e))
-        })?;
-        Ok(MerkleProof { inner: Some(proof) })
+        let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
+        let opening = prover.open_batch(leaf, &mt.prover_data);
+        let path = opening.opening_proof.into_iter().map(MtHash).collect();
+        Ok(Self::new(path, mt.num_leaves))
     }
 
-    pub fn inner(&self) -> Option<&Proof<MtHash>> {
-        self.inner.as_ref()
+    pub fn path(&self) -> Option<&[MtHash]> {
+        self.path.as_deref()
     }
 
-    pub fn verify<T: ToBytes>(
+    pub fn verify<T>(
         &self,
         root: &MtHash,
         leaf_value: &T,
         leaf_index: usize,
-    ) -> Result<(), MerkleError> {
-        let Some(proof) = self.inner.as_ref() else {
+    ) -> Result<(), MerkleError>
+    where
+        T: Packable + ToBytes + Clone,
+    {
+        let Some(path) = self.path.as_ref() else {
             return Err(MerkleError::InvalidMerkleProof(
                 "Merkle proof is None".to_string(),
             ));
         };
+        let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
 
-        let binary_string_path = proof.path().iter().rev().join("");
-        let usize_path = usize::from_str_radix(&binary_string_path, 2).map_err(|_| {
-            MerkleError::InvalidMerkleProof(format!(
-                "Failed to parse binary string path: {binary_string_path}"
-            ))
-        })?;
-
-        if leaf_index != usize_path {
-            return Err(MerkleError::InvalidMerkleProof(format!(
-                "Leaf index to path mismatch: expected {leaf_index}, got {binary_string_path} (reversed {usize_path})",
-            )));
-        }
-
-        if root != &proof.root() {
-            return Err(MerkleError::InvalidMerkleProof(format!(
-                "Root hash mismatch: expected {}, got {}",
-                root.0,
-                proof.root().0
-            )));
-        }
-
-        let leaf_hash = hash_leaf(leaf_value);
-        if leaf_hash != proof.item() {
-            return Err(MerkleError::InvalidMerkleProof(format!(
-                "Leaf hash mismatch: expected {}, got {}",
-                leaf_hash.0,
-                proof.item().0
-            )));
-        }
-
-        proof.validate::<MtHasher>().map_err(|e| {
-            MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {}", e))
-        })?;
-        Ok(())
+        let values = vec![vec![*leaf_value]];
+        let proof = path.iter().map(|h| h.0).collect_vec();
+        let proof = BatchOpeningRef::new(&values, &proof);
+        prover
+            .verify_batch(
+                &root.0.into(),
+                &[Dimensions {
+                    width: 0,
+                    height: self.num_leaves,
+                }],
+                leaf_index,
+                proof,
+            )
+            .map_err(|e| {
+                MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {:?}", e))
+            })
     }
 }
 
 impl Display for MerkleProof {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
-        match &self.inner {
+        match &self.path {
             None => write!(f, "Merkle Proof: None")?,
-            Some(proof) => {
-                writeln!(f, "Merkle Path: {}", proof.path().iter().rev().join(""))?;
-                writeln!(
-                    f,
-                    "Merkle Lemmas: {}",
-                    proof.lemma().iter().map(|h| h.0).join(", ")
-                )?;
+            Some(path) => {
+                writeln!(f, "Merkle Path: {}", path.iter().join(", "))?;
+                writeln!(f, "# Leaves: {}", self.num_leaves)?;
             }
         };
         Ok(())
@@ -277,7 +296,7 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<F: Field, T: ToBytes>(
+    pub fn verify_column<F: Field, T: Packable + ToBytes + Clone>(
         rows_roots: &[MtHash],
         column: &[T],
         column_index: usize,
@@ -291,14 +310,6 @@ impl ColumnOpening {
         }
         Ok(())
     }
-}
-
-fn hash_leaf<T: ToBytes>(data: &T) -> MtHash {
-    let mut hasher = MtHasher::default();
-    hasher.write(&data.to_bytes());
-    let hash = hasher.hash();
-    hasher.reset();
-    hasher.leaf(hash)
 }
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
@@ -398,7 +409,7 @@ mod tests {
             .map(|_| Int::random(&mut rng))
             .collect::<Vec<Int<N>>>();
 
-        let merkle_tree = MerkleTree::new(&leaves_data);
+        let merkle_tree = MerkleTree::new(leaves_data.clone());
 
         // Print tree structure after merklizing
         let root = merkle_tree.root();

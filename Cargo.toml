@@ -42,7 +42,12 @@ rayon = { version = "1.10.0", optional = true }
 sha3 = "0.10.8"
 thiserror = "2.0.12"
 zeroize = "1.8.1"
-merkletree = "0.23"
+p3-merkle-tree = { git = "https://github.com/Plonky3/Plonky3.git", rev = "5ebf8e4" }
+p3-symmetric = { git = "https://github.com/Plonky3/Plonky3.git", rev = "5ebf8e4" }
+p3-field = { git = "https://github.com/Plonky3/Plonky3.git", rev = "5ebf8e4" }
+p3-commit = { git = "https://github.com/Plonky3/Plonky3.git", rev = "5ebf8e4" }
+p3-matrix = { git = "https://github.com/Plonky3/Plonky3.git", rev = "5ebf8e4" }
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.7.0"

@@ -9,6 +9,7 @@ use ark_std::{
 };
 use crypto_bigint::Random;
 use num_traits::{ConstOne, ConstZero, One, Zero};
+use p3_field::Packable;
 
 use crate::{
     traits::{FieldMap, FromBytes},
@@ -169,6 +170,7 @@ pub trait Integer:
     + From<u8>
     + Random
     + ToBytes
+    + Packable
 {
     type W: Words;
     type Uint: Uinteger<W = Self::W>;

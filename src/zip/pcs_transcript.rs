@@ -6,8 +6,6 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use merkletree::proof::Proof;
-use sha3::digest::consts::U0;
 
 use super::{Error, pcs::utils::MerkleProof};
 use crate::{
@@ -63,14 +61,14 @@ impl<F: Field> PcsTranscript<F> {
         self.stream
             .read_exact(&mut buf)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        Ok(MtHash(blake3::Hash::from_bytes(buf)))
+        Ok(MtHash(blake3::Hash::from_bytes(buf).into()))
     }
 
     /// Writes a cryptographic commitment to the proof stream.
     /// Used during proof generation to store commitments for later verification.
     pub fn write_commitment(&mut self, comm: &MtHash) -> Result<(), Error> {
         self.stream
-            .write_all(comm.0.as_bytes())
+            .write_all(&comm.0)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
         Ok(())
     }
@@ -161,6 +159,12 @@ impl<F: Field> PcsTranscript<F> {
         (0..n).map(|_| self.read_commitment()).collect()
     }
 
+    fn write_u64(&mut self, value: u64) -> Result<(), Error> {
+        self.stream
+            .write_all(&value.to_be_bytes())
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
+    }
+
     fn read_u64(&mut self) -> Result<u64, Error> {
         let mut buf = [0u8; 8];
         self.stream
@@ -169,13 +173,23 @@ impl<F: Field> PcsTranscript<F> {
         Ok(u64::from_be_bytes(buf))
     }
 
+    fn write_usize(&mut self, value: usize) -> Result<(), Error> {
+        let value_u64: u64 = value.try_into().map_err(|_| {
+            Error::Transcript(
+                std::io::ErrorKind::Unsupported,
+                "Failed to convert usize to u64".to_string(),
+            )
+        })?;
+        self.write_u64(value_u64)
+    }
+
     fn read_usize(&mut self) -> Result<usize, Error> {
-        Ok(self.read_u64()?.try_into().map_err(|_| {
+        self.read_u64()?.try_into().map_err(|_| {
             Error::Transcript(
                 std::io::ErrorKind::Unsupported,
                 "Failed to convert u64 to usize".to_string(),
             )
-        })?)
+        })
     }
 
     pub fn write_commitments<'a>(
@@ -199,88 +213,45 @@ impl<F: Field> PcsTranscript<F> {
     }
 
     pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
-        Ok(MerkleProof::new(self.read_merkle_proof_inner()?))
-    }
+        // Read the number of leaves in the Merkle tree
+        let num_leaves = self.read_usize()?;
 
-    pub fn read_merkle_proof_inner(&mut self) -> Result<Proof<MtHash>, Error> {
-        // Read the length of the merkle_path first
+        // Read the length of the merkle path first
         let path_length = self.read_usize()?;
 
-        // Read each element of the merkle_path
+        // Read each element of the merkle path
         let mut merkle_path = Vec::with_capacity(path_length);
         for _ in 0..path_length {
-            merkle_path.push(self.read_usize()?);
+            merkle_path.push(self.read_commitment()?);
         }
 
-        let lemma_length = self.read_usize()?;
-
-        // Read each element of the lemma
-        let mut lemma = Vec::with_capacity(lemma_length);
-        for _ in 0..lemma_length {
-            lemma.push(self.read_commitment()?);
-        }
-
-        // Read the sub_tree_proof
-        let mut has_sub_tree_proof_buf = [0u8; 1];
-        self.stream
-            .read_exact(&mut has_sub_tree_proof_buf)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        let sub_tree_proof = if has_sub_tree_proof_buf[0] == 1 {
-            Some(Box::new(self.read_merkle_proof_inner()?))
-        } else {
-            None
-        };
-
-        Proof::new::<U0, U0>(sub_tree_proof, lemma, merkle_path)
-            .map_err(|err| Error::Serialization(err.to_string()))
+        Ok(MerkleProof::new(merkle_path, num_leaves))
     }
 
     pub fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
-        let Some(proof) = proof.inner() else {
+        let Some(path) = proof.path() else {
             return Err(Error::Transcript(
                 std::io::ErrorKind::InvalidInput,
                 "Merkle proof is None".to_string(),
             ));
         };
-        self.write_merkle_proof_inner(proof)
+        self.write_merkle_proof_inner(path, proof.num_leaves)
     }
 
-    pub fn write_merkle_proof_inner(&mut self, proof: &Proof<MtHash>) -> Result<(), Error> {
-        // Write the length of the merkle_path first
-        let path_length = proof.path().len() as u64;
-        self.stream
-            .write_all(&path_length.to_be_bytes())
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+    pub fn write_merkle_proof_inner(
+        &mut self,
+        path: &[MtHash],
+        num_leaves: usize,
+    ) -> Result<(), Error> {
+        // Write the number of leaves in the Merkle tree
+        self.write_usize(num_leaves)?;
 
-        // Write each element of the merkle_path
-        for path_elem in proof.path() {
-            self.stream
-                .write_all(&path_elem.to_be_bytes())
-                .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        }
+        // Write the length of the merkle path first
+        self.write_usize(path.len())?;
 
-        let lemma_length = proof.lemma().len() as u64;
-        self.stream
-            .write_all(&lemma_length.to_be_bytes())
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-
-        // Write each element of the merkle_path
-        for hash in proof.lemma() {
-            self.write_commitment(hash)?;
-        }
-
-        match proof.sub_tree_proof {
-            None => {
-                self.stream
-                    .write(&[0])
-                    .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-            }
-            Some(ref sub_proof) => {
-                self.stream
-                    .write(&[1])
-                    .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-                self.write_merkle_proof_inner(sub_proof)?;
-            }
+        // Write each element of the merkle path
+        for path_elem in path {
+            self.write_commitment(path_elem)?;
         }
 
         Ok(())
@@ -337,7 +308,7 @@ fn test_pcs_transcript_read_write() {
     const N: usize = 4;
 
     // Test commitment
-    let original_commitment = MtHash(blake3::Hash::from([0u8; blake3::OUT_LEN]));
+    let original_commitment = MtHash::default();
     test_read_write!(
         write_commitment,
         read_commitment,
@@ -346,7 +317,7 @@ fn test_pcs_transcript_read_write() {
     );
     //TODO put the tests back in for Int<N> types
     // Test vector of commitments
-    let original_commitments = vec![MtHash(blake3::Hash::from([0u8; blake3::OUT_LEN])); 1024];
+    let original_commitments = vec![MtHash::default(); 1024];
     test_read_write_vec!(
         write_commitments,
         read_commitments,

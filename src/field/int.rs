@@ -10,6 +10,7 @@ use crypto_bigint::{
     subtle::{Choice, ConstantTimeEq},
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
+use p3_field::Packable;
 
 use crate::{
     field::{
@@ -217,6 +218,8 @@ impl<const N: usize> Sum for Int<N> {
         })
     }
 }
+
+impl<const N: usize> Packable for Int<N> {}
 
 impl<const N: usize> Integer for Int<N> {
     type W = Words<N>;

@@ -34,7 +34,7 @@ pub struct MultilinearZipData<K: Integer> {
     /// The encoded rows of the polynomial matrix representation, referred to as "u-hat" in the Zinc paper
     pub rows: Vec<K>,
     /// Merkle trees of each row
-    pub rows_merkle_trees: Vec<MerkleTree>,
+    pub rows_merkle_trees: Vec<MerkleTree<K>>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
@@ -45,7 +45,7 @@ pub struct MultilinearZipCommitment {
 }
 
 impl<K: Integer> MultilinearZipData<K> {
-    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<K> {
+    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree<K>>) -> MultilinearZipData<K> {
         MultilinearZipData {
             rows,
             rows_merkle_trees,

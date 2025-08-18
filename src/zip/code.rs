@@ -191,8 +191,8 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
             "Row length must match the code's row length"
         );
         let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(self.a.mat_vec_mul(row));
-        code.extend(self.b.mat_vec_mul(row));
+        code.extend(self.a.mat_vec_mul::<In, Out>(row));
+        code.extend(self.b.mat_vec_mul::<In, Out>(row));
         code
     }
 

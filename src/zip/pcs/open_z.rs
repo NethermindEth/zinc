@@ -233,10 +233,9 @@ mod tests {
         }
 
         let codeword_len = pp.linear_code.codeword_len();
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let corrupted_merkle_trees = corrupted_rows
             .chunks_exact(codeword_len)
-            .map(|row| MerkleTree::new(merkle_depth, row))
+            .map(MerkleTree::new)
             .collect::<Vec<_>>();
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
 
@@ -310,10 +309,9 @@ mod tests {
             }
         }
 
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
         let corrupted_merkle_trees = corrupted_rows
             .chunks_exact(codeword_len)
-            .map(|row| MerkleTree::new(merkle_depth, row))
+            .map(MerkleTree::new)
             .collect::<Vec<_>>();
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
 

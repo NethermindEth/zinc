@@ -64,20 +64,19 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
         let row_len = pp.linear_code.row_len();
         let codeword_len = pp.linear_code.codeword_len();
-        let merkle_depth: usize = codeword_len.next_power_of_two().ilog2() as usize;
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
         let rows_merkle_trees = rows
             .chunks_exact(codeword_len)
-            .map(|row| MerkleTree::new(merkle_depth, row))
+            .map(MerkleTree::new)
             .collect::<Vec<_>>();
 
         assert_eq!(rows_merkle_trees.len(), pp.num_rows);
 
         let roots = rows_merkle_trees
             .iter()
-            .map(|tree| tree.root)
+            .map(|tree| tree.root())
             .collect::<Vec<_>>();
 
         Ok((
@@ -299,17 +298,6 @@ mod tests {
     }
 
     #[test]
-    fn merkle_tree_has_correct_depth() {
-        let (pp, poly) = setup_test_params(3);
-        let (data, _) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
-
-        let expected_depth = pp.linear_code.codeword_len().next_power_of_two().ilog2() as usize;
-        for tree in &data.rows_merkle_trees {
-            assert_eq!(tree.depth, expected_depth);
-        }
-    }
-
-    #[test]
     fn commit_no_merkle_produces_empty_trees() {
         let (pp, poly) = setup_test_params(3);
         let result = MultilinearZip::<ZT, _>::commit_no_merkle::<F>(&pp, &poly);
@@ -389,9 +377,10 @@ mod tests {
             data.rows[0] = Int::from(999999);
             let codeword_len = pp.linear_code.codeword_len();
             let corrupted_row = &data.rows[0..codeword_len];
-            let new_tree = MerkleTree::new(data.rows_merkle_trees[0].depth, corrupted_row);
+            let new_tree = MerkleTree::new(corrupted_row);
             assert_ne!(
-                new_tree.root, commitment.roots[0],
+                new_tree.root(),
+                commitment.roots[0],
                 "Corruption should change Merkle root"
             );
         }
@@ -528,9 +517,9 @@ mod tests {
             let start = i * codeword_len;
             let end = start + codeword_len;
             let row_data = &data.rows[start..end];
-            let independent_tree = MerkleTree::new(tree.depth, row_data);
-            assert_eq!(tree.root, independent_tree.root);
-            assert_eq!(commitment.roots[i], independent_tree.root);
+            let independent_tree = MerkleTree::new(row_data);
+            assert_eq!(tree.root(), independent_tree.root());
+            assert_eq!(commitment.roots[i], independent_tree.root());
         }
     }
 
@@ -635,8 +624,7 @@ mod tests {
     #[should_panic(expected = "leaves.len().is_power_of_two()")]
     fn merkle_tree_new_panics_on_non_power_of_two_leaves() {
         let leaves_data: Vec<Int<INT_LIMBS>> = (0..7).map(Int::from).collect();
-        let merkle_depth = 3;
-        let _ = MerkleTree::new(merkle_depth, &leaves_data);
+        let _ = MerkleTree::new(&leaves_data);
     }
 
     #[test]
@@ -718,15 +706,24 @@ mod tests {
             let size_of_f_b = size_of::<BigInt<FIELD_LIMBS>>();
             let size_of_hash = Keccak256::output_size();
             let size_of_path_len = size_of::<u64>();
+            let size_of_path_elem = size_of::<u64>();
+            let size_of_lemma_len = size_of::<u64>();
+            let size_of_flag = size_of::<u8>();
 
             let codeword_len = pp.linear_code.codeword_len();
             let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
+            let path_len = merkle_depth;
+            let num_of_lemmas = path_len + 2;
 
             let proximity_phase_size =
                 pp.linear_code.num_proximity_testing() * pp.linear_code.row_len() * size_of_zt_m;
 
             let column_values_size = pp.num_rows * size_of_zt_k;
-            let single_merkle_proof_size = size_of_path_len + merkle_depth * size_of_hash;
+            let single_merkle_proof_size = size_of_path_len
+                + path_len * size_of_path_elem
+                + size_of_lemma_len
+                + num_of_lemmas * size_of_hash
+                + size_of_flag;
             let all_merkle_proofs_size = pp.num_rows * single_merkle_proof_size;
             let size_per_column_opening = column_values_size + all_merkle_proofs_size;
             let column_opening_phase_size =

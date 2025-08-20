@@ -1,5 +1,9 @@
 use ark_ff::Zero;
-use ark_std::{format, iterable::Iterable, vec, vec::Vec};
+use ark_std::{
+    cmp::Ordering, fmt::Display, format, hash::Hasher, io::Write, iterable::Iterable, vec::Vec,
+};
+use itertools::Itertools;
+use merkletree::{hash::Algorithm, merkle::Element, proof::Proof, store::VecStore};
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -7,11 +11,7 @@ use crate::{
     poly_z::mle::DenseMultilinearExtension as MLE_Z,
     sumcheck::utils::build_eq_x_r as build_eq_x_r_f,
     traits::{Field, Integer},
-    zip::{
-        Error,
-        pcs_transcript::PcsTranscript,
-        utils::{div_ceil, num_threads, parallelize, parallelize_iter},
-    },
+    zip::{Error, pcs_transcript::PcsTranscript},
 };
 
 fn err_too_many_variates(function: &str, upto: usize, got: usize) -> Error {
@@ -62,150 +62,195 @@ pub trait ToBytes {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-/// A merkle tree in which its layers are concatenated together in a single vector
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MtHash(pub blake3::Hash);
+
+impl PartialOrd for MtHash {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MtHash {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.as_bytes().cmp(other.0.as_bytes())
+    }
+}
+
+impl Default for MtHash {
+    fn default() -> Self {
+        MtHash(blake3::Hash::from_bytes([0; blake3::OUT_LEN]))
+    }
+}
+
+impl AsRef<[u8]> for MtHash {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
+}
+
+impl Element for MtHash {
+    fn byte_len() -> usize {
+        blake3::OUT_LEN
+    }
+
+    fn from_slice(bytes: &[u8]) -> Self {
+        assert_eq!(bytes.len(), blake3::OUT_LEN);
+        MtHash(blake3::Hash::from_slice(bytes).expect("Invalid hash length"))
+    }
+
+    fn copy_to_slice(&self, bytes: &mut [u8]) {
+        assert_eq!(bytes.len(), blake3::OUT_LEN);
+        bytes.copy_from_slice(self.as_ref());
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct MtHasher {
+    hasher: blake3::Hasher,
+}
+
+impl Hasher for MtHasher {
+    fn finish(&self) -> u64 {
+        let hashed = self.hasher.finalize();
+        hashed
+            .as_bytes()
+            .chunks(u64::BITS as usize / 8)
+            .fold(0_u64, |acc, chunk| {
+                acc ^ u64::from_le_bytes(chunk.try_into().unwrap())
+            })
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.hasher.write_all(bytes).unwrap();
+    }
+}
+
+impl Algorithm<MtHash> for MtHasher {
+    fn hash(&mut self) -> MtHash {
+        MtHash(self.hasher.finalize())
+    }
+
+    fn reset(&mut self) {
+        self.hasher.reset();
+    }
+}
+
+#[derive(Debug, Default)]
 pub struct MerkleTree {
-    pub root: blake3::Hash,
-    pub depth: usize,
-    pub layers: Vec<blake3::Hash>,
+    inner: Option<merkletree::merkle::MerkleTree<MtHash, MtHasher, VecStore<MtHash>>>,
 }
 
 impl MerkleTree {
-    pub fn new<T: ToBytes + Send + Sync>(depth: usize, leaves: &[T]) -> Self {
+    pub fn new<T: ToBytes + Send + Sync>(leaves: &[T]) -> Self {
         assert!(leaves.len().is_power_of_two());
+        let depth = leaves.len().ilog2() as usize;
         assert_eq!(leaves.len(), 1 << depth);
-        let mut layers = vec![blake3::Hash::from_bytes([0; blake3::OUT_LEN]); (2 << depth) - 1];
-        Self::compute_leaves_hashes(&mut layers[..leaves.len()], leaves);
-        Self::merklize_leaves_hashes(depth, &mut layers);
+
+        let leaf_hashes = leaves
+            .iter()
+            .map(|leaf| MtHash(blake3::hash(&leaf.to_bytes())))
+            .collect::<Vec<_>>();
         Self {
-            root: layers.pop().unwrap(),
-            depth,
-            layers,
+            inner: Some(merkletree::merkle::MerkleTree::new(leaf_hashes).unwrap()),
         }
     }
 
-    fn compute_leaves_hashes<T: ToBytes + Send + Sync>(hashes: &mut [blake3::Hash], leaves: &[T]) {
-        parallelize(hashes, |(hashes, start)| {
-            for (hash, row) in hashes.iter_mut().zip(start..) {
-                *hash = blake3::hash(&leaves[row].to_bytes());
-            }
-        });
-    }
-
-    fn merklize_leaves_hashes(depth: usize, hashes: &mut [blake3::Hash]) {
-        assert_eq!(hashes.len(), (2 << depth) - 1);
-        let mut offset = 0;
-        for width in (1..=depth).rev().map(|depth| 1 << depth) {
-            let (current_layer, next_layer) = hashes[offset..].split_at_mut(width);
-
-            let chunk_size = div_ceil(next_layer.len(), num_threads());
-            parallelize_iter(
-                current_layer
-                    .chunks(2 * chunk_size)
-                    .zip(next_layer.chunks_mut(chunk_size)),
-                |(input, output)| {
-                    let mut hasher = blake3::Hasher::new();
-                    for (input, output) in input.chunks_exact(2).zip(output.iter_mut()) {
-                        hasher.update(input[0].as_bytes());
-                        hasher.update(input[1].as_bytes());
-                        *output = hasher.finalize();
-                        hasher.reset();
-                    }
-                },
-            );
-            offset += width;
-        }
+    pub fn root(&self) -> MtHash {
+        self.inner
+            .as_ref()
+            .expect("Merkle tree not initialized")
+            .root()
     }
 }
 
-impl Default for MerkleTree {
-    fn default() -> Self {
-        MerkleTree {
-            root: blake3::Hash::from_bytes([0; blake3::OUT_LEN]),
-            depth: 0,
-            layers: vec![],
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MerkleProof {
-    pub merkle_path: Vec<blake3::Hash>,
-}
-
-impl ark_std::fmt::Display for MerkleProof {
-    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
-        writeln!(f, "Merkle Path:")?;
-        for (i, hash) in self.merkle_path.iter().enumerate() {
-            writeln!(f, "Level {i}: {hash:?}")?;
-        }
-        Ok(())
-    }
-}
-
-impl Default for MerkleProof {
-    fn default() -> Self {
-        Self::new()
-    }
+    inner: Option<Proof<MtHash>>,
 }
 
 impl MerkleProof {
-    pub fn new() -> Self {
-        Self {
-            merkle_path: vec![],
-        }
-    }
-
-    pub fn from_vec(vec: Vec<blake3::Hash>) -> Self {
-        Self { merkle_path: vec }
+    pub fn new(proof: Proof<MtHash>) -> Self {
+        MerkleProof { inner: Some(proof) }
     }
 
     pub fn create_proof(merkle_tree: &MerkleTree, leaf: usize) -> Result<Self, MerkleError> {
-        let mut offset = 0;
-        let path: Vec<blake3::Hash> = (1..=merkle_tree.depth)
-            .rev()
-            .map(|depth| {
-                let width = 1 << depth;
-                let idx = (leaf >> (merkle_tree.depth - depth)) ^ 1;
-                let hash = merkle_tree.layers[offset + idx];
-                offset += width;
-                hash
-            })
-            .collect();
-        Ok(MerkleProof::from_vec(path))
+        let mt = merkle_tree
+            .inner
+            .as_ref()
+            .ok_or(MerkleError::InvalidRootHash)?;
+        let proof = mt.gen_proof(leaf).map_err(|e| {
+            MerkleError::InvalidMerkleProof(format!("Failed to create Merkle proof: {}", e))
+        })?;
+        Ok(MerkleProof { inner: Some(proof) })
+    }
+
+    pub fn inner(&self) -> Option<&Proof<MtHash>> {
+        self.inner.as_ref()
     }
 
     pub fn verify<T: ToBytes>(
         &self,
-        root: blake3::Hash,
+        root: &MtHash,
         leaf_value: &T,
         leaf_index: usize,
     ) -> Result<(), MerkleError> {
-        let mut hasher = blake3::Hasher::new();
-        let bytes = leaf_value.to_bytes();
-        hasher.update(&bytes);
-        let mut current = hasher.finalize();
-        hasher.reset();
-
-        let mut index = leaf_index;
-        for path_hash in &self.merkle_path {
-            if (index & 1) == 0 {
-                hasher.update(current.as_bytes());
-                hasher.update(path_hash.as_bytes());
-            } else {
-                hasher.update(path_hash.as_bytes());
-                hasher.update(current.as_bytes());
-            }
-
-            current = hasher.finalize();
-            hasher.reset();
-            index /= 2;
-        }
-        if current != root {
+        let Some(proof) = self.inner.as_ref() else {
             return Err(MerkleError::InvalidMerkleProof(
-                "Merkle proof verification failed".into(),
+                "Merkle proof is None".to_string(),
             ));
+        };
+
+        let binary_string_path = proof.path().iter().rev().join("");
+        let usize_path = usize::from_str_radix(&binary_string_path, 2).map_err(|_| {
+            MerkleError::InvalidMerkleProof(format!(
+                "Failed to parse binary string path: {binary_string_path}"
+            ))
+        })?;
+
+        if leaf_index != usize_path {
+            return Err(MerkleError::InvalidMerkleProof(format!(
+                "Leaf index to path mismatch: expected {leaf_index}, got {binary_string_path} (reversed {usize_path})",
+            )));
         }
+
+        if root != &proof.root() {
+            return Err(MerkleError::InvalidMerkleProof(format!(
+                "Root hash mismatch: expected {}, got {}",
+                root.0,
+                proof.root().0
+            )));
+        }
+
+        let leaf_hash = hash_leaf(leaf_value);
+        if leaf_hash != proof.item() {
+            return Err(MerkleError::InvalidMerkleProof(format!(
+                "Leaf hash mismatch: expected {}, got {}",
+                leaf_hash.0,
+                proof.item().0
+            )));
+        }
+
+        proof.validate::<MtHasher>().map_err(|e| {
+            MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {}", e))
+        })?;
+        Ok(())
+    }
+}
+
+impl Display for MerkleProof {
+    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
+        match &self.inner {
+            None => write!(f, "Merkle Proof: None")?,
+            Some(proof) => {
+                writeln!(f, "Merkle Path: {}", proof.path().iter().rev().join(""))?;
+                writeln!(
+                    f,
+                    "Merkle Lemmas: {}",
+                    proof.lemma().iter().map(|h| h.0).join(", ")
+                )?;
+            }
+        };
         Ok(())
     }
 }
@@ -233,7 +278,7 @@ impl ColumnOpening {
     }
 
     pub fn verify_column<F: Field, T: ToBytes>(
-        rows_roots: &[blake3::Hash],
+        rows_roots: &[MtHash],
         column: &[T],
         column_index: usize,
         transcript: &mut PcsTranscript<F>,
@@ -242,10 +287,18 @@ impl ColumnOpening {
             let proof = transcript
                 .read_merkle_proof()
                 .map_err(|_| MerkleError::FailedMerkleProofReading)?;
-            proof.verify(*root, leaf, column_index)?;
+            proof.verify(root, leaf, column_index)?;
         }
         Ok(())
     }
+}
+
+fn hash_leaf<T: ToBytes>(data: &T) -> MtHash {
+    let mut hasher = MtHasher::default();
+    hasher.write(&data.to_bytes());
+    let hash = hasher.hash();
+    hasher.reset();
+    hasher.leaf(hash)
 }
 
 /// For a polynomial arranged in matrix form, this splits the evaluation point into
@@ -345,11 +398,10 @@ mod tests {
             .map(|_| Int::random(&mut rng))
             .collect::<Vec<Int<N>>>();
 
-        let merkle_depth = leaves_data.len().next_power_of_two().ilog2() as usize;
-        let merkle_tree = MerkleTree::new(merkle_depth, &leaves_data);
+        let merkle_tree = MerkleTree::new(&leaves_data);
 
         // Print tree structure after merklizing
-        let root = merkle_tree.root;
+        let root = merkle_tree.root();
         // Create a proof for the first leaf
         for (i, leaf) in leaves_data.iter().enumerate() {
             let proof =
@@ -357,7 +409,7 @@ mod tests {
 
             // Verify the proof
             proof
-                .verify(root, leaf, i)
+                .verify(&root, leaf, i)
                 .expect("Merkle proof verification failed");
         }
     }

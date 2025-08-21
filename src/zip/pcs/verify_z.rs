@@ -30,7 +30,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     {
         validate_input::<ZT::N, F>("verify", vp.num_vars, [], [point])?;
 
-        let columns_opened = Self::verify_testing(vp, &comm.roots, transcript, field)?;
+        let columns_opened = Self::verify_testing(vp, &comm.root, transcript, field)?;
 
         Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
 
@@ -59,7 +59,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     #[allow(clippy::type_complexity)]
     pub(super) fn verify_testing<F: Field>(
         vp: &MultilinearZipParams<ZT, LC>,
-        roots: &[MtHash],
+        root: &MtHash,
         transcript: &mut PcsTranscript<F>,
         field: F::R,
     ) -> Result<Vec<(usize, Vec<ZT::K>)>, Error> {
@@ -96,7 +96,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                 )?;
             }
 
-            ColumnOpening::verify_column(roots, &column_values, column_idx, transcript).map_err(
+            ColumnOpening::verify_column(&root, &column_values, column_idx, transcript).map_err(
                 |e| Error::InvalidPcsOpen(format!("Column opening verification failed: {e}")),
             )?;
             // TODO: Verify column opening is taking a long time.

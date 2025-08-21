@@ -6,7 +6,7 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-
+use p3_matrix::Dimensions;
 use super::{Error, pcs::utils::MerkleProof};
 use crate::{
     poly::alloc::string::ToString,
@@ -213,8 +213,10 @@ impl<F: Field> PcsTranscript<F> {
     }
 
     pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
-        // Read the number of leaves in the Merkle tree
-        let num_leaves = self.read_usize()?;
+        // Read the dimensions of matrix used to construct the Merkle tree
+        let width = self.read_usize()?;
+        let height = self.read_usize()?;
+        let dimensions = Dimensions { width, height };
 
         // Read the length of the merkle path first
         let path_length = self.read_usize()?;
@@ -225,35 +227,21 @@ impl<F: Field> PcsTranscript<F> {
             merkle_path.push(self.read_commitment()?);
         }
 
-        Ok(MerkleProof::new(merkle_path, num_leaves))
+        Ok(MerkleProof::new(merkle_path, dimensions))
     }
 
     pub fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
-        let Some(path) = proof.path() else {
-            return Err(Error::Transcript(
-                std::io::ErrorKind::InvalidInput,
-                "Merkle proof is None".to_string(),
-            ));
-        };
-        self.write_merkle_proof_inner(path, proof.num_leaves)
-    }
-
-    pub fn write_merkle_proof_inner(
-        &mut self,
-        path: &[MtHash],
-        num_leaves: usize,
-    ) -> Result<(), Error> {
-        // Write the number of leaves in the Merkle tree
-        self.write_usize(num_leaves)?;
+        // Write the dimensions of matrix used to construct the Merkle tree
+        self.write_usize(proof.matrix_dims.width)?;
+        self.write_usize(proof.matrix_dims.height)?;
 
         // Write the length of the merkle path first
-        self.write_usize(path.len())?;
+        self.write_usize(proof.path.len())?;
 
         // Write each element of the merkle path
-        for path_elem in path {
+        for path_elem in proof.path.iter() {
             self.write_commitment(path_elem)?;
         }
-
         Ok(())
     }
 }

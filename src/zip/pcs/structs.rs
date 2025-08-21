@@ -33,34 +33,27 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZipParams<ZT, LC> {
 pub struct MultilinearZipData<K: Integer> {
     /// The encoded rows of the polynomial matrix representation, referred to as "u-hat" in the Zinc paper
     pub rows: Vec<K>,
-    /// Merkle trees of each row
-    pub rows_merkle_trees: Vec<MerkleTree<K>>,
+    /// Merkle trees of entire matrix
+    pub merkle_tree: MerkleTree<K>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment {
-    /// Roots of the merkle tree of each row
-    pub roots: Vec<MtHash>,
+    /// Roots of the merkle tree of entire matrix
+    pub root: MtHash,
 }
 
 impl<K: Integer> MultilinearZipData<K> {
-    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree<K>>) -> MultilinearZipData<K> {
+    pub fn new(rows: Vec<K>, merkle_tree: MerkleTree<K>) -> MultilinearZipData<K> {
         MultilinearZipData {
             rows,
-            rows_merkle_trees,
+            merkle_tree,
         }
     }
 
-    pub fn roots(&self) -> Vec<MtHash> {
-        self.rows_merkle_trees
-            .iter()
-            .map(|tree| tree.root())
-            .collect::<Vec<_>>()
-    }
-
-    pub fn root_at_index(&self, index: usize) -> MtHash {
-        self.rows_merkle_trees[index].root()
+    pub fn root(&self) -> MtHash {
+        self.merkle_tree.root()
     }
 }
 

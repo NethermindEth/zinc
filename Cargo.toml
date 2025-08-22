@@ -21,7 +21,7 @@ bench = false
 default = ["std"]
 std = []
 asm = ["sha3/asm"]
-parallel = ["dep:rayon"]
+parallel = ["dep:rayon", "blake3/rayon"]
 
 [dependencies]
 ark-ff = "0.5.0"

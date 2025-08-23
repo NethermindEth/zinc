@@ -1,4 +1,4 @@
-use ark_std::{iterable::Iterable, vec::Vec};
+use ark_std::{format, iterable::Iterable, vec::Vec};
 
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment},
@@ -96,7 +96,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                 )?;
             }
 
-            ColumnOpening::verify_column(&root, &column_values, column_idx, transcript).map_err(
+            ColumnOpening::verify_column(root, &column_values, column_idx, transcript).map_err(
                 |e| Error::InvalidPcsOpen(format!("Column opening verification failed: {e}")),
             )?;
             // TODO: Verify column opening is taking a long time.

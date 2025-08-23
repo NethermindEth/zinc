@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use ark_std::{
-    io::{Cursor, Read, Write},
+    io::{Cursor, ErrorKind, Read, Write},
     marker::PhantomData,
     vec,
     vec::Vec,
@@ -177,7 +177,7 @@ impl<F: Field> PcsTranscript<F> {
     fn write_usize(&mut self, value: usize) -> Result<(), Error> {
         let value_u64: u64 = value.try_into().map_err(|_| {
             Error::Transcript(
-                std::io::ErrorKind::Unsupported,
+                ErrorKind::Unsupported,
                 "Failed to convert usize to u64".to_string(),
             )
         })?;
@@ -187,7 +187,7 @@ impl<F: Field> PcsTranscript<F> {
     fn read_usize(&mut self) -> Result<usize, Error> {
         self.read_u64()?.try_into().map_err(|_| {
             Error::Transcript(
-                std::io::ErrorKind::Unsupported,
+                ErrorKind::Unsupported,
                 "Failed to convert u64 to usize".to_string(),
             )
         })

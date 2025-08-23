@@ -326,7 +326,7 @@ impl<L: Integer> SparseMatrixZ<L> {
     pub fn to_dense(&self) -> Vec<Vec<L>> {
         let mut r: Vec<Vec<L>> = vec![vec![L::ZERO; self.dimension.m]; self.dimension.n];
         for (row_i, (col_i, value)) in self.cells.iter().enumerate() {
-            r[row_i][*col_i] = value.clone();
+            r[row_i][*col_i] = *value;
         }
         r
     }

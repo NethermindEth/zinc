@@ -1,9 +1,10 @@
 use ark_ff::Zero;
 use ark_std::{
-    fmt::{Display, Formatter},
+    fmt::{Display, Formatter, Result as FmtResult},
     format,
     io::Write,
     iterable::Iterable,
+    vec,
     vec::Vec,
 };
 use itertools::Itertools;
@@ -85,7 +86,7 @@ impl Default for MtHash {
 }
 
 impl Display for MtHash {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let blake3_hash: blake3::Hash = self.0.into();
         <blake3::Hash as Display>::fmt(&blake3_hash, f)
     }
@@ -200,10 +201,7 @@ pub struct MerkleProof {
 
 impl MerkleProof {
     pub fn new(path: Vec<MtHash>, matrix_dims: Dimensions) -> Self {
-        MerkleProof {
-            path: path,
-            matrix_dims,
-        }
+        MerkleProof { path, matrix_dims }
     }
 
     pub fn create_proof<T>(merkle_tree: &MerkleTree<T>, leaf: usize) -> Result<Self, MerkleError>

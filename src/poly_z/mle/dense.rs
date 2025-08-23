@@ -34,7 +34,7 @@ impl<I: Integer> DenseMultilinearExtension<I> {
 
     pub fn evaluate(&self, point: &[I]) -> Option<I> {
         if point.len() == self.num_vars {
-            Some(self.fixed_variables(point)[0].clone())
+            Some(self.fixed_variables(point)[0])
         } else {
             None
         }
@@ -76,7 +76,7 @@ impl<I: Integer> DenseMultilinearExtension<I> {
 
         for (row_i, row) in matrix.coeffs.iter().enumerate() {
             for (val, col_i) in row {
-                v[(padded_cols * row_i) + *col_i] = val.clone();
+                v[(padded_cols * row_i) + *col_i] = *val;
             }
         }
 
@@ -161,13 +161,13 @@ impl<I: Integer> MultilinearExtension<I> for DenseMultilinearExtension<I> {
         let dim = partial_point.len();
 
         for i in 1..dim + 1 {
-            let r = partial_point[i - 1].clone();
+            let r = partial_point[i - 1];
             for b in 0..1 << (nv - i) {
-                let left = poly[b << 1].clone();
-                let right = poly[(b << 1) + 1].clone();
+                let left = poly[b << 1];
+                let right = poly[(b << 1) + 1];
                 let a = right - &left;
                 if !Zero::is_zero(&a) {
-                    poly[b] = left + r.clone() * a;
+                    poly[b] = left + r * a;
                 } else {
                     poly[b] = left;
                 };
@@ -229,7 +229,7 @@ impl<'a, I: Integer> Add<&'a DenseMultilinearExtension<I>> for &DenseMultilinear
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| a.clone() + b)
+            .map(|(a, b)| *a + b)
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result)
@@ -269,7 +269,7 @@ impl<I: Integer> AddAssign<(I, &DenseMultilinearExtension<I>)> for DenseMultilin
         if self.is_zero() {
             *self = other.clone();
 
-            cfg_iter_mut!(self.evaluations).for_each(|a| *a = a.clone() * &r);
+            cfg_iter_mut!(self.evaluations).for_each(|a| *a = *a * r);
 
             return;
         }
@@ -285,7 +285,7 @@ impl<I: Integer> AddAssign<(I, &DenseMultilinearExtension<I>)> for DenseMultilin
 
         cfg_iter_mut!(self.evaluations)
             .zip(cfg_iter!(other.evaluations))
-            .for_each(|(a, b)| a.add_assign(&(r.clone() * b)));
+            .for_each(|(a, b)| a.add_assign(&(r * b)));
     }
 }
 
@@ -326,7 +326,7 @@ impl<'a, I: Integer> Sub<&'a DenseMultilinearExtension<I>> for &DenseMultilinear
 
         let result = cfg_iter!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .map(|(a, b)| a.clone() - b)
+            .map(|(a, b)| *a - b)
             .collect();
 
         Self::Output::from_evaluations_vec(self.num_vars, result)
@@ -357,7 +357,7 @@ impl<'a, I: Integer> SubAssign<&'a DenseMultilinearExtension<I>> for DenseMultil
 
         cfg_iter_mut!(self.evaluations)
             .zip(cfg_iter!(rhs.evaluations))
-            .for_each(|(a, b)| *a = a.clone() - b);
+            .for_each(|(a, b)| *a = *a - b);
     }
 }
 
@@ -365,9 +365,7 @@ impl<I: Integer> Mul<I> for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn mul(mut self, rhs: I) -> DenseMultilinearExtension<I> {
-        self.evaluations
-            .iter_mut()
-            .for_each(|x| *x = x.clone() * &rhs);
+        self.evaluations.iter_mut().for_each(|x| *x = *x * rhs);
 
         self
     }
@@ -375,9 +373,7 @@ impl<I: Integer> Mul<I> for DenseMultilinearExtension<I> {
 
 impl<I: Integer> MulAssign<I> for DenseMultilinearExtension<I> {
     fn mul_assign(&mut self, rhs: I) {
-        self.evaluations
-            .iter_mut()
-            .for_each(|x| *x = x.clone() * &rhs);
+        self.evaluations.iter_mut().for_each(|x| *x = *x * rhs);
     }
 }
 
@@ -385,9 +381,7 @@ impl<I: Integer> Sub<I> for DenseMultilinearExtension<I> {
     type Output = DenseMultilinearExtension<I>;
 
     fn sub(mut self, rhs: I) -> DenseMultilinearExtension<I> {
-        self.evaluations
-            .iter_mut()
-            .for_each(|x| *x = x.clone() - &rhs);
+        self.evaluations.iter_mut().for_each(|x| *x = *x - &rhs);
 
         self
     }
@@ -468,7 +462,7 @@ fn build_eq_x_r_helper<I: Integer>(r: &[I], buf: &mut Vec<I>) -> Result<(), Arit
     } else if r.len() == 1 {
         // initializing the buffer with [1-r_0, r_0]
         buf.push(I::one() - &r[0]);
-        buf.push(r[0].clone());
+        buf.push(r[0]);
     } else {
         build_eq_x_r_helper(&r[1..], buf)?;
 
@@ -486,8 +480,8 @@ fn build_eq_x_r_helper<I: Integer>(r: &[I], buf: &mut Vec<I>) -> Result<(), Arit
 
         let mut res = vec![Zero::zero(); buf.len() << 1];
         cfg_iter_mut!(res).enumerate().for_each(|(i, val)| {
-            let bi = buf[i >> 1].clone();
-            let tmp = r[0].clone() * &bi;
+            let bi = buf[i >> 1];
+            let tmp = r[0] * bi;
             if (i & 1) == 0 {
                 *val = bi - &tmp;
             } else {

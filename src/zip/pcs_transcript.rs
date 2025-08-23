@@ -7,6 +7,7 @@ use ark_std::{
     vec::Vec,
 };
 use p3_matrix::Dimensions;
+
 use super::{Error, pcs::utils::MerkleProof};
 use crate::{
     poly::alloc::string::ToString,

@@ -147,6 +147,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 mod tests {
     use ark_std::{rand::Rng, vec, vec::Vec};
     use num_traits::Zero;
+
     use super::*;
     use crate::{
         field::{ConfigRef, Int, RandomField},

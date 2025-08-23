@@ -1,6 +1,5 @@
 use ark_ff::Zero;
 use ark_std::{
-    cmp::Ordering,
     fmt::{Display, Formatter},
     format,
     io::Write,
@@ -8,12 +7,12 @@ use ark_std::{
     vec::Vec,
 };
 use itertools::Itertools;
-use uninit::{prelude::*, AsMaybeUninit};
 use p3_commit::{BatchOpeningRef, Mmcs};
 use p3_field::Packable;
-use p3_matrix::{Dimensions, dense::RowMajorMatrix, Matrix as P3Matrix};
+use p3_matrix::{Dimensions, Matrix as P3Matrix, dense::RowMajorMatrix};
 use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
+use uninit::AsMaybeUninit;
 
 use super::{error::MerkleError, structs::MultilinearZipData};
 use crate::{
@@ -72,13 +71,16 @@ pub trait ToBytes {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
+/// Cannot reference blake3::OUT_LEN directly in some of the contexts below.
+const BLAKE3_OUT_LEN: usize = blake3::OUT_LEN;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
-pub struct MtHash(pub(crate) [u8; blake3::OUT_LEN]);
+pub struct MtHash(pub(crate) [u8; BLAKE3_OUT_LEN]);
 
 impl Default for MtHash {
     fn default() -> Self {
-        MtHash([0; blake3::OUT_LEN])
+        MtHash([0; BLAKE3_OUT_LEN])
     }
 }
 
@@ -92,8 +94,8 @@ impl Display for MtHash {
 #[derive(Debug, Default, Clone)]
 pub struct MtHasher;
 
-impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; 32]> for MtHasher {
-    fn hash_iter<I>(&self, input: I) -> [u8; 32]
+impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
+    fn hash_iter<I>(&self, input: I) -> [u8; BLAKE3_OUT_LEN]
     where
         I: IntoIterator<Item = T>,
     {
@@ -111,8 +113,8 @@ impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; 32]> for MtHasher {
 #[derive(Debug, Default, Clone)]
 pub struct MtPerm;
 
-impl PseudoCompressionFunction<[u8; 32], 2> for MtPerm {
-    fn compress(&self, input: [[u8; 32]; 2]) -> [u8; 32] {
+impl PseudoCompressionFunction<[u8; BLAKE3_OUT_LEN], 2> for MtPerm {
+    fn compress(&self, input: [[u8; BLAKE3_OUT_LEN]; 2]) -> [u8; BLAKE3_OUT_LEN] {
         let mut hasher = blake3::Hasher::new();
         for ref item in input {
             hasher.write_all(item).expect("Failed to write to hasher");
@@ -122,10 +124,9 @@ impl PseudoCompressionFunction<[u8; 32], 2> for MtPerm {
     }
 }
 
-// cannot reference blake3::OUT_LEN directly
 type Matrix<T> = RowMajorMatrix<T>;
-type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, 32>;
-type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, 32>;
+type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, BLAKE3_OUT_LEN>;
+type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, BLAKE3_OUT_LEN>;
 
 #[derive(Debug, Default)]
 pub struct MerkleTree<T>
@@ -154,10 +155,16 @@ where
         let matrix = {
             let mut columns: Vec<T> = Vec::with_capacity(rows.len());
             let column_height = rows.len() / row_width;
-            // It's safe to have a pointer to uninitialized MaybeUninit<T>.
-            transpose::transpose(rows.as_ref_uninit(), columns.spare_capacity_mut(), row_width, column_height);
+            transpose::transpose(
+                rows.as_ref_uninit(),
+                columns.spare_capacity_mut(),
+                row_width,
+                column_height,
+            );
             // Safe because we just initialized all elements of `columns`, and MaybeUninit<T> is #[repr(transparent)].
-            unsafe { columns.set_len(rows.len()); }
+            unsafe {
+                columns.set_len(rows.len());
+            }
             Matrix::new(columns, column_height)
         };
 
@@ -228,12 +235,7 @@ impl MerkleProof {
         let proof = self.path.iter().map(|h| h.0).collect_vec();
         let proof = BatchOpeningRef::new(&values, &proof);
         prover
-            .verify_batch(
-                &root.0.into(),
-                &[self.matrix_dims],
-                leaf_index,
-                proof,
-            )
+            .verify_batch(&root.0.into(), &[self.matrix_dims], leaf_index, proof)
             .map_err(|e| {
                 MerkleError::InvalidMerkleProof(format!("Failed to validate Merkle proof: {:?}", e))
             })

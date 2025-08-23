@@ -1,4 +1,6 @@
-use ark_std::{vec::Vec};
+use ark_std::vec::Vec;
+use uninit::prelude::*;
+
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
     utils::{MerkleTree, validate_input},
@@ -13,7 +15,6 @@ use crate::{
         utils::{div_ceil, num_threads, parallelize_iter},
     },
 };
-use uninit::prelude::*;
 
 impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     /// Creates a commitment to a multilinear polynomial using the ZIP PCS scheme.
@@ -180,6 +181,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 mod tests {
     use ark_std::{UniformRand, mem::size_of, slice::from_ref, vec, vec::Vec};
     use crypto_bigint::Random;
+
     use crate::{
         field::{BigInt, ConfigRef, Int, RandomField},
         field_config,
@@ -663,7 +665,7 @@ mod tests {
             let size_of_dimension = size_of::<u64>();
 
             let codeword_len = pp.linear_code.codeword_len();
-            let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize; // + pp.num_rows.next_power_of_two().ilog2() as usize;
+            let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
 
             let proximity_phase_size =
                 pp.linear_code.num_proximity_testing() * pp.linear_code.row_len() * size_of_zt_m;
@@ -671,8 +673,8 @@ mod tests {
             let column_values_size = pp.num_rows * size_of_zt_k;
             let single_merkle_proof_size =
                 size_of_dimension * 2 + size_of_path_len + merkle_depth * size_of_path_elem;
-            let column_opening_phase_size =
-                pp.linear_code.num_column_opening() * (column_values_size + single_merkle_proof_size);
+            let column_opening_phase_size = pp.linear_code.num_column_opening()
+                * (column_values_size + single_merkle_proof_size);
 
             let evaluation_phase_size = pp.linear_code.row_len() * size_of_f_b;
 

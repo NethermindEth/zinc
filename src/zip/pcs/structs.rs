@@ -46,10 +46,7 @@ pub struct MultilinearZipCommitment {
 
 impl<K: Integer> MultilinearZipData<K> {
     pub fn new(rows: Vec<K>, merkle_tree: MerkleTree<K>) -> MultilinearZipData<K> {
-        MultilinearZipData {
-            rows,
-            merkle_tree,
-        }
+        MultilinearZipData { rows, merkle_tree }
     }
 
     pub fn root(&self) -> MtHash {

@@ -8,10 +8,10 @@ use ark_std::{
     vec::Vec,
 };
 use itertools::Itertools;
+use uninit::{prelude::*, AsMaybeUninit};
 use p3_commit::{BatchOpeningRef, Mmcs};
 use p3_field::Packable;
 use p3_matrix::{Dimensions, dense::RowMajorMatrix, Matrix as P3Matrix};
-use p3_matrix::dense::DenseMatrix;
 use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
 
@@ -145,12 +145,22 @@ impl<T> MerkleTree<T>
 where
     T: Packable + ToBytes + Clone + Send + Sync,
 {
-    pub fn new(rows: Vec<T>, row_width: usize) -> Self {
+    pub fn new(rows: &[T], row_width: usize) -> Self {
         assert!(rows.len().is_power_of_two());
+        assert!(rows.len().is_multiple_of(row_width));
+
         // Each matrix row is hashed together to form a leaf in the Merkle tree.
         // Thus, we need to transpose a matrix to have original columns as leaves.
-        // FIXME: Optimize
-        let matrix = Matrix::new(rows, row_width).transpose();
+        let matrix = {
+            let mut columns: Vec<T> = Vec::with_capacity(rows.len());
+            let column_height = rows.len() / row_width;
+            // It's safe to have a pointer to uninitialized MaybeUninit<T>.
+            transpose::transpose(rows.as_ref_uninit(), columns.spare_capacity_mut(), row_width, column_height);
+            // Safe because we just initialized all elements of `columns`, and MaybeUninit<T> is #[repr(transparent)].
+            unsafe { columns.set_len(rows.len()); }
+            Matrix::new(columns, column_height)
+        };
+
         let matrix_dims = matrix.dimensions();
         let prover_data = P3MerkleTree::new::<T, _, _, _>(&MtHasher, &MtPerm, vec![matrix]);
 
@@ -369,7 +379,7 @@ mod tests {
             .map(|_| Int::random(&mut rng))
             .collect::<Vec<Int<N>>>();
 
-        let merkle_tree = MerkleTree::new(leaves_data.clone(), leaves_data.len());
+        let merkle_tree = MerkleTree::new(&leaves_data, leaves_data.len());
 
         // Print tree structure after merklizing
         let root = merkle_tree.root();

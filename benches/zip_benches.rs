@@ -90,7 +90,7 @@ fn merkle_root<const P: usize>(group: &mut BenchmarkGroup<WallTime>, spec: usize
         format!("MerkleRoot: Int<{INT_LIMBS}>, leaves=2^{P}, spec={spec}"),
         |b| {
             b.iter(|| {
-                let tree = MerkleTree::new(leaves.clone(), num_leaves);
+                let tree = MerkleTree::new(&leaves, num_leaves);
                 black_box(tree.root());
             })
         },

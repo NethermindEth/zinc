@@ -1,4 +1,4 @@
-use ark_std::{vec, vec::Vec};
+use ark_std::{vec::Vec};
 use super::{
     structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipData},
     utils::{MerkleTree, validate_input},
@@ -13,6 +13,7 @@ use crate::{
         utils::{div_ceil, num_threads, parallelize_iter},
     },
 };
+use uninit::prelude::*;
 
 impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     /// Creates a commitment to a multilinear polynomial using the ZIP PCS scheme.
@@ -66,7 +67,7 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
         let rows = Self::encode_rows(pp, codeword_len, row_len, &poly.evaluations);
 
-        let merkle_tree = MerkleTree::new(rows.clone(), codeword_len);
+        let merkle_tree = MerkleTree::new(&rows, codeword_len);
         let root = merkle_tree.root();
 
         Ok((
@@ -148,10 +149,11 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         evals: &[ZT::N],
     ) -> Vec<ZT::K> {
         let rows_per_thread = div_ceil(pp.num_rows, num_threads());
-        let mut encoded_rows = vec![ZT::K::default(); pp.num_rows * codeword_len];
+        let mut encoded_rows: Vec<ZT::K> = Vec::with_capacity(pp.num_rows * codeword_len);
 
         parallelize_iter(
             encoded_rows
+                .spare_capacity_mut()
                 .chunks_exact_mut(rows_per_thread * codeword_len)
                 .zip(evals.chunks_exact(rows_per_thread * row_len)),
             |(encoded_chunk, evals)| {
@@ -160,10 +162,15 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                     .zip(evals.chunks_exact(row_len))
                 {
                     let encoded: Vec<ZT::K> = pp.linear_code.encode_wide(evals);
-                    row.clone_from_slice(encoded.as_slice());
+                    Out::from(row).copy_from_slice(encoded.as_slice());
                 }
             },
         );
+
+        // Safe because we have just initialized all elements.
+        unsafe {
+            encoded_rows.set_len(pp.num_rows * codeword_len);
+        }
 
         encoded_rows
     }
@@ -172,7 +179,6 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 #[cfg(test)]
 mod tests {
     use ark_std::{UniformRand, mem::size_of, slice::from_ref, vec, vec::Vec};
-    use ark_std::iterable::Iterable;
     use crypto_bigint::Random;
     use crate::{
         field::{BigInt, ConfigRef, Int, RandomField},
@@ -352,7 +358,7 @@ mod tests {
             data.rows[0] = Int::from(999999);
             let codeword_len = pp.linear_code.codeword_len();
             let corrupted_row = &data.rows[0..codeword_len];
-            let new_tree = MerkleTree::new(corrupted_row.to_vec(), corrupted_row.len());
+            let new_tree = MerkleTree::new(corrupted_row, corrupted_row.len());
             assert_ne!(
                 new_tree.root(),
                 commitment.root,
@@ -476,25 +482,6 @@ mod tests {
         assert_eq!(encoded.len(), pp.linear_code.codeword_len());
     }
 
-    #[ignore]
-    fn merkle_root_integrity_is_maintained() {
-        let (pp, _) = setup_test_params(3);
-        let poly = DenseMultilinearExtension::from_evaluations_vec(3, vec![Int::from(42); 8]);
-        let (data, commitment) = MultilinearZip::<ZT, _>::commit::<F>(&pp, &poly).unwrap();
-
-        let codeword_len = pp.linear_code.codeword_len();
-        /*
-        for (i, tree) in data.rows_merkle_trees.iter().enumerate() {
-            let start = i * codeword_len;
-            let end = start + codeword_len;
-            let row_data = &data.rows[start..end];
-            let independent_tree = MerkleTree::new(row_data.to_vec());
-            assert_eq!(tree.root(), independent_tree.root());
-            assert_eq!(commitment.roots[i], independent_tree.root());
-        }
-        */
-    }
-
     #[test]
     fn matrix_dimensions_are_invariant() {
         let test_cases = vec![(2, 2), (4, 4), (6, 8)];
@@ -591,7 +578,7 @@ mod tests {
     #[should_panic(expected = "rows.len().is_power_of_two()")]
     fn merkle_tree_new_panics_on_non_power_of_two_leaves() {
         let leaves_data: Vec<Int<INT_LIMBS>> = (0..7).map(Int::from).collect();
-        let _ = MerkleTree::new(leaves_data.clone(), leaves_data.len());
+        let _ = MerkleTree::new(&leaves_data, leaves_data.len());
     }
 
     #[test]
@@ -676,7 +663,6 @@ mod tests {
             let size_of_dimension = size_of::<u64>();
 
             let codeword_len = pp.linear_code.codeword_len();
-            let ppp = pp.num_rows.next_power_of_two().ilog2() as usize;
             let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize; // + pp.num_rows.next_power_of_two().ilog2() as usize;
 
             let proximity_phase_size =

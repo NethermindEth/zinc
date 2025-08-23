@@ -232,7 +232,7 @@ mod tests {
         }
 
         let codeword_len = pp.linear_code.codeword_len();
-        let corrupted_merkle_tree = MerkleTree::new(corrupted_rows.clone(), codeword_len);
+        let corrupted_merkle_tree = MerkleTree::new(&corrupted_rows, codeword_len);
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_tree);
 
         let mut rng = ark_std::test_rng();
@@ -305,7 +305,7 @@ mod tests {
             }
         }
 
-        let corrupted_merkle_tree = MerkleTree::new(corrupted_rows.clone(), codeword_len);
+        let corrupted_merkle_tree = MerkleTree::new(&corrupted_rows, codeword_len);
         let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_tree);
 
         let point_int: Vec<Int<INT_LIMBS>> =

@@ -3,7 +3,6 @@ use ark_std::{
     iter::Sum,
     ops::{Add, AddAssign, Mul, Neg, RemAssign, Sub},
     rand::RngCore,
-    vec::Vec,
 };
 use crypto_bigint::{
     Int as CryptoInt, NonZero, Random,
@@ -18,7 +17,7 @@ use crate::{
         uint::Uint,
     },
     traits::Integer,
-    zip::pcs::utils::ToBytes,
+    zip::pcs::utils::AsBytes,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -199,14 +198,9 @@ impl<'a, const N: usize, const M: usize> From<&'a Int<M>> for Int<N> {
     }
 }
 
-impl<const N: usize> ToBytes for Int<N> {
-    // Manual impl for generic type
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0
-            .to_words()
-            .iter()
-            .flat_map(|word| word.to_be_bytes())
-            .collect()
+impl<const N: usize> AsBytes for Int<N> {
+    fn as_bytes(&self) -> &[u8] {
+        bytemuck::cast_slice(self.0.as_words())
     }
 }
 

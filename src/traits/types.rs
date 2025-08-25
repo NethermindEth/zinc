@@ -14,7 +14,7 @@ use p3_field::Packable;
 use crate::{
     traits::{FieldMap, FromBytes},
     transcript::KeccakTranscript,
-    zip::pcs::utils::ToBytes,
+    zip::pcs::utils::AsBytes,
 };
 
 /// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
@@ -169,7 +169,7 @@ pub trait Integer:
     + From<i8>
     + From<u8>
     + Random
-    + ToBytes
+    + AsBytes
     + Packable
 {
     type W: Words;

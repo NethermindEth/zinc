@@ -67,9 +67,9 @@ pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
     Ok(())
 }
 
-// Define a new trait for converting to bytes
-pub trait ToBytes {
-    fn to_bytes(&self) -> Vec<u8>;
+pub trait AsBytes {
+    /// View the content as byte slice
+    fn as_bytes(&self) -> &[u8];
 }
 
 /// Cannot reference blake3::OUT_LEN directly in some of the contexts below.
@@ -95,7 +95,7 @@ impl Display for MtHash {
 #[derive(Debug, Default, Clone)]
 pub struct MtHasher;
 
-impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
+impl<T: AsBytes + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
     fn hash_iter<I>(&self, input: I) -> [u8; BLAKE3_OUT_LEN]
     where
         I: IntoIterator<Item = T>,
@@ -103,11 +103,10 @@ impl<T: ToBytes + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHash
         let mut hasher = blake3::Hasher::new();
         for item in input {
             hasher
-                .write_all(&item.to_bytes())
+                .write_all(item.as_bytes())
                 .expect("Failed to write to hasher");
         }
-        let hash = hasher.finalize();
-        hash.into()
+        hasher.finalize().into()
     }
 }
 
@@ -120,8 +119,7 @@ impl PseudoCompressionFunction<[u8; BLAKE3_OUT_LEN], 2> for MtPerm {
         for ref item in input {
             hasher.write_all(item).expect("Failed to write to hasher");
         }
-        let hash = hasher.finalize();
-        hash.into()
+        hasher.finalize().into()
     }
 }
 
@@ -132,7 +130,7 @@ type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, BLAKE3_OUT_L
 #[derive(Debug, Default)]
 pub struct MerkleTree<T>
 where
-    T: Packable + ToBytes + Clone + Send + Sync,
+    T: Packable + AsBytes + Clone + Send + Sync,
 {
     inner: Option<MerkleTreeInner<T>>,
 }
@@ -145,7 +143,7 @@ struct MerkleTreeInner<T> {
 
 impl<T> MerkleTree<T>
 where
-    T: Packable + ToBytes + Clone + Send + Sync,
+    T: Packable + AsBytes + Clone + Send + Sync,
 {
     pub fn new(rows: &[T], row_width: usize) -> Self {
         assert!(rows.len().is_power_of_two());
@@ -206,7 +204,7 @@ impl MerkleProof {
 
     pub fn create_proof<T>(merkle_tree: &MerkleTree<T>, leaf: usize) -> Result<Self, MerkleError>
     where
-        T: Packable + ToBytes + Clone,
+        T: Packable + AsBytes + Clone,
     {
         let mt = merkle_tree
             .inner
@@ -225,7 +223,7 @@ impl MerkleProof {
         leaf_index: usize,
     ) -> Result<(), MerkleError>
     where
-        T: Packable + ToBytes + Clone,
+        T: Packable + AsBytes + Clone,
     {
         let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
 
@@ -268,7 +266,7 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<F: Field, T: Packable + ToBytes + Clone>(
+    pub fn verify_column<F: Field, T: Packable + AsBytes + Clone>(
         root: &MtHash,
         column: &[T],
         column_index: usize,

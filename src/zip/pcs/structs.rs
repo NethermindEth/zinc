@@ -57,6 +57,7 @@ impl<K: Integer> MultilinearZipData<K> {
 pub trait ZipTranscript<I: Integer> {
     fn get_encoding_element(&mut self) -> I;
     fn get_u64(&mut self) -> u64;
+    fn sample_bytes(&mut self, buf: &mut [u8]);
     fn sample_unique_columns(
         &mut self,
         range: ark_std::ops::Range<usize>,

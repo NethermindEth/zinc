@@ -23,10 +23,10 @@ pub struct RaaCode<ZT: ZipTypes> {
     num_proximity_testing: usize,
 
     /// Randomness seed for the first permutation
-    perm_1_seed: u64,
+    perm_1_seed: [u8; 32],
 
     /// Randomness seed for the second permutation
-    perm_2_seed: u64,
+    perm_2_seed: [u8; 32],
 
     phantom: PhantomData<ZT>,
 }
@@ -71,8 +71,10 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
             ZT::K::num_bits()
         );
 
-        let perm_1_seed = transcript.get_u64();
-        let perm_2_seed = transcript.get_u64();
+        let mut perm_1_seed = [0; 32];
+        transcript.sample_bytes(&mut perm_1_seed);
+        let mut perm_2_seed = [0; 32];
+        transcript.sample_bytes(&mut perm_2_seed);
 
         Self {
             row_len,
@@ -173,6 +175,7 @@ where
 #[cfg(test)]
 mod tests {
     use ark_std::{vec, vec::Vec};
+    use itertools::Itertools;
     use num_traits::Zero;
 
     use crate::{
@@ -245,13 +248,13 @@ mod tests {
 
     #[test]
     fn shuffle_is_deterministic_for_a_given_seed() {
-        let original: Vec<I> = (1..=10).map(I::from).collect();
+        let original: Vec<I> = (1..=1000).map(I::from).collect();
         let mut vec1 = original.clone();
         let mut vec2 = original.clone();
         let mut vec3 = original.clone();
 
-        let seed1 = 12345;
-        let seed2 = 54321;
+        let seed1 = (0..32).collect_array().unwrap();
+        let seed2 = (1..33).collect_array().unwrap();
 
         shuffle_seeded(&mut vec1, seed1);
         shuffle_seeded(&mut vec2, seed1);

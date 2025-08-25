@@ -4,7 +4,7 @@ use ark_std::{
     vec::Vec,
 };
 use num_integer::Integer as NumInteger;
-use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
+use rand::{SeedableRng, seq::SliceRandom};
 
 use crate::traits::{Integer, Words};
 
@@ -136,8 +136,8 @@ pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &
 }
 
 /// Reorder the elements in slice using the given randomness seed
-pub(super) fn shuffle_seeded<T>(slice: &mut [T], seed: u64) {
-    let mut rng = StdRng::seed_from_u64(seed);
+pub(super) fn shuffle_seeded<T>(slice: &mut [T], seed: [u8; 32]) {
+    let mut rng = rand_chacha::ChaCha12Rng::from_seed(seed);
     slice.shuffle(&mut rng);
 }
 

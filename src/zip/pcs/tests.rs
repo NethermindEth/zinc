@@ -35,6 +35,12 @@ impl<L: Integer> ZipTranscript<L> for MockTranscript {
         self.counter += 1;
         self.counter as u64
     }
+    fn sample_bytes(&mut self, buf: &mut [u8]) {
+        for byte in buf.iter_mut() {
+            self.counter += 1;
+            *byte = (self.counter % 256) as u8;
+        }
+    }
     fn sample_unique_columns(
         &mut self,
         range: Range<usize>,

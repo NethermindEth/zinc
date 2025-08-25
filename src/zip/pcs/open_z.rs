@@ -233,12 +233,8 @@ mod tests {
         }
 
         let codeword_len = pp.linear_code.codeword_len();
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let corrupted_merkle_trees = corrupted_rows
-            .chunks_exact(codeword_len)
-            .map(|row| MerkleTree::new(merkle_depth, row))
-            .collect::<Vec<_>>();
-        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
+        let corrupted_merkle_tree = MerkleTree::new(&corrupted_rows, codeword_len);
+        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_tree);
 
         let mut rng = ark_std::test_rng();
         let point_int = random_point::<Int<INT_LIMBS>>(num_vars, &mut rng);
@@ -310,12 +306,8 @@ mod tests {
             }
         }
 
-        let merkle_depth = codeword_len.next_power_of_two().ilog2() as usize;
-        let corrupted_merkle_trees = corrupted_rows
-            .chunks_exact(codeword_len)
-            .map(|row| MerkleTree::new(merkle_depth, row))
-            .collect::<Vec<_>>();
-        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_trees);
+        let corrupted_merkle_tree = MerkleTree::new(&corrupted_rows, codeword_len);
+        let corrupted_data = MultilinearZipData::new(corrupted_rows, corrupted_merkle_tree);
 
         let point_int: Vec<Int<INT_LIMBS>> =
             (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();

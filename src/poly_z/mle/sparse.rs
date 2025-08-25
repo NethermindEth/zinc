@@ -39,7 +39,7 @@ impl<I: Integer> SparseMultilinearExtension<I> {
             .into_iter()
             .map(|(i, v): &(usize, I)| {
                 assert!(*i < bit_mask, "index out of range");
-                (*i, v.clone())
+                (*i, *v)
             })
             .collect();
         Self {
@@ -50,7 +50,7 @@ impl<I: Integer> SparseMultilinearExtension<I> {
     }
     pub fn evaluate(&self, point: &[I]) -> I {
         assert_eq!(point.len(), self.num_vars);
-        self.fixed_variables(point)[0].clone()
+        self.fixed_variables(point)[0]
     }
     /// Outputs an `l`-variate multilinear extension where value of evaluations
     /// are sampled uniformly at random. The number of nonzero entries is
@@ -78,7 +78,7 @@ impl<I: Integer> SparseMultilinearExtension<I> {
         let mut buf = Vec::new();
         for (arg, v) in map.iter() {
             if *v != I::ZERO {
-                buf.push((*arg, v.clone()));
+                buf.push((*arg, *v));
             }
         }
         let evaluations = hashmap_to_treemap(&map);
@@ -102,7 +102,7 @@ impl<I: Integer> SparseMultilinearExtension<I> {
         for (row_i, row) in m.coeffs.iter().enumerate() {
             for (val, col_i) in row {
                 let index = row_i * n_cols + col_i;
-                v.push((index, val.clone()));
+                v.push((index, *val));
             }
         }
 
@@ -120,7 +120,7 @@ impl<I: Integer> SparseMultilinearExtension<I> {
         let v_sparse = v
             .iter()
             .enumerate()
-            .map(|(i, v_i)| (i, v_i.clone()))
+            .map(|(i, v_i)| (i, *v_i))
             .collect::<Vec<(usize, I)>>();
         SparseMultilinearExtension::from_evaluations(n_vars, &v_sparse)
     }
@@ -153,7 +153,7 @@ impl<I: Integer> MultilinearExtension<I> for SparseMultilinearExtension<I> {
         }
         assert!(a + k <= b, "overlapped swap window is not allowed");
         let ev: Vec<_> = cfg_iter!(self.evaluations)
-            .map(|(&i, v)| (swap_bits(i, a, b, k), v.clone()))
+            .map(|(&i, v)| (swap_bits(i, a, b, k), *v))
             .collect();
         Self {
             num_vars: self.num_vars,
@@ -187,7 +187,7 @@ impl<I: Integer> MultilinearExtension<I> for SparseMultilinearExtension<I> {
             let mut result = HashMap::new();
             for src_entry in last.iter() {
                 let old_idx = *src_entry.0;
-                let gz = pre[old_idx & ((1 << dim) - 1)].clone();
+                let gz = pre[old_idx & ((1 << dim) - 1)];
                 let new_idx = old_idx >> dim;
                 let dst_entry = result.entry(new_idx).or_insert(I::ZERO);
                 *dst_entry += &(gz * src_entry.1);
@@ -211,7 +211,7 @@ impl<I: Integer> MultilinearExtension<I> for SparseMultilinearExtension<I> {
         self.evaluations
             .iter()
             .map(|(&i, v)| {
-                evaluations[i] = v.clone();
+                evaluations[i] = *v;
             })
             .last();
         evaluations
@@ -293,7 +293,7 @@ impl<I: Integer> AddAssign<(I, &SparseMultilinearExtension<I>)> for SparseMultil
             );
         }
         let ev: Vec<_> = cfg_iter!(other.evaluations)
-            .map(|(i, v)| (*i, r.clone() * v))
+            .map(|(i, v)| (*i, r * v))
             .collect();
         let other = Self {
             num_vars: other.num_vars,
@@ -362,14 +362,14 @@ impl<I: Integer> Index<usize> for SparseMultilinearExtension<I> {
 
 /// Utilities
 fn tuples_to_treemap<I: Integer>(tuples: &[(usize, I)]) -> BTreeMap<usize, I> {
-    BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, v.clone())))
+    BTreeMap::from_iter(tuples.iter().map(|(i, v)| (*i, *v)))
 }
 
 fn treemap_to_hashmap<I: Integer>(map: &BTreeMap<usize, I>) -> HashMap<usize, I> {
-    HashMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
+    HashMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
 fn hashmap_to_treemap<I: Integer>(map: &HashMap<usize, I>) -> BTreeMap<usize, I> {
-    BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, v.clone())))
+    BTreeMap::from_iter(map.iter().map(|(i, v)| (*i, *v)))
 }
 
 // precompute  f(x) = eq(g,x)
@@ -377,11 +377,11 @@ fn precompute_eq<I: Integer>(g: &[I]) -> Vec<I> {
     let dim = g.len();
     let mut dp = vec![I::ZERO; 1 << dim];
     dp[0] = I::one() - &g[0];
-    dp[1] = g[0].clone();
+    dp[1] = g[0];
     for i in 1..dim {
         for b in 0..1 << i {
-            let prev = dp[b].clone();
-            dp[b + (1 << i)] = prev.clone() * g[i].clone();
+            let prev = dp[b];
+            dp[b + (1 << i)] = prev * g[i];
             dp[b] = prev - &dp[b + (1 << i)];
         }
     }

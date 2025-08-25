@@ -191,8 +191,8 @@ impl<ZT: ZipTypes> LinearCode<ZT> for ZipLinearCode<ZT> {
             "Row length must match the code's row length"
         );
         let mut code = Vec::with_capacity(self.codeword_len);
-        code.extend(self.a.mat_vec_mul(row));
-        code.extend(self.b.mat_vec_mul(row));
+        code.extend(self.a.mat_vec_mul::<In, Out>(row));
+        code.extend(self.b.mat_vec_mul::<In, Out>(row));
         code
     }
 
@@ -326,7 +326,7 @@ impl<L: Integer> SparseMatrixZ<L> {
     pub fn to_dense(&self) -> Vec<Vec<L>> {
         let mut r: Vec<Vec<L>> = vec![vec![L::ZERO; self.dimension.m]; self.dimension.n];
         for (row_i, (col_i, value)) in self.cells.iter().enumerate() {
-            r[row_i][*col_i] = value.clone();
+            r[row_i][*col_i] = *value;
         }
         r
     }

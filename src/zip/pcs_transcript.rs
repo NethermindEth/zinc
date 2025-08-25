@@ -1,17 +1,19 @@
 #![allow(non_snake_case)]
 
 use ark_std::{
-    io::{Cursor, Read, Write},
+    io::{Cursor, ErrorKind, Read, Write},
     marker::PhantomData,
     vec,
     vec::Vec,
 };
+use p3_matrix::Dimensions;
 
 use super::{Error, pcs::utils::MerkleProof};
 use crate::{
     poly::alloc::string::ToString,
     traits::{BigInteger, Field, FromBytes, Integer, PrimitiveConversion, Words},
     transcript::KeccakTranscript,
+    zip::pcs::utils::MtHash,
 };
 
 /// A transcript for Polynomial Commitment Scheme (PCS) operations.
@@ -55,19 +57,19 @@ impl<F: Field> PcsTranscript<F> {
 
     /// Reads a cryptographic commitment from the proof stream.
     /// Used during proof verification to retrieve previously committed values.
-    pub fn read_commitment(&mut self) -> Result<blake3::Hash, Error> {
+    pub fn read_commitment(&mut self) -> Result<MtHash, Error> {
         let mut buf = [0; blake3::OUT_LEN];
         self.stream
             .read_exact(&mut buf)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        Ok(blake3::Hash::from_bytes(buf))
+        Ok(MtHash(blake3::Hash::from_bytes(buf).into()))
     }
 
     /// Writes a cryptographic commitment to the proof stream.
     /// Used during proof generation to store commitments for later verification.
-    pub fn write_commitment(&mut self, comm: &blake3::Hash) -> Result<(), Error> {
+    pub fn write_commitment(&mut self, comm: &MtHash) -> Result<(), Error> {
         self.stream
-            .write_all(comm.as_bytes())
+            .write_all(&comm.0)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
         Ok(())
     }
@@ -154,13 +156,46 @@ impl<F: Field> PcsTranscript<F> {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn read_commitments(&mut self, n: usize) -> Result<Vec<blake3::Hash>, Error> {
+    pub fn read_commitments(&mut self, n: usize) -> Result<Vec<MtHash>, Error> {
         (0..n).map(|_| self.read_commitment()).collect()
+    }
+
+    fn write_u64(&mut self, value: u64) -> Result<(), Error> {
+        self.stream
+            .write_all(&value.to_be_bytes())
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))
+    }
+
+    fn read_u64(&mut self) -> Result<u64, Error> {
+        let mut buf = [0u8; 8];
+        self.stream
+            .read_exact(&mut buf)
+            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+        Ok(u64::from_be_bytes(buf))
+    }
+
+    fn write_usize(&mut self, value: usize) -> Result<(), Error> {
+        let value_u64: u64 = value.try_into().map_err(|_| {
+            Error::Transcript(
+                ErrorKind::Unsupported,
+                "Failed to convert usize to u64".to_string(),
+            )
+        })?;
+        self.write_u64(value_u64)
+    }
+
+    fn read_usize(&mut self) -> Result<usize, Error> {
+        self.read_u64()?.try_into().map_err(|_| {
+            Error::Transcript(
+                ErrorKind::Unsupported,
+                "Failed to convert u64 to usize".to_string(),
+            )
+        })
     }
 
     pub fn write_commitments<'a>(
         &mut self,
-        comms: impl IntoIterator<Item = &'a blake3::Hash>,
+        comms: impl IntoIterator<Item = &'a MtHash>,
     ) -> Result<(), Error> {
         for comm in comms.into_iter() {
             self.write_commitment(comm)?;
@@ -179,34 +214,35 @@ impl<F: Field> PcsTranscript<F> {
     }
 
     pub fn read_merkle_proof(&mut self) -> Result<MerkleProof, Error> {
-        // Read the length of the merkle_path first
-        let mut length_bytes = [0u8; 8];
-        self.stream
-            .read_exact(&mut length_bytes)
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        let path_length = u64::from_be_bytes(length_bytes);
+        // Read the dimensions of matrix used to construct the Merkle tree
+        let width = self.read_usize()?;
+        let height = self.read_usize()?;
+        let dimensions = Dimensions { width, height };
 
-        // Read each element of the merkle_path
-        let mut merkle_path = Vec::with_capacity(path_length as usize);
+        // Read the length of the merkle path first
+        let path_length = self.read_usize()?;
+
+        // Read each element of the merkle path
+        let mut merkle_path = Vec::with_capacity(path_length);
         for _ in 0..path_length {
             merkle_path.push(self.read_commitment()?);
         }
 
-        Ok(MerkleProof { merkle_path })
+        Ok(MerkleProof::new(merkle_path, dimensions))
     }
 
     pub fn write_merkle_proof(&mut self, proof: &MerkleProof) -> Result<(), Error> {
-        // Write the length of the merkle_path first
-        let path_length = proof.merkle_path.len() as u64;
-        self.stream
-            .write_all(&path_length.to_be_bytes())
-            .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
+        // Write the dimensions of matrix used to construct the Merkle tree
+        self.write_usize(proof.matrix_dims.width)?;
+        self.write_usize(proof.matrix_dims.height)?;
 
-        // Write each element of the merkle_path
-        for hash in &proof.merkle_path {
-            self.write_commitment(hash)?;
+        // Write the length of the merkle path first
+        self.write_usize(proof.path.len())?;
+
+        // Write each element of the merkle path
+        for path_elem in proof.path.iter() {
+            self.write_commitment(path_elem)?;
         }
-
         Ok(())
     }
 }
@@ -261,7 +297,7 @@ fn test_pcs_transcript_read_write() {
     const N: usize = 4;
 
     // Test commitment
-    let original_commitment = blake3::Hash::from([0u8; blake3::OUT_LEN]);
+    let original_commitment = MtHash::default();
     test_read_write!(
         write_commitment,
         read_commitment,
@@ -270,7 +306,7 @@ fn test_pcs_transcript_read_write() {
     );
     //TODO put the tests back in for Int<N> types
     // Test vector of commitments
-    let original_commitments = vec![blake3::Hash::from([0u8; blake3::OUT_LEN]); 1024];
+    let original_commitments = vec![MtHash::default(); 1024];
     test_read_write_vec!(
         write_commitments,
         read_commitments,

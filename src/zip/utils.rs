@@ -137,7 +137,7 @@ pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &
 
 /// Reorder the elements in slice using the given randomness seed
 pub(super) fn shuffle_seeded<T>(slice: &mut [T], seed: [u8; 32]) {
-    let mut rng = rand_chacha::ChaCha12Rng::from_seed(seed);
+    let mut rng = rand_chacha::ChaCha8Rng::from_seed(seed);
     slice.shuffle(&mut rng);
 }
 

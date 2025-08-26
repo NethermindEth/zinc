@@ -6,7 +6,7 @@ use crate::{
     traits::{
         BigInteger, Config, ConfigReference, Field, FieldMap, Integer, PrimitiveConversion, Words,
     },
-    zip::pcs::structs::ZipTranscript,
+    zip::pcs::{structs::ZipTranscript, utils::AsWords},
 };
 
 /// A cryptographic transcript implementation using the Keccak-256 hash function.

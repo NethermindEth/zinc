@@ -7,6 +7,7 @@ use ark_std::{
     vec,
     vec::Vec,
 };
+use crypto_bigint::Word;
 use itertools::Itertools;
 use p3_commit::{BatchOpeningRef, Mmcs};
 use p3_field::Packable;
@@ -67,9 +68,9 @@ pub(super) fn validate_input<'a, I: Integer + 'a, F: Field + 'a>(
     Ok(())
 }
 
-pub trait AsBytes {
-    /// View the content as byte slice
-    fn as_bytes(&self) -> &[u8];
+pub trait AsWords {
+    /// View the underlying byte array as a slice of `Word`s.
+    fn as_words(&self) -> &[Word];
 }
 
 /// Cannot reference blake3::OUT_LEN directly in some of the contexts below.
@@ -95,16 +96,19 @@ impl Display for MtHash {
 #[derive(Debug, Default, Clone)]
 pub struct MtHasher;
 
-impl<T: AsBytes + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
+impl<T: AsWords + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
     fn hash_iter<I>(&self, input: I) -> [u8; BLAKE3_OUT_LEN]
     where
         I: IntoIterator<Item = T>,
     {
         let mut hasher = blake3::Hasher::new();
+        let mut buf = [0_u8; size_of::<Word>()];
         for item in input {
-            hasher
-                .write_all(item.as_bytes())
-                .expect("Failed to write to hasher");
+            for word in item.as_words() {
+                // Performance: reuse buffer and help compiler optimize away materializing word bytes
+                buf.copy_from_slice(&word.to_be_bytes());
+                hasher.write_all(&buf).expect("Failed to write to hasher");
+            }
         }
         hasher.finalize().into()
     }
@@ -130,7 +134,7 @@ type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, BLAKE3_OUT_L
 #[derive(Debug, Default)]
 pub struct MerkleTree<T>
 where
-    T: Packable + AsBytes + Clone + Send + Sync,
+    T: Packable + AsWords + Clone + Send + Sync,
 {
     inner: Option<MerkleTreeInner<T>>,
 }
@@ -143,7 +147,7 @@ struct MerkleTreeInner<T> {
 
 impl<T> MerkleTree<T>
 where
-    T: Packable + AsBytes + Clone + Send + Sync,
+    T: Packable + AsWords + Clone + Send + Sync,
 {
     pub fn new(rows: &[T], row_width: usize) -> Self {
         assert!(rows.len().is_power_of_two());
@@ -205,7 +209,7 @@ impl MerkleProof {
 
     pub fn create_proof<T>(merkle_tree: &MerkleTree<T>, leaf: usize) -> Result<Self, MerkleError>
     where
-        T: Packable + AsBytes + Clone,
+        T: Packable + AsWords + Clone,
     {
         let mt = merkle_tree
             .inner
@@ -224,7 +228,7 @@ impl MerkleProof {
         leaf_index: usize,
     ) -> Result<(), MerkleError>
     where
-        T: Packable + AsBytes + Clone,
+        T: Packable + AsWords + Clone,
     {
         let prover = MtMmcs::<T>::new(MtHasher, MtPerm);
 
@@ -240,7 +244,7 @@ impl MerkleProof {
 }
 
 impl Display for MerkleProof {
-    fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         writeln!(f, "Merkle Path: {}", self.path.iter().join(", "))?;
         writeln!(f, "Matrix Dimensions: {}", self.matrix_dims)?;
         Ok(())
@@ -267,7 +271,7 @@ impl ColumnOpening {
         Ok(())
     }
 
-    pub fn verify_column<F: Field, T: Packable + AsBytes + Clone>(
+    pub fn verify_column<F: Field, T: Packable + AsWords + Clone>(
         root: &MtHash,
         column: &[T],
         column_index: usize,

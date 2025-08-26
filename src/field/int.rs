@@ -5,7 +5,7 @@ use ark_std::{
     rand::RngCore,
 };
 use crypto_bigint::{
-    Int as CryptoInt, NonZero, Random,
+    Int as CryptoInt, NonZero, Random, Word,
     subtle::{Choice, ConstantTimeEq},
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
@@ -17,7 +17,7 @@ use crate::{
         uint::Uint,
     },
     traits::Integer,
-    zip::pcs::utils::AsBytes,
+    zip::pcs::utils::AsWords,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -198,9 +198,9 @@ impl<'a, const N: usize, const M: usize> From<&'a Int<M>> for Int<N> {
     }
 }
 
-impl<const N: usize> AsBytes for Int<N> {
-    fn as_bytes(&self) -> &[u8] {
-        bytemuck::cast_slice(self.0.as_words())
+impl<const N: usize> AsWords for Int<N> {
+    fn as_words(&self) -> &[Word] {
+        self.0.as_words()
     }
 }
 
@@ -222,10 +222,6 @@ impl<const N: usize> Integer for Int<N> {
 
     fn from_words(words: Words<N>) -> Self {
         Self(CryptoInt::from_words(words.0))
-    }
-
-    fn as_words(&self) -> &[u64] {
-        self.0.as_words()
     }
 
     fn from_i64(value: i64) -> Self {

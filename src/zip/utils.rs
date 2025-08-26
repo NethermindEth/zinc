@@ -149,8 +149,10 @@ mod test {
 
     use crate::{
         field::Int,
-        traits::Integer,
-        zip::utils::{expand, inner_product},
+        zip::{
+            pcs::utils::AsWords,
+            utils::{expand, inner_product},
+        },
     };
 
     #[test]

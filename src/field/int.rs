@@ -3,13 +3,13 @@ use ark_std::{
     iter::Sum,
     ops::{Add, AddAssign, Mul, Neg, RemAssign, Sub},
     rand::RngCore,
-    vec::Vec,
 };
 use crypto_bigint::{
-    Int as CryptoInt, NonZero, Random,
+    Int as CryptoInt, NonZero, Random, Word,
     subtle::{Choice, ConstantTimeEq},
 };
 use num_traits::{ConstOne, ConstZero, One, Zero};
+use p3_field::Packable;
 
 use crate::{
     field::{
@@ -17,7 +17,7 @@ use crate::{
         uint::Uint,
     },
     traits::Integer,
-    zip::pcs::utils::ToBytes,
+    zip::pcs::utils::AsWords,
 };
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -198,14 +198,9 @@ impl<'a, const N: usize, const M: usize> From<&'a Int<M>> for Int<N> {
     }
 }
 
-impl<const N: usize> ToBytes for Int<N> {
-    // Manual impl for generic type
-    fn to_bytes(&self) -> Vec<u8> {
-        self.0
-            .to_words()
-            .iter()
-            .flat_map(|word| word.to_be_bytes())
-            .collect()
+impl<const N: usize> AsWords for Int<N> {
+    fn as_words(&self) -> &[Word] {
+        self.0.as_words()
     }
 }
 
@@ -218,6 +213,8 @@ impl<const N: usize> Sum for Int<N> {
     }
 }
 
+impl<const N: usize> Packable for Int<N> {}
+
 impl<const N: usize> Integer for Int<N> {
     type W = Words<N>;
     type Uint = Uint<N>;
@@ -225,10 +222,6 @@ impl<const N: usize> Integer for Int<N> {
 
     fn from_words(words: Words<N>) -> Self {
         Self(CryptoInt::from_words(words.0))
-    }
-
-    fn as_words(&self) -> &[u64] {
-        self.0.as_words()
     }
 
     fn from_i64(value: i64) -> Self {

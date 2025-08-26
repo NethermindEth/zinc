@@ -32,7 +32,7 @@ pub fn random_mle_list<Rn: RngCore, I: Integer>(
 
         for e in multiplicands.iter_mut() {
             let val = I::random(rng);
-            e.push(val.clone());
+            e.push(val);
             product = product * val;
         }
         sum += &product;
@@ -135,7 +135,7 @@ pub fn random_permutation_mles<Rn: RngCore, I: Integer>(
 
 pub fn evaluate_opt<I: Integer>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
-    fix_variables(poly, point).evaluations[0].clone()
+    fix_variables(poly, point).evaluations[0]
 }
 
 pub fn fix_variables<I: Integer>(
@@ -163,7 +163,7 @@ fn fix_one_variable_helper<I: Integer>(data: &[I], nv: usize, point: &I) -> Vec<
     // evaluate single variable of partial point from left to right
 
     for i in 0..1 << (nv - 1) {
-        res[i] = data[i].clone() + (data[(i << 1) + 1].clone() - &data[i << 1]) * point;
+        res[i] = data[i] + (data[(i << 1) + 1] - &data[i << 1]) * point;
     }
 
     res
@@ -171,7 +171,7 @@ fn fix_one_variable_helper<I: Integer>(data: &[I], nv: usize, point: &I) -> Vec<
 
 pub fn evaluate_no_par<I: Integer>(poly: &DenseMultilinearExtension<I>, point: &[I]) -> I {
     assert_eq!(poly.num_vars, point.len());
-    fix_variables_no_par(poly, point).evaluations[0].clone()
+    fix_variables_no_par(poly, point).evaluations[0]
 }
 
 fn fix_variables_no_par<I: Integer>(
@@ -187,9 +187,9 @@ fn fix_variables_no_par<I: Integer>(
     let dim = partial_point.len();
     // evaluate single variable of partial point from left to right
     for i in 1..dim + 1 {
-        let r = partial_point[i - 1].clone();
+        let r = partial_point[i - 1];
         for b in 0..1 << (nv - i) {
-            poly[b] = poly[b << 1].clone() + (poly[(b << 1) + 1].clone() - &poly[b << 1]) * &r;
+            poly[b] = poly[b << 1] + (poly[(b << 1) + 1] - &poly[b << 1]) * r;
         }
     }
     DenseMultilinearExtension::from_evaluations_slice(nv - dim, &poly[..1 << (nv - dim)])
@@ -239,9 +239,8 @@ fn fix_last_variable_no_par<I: Integer>(
     let half_len = 1 << (nv - 1);
     let mut res = vec![I::ZERO; half_len];
     for (i, e) in res.iter_mut().enumerate().take(half_len) {
-        *e = poly.evaluations[i].clone()
-            + partial_point.clone()
-                * (poly.evaluations[i + half_len].clone() - &poly.evaluations[i]);
+        *e = poly.evaluations[i]
+            + *partial_point * (poly.evaluations[i + half_len] - &poly.evaluations[i]);
     }
     DenseMultilinearExtension::from_evaluations_vec(nv - 1, res)
 }
@@ -271,7 +270,7 @@ fn fix_last_variable_helper<I: Integer>(data: &[I], nv: usize, point: &I) -> Vec
     // evaluate single variable of partial point from left to right
 
     for b in 0..half_len {
-        res[b] = data[b].clone() + (data[b + half_len].clone() - &data[b]) * point;
+        res[b] = data[b] + (data[b + half_len] - &data[b]) * point;
     }
 
     res

@@ -9,11 +9,12 @@ use ark_std::{
 };
 use crypto_bigint::Random;
 use num_traits::{ConstOne, ConstZero, One, Zero};
+use p3_field::Packable;
 
 use crate::{
     traits::{FieldMap, FromBytes},
     transcript::KeccakTranscript,
-    zip::pcs::utils::ToBytes,
+    zip::pcs::utils::AsWords,
 };
 
 /// Trait for field elements, requiring arithmetic, assignment, random generation, and conversion traits.
@@ -168,7 +169,8 @@ pub trait Integer:
     + From<i8>
     + From<u8>
     + Random
-    + ToBytes
+    + AsWords
+    + Packable
 {
     type W: Words;
     type Uint: Uinteger<W = Self::W>;
@@ -180,7 +182,6 @@ pub trait Integer:
 
     /// Constructs from words.
     fn from_words(words: Self::W) -> Self;
-    fn as_words(&self) -> &[u64];
     fn from_i64(value: i64) -> Self;
     fn abs(&self) -> Self::Uint;
 }

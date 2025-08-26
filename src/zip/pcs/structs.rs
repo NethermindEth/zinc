@@ -1,6 +1,6 @@
 use ark_std::{collections::BTreeSet, marker::PhantomData, vec::Vec};
 
-use super::utils::MerkleTree;
+use super::utils::{MerkleTree, MtHash};
 use crate::{
     traits::{Integer, ZipTypes},
     zip::code::LinearCode,
@@ -29,38 +29,28 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZipParams<ZT, LC> {
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct MultilinearZipData<K: Integer> {
     /// The encoded rows of the polynomial matrix representation, referred to as "u-hat" in the Zinc paper
     pub rows: Vec<K>,
-    /// Merkle trees of each row
-    pub rows_merkle_trees: Vec<MerkleTree>,
+    /// Merkle trees of entire matrix
+    pub merkle_tree: MerkleTree<K>,
 }
 
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Clone, Debug, Default)]
 pub struct MultilinearZipCommitment {
-    /// Roots of the merkle tree of each row
-    pub roots: Vec<blake3::Hash>,
+    /// Roots of the merkle tree of entire matrix
+    pub root: MtHash,
 }
 
 impl<K: Integer> MultilinearZipData<K> {
-    pub fn new(rows: Vec<K>, rows_merkle_trees: Vec<MerkleTree>) -> MultilinearZipData<K> {
-        MultilinearZipData {
-            rows,
-            rows_merkle_trees,
-        }
+    pub fn new(rows: Vec<K>, merkle_tree: MerkleTree<K>) -> MultilinearZipData<K> {
+        MultilinearZipData { rows, merkle_tree }
     }
 
-    pub fn roots(&self) -> Vec<blake3::Hash> {
-        self.rows_merkle_trees
-            .iter()
-            .map(|tree| tree.root)
-            .collect::<Vec<_>>()
-    }
-
-    pub fn root_at_index(&self, index: usize) -> blake3::Hash {
-        self.rows_merkle_trees[index].root
+    pub fn root(&self) -> MtHash {
+        self.merkle_tree.root()
     }
 }
 

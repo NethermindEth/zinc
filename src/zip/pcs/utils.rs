@@ -148,6 +148,7 @@ where
     pub fn new(rows: &[T], row_width: usize) -> Self {
         assert!(rows.len().is_power_of_two());
         assert!(rows.len().is_multiple_of(row_width));
+        assert!(row_width > 0);
 
         // Each matrix row is hashed together to form a leaf in the Merkle tree.
         // Thus, we need to transpose a matrix to have original columns as leaves.

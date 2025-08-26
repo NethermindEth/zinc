@@ -184,13 +184,6 @@ impl<I: Integer> ZipTranscript<I> for KeccakTranscript {
         self.get_integer_challenge::<Int<1>>().as_words()[0]
     }
 
-    fn sample_bytes(&mut self, buf: &mut [u8]) {
-        buf.copy_from_slice(self.get_random_bytes(buf.len()).as_slice());
-        self.hasher.update([0x12]);
-        self.hasher.update(buf);
-        self.hasher.update([0x34]);
-    }
-
     fn sample_unique_columns(
         &mut self,
         range: ark_std::ops::Range<usize>,

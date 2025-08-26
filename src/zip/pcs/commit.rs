@@ -654,7 +654,7 @@ mod tests {
 
     #[test]
     fn proof_size_is_correct_for_parameters() {
-        fn calculate_expected_proof_size_bits<ZT: ZipTypes, LC: LinearCode<ZT>>(
+        fn calculate_expected_proof_size_bytes<ZT: ZipTypes, LC: LinearCode<ZT>>(
             pp: &MultilinearZipParams<ZT, LC>,
         ) -> usize {
             let size_of_zt_k = size_of::<ZT::K>();
@@ -713,7 +713,7 @@ mod tests {
         let proof = prover_transcript.into_proof();
 
         let actual_proof_size_bytes = proof.len();
-        let expected_proof_size_bytes = calculate_expected_proof_size_bits(&param);
+        let expected_proof_size_bytes = calculate_expected_proof_size_bytes(&param);
 
         assert_eq!(actual_proof_size_bytes, expected_proof_size_bytes);
     }

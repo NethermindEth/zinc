@@ -44,7 +44,7 @@ ignore = false
 registries = []
 
 [bans]
-wildcards = "deny"
+wildcards = "warn" # Allow Merkle Tree dependency for Plonky3, maybe review that later
 allow-wildcard-paths = true
 multiple-versions = "warn"
 highlight = "all"
@@ -59,6 +59,6 @@ unknown-git = "deny"
 allow-git = []
 
 [sources.allow-org]
-github = ["NethermindEth"]
+github = ["NethermindEth", "Plonky3"]
 gitlab = []
 bitbucket = []

@@ -2,7 +2,7 @@ use ark_std::{marker::PhantomData, vec::Vec};
 
 use crate::{
     sumcheck,
-    traits::{Field, ZipTypes},
+    traits::Field,
     zip::{code::LinearCodeSpec, pcs::structs::MultilinearZipCommitment},
 };
 
@@ -35,12 +35,29 @@ pub struct ZincProof<F> {
 }
 
 /// The implementation of the `LinearizationProver` trait is defined in the main linearization file.
-pub struct ZincProver<ZT: ZipTypes, F: Field, S: LinearCodeSpec> {
+pub struct ZincProver<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> {
     pub lc_spec: S,
-    phantom_data: PhantomData<(ZT, F)>,
+    phantom_data: PhantomData<F>,
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S> {
+impl<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> ZincProver<N, L, K, M, F, LIMBS, S>
+{
     pub fn new(lc_spec: S) -> Self {
         ZincProver {
             lc_spec,
@@ -50,12 +67,29 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincProver<ZT, F, S> {
 }
 
 /// The implementation of the `LinearizationVerifier` trait is defined in the main linearization file.
-pub struct ZincVerifier<ZT: ZipTypes, F: Field, S: LinearCodeSpec> {
+pub struct ZincVerifier<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> {
     pub lc_spec: S,
-    phantom_data: PhantomData<(ZT, F, S)>,
+    phantom_data: PhantomData<(F, S)>,
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
+impl<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> ZincVerifier<N, L, K, M, F, LIMBS, S>
+{
     pub fn new(lc_spec: S) -> Self {
         ZincVerifier {
             lc_spec,

@@ -1,14 +1,14 @@
 #![allow(clippy::enum_variant_names)]
+
+use std::fmt::Debug;
+
 use ark_std::string::String;
 use thiserror::Error;
 
-use crate::{
-    ccs::error::CSError, poly::ArithErrors, sumcheck::SumCheckError, traits::Field,
-    zip::Error as ZipError,
-};
+use crate::{ccs::CSError, poly::ArithErrors, sumcheck::SumCheckError, zip::Error as ZipError};
 
 #[derive(Debug, Error)]
-pub enum ZincError<F: Field> {
+pub enum ZincError<F: Debug> {
     #[error("spartan error: {0}")]
     SpartanError(#[from] SpartanError<F>),
     #[error("field config error")]
@@ -16,7 +16,7 @@ pub enum ZincError<F: Field> {
 }
 
 #[derive(Debug, Error)]
-pub enum SpartanError<F: Field> {
+pub enum SpartanError<F: Debug> {
     #[error("sum check failed at linearization step: {0}")]
     SumCheckError(#[from] SumCheckError<F>),
     #[error("parameters error: {0}")]

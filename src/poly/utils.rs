@@ -1,11 +1,4 @@
-// Copyright (c) 2023 Espresso Systems (espressosys.com)
-// This file is part of the HyperPlonk library.
-
-// Adapted for rings by Nethermind
-
-use ark_std::{log2, vec::Vec};
-
-use crate::traits::{Field, FieldMap};
+use ark_std::log2;
 
 /// Decompose an integer into a binary vector in little endian.
 pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
@@ -20,15 +13,14 @@ pub fn bit_decompose(input: u64, num_var: usize) -> Vec<bool> {
 
 /// given the evaluation input `point` of the `index`-th polynomial,
 /// obtain the evaluation point in the merged polynomial
-pub fn gen_eval_point<F: Field>(
+pub fn gen_eval_point<F: From<bool> + Clone>(
     index: usize,
     index_len: usize,
     point: &[F],
-    config: F::R,
 ) -> Vec<F> {
     let index_vec: Vec<F> = bit_decompose(index as u64, index_len)
         .into_iter()
-        .map(|i| i.map_to_field(config))
+        .map(F::from)
         .collect();
     [point, &index_vec].concat()
 }
@@ -71,13 +63,14 @@ pub(crate) fn project(input: &[bool]) -> u64 {
 
 #[cfg(test)]
 mod test {
-    use ark_std::{rand::RngCore, test_rng};
+    use rand::rng;
+    use rand_core::RngCore;
 
     use super::{bit_decompose, get_index, project};
 
     #[test]
     fn test_decomposition() {
-        let mut rng = test_rng();
+        let mut rng = rng();
         for _ in 0..100 {
             let t = rng.next_u64();
             let b = bit_decompose(t, 64);

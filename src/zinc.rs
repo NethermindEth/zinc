@@ -11,12 +11,11 @@ pub mod verifier;
 
 pub mod prelude {
     pub use crate::{
-        ccs::ccs_z::*,
+        ccs::*,
         transcript::KeccakTranscript,
         zinc::{
             prover::Prover,
             structs::{ZincProver, ZincVerifier},
-            utils::draw_random_field,
             verifier::Verifier,
         },
         zip::code::DefaultLinearCodeSpec,

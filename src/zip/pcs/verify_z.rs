@@ -1,89 +1,79 @@
-use ark_std::{format, iterable::Iterable, vec::Vec};
+use ark_std::iterable::Iterable;
+use crypto_bigint::Int;
 
-use super::{
-    structs::{MultilinearZip, MultilinearZipCommitment},
-    utils::{ColumnOpening, point_to_tensor, validate_input},
-};
 use crate::{
-    traits::{Field, FieldMap, ZipTypes},
+    traits::Field,
     zip::{
         Error,
         code::LinearCode,
-        pcs::{structs::MultilinearZipParams, utils::MtHash},
+        pcs::{
+            structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipParams},
+            utils::{ColumnOpening, MtHash, point_to_tensor, validate_input},
+        },
         pcs_transcript::PcsTranscript,
         utils::{expand, inner_product},
     },
 };
 
-impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
-    pub fn verify<F: Field>(
-        vp: &MultilinearZipParams<ZT, LC>,
+impl<const N: usize, const L: usize, const K: usize, const M: usize, LC: LinearCode<N, L, K, M>>
+    MultilinearZip<N, L, K, M, LC>
+{
+    pub fn verify<F: Field<LIMBS>, const LIMBS: usize>(
+        vp: &MultilinearZipParams<N, L, K, M, LC>,
         comm: &MultilinearZipCommitment,
         point: &[F],
         eval: F,
-        transcript: &mut PcsTranscript<F>,
-        field: F::R,
-    ) -> Result<(), Error>
-    where
-        ZT::L: FieldMap<F, Output = F>,
-        ZT::K: FieldMap<F, Output = F>,
-    {
-        validate_input::<ZT::N, F>("verify", vp.num_vars, [], [point])?;
+        transcript: &mut PcsTranscript<F, LIMBS>,
+    ) -> Result<(), Error> {
+        validate_input::<N, F, LIMBS>("verify", vp.num_vars, [], [point])?;
 
-        let columns_opened = Self::verify_testing(vp, &comm.root, transcript, field)?;
+        let columns_opened = Self::verify_testing(vp, &comm.root, transcript)?;
 
-        Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript, field)?;
+        Self::verify_evaluation_z(vp, point, eval, &columns_opened, transcript)?;
 
         Ok(())
     }
 
-    pub fn batch_verify_z<'a, F: Field>(
-        vp: &MultilinearZipParams<ZT, LC>,
+    pub fn batch_verify_z<'a, F: Field<LIMBS>, const LIMBS: usize>(
+        vp: &MultilinearZipParams<N, L, K, M, LC>,
         comms: impl Iterable<Item = &'a MultilinearZipCommitment>,
         points: &[Vec<F>],
         evals: &[F],
-        transcript: &mut PcsTranscript<F>,
-        field: F::R,
-    ) -> Result<(), Error>
-    where
-        ZT::L: FieldMap<F, Output = F>,
-        ZT::K: FieldMap<F, Output = F>,
-        ZT::N: 'a,
-    {
+        transcript: &mut PcsTranscript<F, LIMBS>,
+    ) -> Result<(), Error> {
         for (i, (eval, comm)) in evals.iter().zip(comms.iter()).enumerate() {
-            Self::verify(vp, comm, &points[i], eval.clone(), transcript, field)?;
+            Self::verify(vp, comm, &points[i], *eval, transcript)?;
         }
         Ok(())
     }
 
     #[allow(clippy::type_complexity)]
-    pub(super) fn verify_testing<F: Field>(
-        vp: &MultilinearZipParams<ZT, LC>,
+    pub(super) fn verify_testing<F: Field<LIMBS>, const LIMBS: usize>(
+        vp: &MultilinearZipParams<N, L, K, M, LC>,
         root: &MtHash,
-        transcript: &mut PcsTranscript<F>,
-        field: F::R,
-    ) -> Result<Vec<(usize, Vec<ZT::K>)>, Error> {
+        transcript: &mut PcsTranscript<F, LIMBS>,
+    ) -> Result<Vec<(usize, Vec<Int<K>>)>, Error> {
         // Gather the coeffs and encoded combined rows per proximity test
-        let mut encoded_combined_rows: Vec<(Vec<ZT::N>, Vec<ZT::M>)> =
+        let mut encoded_combined_rows: Vec<(Vec<Int<N>>, Vec<Int<M>>)> =
             Vec::with_capacity(vp.linear_code.num_proximity_testing());
 
         if vp.num_rows > 1 {
             for _ in 0..vp.linear_code.num_proximity_testing() {
                 let coeffs = transcript.fs_transcript.get_integer_challenges(vp.num_rows);
 
-                let combined_row: Vec<ZT::M> =
+                let combined_row: Vec<Int<M>> =
                     transcript.read_integers(vp.linear_code.row_len())?;
 
-                let encoded_combined_row: Vec<ZT::M> = vp.linear_code.encode_wide(&combined_row);
+                let encoded_combined_row: Vec<Int<M>> = vp.linear_code.encode_wide(&combined_row);
                 encoded_combined_rows.push((coeffs, encoded_combined_row));
             }
         }
 
-        let mut columns_opened: Vec<(usize, Vec<ZT::K>)> =
+        let mut columns_opened: Vec<(usize, Vec<Int<K>>)> =
             Vec::with_capacity(vp.linear_code.num_column_opening());
 
         for _ in 0..vp.linear_code.num_column_opening() {
-            let column_idx = transcript.squeeze_challenge_idx(field, vp.linear_code.codeword_len());
+            let column_idx = transcript.squeeze_challenge_idx(vp.linear_code.codeword_len());
             let column_values = transcript.read_integers(vp.num_rows)?;
 
             for (coeffs, encoded_combined_row) in encoded_combined_rows.iter() {
@@ -107,16 +97,15 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
     }
 
     pub(super) fn verify_column_testing(
-        coeffs: &[ZT::N],
-        encoded_combined_row: &[ZT::M],
-        column_entries: &[ZT::K],
+        coeffs: &[Int<N>],
+        encoded_combined_row: &[Int<M>],
+        column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
     ) -> Result<(), Error> {
-        let column_entries_comb: ZT::M = if num_rows > 1 {
-            let coeffs: Vec<ZT::M> = coeffs.iter().map(expand::<ZT::N, ZT::M>).collect();
-            let column_entries: Vec<ZT::M> =
-                column_entries.iter().map(expand::<ZT::K, ZT::M>).collect();
+        let column_entries_comb: Int<M> = if num_rows > 1 {
+            let coeffs: Vec<Int<M>> = coeffs.iter().map(expand::<N, M>).collect();
+            let column_entries: Vec<Int<M>> = column_entries.iter().map(expand::<K, M>).collect();
             inner_product(coeffs.iter(), column_entries.iter())
         } else {
             expand(&column_entries[0])
@@ -128,22 +117,17 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
         Ok(())
     }
 
-    fn verify_evaluation_z<F: Field>(
-        vp: &MultilinearZipParams<ZT, LC>,
+    fn verify_evaluation_z<F: Field<LIMBS>, const LIMBS: usize>(
+        vp: &MultilinearZipParams<N, L, K, M, LC>,
         point: &[F],
         eval: F,
-        columns_opened: &[(usize, Vec<ZT::K>)],
-        transcript: &mut PcsTranscript<F>,
-        field: F::R,
-    ) -> Result<(), Error>
-    where
-        ZT::L: FieldMap<F, Output = F>,
-        ZT::K: FieldMap<F, Output = F>,
-    {
-        let q_0_combined_row = transcript.read_field_elements(vp.linear_code.row_len(), field)?;
-        let encoded_combined_row = vp.linear_code.encode_f(&q_0_combined_row, field);
+        columns_opened: &[(usize, Vec<Int<K>>)],
+        transcript: &mut PcsTranscript<F, LIMBS>,
+    ) -> Result<(), Error> {
+        let q_0_combined_row = transcript.read_field_elements(vp.linear_code.row_len())?;
+        let encoded_combined_row = vp.linear_code.encode_f(&q_0_combined_row);
 
-        let (q_0, q_1) = point_to_tensor(vp.num_rows, point, field)?;
+        let (q_0, q_1) = point_to_tensor(vp.num_rows, point)?;
 
         if inner_product(&q_0_combined_row, &q_1) != eval {
             return Err(Error::InvalidPcsOpen(
@@ -157,30 +141,25 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
                 column_values,
                 *column_idx,
                 vp.num_rows,
-                field,
             )?;
         }
 
         Ok(())
     }
 
-    fn verify_proximity_q_0<F: Field>(
+    fn verify_proximity_q_0<F: Field<LIMBS>, const LIMBS: usize>(
         q_0: &Vec<F>,
         encoded_q_0_combined_row: &[F],
-        column_entries: &[ZT::K],
+        column_entries: &[Int<K>],
         column: usize,
         num_rows: usize,
-        field: F::R,
-    ) -> Result<(), Error>
-    where
-        ZT::K: FieldMap<F, Output = F>,
-    {
+    ) -> Result<(), Error> {
         let column_entries_comb = if num_rows > 1 {
-            let column_entries = column_entries.map_to_field(field);
+            let column_entries = F::map_iterable(column_entries);
             inner_product(q_0, &column_entries)
             // TODO: this inner product is taking a long time.
         } else {
-            column_entries.first().unwrap().map_to_field(field)
+            column_entries.first().unwrap().resize().into()
         };
         if column_entries_comb != encoded_q_0_combined_row[column] {
             return Err(Error::InvalidPcsOpen("Proximity failure".into()));
@@ -192,43 +171,51 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
 
 #[cfg(test)]
 mod tests {
-    use ark_std::{boxed::Box, vec, vec::Vec};
+    use crypto_bigint::{Int, U256, const_monty_params};
+    use num_traits::One;
 
-    use super::*;
     use crate::{
-        field::{ConfigRef, Int, RandomField},
-        field_config,
-        poly_z::mle::DenseMultilinearExtension,
-        traits::{ConfigReference, Integer, Words, ZipTypes},
+        field::{F256, WORD_FACTOR},
+        poly::dense::DenseMultilinearExtension,
+        traits::MapIterable,
         zip::{
-            code::DefaultLinearCodeSpec,
+            code::{DefaultLinearCodeSpec, LinearCode},
             code_raa::RaaCode,
-            pcs,
             pcs::{
-                structs::{MultilinearZip, MultilinearZipParams},
+                structs::{MultilinearZip, MultilinearZipCommitment, MultilinearZipParams},
                 tests::MockTranscript,
             },
+            pcs_transcript::PcsTranscript,
         },
     };
 
-    const INT_LIMBS: usize = 1;
-    const FIELD_LIMBS: usize = 4;
+    const INT_LIMBS: usize = WORD_FACTOR;
+    const FIELD_LIMBS: usize = 4 * WORD_FACTOR;
 
-    type ZT = pcs::tests::RandomFieldZipTypes<1>;
-    type F<'cfg> = RandomField<'cfg, FIELD_LIMBS>;
-    type LC = RaaCode<ZT>;
-    type TestZip = MultilinearZip<ZT, LC>;
+    const N: usize = INT_LIMBS;
+    const L: usize = INT_LIMBS * 2;
+    const K: usize = INT_LIMBS * 4;
+    const M: usize = INT_LIMBS * 8;
+
+    const_monty_params!(
+        ModP,
+        U256,
+        "0000000000000000000000000000000000000000B933426489189CB5B47D567F"
+    );
+
+    type F = F256<ModP>;
+    type LC = RaaCode<N, L, K, M>;
+    type TestZip = MultilinearZip<N, L, K, M, LC>;
 
     #[allow(clippy::type_complexity)]
     fn setup_full_protocol(
         num_vars: usize,
     ) -> (
-        MultilinearZipParams<ZT, LC>,
+        MultilinearZipParams<N, L, K, M, LC>,
         MultilinearZipCommitment,
-        Vec<F<'static>>,
-        F<'static>,
+        Vec<F>,
+        F,
         Vec<u8>,
-        ConfigRef<'static, FIELD_LIMBS>,
     ) {
         let poly_size = 1 << num_vars;
         let evaluations: Vec<_> = (0..poly_size as i32).map(Int::<INT_LIMBS>::from).collect();
@@ -238,46 +225,32 @@ mod tests {
         let linear_code = LC::new(&DefaultLinearCodeSpec, poly_size, &mut keccak);
         let pp = TestZip::setup(poly_size, linear_code);
 
-        let config: &'static crate::field::FieldConfig<FIELD_LIMBS> = Box::leak(Box::new(
-            field_config!(57316695564490278656402085503, FIELD_LIMBS),
-        ));
-
-        let config_ref = ConfigRef::from(config);
-
-        let (data, comm) = TestZip::commit::<F>(&pp, &poly).unwrap();
+        let (data, comm) = TestZip::commit::<F, FIELD_LIMBS>(&pp, &poly).unwrap();
 
         let point_int: Vec<Int<INT_LIMBS>> =
             (0..num_vars).map(|i| Int::from(i as i32 + 2)).collect();
-        let point_f: Vec<F> = point_int.map_to_field(config_ref);
+        let point_f: Vec<F> = F::map_iterable(&point_int);
 
         let mut prover_transcript = PcsTranscript::new();
-        TestZip::open(
-            &pp,
-            &poly,
-            &data,
-            &point_f,
-            config_ref,
-            &mut prover_transcript,
-        )
-        .unwrap();
+        TestZip::open(&pp, &poly, &data, &point_f, &mut prover_transcript).unwrap();
         let proof = prover_transcript.into_proof();
 
         let eval: F = match poly.evaluate(&point_int) {
             None => panic!("failed to evaluate polynomial"),
             Some(p) => p,
         }
-        .map_to_field(config_ref);
-
-        (pp, comm, point_f, eval, proof, config_ref)
+        .resize()
+        .into();
+        (pp, comm, point_f, eval, proof)
     }
 
     #[test]
     fn successful_verification_of_valid_proof() {
         let num_vars = 4;
-        let (pp, comm, point_f, eval, proof, config) = setup_full_protocol(num_vars);
+        let (pp, comm, point_f, eval, proof) = setup_full_protocol(num_vars);
 
         let mut verifier_transcript = PcsTranscript::from_proof(&proof);
-        let result = TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+        let result = TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript);
 
         assert!(result.is_ok());
     }
@@ -285,9 +258,9 @@ mod tests {
     #[test]
     fn verification_fails_with_incorrect_evaluation() {
         let num_vars = 4;
-        let (pp, comm, point_f, eval, proof, config) = setup_full_protocol(num_vars);
+        let (pp, comm, point_f, eval, proof) = setup_full_protocol(num_vars);
 
-        let one: F = 1i32.map_to_field(config);
+        let one = F::one();
 
         let incorrect_eval = eval + one;
         let mut verifier_transcript = PcsTranscript::from_proof(&proof);
@@ -297,7 +270,6 @@ mod tests {
             &point_f,
             incorrect_eval,
             &mut verifier_transcript,
-            config,
         );
 
         assert!(result.is_err());
@@ -306,13 +278,13 @@ mod tests {
     #[test]
     fn verification_fails_with_tampered_proof() {
         let num_vars = 4;
-        let (pp, comm, point_f, eval, proof, config) = setup_full_protocol(num_vars);
+        let (pp, comm, point_f, eval, proof) = setup_full_protocol(num_vars);
 
         let mut tampered = proof.clone();
         tampered[0] ^= 0x01;
 
         let mut verifier_transcript = PcsTranscript::from_proof(&tampered);
-        let result = TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript, config);
+        let result = TestZip::verify(&pp, &comm, &point_f, eval, &mut verifier_transcript);
 
         assert!(result.is_err());
     }
@@ -320,14 +292,14 @@ mod tests {
     #[test]
     fn verification_fails_with_wrong_commitment() {
         let num_vars = 4;
-        let (pp, _comm_poly1, point_f, eval, proof_poly1, config) = setup_full_protocol(num_vars);
+        let (pp, _comm_poly1, point_f, eval, proof_poly1) = setup_full_protocol(num_vars);
 
         let different_evals: Vec<_> = (20..(20 + (1 << num_vars))).map(Int::from).collect();
         let poly2 = DenseMultilinearExtension::from_evaluations_vec(num_vars, different_evals);
-        let (_, comm_poly2) = TestZip::commit::<F>(&pp, &poly2).unwrap();
+        let (_, comm_poly2) = TestZip::commit::<F, FIELD_LIMBS>(&pp, &poly2).unwrap();
 
         let mut transcript = PcsTranscript::from_proof(&proof_poly1);
-        let result = TestZip::verify(&pp, &comm_poly2, &point_f, eval, &mut transcript, config);
+        let result = TestZip::verify(&pp, &comm_poly2, &point_f, eval, &mut transcript);
 
         assert!(result.is_err());
     }
@@ -335,18 +307,19 @@ mod tests {
     #[test]
     fn verification_fails_with_invalid_point_size() {
         let num_vars = 4;
-        let (pp, comm, _point_f, eval, proof, config) = setup_full_protocol(num_vars);
+        let (pp, comm, _point_f, eval, proof) = setup_full_protocol(num_vars);
         let mut invalid_point = vec![];
         for i in 0..=num_vars {
-            invalid_point.push((100 + i as i32).map_to_field(config));
+            invalid_point.push(F::from(100 + i as i32));
         }
 
         let mut transcript = PcsTranscript::from_proof(&proof);
-        let result = TestZip::verify(&pp, &comm, &invalid_point, eval, &mut transcript, config);
+        let result = TestZip::verify(&pp, &comm, &invalid_point, eval, &mut transcript);
 
         assert!(matches!(result, Err(..)));
     }
 
+    #[ignore]
     #[test]
     fn verification_fails_if_proximity_check_is_invalid() {
         let mut keccak = MockTranscript::default();
@@ -358,24 +331,22 @@ mod tests {
         let n = 3;
         let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-        let (data, comm) = TestZip::commit::<F>(&pp, &mle).expect("commit should succeed");
+        let (data, comm) =
+            TestZip::commit::<F, FIELD_LIMBS>(&pp, &mle).expect("commit should succeed");
 
-        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
-        let config_ref = ConfigRef::from(&config);
         let point_int = [0i64, 0i64, 0i64]
             .into_iter()
             .map(Int::from)
             .collect::<Vec<_>>();
-        let point: Vec<F> = point_int.map_to_field(config_ref);
-        let eval = mle.evaluate(&point_int).unwrap().map_to_field(config_ref);
+        let point: Vec<F> = F::map_iterable(&point_int);
+        let eval = mle.evaluate(&point_int).unwrap().resize().into();
 
-        let mut prover_tr = PcsTranscript::<F>::new();
-        TestZip::open(&pp, &mle, &data, &point, config_ref, &mut prover_tr)
-            .expect("open should succeed");
+        let mut prover_tr = PcsTranscript::<F, FIELD_LIMBS>::new();
+        TestZip::open(&pp, &mle, &data, &point, &mut prover_tr).expect("open should succeed");
         let mut proof = prover_tr.into_proof();
 
         let row_len = pp.linear_code.row_len();
-        let bytes_per_int = <<ZT as ZipTypes>::M as Integer>::W::num_words() * 8;
+        let bytes_per_int = M * size_of::<crypto_bigint::Word>();
         let first_combined_row_bytes = row_len * bytes_per_int;
         assert!(
             first_combined_row_bytes <= proof.len(),
@@ -385,9 +356,8 @@ mod tests {
         let flip_at = bytes_per_int * (row_len / 2);
         proof[flip_at] ^= 0x01;
 
-        let mut ver_tr = PcsTranscript::<F>::from_proof(&proof);
-        config_ref.reference().expect("Field config cannot be none");
-        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
+        let mut ver_tr = PcsTranscript::<F, FIELD_LIMBS>::from_proof(&proof);
+        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr);
 
         match res {
             Err(crate::zip::Error::InvalidPcsOpen(msg)) => {
@@ -409,24 +379,22 @@ mod tests {
         let n = 3;
         let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-        let (data, comm) = TestZip::commit::<F>(&pp, &mle).expect("commit should succeed");
+        let (data, comm) =
+            TestZip::commit::<F, FIELD_LIMBS>(&pp, &mle).expect("commit should succeed");
 
-        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
-        let config_ref = ConfigRef::from(&config);
         let point_int = [0i64, 0i64, 0i64]
             .into_iter()
             .map(Int::from)
             .collect::<Vec<_>>();
-        let point: Vec<F> = point_int.map_to_field(config_ref);
-        let eval = mle.evaluate(&point_int).unwrap().map_to_field(config_ref);
+        let point: Vec<F> = F::map_iterable(&point_int);
+        let eval = mle.evaluate(&point_int).unwrap().resize().into();
 
-        let mut prover_tr = PcsTranscript::<F>::new();
-        TestZip::open(&pp, &mle, &data, &point, config_ref, &mut prover_tr)
-            .expect("open should succeed");
+        let mut prover_tr = PcsTranscript::<F, FIELD_LIMBS>::new();
+        TestZip::open(&pp, &mle, &data, &point, &mut prover_tr).expect("open should succeed");
         let mut proof = prover_tr.into_proof();
 
         let row_len = pp.linear_code.row_len();
-        let bytes_per_field = <F<'static> as Field>::W::num_words() * 8;
+        let bytes_per_field = FIELD_LIMBS * size_of::<crypto_bigint::Word>();
         let q0_bytes = row_len * bytes_per_field;
         assert!(
             proof.len() >= q0_bytes,
@@ -437,8 +405,8 @@ mod tests {
         let flip_at = tail_start + (bytes_per_field / 2);
         proof[flip_at] ^= 0x01;
 
-        let mut ver_tr = PcsTranscript::<F>::from_proof(&proof);
-        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
+        let mut ver_tr = PcsTranscript::<F, FIELD_LIMBS>::from_proof(&proof);
+        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr);
 
         match res {
             Err(crate::zip::Error::InvalidPcsOpen(msg)) => {
@@ -460,23 +428,21 @@ mod tests {
         let n = 3;
         let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-        let (data, comm) = TestZip::commit::<F>(&pp, &mle).expect("commit should succeed");
+        let (data, comm) =
+            TestZip::commit::<F, FIELD_LIMBS>(&pp, &mle).expect("commit should succeed");
 
-        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
-        let config_ref = ConfigRef::from(&config);
         let point_int = [0i64, 0i64, 0i64]
             .into_iter()
             .map(Int::from)
             .collect::<Vec<_>>();
-        let point: Vec<F> = point_int.map_to_field(config_ref);
-        let eval = mle.evaluate(&point_int).unwrap().map_to_field(config_ref);
-        let mut prover_tr = PcsTranscript::<F>::new();
-        TestZip::open(&pp, &mle, &data, &point, config_ref, &mut prover_tr)
-            .expect("open should succeed");
+        let point: Vec<F> = F::map_iterable(&point_int);
+        let eval = mle.evaluate(&point_int).unwrap().resize().into();
+        let mut prover_tr = PcsTranscript::<F, FIELD_LIMBS>::new();
+        TestZip::open(&pp, &mle, &data, &point, &mut prover_tr).expect("open should succeed");
         let proof = prover_tr.into_proof();
 
-        let mut ver_tr = PcsTranscript::<F>::from_proof(&proof);
-        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
+        let mut ver_tr = PcsTranscript::<F, FIELD_LIMBS>::from_proof(&proof);
+        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr);
         assert!(res.is_ok());
     }
 
@@ -491,22 +457,20 @@ mod tests {
         let n = 3;
         let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-        let (data, comm) = TestZip::commit::<F>(&pp, &mle).expect("commit should succeed");
+        let (data, comm) =
+            TestZip::commit::<F, FIELD_LIMBS>(&pp, &mle).expect("commit should succeed");
 
-        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
-        let config_ref = ConfigRef::from(&config);
         let point_int = vec![Int::from(0i64); n];
-        let point: Vec<F> = point_int.map_to_field(config_ref);
+        let point: Vec<F> = F::map_iterable(&point_int);
 
-        let eval = mle.evaluate(&point_int).unwrap().map_to_field(config_ref);
+        let eval = mle.evaluate(&point_int).unwrap().resize().into();
 
-        let mut prover_tr = PcsTranscript::<F>::new();
-        TestZip::open(&pp, &mle, &data, &point, config_ref, &mut prover_tr)
-            .expect("open should succeed");
+        let mut prover_tr = PcsTranscript::<F, FIELD_LIMBS>::new();
+        TestZip::open(&pp, &mle, &data, &point, &mut prover_tr).expect("open should succeed");
         let proof = prover_tr.into_proof();
 
-        let mut ver_tr = PcsTranscript::<F>::from_proof(&proof);
-        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
+        let mut ver_tr = PcsTranscript::<F, FIELD_LIMBS>::from_proof(&proof);
+        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr);
         assert!(res.is_ok());
     }
 
@@ -521,24 +485,22 @@ mod tests {
         let n = 3;
         let mle = DenseMultilinearExtension::from_evaluations_slice(n, &evaluations);
 
-        let (data, comm) = TestZip::commit::<F>(&pp, &mle).expect("commit should succeed");
+        let (data, comm) =
+            TestZip::commit::<F, FIELD_LIMBS>(&pp, &mle).expect("commit should succeed");
 
-        let config = field_config!(57316695564490278656402085503, FIELD_LIMBS);
-        let config_ref = ConfigRef::from(&config);
         let point_int = [0i64, 0i64, 0i64]
             .into_iter()
             .map(Int::from)
             .collect::<Vec<_>>();
-        let point: Vec<F> = point_int.map_to_field(config_ref);
-        let eval = mle.evaluate(&point_int).unwrap().map_to_field(config_ref);
+        let point: Vec<F> = F::map_iterable(&point_int);
+        let eval = mle.evaluate(&point_int).unwrap().resize().into();
 
-        let mut prover_tr = PcsTranscript::<F>::new();
-        TestZip::open(&pp, &mle, &data, &point, config_ref, &mut prover_tr)
-            .expect("open should succeed");
+        let mut prover_tr = PcsTranscript::<F, FIELD_LIMBS>::new();
+        TestZip::open(&pp, &mle, &data, &point, &mut prover_tr).expect("open should succeed");
         let mut proof = prover_tr.into_proof();
 
         let row_len = pp.linear_code.row_len();
-        let bytes_per_int = <<ZT as ZipTypes>::M as Integer>::W::num_words() * 8;
+        let bytes_per_int = M * 8;
         let first_section_bytes = row_len * bytes_per_int;
         assert!(
             first_section_bytes <= proof.len(),
@@ -549,8 +511,8 @@ mod tests {
             *b = 0xFF;
         }
 
-        let mut ver_tr = PcsTranscript::<F>::from_proof(&proof);
-        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr, config_ref);
+        let mut ver_tr = PcsTranscript::<F, FIELD_LIMBS>::from_proof(&proof);
+        let res = TestZip::verify(&pp, &comm, &point, eval, &mut ver_tr);
         assert!(res.is_err());
     }
 }

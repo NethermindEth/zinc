@@ -1,17 +1,30 @@
-pub mod errors;
-pub mod util;
+pub mod dense;
+pub mod mle;
+pub mod polynomials;
+pub mod sparse;
+pub mod utils;
 
-//TODO add exports
-pub use errors::ArithErrors;
-pub use util::get_batched_nv;
+use ark_std::string::String;
+use displaydoc::Display;
+use thiserror::Error;
 
-pub(crate) extern crate alloc;
+extern crate alloc;
 
-// ark-std v0.5 should re-export alloc/std::sync.
-// While already released on crates.io, related versioning changes were reverted on the GitHub repo.
-// Let's wait for this issue to stabilize.
-#[cfg(target_has_atomic = "ptr")]
-pub use alloc::sync::Arc as RefCounter;
+pub type RefCounter<T> = alloc::sync::Arc<T>;
 
-#[cfg(not(target_has_atomic = "ptr"))]
-pub use ark_std::rc::Rc as RefCounter;
+/// A `enum` specifying the possible failure modes of the arithmetics.
+#[derive(Display, Debug, Error)]
+pub enum ArithErrors {
+    /// Invalid parameters: {0}
+    InvalidParameters(String),
+    /// Should not arrive to this point
+    ShouldNotArrive,
+    /// An error during (de)serialization: {0}
+    SerializationErrors(ark_serialize::SerializationError),
+}
+
+impl From<ark_serialize::SerializationError> for ArithErrors {
+    fn from(e: ark_serialize::SerializationError) -> Self {
+        Self::SerializationErrors(e)
+    }
+}

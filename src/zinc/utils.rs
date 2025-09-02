@@ -1,16 +1,14 @@
 #![allow(non_snake_case)]
 
 use ark_std::vec::Vec;
-use bytemuck::cast_slice;
 
 use super::errors::{MleEvaluationError, SpartanError};
 use crate::{
-    ccs::{ccs_f::CCS_F, error::CSError, utils::mat_vec_mul},
-    poly_f::mle::DenseMultilinearExtension,
-    prime_gen::get_prime,
+    ccs::{CSError, CcsF, mat_vec_mul},
+    poly::dense::DenseMultilinearExtension,
     sparse_matrix::SparseMatrix,
     sumcheck::utils::build_eq_x_r,
-    traits::{Config, Field, Integer},
+    traits::Field,
     transcript::KeccakTranscript,
 };
 
@@ -46,14 +44,14 @@ use crate::{
 /// # Errors:
 /// * Will return an error if any of the MLEs are of the wrong size
 ///
-pub fn prepare_lin_sumcheck_polynomial<F: Field>(
+pub fn prepare_lin_sumcheck_polynomial<F: Field<LIMBS>, const LIMBS: usize>(
     c: &[F],
     d: &usize,
     M_mles: &[DenseMultilinearExtension<F>],
     S: &[Vec<usize>],
     beta_s: &[F],
-    config: F::R,
 ) -> Result<(Vec<DenseMultilinearExtension<F>>, usize), SpartanError<F>> {
+    // Flatten M_mles following S over non-zero c entries; eq(beta, x) is appended last.
     let len = 1 + c
         .iter()
         .enumerate()
@@ -69,75 +67,78 @@ pub fn prepare_lin_sumcheck_polynomial<F: Field>(
         }
     }
 
-    mles.push(build_eq_x_r(beta_s, config)?);
+    mles.push(build_eq_x_r(beta_s)?);
 
     Ok((mles, d + 1))
 }
 
-pub(crate) fn sumcheck_polynomial_comb_fn_1<F: Field>(vals: &[F], ccs: &CCS_F<F>) -> F {
+pub(crate) fn sumcheck_polynomial_comb_fn_1<F: Field<LIMBS>, const LIMBS: usize>(
+    vals: &[F],
+    ccs: &CcsF<F>,
+) -> F {
+    // vals layout must match the flattened order constructed in prepare_lin_sumcheck_polynomial
     let mut result = F::zero();
+    let mut k = 0usize;
+
     'outer: for (i, c) in ccs.c.iter().enumerate() {
         if c.is_zero() {
             continue;
         }
-        let mut term = c.clone();
-        for &j in &ccs.S[i] {
-            if vals[j].is_zero() {
+        let mut term = *c;
+        for _ in &ccs.S[i] {
+            let v = vals[k];
+            k += 1;
+            if v.is_zero() {
                 continue 'outer;
             }
-            term *= &vals[j];
+            term = term * v;
         }
-        result += &term;
+        result += term;
     }
+
     // eq() is the last term added
-    result * &vals[vals.len() - 1]
+    result * vals[vals.len() - 1]
 }
 
-pub(crate) trait SqueezeBeta<F: Field> {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: F::R) -> Vec<F>;
+pub(crate) trait SqueezeBeta<F: Field<LIMBS>, const LIMBS: usize> {
+    fn squeeze_beta_challenges(&mut self, n: usize) -> Vec<F>;
 }
 
-impl<F: Field> SqueezeBeta<F> for KeccakTranscript {
-    fn squeeze_beta_challenges(&mut self, n: usize, config: F::R) -> Vec<F> {
+impl<F: Field<LIMBS>, const LIMBS: usize> SqueezeBeta<F, LIMBS> for KeccakTranscript {
+    fn squeeze_beta_challenges(&mut self, n: usize) -> Vec<F> {
         self.absorb(b"beta_s");
 
-        self.get_challenges(n, config)
+        self.get_challenges(n)
     }
 }
 
-pub(crate) trait SqueezeGamma<F: Field> {
-    fn squeeze_gamma_challenge(&mut self, config: F::R) -> F;
+pub(crate) trait SqueezeGamma<F: Field<LIMBS>, const LIMBS: usize> {
+    fn squeeze_gamma_challenge(&mut self) -> F;
 }
 
-impl<F: Field> SqueezeGamma<F> for KeccakTranscript {
-    fn squeeze_gamma_challenge(&mut self, config: F::R) -> F {
+impl<F: Field<LIMBS>, const LIMBS: usize> SqueezeGamma<F, LIMBS> for KeccakTranscript {
+    fn squeeze_gamma_challenge(&mut self) -> F {
         self.absorb(b"gamma");
 
-        self.get_challenge(config)
+        self.get_challenge()
     }
 }
 
 // Prepare MLE's of the form mle[M_i \cdot z_ccs](x), a.k.a. \sum mle[M_i](x, b) * mle[z_ccs](b).
-pub(super) fn calculate_Mz_mles<E, F: Field>(
+pub(super) fn calculate_Mz_mles<E, F: Field<LIMBS>, const LIMBS: usize>(
     constraints: &[SparseMatrix<F>],
     ccs_s: usize,
     z_ccs: &[F],
-    config: F::R,
 ) -> Result<Vec<DenseMultilinearExtension<F>>, E>
 where
     E: From<MleEvaluationError> + From<CSError> + Sync + Send,
 {
-    to_mles_err::<F, _, E, CSError>(
-        ccs_s,
-        constraints.iter().map(|M| mat_vec_mul(M, z_ccs)),
-        config,
-    )
+    to_mles_err::<F, LIMBS, _, E, CSError>(ccs_s, constraints.iter().map(|M| mat_vec_mul(M, z_ccs)))
 }
 
-fn to_mles_err<F: Field, I, E, E1>(
+fn to_mles_err<F: Field<LIMBS>, const LIMBS: usize, I, E, E1>(
     n_vars: usize,
     mle_s: I,
-    config: F::R,
 ) -> Result<Vec<DenseMultilinearExtension<F>>, E>
 where
     I: IntoIterator<Item = Result<Vec<F>, E1>>,
@@ -150,22 +151,20 @@ where
             if 1 << n_vars < m.len() {
                 Err(MleEvaluationError::IncorrectLength(1 << n_vars, m.len()).into())
             } else {
-                Ok(DenseMultilinearExtension::from_evaluations_vec(
-                    n_vars, m, config,
-                ))
+                Ok(DenseMultilinearExtension::from_evaluations_vec(n_vars, m))
             }
         })
         .collect::<Result<_, E>>()
 }
 
-pub fn draw_random_field<I: Integer, F: Field>(
-    public_inputs: &[I],
-    transcript: &mut KeccakTranscript,
-) -> F::C {
-    for input in public_inputs {
-        transcript.absorb(cast_slice(input.as_words()));
-    }
-    // Method for efficient random prime sampling not yet implemented
-    // Fixing the random prime q for now
-    F::C::new(get_prime::<F>(transcript))
-}
+// pub fn draw_random_field<const I: usize, F: Field<LIMBS>, const LIMBS: usize>(
+//     public_inputs: &[Int<I>],
+//     transcript: &mut KeccakTranscript,
+// ) -> F::C {
+//     for input in public_inputs {
+//         transcript.absorb(cast_slice(input.as_words()));
+//     }
+//     // Method for efficient random prime sampling not yet implemented
+//     // Fixing the random prime q for now
+//     F::C::new(get_prime::<F>(transcript))
+// }

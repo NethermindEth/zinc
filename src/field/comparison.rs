@@ -1,30 +1,37 @@
-use ark_ff::{One, Zero};
+use std::cmp::Ordering;
 
-use crate::{
-    field::{
-        RandomField,
-        RandomField::{Initialized, Raw},
-    },
-    traits::Field,
-};
+use crypto_bigint::subtle::{Choice, ConstantTimeEq};
 
-impl<const N: usize> PartialEq for RandomField<'_, N> {
-    fn eq(&self, other: &Self) -> bool {
-        if self.is_one() & other.is_one() {
-            return true;
-        }
-        if self.is_zero() && other.is_zero() {
-            return true;
-        }
+use crate::field::{Monty, RandomField};
 
-        match (self, other) {
-            (Initialized { .. }, Raw { .. }) | (Raw { .. }, Initialized { .. }) => false,
-            (Raw { .. }, Raw { .. }) => self.value() == other.value(),
-            (Initialized { .. }, Initialized { .. }) => {
-                self.value() == other.value() && self.config_ptr() == other.config_ptr()
-            }
-        }
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> ConstantTimeEq for RandomField<MOD, LIMBS> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 
-impl<const N: usize> Eq for RandomField<'_, N> {} // Eq requires PartialEq and ensures reflexivity.
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> PartialOrd for RandomField<MOD, LIMBS> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.as_montgomery().partial_cmp(other.0.as_montgomery())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crypto_bigint::{U128, const_monty_params};
+
+    use super::*;
+
+    const_monty_params!(ModP, U128, "7fffffffffffffffffffffffffffffff");
+    type F = RandomField<ModP, { U128::LIMBS }>;
+
+    #[test]
+    fn const_time_eq_and_order() {
+        let a: F = 10u64.into();
+        let b: F = 10u64.into();
+        let c: F = 11u64.into();
+        assert_eq!(a.ct_eq(&b).unwrap_u8(), 1);
+        assert_eq!(a.ct_eq(&c).unwrap_u8(), 0);
+        assert!(a.partial_cmp(&c).is_some());
+    }
+}

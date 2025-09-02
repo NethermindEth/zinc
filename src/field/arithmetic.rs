@@ -1,717 +1,482 @@
-use ark_ff::{One, Zero};
-use ark_std::{
+use std::{
     iter::Sum,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign},
 };
 
-use crate::{field::RandomField, traits::Config};
+use crypto_bigint::{
+    Int, Invert, NonZero,
+    subtle::{Choice, CtOption},
+};
+use num_traits::{ConstOne, ConstZero};
 
-macro_rules! impl_ops {
-    (
-        impl($($gen:tt)*) for $type:ty,
-        $trait:ident, $op:ident,
-        $trait_assign:ident, $op_assign:ident
-    ) => {
-        impl<$($gen)*> $trait<Self> for $type {
+use crate::{
+    field::{Monty, RandomField},
+    traits::Negate,
+};
+
+// Macro to implement arithmetic traits for Field in all ref/value combinations
+// Uses the same method name for both the trait method and the inner explicit call.
+macro_rules! impl_field_op {
+    ($trait:ident, $method:ident) => {
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait for RandomField<MOD, LIMBS> {
             type Output = Self;
-
-            fn $op(mut self, rhs: Self) -> Self::Output {
-                self.$op_assign(&rhs);
-                self
+            fn $method(self, rhs: Self) -> Self::Output {
+                Self(self.0.$method(rhs.0))
             }
         }
-
-        impl<$($gen)*> $trait<&Self> for $type {
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait<&Self> for RandomField<MOD, LIMBS> {
             type Output = Self;
-
-            fn $op(mut self, rhs: &Self) -> Self::Output {
-                self.$op_assign(rhs);
-                self
+            fn $method(self, rhs: &Self) -> Self::Output {
+                Self(self.0.$method(&rhs.0))
             }
         }
-
-        impl<$($gen)*> $trait<Self> for &$type {
-            type Output = $type;
-
-            fn $op(self, rhs: Self) -> Self::Output {
-                let mut res = *self;
-                res.$op_assign(rhs);
-                res
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait for &RandomField<MOD, LIMBS> {
+            type Output = RandomField<MOD, LIMBS>;
+            fn $method(self, rhs: Self) -> Self::Output {
+                RandomField(self.0.$method(rhs.0))
             }
         }
-
-        impl<$($gen)*> $trait<$type> for &$type {
-            type Output = $type;
-
-            fn $op(self, rhs: $type) -> Self::Output {
-                let mut res = *self;
-                res.$op_assign(&rhs);
-                res
-            }
-        }
-
-        impl<$($gen)*> $trait_assign<Self> for $type {
-            fn $op_assign(&mut self, rhs: Self) {
-                self.$op_assign(&rhs);
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait<RandomField<MOD, LIMBS>>
+            for &RandomField<MOD, LIMBS>
+        {
+            type Output = RandomField<MOD, LIMBS>;
+            fn $method(self, rhs: RandomField<MOD, LIMBS>) -> Self::Output {
+                RandomField(self.0.$method(&rhs.0))
             }
         }
     };
 }
 
-impl_ops!(impl('cfg, const N: usize) for RandomField<'cfg, N>, Add, add, AddAssign, add_assign);
-impl_ops!(impl('cfg, const N: usize) for RandomField<'cfg, N>, Sub, sub, SubAssign, sub_assign);
-impl_ops!(impl('cfg, const N: usize) for RandomField<'cfg, N>, Mul, mul, MulAssign, mul_assign);
-impl_ops!(impl('cfg, const N: usize) for RandomField<'cfg, N>, Div, div, DivAssign, div_assign);
+impl_field_op!(Add, add);
+impl_field_op!(Sub, sub);
+impl_field_op!(Mul, mul);
 
-impl<const N: usize> AddAssign<&Self> for RandomField<'_, N> {
-    fn add_assign(&mut self, rhs: &Self) {
-        self.with_aligned_config_mut(
-            rhs,
-            |lhs, rhs, config| {
-                config.add_assign(lhs, rhs);
-            },
-            |lhs, rhs| {
-                lhs.add_with_carry(rhs);
-            },
-        );
-    }
-}
-
-impl<const N: usize> SubAssign<&Self> for RandomField<'_, N> {
-    fn sub_assign(&mut self, rhs: &Self) {
-        self.with_aligned_config_mut(
-            rhs,
-            |lhs, rhs, config| {
-                config.sub_assign(lhs, rhs);
-            },
-            |lhs, rhs| {
-                lhs.sub_with_borrow(rhs);
-            },
-        );
-    }
-}
-
-impl<const N: usize> MulAssign<&Self> for RandomField<'_, N> {
-    fn mul_assign(&mut self, rhs: &Self) {
-        self.with_aligned_config_mut(
-            rhs,
-            |lhs, rhs, config| {
-                config.mul_assign(lhs, rhs);
-            },
-            |lhs, rhs| {
-                lhs.mul(rhs);
-            },
-        );
-    }
-}
-
-impl<const N: usize> DivAssign<&Self> for RandomField<'_, N> {
-    fn div_assign(&mut self, rhs: &Self) {
-        if rhs.is_zero() {
-            panic!("Attempt to divide by zero");
+// Macro to implement assignment arithmetic traits (e.g., AddAssign) for Field
+// Implements both rhs: Self and rhs: &Self, using an explicit inner method on ConstMontyForm
+macro_rules! impl_field_op_assign {
+    ($trait:ident, $method:ident, $inner:ident) => {
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait for RandomField<MOD, LIMBS> {
+            fn $method(&mut self, rhs: Self) {
+                // Use reference for inner call to avoid moves of rhs.0 where not needed
+                self.0 = self.0.$inner(&rhs.0);
+            }
         }
-
-        self.with_aligned_config_mut(
-            rhs,
-            |lhs, rhs, config| {
-                config.mul_assign(lhs, &config.inverse(rhs).unwrap());
-            },
-            |_, _| panic!("Cannot divide without a field config"),
-        );
-    }
+        impl<MOD: Monty<LIMBS>, const LIMBS: usize> $trait<&Self> for RandomField<MOD, LIMBS> {
+            fn $method(&mut self, rhs: &Self) {
+                self.0 = self.0.$inner(&rhs.0);
+            }
+        }
+    };
 }
 
-impl<const N: usize> DivAssign<&mut Self> for RandomField<'_, N> {
-    fn div_assign(&mut self, rhs: &mut Self) {
-        *self /= *rhs;
-    }
-}
+impl_field_op_assign!(AddAssign, add_assign, add);
+impl_field_op_assign!(SubAssign, sub_assign, sub);
+impl_field_op_assign!(MulAssign, mul_assign, mul);
 
-impl<const N: usize> Neg for RandomField<'_, N> {
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> Neg for RandomField<MOD, LIMBS> {
     type Output = Self;
 
-    fn neg(mut self) -> Self::Output {
-        if self.is_zero() {
-            return self;
+    fn neg(self) -> Self::Output {
+        Self(self.0.neg())
+    }
+}
+
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> Negate for RandomField<MOD, LIMBS> {
+    type Output = Self;
+
+    fn negate(&self) -> Self::Output {
+        self.neg()
+    }
+}
+
+impl<const N: usize> Negate for Int<N> {
+    type Output = Self;
+
+    fn negate(&self) -> Self::Output {
+        self.wrapping_neg()
+    }
+}
+
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> Invert for RandomField<MOD, LIMBS> {
+    type Output = Option<Self>;
+
+    fn invert(&self) -> Self::Output {
+        let result = self.0.invert_vartime();
+        if result.is_some().into() {
+            Some(Self(result.unwrap()))
+        } else {
+            None
         }
-
-        self.with_either_mut(
-            |_| panic!("Cannot negate without a field config"),
-            |config, value| {
-                let tmp = *value;
-                *value = *config.modulus();
-                value.sub_with_borrow(&tmp);
-            },
-        );
-
-        self
     }
 }
 
-impl<'a, const N: usize> Sum<&'a Self> for RandomField<'_, N> {
+#[allow(clippy::suspicious_arithmetic_impl)]
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> Div<NonZero<Self>> for RandomField<MOD, LIMBS> {
+    type Output = CtOption<Self>;
+
+    fn div(self, rhs: NonZero<Self>) -> Self::Output {
+        let inv = rhs.invert().unwrap();
+
+        CtOption::new(self * inv, Choice::from(1u8))
+    }
+}
+
+impl<'a, MOD: Monty<LIMBS>, const LIMBS: usize> Sum<&'a Self> for RandomField<MOD, LIMBS> {
     fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
-        iter.fold(Self::zero(), |mut acc, x| {
-            acc.add_assign(x);
-            acc
-        })
+        iter.fold(Self::ZERO, |acc, x| acc + x)
     }
 }
 
-impl<const N: usize> Sum for RandomField<'_, N> {
+impl<MOD: Monty<LIMBS>, const LIMBS: usize> Sum for RandomField<MOD, LIMBS> {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
-        iter.fold(Self::zero(), |mut acc, x| {
-            acc.add_assign(&x);
-            acc
-        })
+        iter.fold(Self::ZERO, |acc, x| acc + x)
     }
 }
 
-impl<'a, const N: usize> core::iter::Product<&'a Self> for RandomField<'_, N> {
+impl<'a, MOD: Monty<LIMBS>, const LIMBS: usize> core::iter::Product<&'a Self>
+    for RandomField<MOD, LIMBS>
+{
     fn product<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
-        iter.fold(Self::one(), core::ops::Mul::mul)
-    }
-}
-
-impl<'a, const N: usize> From<&'a Self> for RandomField<'_, N> {
-    fn from(value: &'a Self) -> Self {
-        *value
+        iter.fold(Self::ONE, |acc, x| acc * x)
     }
 }
 
 #[cfg(test)]
-mod test {
-    use ark_ff::{One, Zero};
+mod tests {
+    use crypto_bigint::{U256, const_monty_params};
+    use num_traits::{One, Zero};
 
-    use crate::{
-        big_int,
-        field::{RandomField, biginteger::BigInt, config::ConfigRef},
-        field_config, random_field,
-    };
+    use super::*;
+
+    const_monty_params!(
+        ModP,
+        U256,
+        "00dca94d8a1ecce3b6e8755d8999787d0524d8ca1ea755e7af84fb646fa31f27"
+    );
+    type F = RandomField<ModP, { U256::LIMBS }>;
 
     #[test]
-    fn test_add_wrapping_around_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(22u32, config);
-        let rhs: RandomField<1> = random_field!(2u32, config);
-
-        let sum = lhs + rhs;
-        assert_eq!(sum.into_bigint(), BigInt::one());
+    fn add_wrapping_and_basic() {
+        let a: F = (-100i64).into();
+        let b: F = 105u64.into();
+        let c = a + b;
+        let d: F = 5u64.into();
+        assert_eq!(c, d);
     }
 
     #[test]
-    fn test_add_without_wrapping() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(20u32, config);
-        let rhs: RandomField<1> = random_field!(20u32, config);
-
-        let sum = lhs + rhs;
-        assert_eq!(sum.into_bigint(), big_int!(17));
+    fn sub_basic() {
+        let a: F = 100u64.into();
+        let b: F = 7u64.into();
+        assert_eq!(a - b, 93u64.into());
     }
 
     #[test]
-    fn test_add_one() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(22u32, config);
-        let rhs: RandomField<1> = RandomField::one();
-
-        let sum = lhs + rhs;
-        assert_eq!(sum.into_bigint(), BigInt::zero());
+    fn mul_basic() {
+        let a: F = 100u64.into();
+        let b: F = 7u64.into();
+        assert_eq!(a * b, 700u64.into());
     }
 
     #[test]
-    fn test_add_two_ones() {
-        let lhs: RandomField<1> = RandomField::one();
-        let rhs = RandomField::one();
-
-        assert_eq!(
-            lhs + rhs,
-            RandomField::Raw {
-                value: BigInt::from(2u32)
-            }
-        );
+    fn add_assign_basic() {
+        let mut a: F = 5u64.into();
+        a += F::from(6u64);
+        assert_eq!(a, 11u64.into());
     }
 
     #[test]
-    fn test_sub_wrapping_around_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(2u32, config);
-        let rhs: RandomField<1> = random_field!(22u32, config);
-
-        let difference = lhs - rhs;
-        assert_eq!(difference.into_bigint(), big_int!(3));
+    fn mul_assign_basic() {
+        let mut a: F = 11u64.into();
+        a *= F::from(3u64);
+        assert_eq!(a, 33u64.into());
     }
 
     #[test]
-    fn test_sub_identical_values_results_in_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
+    fn neg_basic() {
+        let a: F = 9u64.into();
+        let neg_a = -a;
 
-        let lhs: RandomField<1> = random_field!(20u32, config);
-        let rhs: RandomField<1> = random_field!(20u32, config);
-
-        let difference = lhs - rhs;
-        assert_eq!(difference.into_bigint(), BigInt::zero());
+        assert_eq!(a + neg_a, F::zero());
     }
 
     #[test]
-    fn test_init_sub_raw() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(2u32, config);
-        let rhs = RandomField::one();
-        let res = lhs - rhs;
-        let mut expected = lhs;
-        expected.set_one();
-        assert_eq!(res, expected)
-    }
-
-    #[test]
-    fn test_sub_assign_works() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(10u32, config);
-        let rhs: RandomField<1> = random_field!(7u32, config);
-
-        lhs -= rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(3));
-    }
-
-    #[test]
-    fn test_sub_assign_wraps_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(3u32, config);
-        let rhs: RandomField<1> = random_field!(7u32, config);
-
-        lhs -= rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(19)); // 3 - 7 mod 23 = 19
-    }
-
-    #[test]
-    fn test_mul_wraps_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(22u32, config);
-        let rhs: RandomField<1> = random_field!(2u32, config);
-
-        let product = lhs * rhs;
-        assert_eq!(product.into_bigint(), big_int!(21));
-    }
-
-    #[test]
-    fn test_mul_without_wrapping() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(20u32, config);
-        let rhs: RandomField<1> = random_field!(20u32, config);
-
-        let product = lhs * rhs;
-        assert_eq!(product.into_bigint(), big_int!(9));
-    }
-
-    #[test]
-    fn test_left_mul_by_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(22u32, config);
-        let rhs = RandomField::zero();
-
-        let product = lhs * rhs;
-        assert!(product.is_zero());
-    }
-
-    #[test]
-    fn test_right_mul_by_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = RandomField::zero();
-        let rhs: RandomField<1> = random_field!(22u32, config);
-
-        let product = lhs * rhs;
-        assert!(product.is_zero());
-    }
-
-    #[test]
-    fn test_mul_assign_works() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(5u32, config);
-        let rhs: RandomField<1> = random_field!(4u32, config);
-
-        lhs *= rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(20));
-    }
-
-    #[test]
-    fn test_mul_assign_wraps_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(6u32, config);
-        let rhs: RandomField<1> = random_field!(4u32, config);
-
-        lhs *= rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(1)); // 6 * 4 mod 23 = 1
-    }
-
-    #[test]
-    fn test_div_wraps_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(22u32, config);
-        let rhs: RandomField<1> = random_field!(2u32, config);
-
-        let quotient = lhs / rhs;
-        assert_eq!(quotient.into_bigint(), big_int!(11));
-    }
-
-    #[test]
-    fn test_div_identical_values_results_in_one() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(20u32, config);
-        let rhs: RandomField<1> = random_field!(20u32, config);
-
-        let quotient = lhs / rhs;
-        assert_eq!(quotient.into_bigint(), big_int!(1));
-    }
-
-    #[test]
-    fn test_div_without_wrapping() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(17u32, config);
-        let rhs: RandomField<1> = random_field!(4u32, config);
-
-        let quotient = lhs / rhs;
-        assert_eq!(quotient.into_bigint(), big_int!(10));
+    fn div_basic() {
+        let num: F = 11u64.into();
+        let den: F = 5u64.into();
+        let q = num / NonZero::new(den).unwrap();
+        assert_eq!(q.unwrap() * den, num);
     }
 
     #[test]
     #[should_panic]
-    fn test_div_by_zero_should_panic() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let lhs: RandomField<1> = random_field!(17u32, config);
-        let rhs: RandomField<1> = random_field!(0u32, config);
-
-        let _sum = lhs / rhs;
+    fn div_by_zero_returns_none() {
+        let a: F = 7u64.into();
+        let zero = F::zero();
+        let _ = a / NonZero::new(zero).unwrap();
     }
 
     #[test]
-    fn test_div_bigint256() {
-        let config = field_config!(695962179703626800597079116051991347);
-        let config = ConfigRef::<4>::from(&config);
+    fn ref_and_value_combinations_add_sub_mul() {
+        let a: F = 42u64.into();
+        let b: F = 123u64.into();
 
-        let a: RandomField<4> = random_field!(3u32, config);
-        let mut b = RandomField::one();
-        b /= a;
-        assert_eq!(
-            b.into_bigint(),
-            big_int!(231987393234542266865693038683997116)
-        );
+        let r1 = a + b;
+        let a1: F = 42u64.into();
+        let b1: F = 123u64.into();
+        let r2 = a1 + b1;
+        let r3 = a1 + b1;
+        let a2: F = 42u64.into();
+        let b2: F = 123u64.into();
+        let r4 = a2 + b2;
+        assert_eq!(r1, r2);
+        assert_eq!(r1, r3);
+        assert_eq!(r1, r4);
 
-        let a: RandomField<4> = random_field!(19382769832175u64, config);
+        let a: F = 88u64.into();
+        let b: F = 59u64.into();
+        let s1 = a - b;
+        let a1: F = 88u64.into();
+        let b1: F = 59u64.into();
+        let s2 = a1 - b1;
+        let s3 = a1 - b1;
+        let a2: F = 88u64.into();
+        let b2: F = 59u64.into();
+        let s4 = a2 - b2;
+        assert_eq!(s1, s2);
+        assert_eq!(s1, s3);
+        assert_eq!(s1, s4);
 
-        let b: RandomField<4> = random_field!(97133987132135u64, config);
-
-        assert_eq!(
-            big_int!(243043087159742188419721163456177516),
-            (b / a).into_bigint()
-        );
+        let a: F = 9u64.into();
+        let b: F = 14u64.into();
+        let m1 = a * b;
+        let a1: F = 9u64.into();
+        let b1: F = 14u64.into();
+        let m2 = a1 * b1;
+        let m3 = a1 * b1;
+        let a2: F = 9u64.into();
+        let b2: F = 14u64.into();
+        let m4 = a2 * b2;
+        assert_eq!(m1, m2);
+        assert_eq!(m1, m3);
+        assert_eq!(m1, m4);
     }
 
     #[test]
-    fn test_div_by_reference_works() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(15u32, config);
-        let rhs = random_field!(3u32, config);
-
-        #[allow(clippy::op_ref)] // This implementation could be removed?
-        let quotient = lhs / &rhs;
-
-        assert_eq!(quotient.into_bigint(), big_int!(5));
+    fn assign_ops_with_refs_and_values() {
+        let mut x: F = 7u64.into();
+        let y: F = 8u64.into();
+        x += y;
+        assert_eq!(x, 15u64.into());
+        let mut x: F = 7u64.into();
+        let y: F = 8u64.into();
+        x.add_assign(&y);
+        assert_eq!(x, 15u64.into());
+        let mut x: F = 20u64.into();
+        let y: F = 6u64.into();
+        x -= y;
+        assert_eq!(x, 14u64.into());
+        let mut x: F = 20u64.into();
+        let y: F = 6u64.into();
+        x.sub_assign(&y);
+        assert_eq!(x, 14u64.into());
+        let mut x: F = 5u64.into();
+        let y: F = 9u64.into();
+        x *= y;
+        assert_eq!(x, 45u64.into());
+        let mut x: F = 5u64.into();
+        let y: F = 9u64.into();
+        x.mul_assign(&y);
+        assert_eq!(x, 45u64.into());
     }
 
     #[test]
-    fn test_div_by_mutable_reference_works() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let lhs: RandomField<1> = random_field!(9u32, config);
-        let rhs = random_field!(3u32, config);
-
-        #[allow(clippy::op_ref)] // This implementation could be removed?
-        let quotient = lhs / &rhs;
-
-        assert_eq!(quotient.into_bigint(), big_int!(3));
+    fn negation_properties() {
+        let a: F = 12345u64.into();
+        let zero = F::zero();
+        assert_eq!(a + (-a), zero);
+        assert_eq!(-(-a), a);
+        assert_eq!(-zero, zero);
     }
 
     #[test]
-    fn test_div_assign_works() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(15u32, config);
-        let rhs: RandomField<1> = random_field!(3u32, config);
-
-        lhs /= rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(5));
+    fn inversion_properties() {
+        let a: F = 777u64.into();
+        let inv = a.invert().expect("a should be invertible (non-zero)");
+        assert_eq!(a * inv, F::one());
+        let zero = F::zero();
+        assert!(zero.invert().is_none());
     }
 
     #[test]
-    #[should_panic(expected = "Attempt to divide by zero")]
-    fn test_div_assign_by_zero_should_panic() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(15u32, config);
-        let rhs = RandomField::zero();
-
-        lhs /= rhs;
+    #[should_panic]
+    fn division_properties_and_errors() {
+        let a: F = 9876u64.into();
+        let b: F = 543u64.into();
+        let q = a / NonZero::new(b).unwrap();
+        assert_eq!(q.unwrap() * b, a);
+        let c: F = 17u64.into();
+        let bc = b * c;
+        let left = a / NonZero::new(bc).unwrap();
+        let right = (a / NonZero::new(b).unwrap()).unwrap() / NonZero::new(c).unwrap();
+        assert_eq!(left.unwrap(), right.unwrap());
+        let _ = a / NonZero::new(F::zero()).unwrap();
     }
 
     #[test]
-    fn test_div_assign_by_mutable_reference() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
-
-        let mut lhs: RandomField<1> = random_field!(18u32, config);
-        let mut rhs = random_field!(3u32, config);
-
-        lhs /= &mut rhs;
-
-        assert_eq!(lhs.into_bigint(), big_int!(6)); // 18 / 3 mod 23 = 6
+    fn ring_identities() {
+        let a: F = 3u64.into();
+        let b: F = 5u64.into();
+        let c: F = 7u64.into();
+        assert_eq!(a + F::zero(), a);
+        assert_eq!(a * F::one(), a);
+        assert_eq!(a * F::zero(), F::zero());
+        assert_eq!(a + b, b + a);
+        assert_eq!(a * b, b * a);
+        assert_eq!((a + b) + c, a + (b + c));
+        assert_eq!((a * b) * c, a * (b * c));
+        assert_eq!(a * (b + c), a * b + a * c);
+        assert_eq!((a + b) * c, a * c + b * c);
+        assert_eq!(a - a, F::zero());
     }
 
     #[test]
-    fn test_neg_large_value() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
+    fn sum_and_product_trait_basic() {
+        let v: Vec<F> = vec![1u64.into(), 2u64.into(), 3u64.into(), 4u64.into()];
+        let sum1: F = v.iter().cloned().sum();
+        let sum2: F = v.iter().sum();
+        let expected_sum: F = 10u64.into();
+        assert_eq!(sum1, expected_sum);
+        assert_eq!(sum2, expected_sum);
 
-        let operand: RandomField<1> = random_field!(22u32, config);
-        let negated = -operand;
+        let prod1: F = v.iter().product();
+        // owned-product is not implemented; verify an equivalent fold
+        let prod2: F = v.iter().fold(F::one(), |acc, x| acc * x);
+        let expected_prod: F = (2 * 3 * 4).into();
+        assert_eq!(prod1, expected_prod);
+        assert_eq!(prod2, expected_prod);
 
-        assert_eq!(negated.into_bigint(), big_int!(1));
+        // empty iterators: define behavior as neutral elements
+        let empty: Vec<F> = vec![];
+        let sum_empty: F = empty.iter().cloned().sum();
+        assert_eq!(sum_empty, F::zero());
+        let prod_empty: F = empty.iter().product();
+        assert_eq!(prod_empty, F::one());
+    }
+}
+
+#[cfg(test)]
+mod prop_tests {
+    use crypto_bigint::{U256, const_monty_params};
+    use num_traits::{One, Zero};
+    use proptest::prelude::*;
+
+    use super::*;
+
+    const_monty_params!(
+        ModP,
+        U256,
+        "00dca94d8a1ecce3b6e8755d8999787d0524d8ca1ea755e7af84fb646fa31f27"
+    );
+    type F = RandomField<ModP, { U256::LIMBS }>;
+
+    fn any_f() -> impl Strategy<Value = F> {
+        any::<u64>().prop_map(F::from)
     }
 
-    #[test]
-    fn test_neg_mid_value() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let operand: RandomField<1> = random_field!(17u32, config);
-        let negated = -operand;
-
-        assert_eq!(negated.into_bigint(), big_int!(6));
+    fn any_nonzero_f() -> impl Strategy<Value = F> {
+        any_f().prop_filter("non-zero", |x| !x.is_zero())
     }
 
-    #[test]
-    fn test_neg_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::<1>::from(&config);
+    proptest! {
+        #[test]
+        fn prop_sum_over_concat_equals_sum_over_parts(a in proptest::collection::vec(any_f(), 0..20), b in proptest::collection::vec(any_f(), 0..20)) {
+            let s_ab: F = a.iter().chain(b.iter()).cloned().sum();
+            let s_a: F = a.iter().cloned().sum();
+            let s_b: F = b.iter().cloned().sum();
+            prop_assert_eq!(s_ab, s_a + s_b);
+        }
 
-        let operand: RandomField<1> = random_field!(0u32, config);
-        let negated = -operand;
+        #[test]
+        fn prop_product_over_concat_equals_product_over_parts(a in proptest::collection::vec(any_f(), 0..20), b in proptest::collection::vec(any_f(), 0..20)) {
+            let p_ab: F = a.iter().chain(b.iter()).product();
+            let p_a: F = a.iter().product();
+            let p_b: F = b.iter().product();
+            prop_assert_eq!(p_ab, p_a * p_b);
+        }
+        #[test]
+        fn prop_add_commutative(a in any_f(), b in any_f()) {
+            prop_assert_eq!(a + b, b + a);
+        }
 
-        assert_eq!(negated.into_bigint(), BigInt::zero());
-    }
+        #[test]
+        fn prop_mul_commutative(a in any_f(), b in any_f()) {
+            prop_assert_eq!(a * b, b * a);
+        }
 
-    #[test]
-    fn test_sum_of_multiple_values() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
+        #[test]
+        fn prop_add_associative(a in any_f(), b in any_f(), c in any_f()) {
+            prop_assert_eq!((a + b) + c, a + (b + c));
+        }
 
-        let values = [
-            random_field!(2u32, config),
-            random_field!(4u32, config),
-            random_field!(6u32, config),
-        ];
+        #[test]
+        fn prop_mul_associative(a in any_f(), b in any_f(), c in any_f()) {
+            prop_assert_eq!((a * b) * c, a * (b * c));
+        }
 
-        let sum: RandomField<1> = values.iter().sum();
+        #[test]
+        fn prop_distributive(a in any_f(), b in any_f(), c in any_f()) {
+            prop_assert_eq!(a * (b + c), a * b + a * c);
+            prop_assert_eq!((a + b) * c, a * c + b * c);
+        }
 
-        assert_eq!(sum.into_bigint(), big_int!(12));
-    }
+        #[test]
+        fn prop_additive_identity(a in any_f()) {
+            prop_assert_eq!(a + F::zero(), a);
+            prop_assert_eq!(F::zero() + a, a);
+        }
 
-    #[test]
-    fn test_sum_with_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
+        #[test]
+        fn prop_multiplicative_identity(a in any_f()) {
+            prop_assert_eq!(a * F::one(), a);
+            prop_assert_eq!(F::one() * a, a);
+        }
 
-        let values = [
-            RandomField::zero(),
-            random_field!(5u32, config),
-            random_field!(7u32, config),
-        ];
+        #[test]
+        fn prop_additive_inverse(a in any_f()) {
+            prop_assert_eq!(a + (-a), F::zero());
+        }
 
-        let sum: RandomField<1> = values.iter().sum();
+        #[test]
+        fn prop_sub_roundtrip(a in any_f(), b in any_f()) {
+            prop_assert_eq!(a - b + b, a);
+        }
 
-        assert_eq!(sum.into_bigint(), big_int!(12));
-    }
+        #[test]
+        fn prop_inversion_nonzero(a in any_nonzero_f()) {
+            let inv = a.invert().expect("non-zero should invert");
+            prop_assert_eq!(a * inv, F::one());
+        }
 
-    #[test]
-    fn test_sum_wraps_modulus() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
+        #[test]
+        fn prop_division_matches_inverse(a in any_f(), b in any_nonzero_f()) {
+            let inv_b = b.invert().unwrap();
+            let lhs = a / NonZero::new(b).unwrap();
+            let rhs = a * inv_b;
+            prop_assert_eq!(lhs.unwrap(), rhs);
+        }
 
-        let values = [
-            random_field!(10u32, config),
-            random_field!(15u32, config),
-            random_field!(21u32, config),
-        ];
-
-        let sum: RandomField<1> = values.iter().sum();
-
-        assert_eq!(sum.into_bigint(), big_int!(0));
-    }
-
-    #[test]
-    fn test_sum_empty_iterator() {
-        let sum: RandomField<1> = ark_std::iter::empty::<&RandomField<1>>().sum();
-        assert!(sum.is_zero()); // Empty sum should return zero
-    }
-
-    #[test]
-    fn test_sum_single_element() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [random_field!(9u32, config)];
-
-        let sum: RandomField<1> = values.iter().sum();
-
-        assert_eq!(sum.into_bigint(), big_int!(9));
-    }
-
-    #[test]
-    fn test_sum_with_modulus_wrapping() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [random_field!(12u32, config), random_field!(15u32, config)];
-
-        let sum: RandomField<1> = values.iter().sum();
-
-        assert_eq!(sum.into_bigint(), big_int!(4));
-    }
-
-    #[test]
-    fn test_product_of_multiple_values() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [
-            random_field!(2u32, config),
-            random_field!(4u32, config),
-            random_field!(6u32, config),
-        ];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert_eq!(product.into_bigint(), big_int!(2));
-    }
-
-    #[test]
-    fn test_product_with_one() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [
-            RandomField::one(),
-            random_field!(5u32, config),
-            random_field!(7u32, config),
-        ];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert_eq!(product.into_bigint(), big_int!(12));
-    }
-
-    #[test]
-    fn test_product_with_zero() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-        let values = [
-            random_field!(3u32, config),
-            RandomField::zero(),
-            random_field!(9u32, config),
-        ];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert!(product.is_zero());
-    }
-
-    #[test]
-    fn test_product_negative_modular_complements() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [
-            random_field!(10u32, config),
-            random_field!(15u32, config),
-            random_field!(21u32, config),
-        ];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert_eq!(product.into_bigint(), big_int!(22));
-    }
-
-    #[test]
-    fn test_product_empty_iterator() {
-        let product: RandomField<1> = ark_std::iter::empty::<&RandomField<1>>().product();
-        assert!(product.is_one()); // Empty product should return one
-    }
-
-    #[test]
-    fn test_product_single_element() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [random_field!(9u32, config)];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert_eq!(product.into_bigint(), big_int!(9));
-    }
-
-    #[test]
-    fn test_product_with_modulus_wrapping() {
-        let config = field_config!(23);
-        let config = ConfigRef::from(&config);
-
-        let values = [random_field!(12u32, config), random_field!(15u32, config)];
-
-        let product: RandomField<1> = values.iter().product();
-
-        assert_eq!(product.into_bigint(), big_int!(19));
+        #[test]
+        fn prop_assign_ops_equivalence(x0 in any_f(), y in any_f()) {
+            let mut x = x0;
+            x += y;
+            prop_assert_eq!(x, x0 + y);
+            let mut x2 = x0;
+            x2 -= y;
+            prop_assert_eq!(x2, x0 - y);
+            let mut x3 = x0;
+            x3 *= y;
+            prop_assert_eq!(x3, x0 * y);
+        }
     }
 }

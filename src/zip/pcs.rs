@@ -9,3 +9,6 @@ mod verify_z;
 pub mod tests;
 
 pub use utils::MerkleTree;
+
+#[cfg(test)]
+mod verify_test;

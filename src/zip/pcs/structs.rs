@@ -1,38 +1,67 @@
-use ark_std::{collections::BTreeSet, marker::PhantomData, vec::Vec};
+use std::marker::PhantomData;
 
-use super::utils::{MerkleTree, MtHash};
+use crypto_bigint::Int;
+use p3_field::Packable;
+
 use crate::{
-    traits::{Integer, ZipTypes},
-    zip::code::LinearCode,
+    utils::ReinterpretVector,
+    zip::{
+        code::LinearCode,
+        pcs::{MerkleTree, utils::MtHash},
+    },
 };
 
-pub struct MultilinearZip<ZT: ZipTypes, LC: LinearCode<ZT>>(PhantomData<(ZT, LC)>);
+pub struct MultilinearZip<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    LC: LinearCode<N, L, K, M>,
+>(PhantomData<LC>);
 
 /// Parameters for the Zip PCS.
 #[derive(Clone, Debug)]
-pub struct MultilinearZipParams<ZT: ZipTypes, LC: LinearCode<ZT>> {
+pub struct MultilinearZipParams<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    LC: LinearCode<N, L, K, M>,
+> {
     pub num_vars: usize,
     pub num_rows: usize,
     pub linear_code: LC,
-    phantom_data_zt: PhantomData<ZT>,
 }
 
-impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZipParams<ZT, LC> {
-    pub fn new(num_vars: usize, num_rows: usize, linear_code: LC) -> MultilinearZipParams<ZT, LC> {
+impl<const N: usize, const L: usize, const K: usize, const M: usize, LC: LinearCode<N, L, K, M>>
+    MultilinearZipParams<N, L, K, M, LC>
+{
+    pub fn new(
+        num_vars: usize,
+        num_rows: usize,
+        linear_code: LC,
+    ) -> MultilinearZipParams<N, L, K, M, LC> {
         Self {
             num_vars,
             num_rows,
             linear_code,
-            phantom_data_zt: PhantomData,
         }
     }
 }
 
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
+pub(crate) struct PackedInt<const LIMBS: usize>(pub(crate) Int<LIMBS>);
+
+unsafe impl<const N: usize> ReinterpretVector<PackedInt<N>> for Int<N> {}
+unsafe impl<const N: usize> ReinterpretVector<Int<N>> for PackedInt<N> {}
+
+impl<const LIMBS: usize> Packable for PackedInt<LIMBS> {}
+
 /// Representantation of a zip commitment to a multilinear polynomial
 #[derive(Debug, Default)]
-pub struct MultilinearZipData<K: Integer> {
+pub struct MultilinearZipData<const K: usize> {
     /// The encoded rows of the polynomial matrix representation, referred to as "u-hat" in the Zinc paper
-    pub rows: Vec<K>,
+    pub rows: Vec<Int<K>>,
     /// Merkle trees of entire matrix
     pub merkle_tree: MerkleTree<K>,
 }
@@ -44,8 +73,8 @@ pub struct MultilinearZipCommitment {
     pub root: MtHash,
 }
 
-impl<K: Integer> MultilinearZipData<K> {
-    pub fn new(rows: Vec<K>, merkle_tree: MerkleTree<K>) -> MultilinearZipData<K> {
+impl<const K: usize> MultilinearZipData<K> {
+    pub fn new(rows: Vec<Int<K>>, merkle_tree: MerkleTree<K>) -> MultilinearZipData<K> {
         MultilinearZipData { rows, merkle_tree }
     }
 
@@ -54,19 +83,10 @@ impl<K: Integer> MultilinearZipData<K> {
     }
 }
 
-pub trait ZipTranscript<I: Integer> {
-    fn get_encoding_element(&mut self) -> I;
-    fn get_u64(&mut self) -> u64;
-    fn sample_unique_columns(
-        &mut self,
-        range: ark_std::ops::Range<usize>,
-        columns: &mut BTreeSet<usize>,
-        count: usize,
-    ) -> usize;
-}
-
-impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
-    pub fn setup(poly_size: usize, linear_code: LC) -> MultilinearZipParams<ZT, LC> {
+impl<const N: usize, const L: usize, const K: usize, const M: usize, LC: LinearCode<N, L, K, M>>
+    MultilinearZip<N, L, K, M, LC>
+{
+    pub fn setup(poly_size: usize, linear_code: LC) -> MultilinearZipParams<N, L, K, M, LC> {
         assert!(poly_size.is_power_of_two());
         let num_vars = poly_size.ilog2() as usize;
         let num_rows = ((1 << num_vars) / linear_code.row_len()).next_power_of_two();
@@ -75,7 +95,6 @@ impl<ZT: ZipTypes, LC: LinearCode<ZT>> MultilinearZip<ZT, LC> {
             num_vars,
             num_rows,
             linear_code,
-            phantom_data_zt: PhantomData,
         }
     }
 }

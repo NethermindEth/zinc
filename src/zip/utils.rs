@@ -1,12 +1,8 @@
-use ark_std::{
-    ops::{Add, Mul},
-    vec,
-    vec::Vec,
-};
-use num_integer::Integer as NumInteger;
-use rand::{SeedableRng, rngs::StdRng, seq::SliceRandom};
+use std::ops::{Add, Mul};
 
-use crate::traits::{Integer, Words};
+use crypto_bigint::{Int, Word};
+use rand::{rngs::StdRng, seq::SliceRandom};
+use rand_core::SeedableRng;
 
 pub(crate) fn inner_product<'a, 'b, T, L, R>(lhs: L, rhs: R) -> T
 where
@@ -19,10 +15,6 @@ where
         .map(|(lhs, rhs)| lhs.clone() * rhs.clone())
         .reduce(|acc, product| acc + product)
         .unwrap_or_default()
-}
-
-pub(crate) fn div_ceil(dividend: usize, divisor: usize) -> usize {
-    NumInteger::div_ceil(&dividend, &divisor)
 }
 
 pub(crate) fn num_threads() -> usize {
@@ -58,9 +50,8 @@ where
 {
     #[cfg(feature = "parallel")]
     {
-        use crate::zip::utils::div_ceil;
         let num_threads = num_threads();
-        let chunk_size = div_ceil(v.len(), num_threads);
+        let chunk_size = v.len().div_ceil(num_threads);
         if chunk_size < num_threads {
             f((v, 0));
         } else {
@@ -126,34 +117,27 @@ where
     combined_row
 }
 
-pub(super) fn expand<N: Integer, M: Integer + for<'a> From<&'a N>>(narrow_int: &N) -> M {
+pub(super) fn expand<const N: usize, const M: usize>(narrow_int: &Int<N>) -> Int<M> {
     assert!(
-        N::W::num_words() <= M::W::num_words(),
+        N <= M,
         "Cannot squeeze a wide integer into a narrow integer."
     );
 
-    M::from(narrow_int)
+    narrow_int.resize()
 }
 
 /// Reorder the elements in slice using the given randomness seed
-pub(super) fn shuffle_seeded<T>(slice: &mut [T], seed: u64) {
-    let mut rng = StdRng::seed_from_u64(seed);
+pub(super) fn shuffle_seeded<T>(slice: &mut [T], seed: Word) {
+    let mut rng = StdRng::seed_from_u64(seed as u64);
     slice.shuffle(&mut rng);
 }
 
 #[cfg(test)]
 mod test {
+    use crypto_bigint::{Int, Random, Word};
+    use rand::rng;
 
-    use crypto_bigint::Random;
-    use num_traits::{ConstOne, ConstZero};
-
-    use crate::{
-        field::Int,
-        zip::{
-            pcs::utils::AsWords,
-            utils::{expand, inner_product},
-        },
-    };
+    use crate::zip::utils::{expand, inner_product};
 
     #[test]
     fn test_inner_product_basic() {
@@ -164,73 +148,73 @@ mod test {
 
     #[test]
     fn test_expand_normal() {
-        let input_words = [1u64, 2u64];
-        let input = Int::<2>::from(input_words);
-        let expanded = expand::<Int<2>, Int<4>>(&input);
+        let input_words = [1, 2];
+        let input = Int::<2>::from_words(input_words);
+        let expanded = expand::<2, 4>(&input);
 
-        let expected_words = [1u64, 2u64, 0u64, 0u64];
-        assert_eq!(expanded.as_words(), expected_words);
+        let expected_words = [1, 2, 0, 0];
+        assert_eq!(expanded.to_words(), expected_words);
     }
 
     #[test]
     fn test_expand_identity() {
-        let input_words = [42u64, 99u64];
-        let input = Int::<2>::from(input_words);
-        let expanded = expand::<Int<2>, Int<2>>(&input);
+        let input_words = [42, 99];
+        let input = Int::<2>::from_words(input_words);
+        let expanded = expand::<2, 2>(&input);
 
-        let expected_words = [42u64, 99u64];
-        assert_eq!(expanded.as_words(), expected_words);
+        let expected_words = [42, 99];
+        assert_eq!(expanded.to_words(), expected_words);
     }
 
     #[test]
     #[should_panic(expected = "Cannot squeeze a wide integer into a narrow integer.")]
     fn test_expand_invalid() {
-        let input = Int::<4>::from([1, 2, 3, 4]);
+        let input = Int::<4>::from_words([1, 2, 3, 4]);
         // N = 4, M = 2 → should panic
-        let _ = expand::<Int<4>, Int<2>>(&input);
+        let _ = expand::<4, 2>(&input);
     }
 
     #[test]
     fn test_expand_zero_padding() {
-        let input = Int::<1>::from([123]);
-        let expanded = expand::<Int<1>, Int<3>>(&input);
+        let input = Int::<1>::from_words([123]);
+        let expanded = expand::<1, 3>(&input);
 
-        let expected_words = [123u64, 0u64, 0u64];
-        assert_eq!(expanded.as_words(), expected_words);
+        let expected_words = [123 as Word, 0, 0];
+        assert_eq!(expanded.to_words(), expected_words);
     }
 
     #[test]
     fn test_expand_all_zeros() {
-        let input = Int::<2>::from([0u64, 0u64]);
-        let expanded = expand::<Int<2>, Int<4>>(&input);
+        let input = Int::<2>::from_words([0, 0]);
+        let expanded = expand::<2, 4>(&input);
 
-        let expected_words = [0u64, 0u64, 0u64, 0u64];
-        assert_eq!(expanded.as_words(), expected_words);
+        let expected_words = [0 as Word, 0, 0, 0];
+        assert_eq!(expanded.to_words(), expected_words);
     }
     #[test]
     fn test_expand_negative_number_identity() {
         // Example negative number in two's complement for 2 words
-        let negative_val = Int::<2>::from([!0u64, !0u64]); // -1
-        let expanded = expand::<Int<2>, Int<2>>(&negative_val);
+        let negative_val = Int::<2>::from_words([!0, !0]); // -1
+        let expanded = expand::<2, 2>(&negative_val);
 
-        assert_eq!(expanded, Int::<2>::ZERO - &Int::<2>::ONE);
+        assert_eq!(expanded, Int::ZERO - Int::ONE);
     }
 
     #[test]
     fn test_expand_negative_number_wider() {
-        let mut rg = ark_std::test_rng();
+        let mut rg = rng();
 
         let mut positive_val = Int::<2>::random(&mut rg);
         if positive_val < Int::ZERO {
-            positive_val = Int::<2>::ZERO - &positive_val;
+            positive_val = Int::ZERO - positive_val;
         }
 
-        let expanded_positive = expand::<Int<2>, Int<4>>(&positive_val);
+        let expanded_positive = expand::<2, 4>(&positive_val);
 
-        let negative_val = Int::<2>::ZERO - &positive_val;
-        let expanded_negative = expand::<Int<2>, Int<4>>(&negative_val);
+        let negative_val = Int::ZERO - positive_val;
+        let expanded_negative = expand::<2, 4>(&negative_val);
 
-        let expected_negative = Int::<4>::ZERO - &expanded_positive;
+        let expected_negative = Int::ZERO - expanded_positive;
 
         assert_eq!(expanded_negative, expected_negative);
     }

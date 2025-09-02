@@ -1,18 +1,16 @@
 use ark_std::{boxed::Box, vec::Vec};
+use crypto_bigint::Int;
 
 use super::{
     errors::{MleEvaluationError, SpartanError, ZincError},
     structs::{SpartanProof, ZincProof, ZincVerifier, ZipProof},
-    utils::{SqueezeBeta, SqueezeGamma, draw_random_field},
+    utils::{SqueezeBeta, SqueezeGamma},
 };
 use crate::{
-    ccs::{
-        ccs_f::{CCS_F, Statement_F},
-        ccs_z::{CCS_Z, Statement_Z},
-    },
-    poly_f::mle::DenseMultilinearExtension,
-    sumcheck::{MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof, utils::eq_eval},
-    traits::{ConfigReference, Field, FieldMap, Integer, ZipTypes},
+    ccs::{CcsF, CcsZ, Statement},
+    poly::dense::DenseMultilinearExtension,
+    sumcheck::{MLSumcheck, SumCheckError::SumCheckFailed, SumcheckProof},
+    traits::Field,
     transcript::KeccakTranscript,
     zip::{
         code::LinearCodeSpec, code_raa::RaaCode, pcs::structs::MultilinearZip,
@@ -20,47 +18,42 @@ use crate::{
     },
 };
 
-pub trait Verifier<I: Integer, F: Field, S: LinearCodeSpec> {
+pub trait Verifier<const I: usize, F: Field<LIMBS>, const LIMBS: usize, S: LinearCodeSpec> {
     fn verify(
         &self,
-        cm_i: &Statement_Z<I>,
+        cm_i: &Statement<Int<I>>,
         proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<I>,
-        config: F::R,
+        ccs: &CcsZ<Int<I>>,
     ) -> Result<(), ZincError<F>>;
 }
 
 // TODO
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> Verifier<ZT::N, F, S> for ZincVerifier<ZT, F, S>
+impl<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> Verifier<N, F, LIMBS, S> for ZincVerifier<N, L, K, M, F, LIMBS, S>
 where
-    ZT::L: FieldMap<F, Output = F>,
-    ZT::K: FieldMap<F, Output = F>,
-    ZT::N: FieldMap<F, Output = F>,
-    for<'a> ZT::N: From<&'a F::I>,
-    for<'a> F::I: From<&'a ZT::N>,
-    for<'a> F::I: From<&'a <ZT::N as Integer>::I>,
-    Self: SpartanVerifier<F>,
+    Self: SpartanVerifier<F, LIMBS>,
 {
     fn verify(
         &self,
-        statement: &Statement_Z<ZT::N>,
+        statement: &Statement<Int<N>>,
         proof: ZincProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_Z<ZT::N>,
-        config: F::R,
+        ccs: &CcsZ<Int<N>>,
     ) -> Result<(), ZincError<F>> {
-        if draw_random_field::<ZT::N, F>(&statement.public_input, transcript)
-            != *config.reference().unwrap()
-        {
-            return Err(ZincError::FieldConfigError);
-        }
         // TODO: Write functionality to let the verifier know that there are no denominators that can be divided by q(As an honest prover)
-        let ccs_F = ccs.map_to_field(config);
-        let statement_f = statement.map_to_field(config);
+        let ccs_F = ccs.map_to_field();
+        let statement_f = statement.map_to_field();
 
         let verification_points =
-            SpartanVerifier::<F>::verify(self, &proof.spartan_proof, &ccs_F, transcript, config)
+            SpartanVerifier::<F, LIMBS>::verify(self, &proof.spartan_proof, &ccs_F, transcript)
                 .map_err(ZincError::SpartanError)?;
 
         self.verify_pcs_proof(
@@ -69,7 +62,6 @@ where
             &verification_points,
             &ccs_F,
             transcript,
-            config,
         )?;
 
         Ok(())
@@ -77,7 +69,7 @@ where
 }
 
 /// Verifier for the Linearization subprotocol.
-pub trait SpartanVerifier<F: Field> {
+pub trait SpartanVerifier<F: Field<LIMBS>, const LIMBS: usize> {
     /// Verifies a proof for the linearization subprotocol.
     ///
     /// # Arguments
@@ -95,22 +87,29 @@ pub trait SpartanVerifier<F: Field> {
     fn verify(
         &self,
         proof: &SpartanProof<F>,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
         transcript: &mut KeccakTranscript,
-        config: F::R,
     ) -> Result<VerificationPoints<F>, SpartanError<F>>;
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanVerifier<F> for ZincVerifier<ZT, F, S> {
+impl<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> SpartanVerifier<F, LIMBS> for ZincVerifier<N, L, K, M, F, LIMBS, S>
+{
     fn verify(
         &self,
         proof: &SpartanProof<F>,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
         transcript: &mut KeccakTranscript,
-        config: F::R,
     ) -> Result<VerificationPoints<F>, SpartanError<F>> {
         // Step 1: Generate the beta challenges.
-        let beta_s = transcript.squeeze_beta_challenges(ccs.s, config);
+        let beta_s = transcript.squeeze_beta_challenges(ccs.s);
 
         //Step 2: The sumcheck.
         let (r_x, s) =
@@ -119,7 +118,7 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanVerifier<F> for ZincVerif
         // Step 3. Check V_s is congruent to s
         Self::verify_linearization_claim(&beta_s, &r_x, s, proof, ccs)?;
 
-        let gamma: F = transcript.squeeze_gamma_challenge(config);
+        let gamma: F = transcript.squeeze_gamma_challenge();
 
         let second_sumcheck_claimed_sum = Self::lin_comb_V_s(&gamma, &proof.V_s);
 
@@ -138,25 +137,29 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> SpartanVerifier<F> for ZincVerif
     }
 }
 
-impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
+impl<
+    const N: usize,
+    const L: usize,
+    const K: usize,
+    const M: usize,
+    F: Field<LIMBS>,
+    const LIMBS: usize,
+    S: LinearCodeSpec,
+> ZincVerifier<N, L, K, M, F, LIMBS, S>
+{
     fn verify_linearization_proof(
         &self,
         proof: &SumcheckProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
     ) -> Result<(Vec<F>, F), SpartanError<F>> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s;
         let degree = ccs.d + 1;
 
-        let subclaim = MLSumcheck::verify_as_subprotocol(
-            transcript,
-            nvars,
-            degree,
-            F::zero(),
-            proof,
-            unsafe { F::R::new(*ccs.config.as_ptr()) },
-        )?;
+        let claimed_sum = MLSumcheck::extract_sum(proof);
+        let subclaim =
+            MLSumcheck::verify_as_subprotocol(transcript, nvars, degree, claimed_sum, proof)?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
@@ -166,20 +169,33 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
         point_r: &[F],
         s: F,
         proof: &SpartanProof<F>,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
     ) -> Result<(), SpartanError<F>> {
-        let e = eq_eval(point_r, beta_s)?;
+        let e = {
+            // Evaluate eq(beta_s, x) at x = point_r using the same routine
+            // used to build the eq MLE, to avoid any subtle inconsistencies.
+            let eq_mle = crate::sumcheck::utils::build_eq_x_r(beta_s)?;
+            eq_mle
+                .evaluate(point_r)
+                .ok_or(MleEvaluationError::IncorrectLength(
+                    point_r.len(),
+                    eq_mle.num_vars,
+                ))?
+        };
         let should_equal_s = e * ccs // e * (\sum c_i * \Pi_{j \in S_i} u_j)
             .c
             .iter()
             .enumerate()
-            .map(|(i, c)| c.clone() * ccs.S[i].iter().map(|&j| &proof.V_s[j]).product::<F>()) // c_i * \Pi_{j \in S_i} u_j
-            .sum::<F>(); // \sum c_i * \Pi_{j \in S_i} u_j
+            .map(|(i, c)| {
+                let prod = ccs.S[i].iter().fold(F::one(), |acc, &j| acc * proof.V_s[j]);
+                *c * prod
+            }) // c_i * \Pi_{j \in S_i} u_j
+            .fold(F::zero(), |acc, term| acc + term); // \sum c_i * \Pi_{j \in S_i} u_j
 
         if should_equal_s != s {
             return Err(SpartanError::SumCheckError(SumCheckFailed(
-                Box::new(should_equal_s.into()),
-                Box::new(s.into()),
+                Box::new(should_equal_s),
+                Box::new(s),
             )));
         }
 
@@ -190,21 +206,15 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
         &self,
         proof: &SumcheckProof<F>,
         transcript: &mut KeccakTranscript,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
         claimed_sum: F,
     ) -> Result<(Vec<F>, F), SpartanError<F>> {
         // The polynomial has degree <= ccs.d + 1 and log_m (ccs.s) vars.
         let nvars = ccs.s_prime;
         let degree = 2;
 
-        let subclaim = MLSumcheck::verify_as_subprotocol(
-            transcript,
-            nvars,
-            degree,
-            claimed_sum,
-            proof,
-            unsafe { F::R::new(*ccs.config.as_ptr()) },
-        )?;
+        let subclaim =
+            MLSumcheck::verify_as_subprotocol(transcript, nvars, degree, claimed_sum, proof)?;
 
         Ok((subclaim.point, subclaim.expected_evaluation))
     }
@@ -212,7 +222,7 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
     fn lin_comb_V_s(gamma: &F, V_s: &[F]) -> F {
         let mut res = F::zero();
         for V_i in V_s.iter().rev() {
-            res *= gamma;
+            res = res * gamma;
             res += V_i;
         }
         res
@@ -220,48 +230,41 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
 
     fn verify_pcs_proof(
         &self,
-        cm_i: &Statement_F<F>,
+        cm_i: &Statement<F>,
         zip_proof: &ZipProof<F>,
         verification_points: &VerificationPoints<F>,
-        ccs: &CCS_F<F>,
+        ccs: &CcsF<F>,
         transcript: &mut KeccakTranscript,
-        config: F::R,
-    ) -> Result<(), SpartanError<F>>
-    where
-        ZT::L: FieldMap<F, Output = F>,
-        ZT::K: FieldMap<F, Output = F>,
-    {
-        let linear_code = RaaCode::<ZT>::new(&self.lc_spec, ccs.m, transcript);
-        let param = MultilinearZip::<ZT, _>::setup(ccs.m, linear_code);
+    ) -> Result<(), SpartanError<F>> {
+        let linear_code = RaaCode::<N, L, K, M>::new(&self.lc_spec, ccs.m, transcript);
+        let param = MultilinearZip::<N, L, K, M, _>::setup(ccs.m, linear_code);
         let mut pcs_transcript = PcsTranscript::from_proof(&zip_proof.pcs_proof);
         let r_y = &verification_points.rx_ry[ccs.s..];
 
-        MultilinearZip::<ZT, _>::verify(
+        MultilinearZip::<N, L, K, M, _>::verify(
             &param,
             &zip_proof.z_comm,
             r_y,
-            zip_proof.v.clone(),
+            zip_proof.v,
             &mut pcs_transcript,
-            config,
         )?;
 
         // Evaluate constraints at rx_ry point
         let V_xy = cm_i
             .constraints
             .iter()
-            .map(|M| {
-                let mle = DenseMultilinearExtension::from_matrix(M, config);
-                mle.evaluate(&verification_points.rx_ry, config).ok_or(
-                    MleEvaluationError::IncorrectLength(
+            .map(|mat| {
+                let mle = DenseMultilinearExtension::from_matrix(mat);
+                mle.evaluate(&verification_points.rx_ry)
+                    .ok_or(MleEvaluationError::IncorrectLength(
                         verification_points.rx_ry.len(),
                         mle.num_vars,
-                    ),
-                )
+                    ))
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         // Check final verification equation
-        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * &zip_proof.v;
+        let V_x_gamma = Self::lin_comb_V_s(&verification_points.gamma, &V_xy) * zip_proof.v;
         if V_x_gamma != verification_points.e_y {
             return Err(SpartanError::PCSVerificationError(
                 "linear combination of powers of gamma and V_x != e_y".into(),
@@ -272,6 +275,7 @@ impl<ZT: ZipTypes, F: Field, S: LinearCodeSpec> ZincVerifier<ZT, F, S> {
     }
 }
 
+#[derive(Debug)]
 pub struct VerificationPoints<F> {
     pub rx_ry: Vec<F>,
     pub e_y: F,

@@ -1,4 +1,4 @@
-use ark_std::{fmt::Debug, marker::PhantomData, ops::AddAssign, vec::Vec};
+use ark_std::{fmt::Debug, marker::PhantomData, ops::{AddAssign, Neg}, vec::Vec};
 use num_traits::Zero;
 
 use crate::{
@@ -88,14 +88,14 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
     /// Do the actual encoding, as per RAA spec
     fn encode_inner<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
-        Out: Zero + AddAssign<Out> + for<'a> From<&'a In> + Clone,
+        Out: Zero + Neg<Output=Out> + AddAssign<Out> + for<'a> From<&'a In> + Clone,
     {
         debug_assert_eq!(
             row.len(),
             self.row_len,
             "Row length must match the code's row length"
         );
-        let mut result: Vec<Out> = repeat(row, self.repetition_factor);
+        let mut result: Vec<Out> = repeat_alternating_signs(row, self.repetition_factor);
         shuffle_seeded(&mut result, self.perm_1_seed);
         accumulate(&mut result);
         shuffle_seeded(&mut result, self.perm_2_seed);
@@ -138,14 +138,17 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
     }
 }
 
-/// Repeat the given slice N times, e.g `[1,2,3] => [1,2,3,1,2,3]`
-fn repeat<In, Out: for<'a> From<&'a In> + Clone>(
+/// Repeat the given slice N times, inverting signs with each repetition, e.g `[1,2,3] => [1,2,3,-1,-2,-3,1,2,3]`
+fn repeat_alternating_signs<In, Out: Neg<Output=Out> + for<'a> From<&'a In> + Clone>(
     input: &[In],
     repetition_factor: usize,
 ) -> Vec<Out> {
     input
         .iter()
         .map(|i| Out::from(i))
+        .chain(input
+            .iter()
+            .map(|i| -Out::from(i)))
         .cycle()
         .take(input.len() * repetition_factor)
         .collect()
@@ -182,7 +185,7 @@ mod tests {
         traits::ZipTypes,
         zip::{
             code::{DefaultLinearCodeSpec, LinearCode},
-            code_raa::{RaaCode, accumulate, repeat},
+            code_raa::{RaaCode, accumulate, repeat_alternating_signs},
             pcs::tests::MockTranscript,
             utils::shuffle_seeded,
         },
@@ -199,24 +202,31 @@ mod tests {
     fn repeat_function_duplicates_row_correctly() {
         let input = vec![Int::<INT_LIMBS>::from(10), Int::<INT_LIMBS>::from(20)];
 
-        let repetition_factor = 3;
-
-        let repeated_output = repeat::<_, I>(&input, repetition_factor);
-
-        let expected_output: Vec<_> = [10, 20, 10, 20, 10, 20]
+        let repeated_output = repeat_alternating_signs::<_, I>(&input, 4);
+        let expected_output: Vec<_> = [10, 20, -10, -20, 10, 20, -10, -20]
             .into_iter()
             .map(Int::<INT_LIMBS>::from)
             .collect();
         assert_eq!(
             repeated_output, expected_output,
-            "Failed on repetition factor > 1"
+            "Failed on repetition factor = 4"
+        );
+
+        let repeated_output = repeat_alternating_signs::<_, I>(&input, 3);
+        let expected_output: Vec<_> = [10, 20, -10, -20, 10, 20]
+            .into_iter()
+            .map(Int::<INT_LIMBS>::from)
+            .collect();
+        assert_eq!(
+            repeated_output, expected_output,
+            "Failed on repetition factor = 3"
         );
 
         let empty_input: Vec<I> = vec![];
-        let repeated_empty = repeat::<_, I>(&empty_input, 5);
+        let repeated_empty = repeat_alternating_signs::<_, I>(&empty_input, 5);
         assert!(repeated_empty.is_empty(), "Failed on empty input vector");
 
-        let repeated_once = repeat::<_, I>(&input, 1);
+        let repeated_once = repeat_alternating_signs::<_, I>(&input, 1);
         assert_eq!(repeated_once, input, "Failed on repetition factor of 1");
     }
 

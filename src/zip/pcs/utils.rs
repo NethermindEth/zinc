@@ -14,6 +14,7 @@ use p3_field::Packable;
 use p3_matrix::{Dimensions, Matrix as P3Matrix, dense::RowMajorMatrix};
 use p3_merkle_tree::MerkleTreeMmcs;
 use p3_symmetric::{CryptographicHasher, PseudoCompressionFunction};
+use sha2::Digest;
 use uninit::AsMaybeUninit;
 
 use super::{error::MerkleError, structs::MultilinearZipData};
@@ -73,35 +74,33 @@ pub trait AsWords {
     fn as_words(&self) -> &[Word];
 }
 
-/// Cannot reference blake3::OUT_LEN directly in some of the contexts below.
-const BLAKE3_OUT_LEN: usize = blake3::OUT_LEN;
+pub const HASH_OUT_LEN: usize = 256 / 8;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[repr(transparent)]
-pub struct MtHash(pub(crate) [u8; BLAKE3_OUT_LEN]);
+pub struct MtHash(pub(crate) [u8; HASH_OUT_LEN]);
 
 impl Default for MtHash {
     fn default() -> Self {
-        MtHash([0; BLAKE3_OUT_LEN])
+        MtHash([0; HASH_OUT_LEN])
     }
 }
 
 impl Display for MtHash {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let blake3_hash: blake3::Hash = self.0.into();
-        <blake3::Hash as Display>::fmt(&blake3_hash, f)
+        write!(f, "0x{}", hex::encode(self.0))
     }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct MtHasher;
 
-impl<T: AsWords + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHasher {
-    fn hash_iter<I>(&self, input: I) -> [u8; BLAKE3_OUT_LEN]
+impl<T: AsWords + Clone> CryptographicHasher<T, [u8; HASH_OUT_LEN]> for MtHasher {
+    fn hash_iter<I>(&self, input: I) -> [u8; HASH_OUT_LEN]
     where
         I: IntoIterator<Item = T>,
     {
-        let mut hasher = blake3::Hasher::new();
+        let mut hasher = sha2::Sha256::new();
         let mut buf = [0_u8; size_of::<Word>()];
         for item in input {
             for word in item.as_words() {
@@ -117,9 +116,9 @@ impl<T: AsWords + Clone> CryptographicHasher<T, [u8; BLAKE3_OUT_LEN]> for MtHash
 #[derive(Debug, Default, Clone)]
 pub struct MtPerm;
 
-impl PseudoCompressionFunction<[u8; BLAKE3_OUT_LEN], 2> for MtPerm {
-    fn compress(&self, input: [[u8; BLAKE3_OUT_LEN]; 2]) -> [u8; BLAKE3_OUT_LEN] {
-        let mut hasher = blake3::Hasher::new();
+impl PseudoCompressionFunction<[u8; HASH_OUT_LEN], 2> for MtPerm {
+    fn compress(&self, input: [[u8; HASH_OUT_LEN]; 2]) -> [u8; HASH_OUT_LEN] {
+        let mut hasher = sha2::Sha256::new();
         for ref item in input {
             hasher.write_all(item).expect("Failed to write to hasher");
         }
@@ -128,8 +127,8 @@ impl PseudoCompressionFunction<[u8; BLAKE3_OUT_LEN], 2> for MtPerm {
 }
 
 type Matrix<T> = RowMajorMatrix<T>;
-type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, BLAKE3_OUT_LEN>;
-type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, BLAKE3_OUT_LEN>;
+type MtMmcs<T> = MerkleTreeMmcs<T, u8, MtHasher, MtPerm, HASH_OUT_LEN>;
+type P3MerkleTree<T> = p3_merkle_tree::MerkleTree<T, u8, Matrix<T>, HASH_OUT_LEN>;
 
 #[derive(Debug, Default)]
 pub struct MerkleTree<T>

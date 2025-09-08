@@ -13,7 +13,7 @@ use crate::{
     poly::alloc::string::ToString,
     traits::{BigInteger, Field, FromBytes, Integer, PrimitiveConversion, Words},
     transcript::KeccakTranscript,
-    zip::pcs::utils::MtHash,
+    zip::pcs::utils::{HASH_OUT_LEN, MtHash},
 };
 
 /// A transcript for Polynomial Commitment Scheme (PCS) operations.
@@ -58,11 +58,11 @@ impl<F: Field> PcsTranscript<F> {
     /// Reads a cryptographic commitment from the proof stream.
     /// Used during proof verification to retrieve previously committed values.
     pub fn read_commitment(&mut self) -> Result<MtHash, Error> {
-        let mut buf = [0; blake3::OUT_LEN];
+        let mut buf = [0; HASH_OUT_LEN];
         self.stream
             .read_exact(&mut buf)
             .map_err(|err| Error::Transcript(err.kind(), err.to_string()))?;
-        Ok(MtHash(blake3::Hash::from_bytes(buf).into()))
+        Ok(MtHash(buf))
     }
 
     /// Writes a cryptographic commitment to the proof stream.

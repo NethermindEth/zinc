@@ -1,4 +1,9 @@
-use ark_std::{fmt::Debug, marker::PhantomData, ops::{AddAssign, Neg}, vec::Vec};
+use ark_std::{
+    fmt::Debug,
+    marker::PhantomData,
+    ops::{AddAssign, Neg},
+    vec::Vec,
+};
 use num_traits::Zero;
 
 use crate::{
@@ -88,7 +93,7 @@ impl<ZT: ZipTypes> RaaCode<ZT> {
     /// Do the actual encoding, as per RAA spec
     fn encode_inner<In, Out>(&self, row: &[In]) -> Vec<Out>
     where
-        Out: Zero + Neg<Output=Out> + AddAssign<Out> + for<'a> From<&'a In> + Clone,
+        Out: Zero + Neg<Output = Out> + AddAssign<Out> + for<'a> From<&'a In> + Clone,
     {
         debug_assert_eq!(
             row.len(),
@@ -139,16 +144,14 @@ impl<ZT: ZipTypes> LinearCode<ZT> for RaaCode<ZT> {
 }
 
 /// Repeat the given slice N times, inverting signs with each repetition, e.g `[1,2,3] => [1,2,3,-1,-2,-3,1,2,3]`
-fn repeat_alternating_signs<In, Out: Neg<Output=Out> + for<'a> From<&'a In> + Clone>(
+fn repeat_alternating_signs<In, Out: Neg<Output = Out> + for<'a> From<&'a In> + Clone>(
     input: &[In],
     repetition_factor: usize,
 ) -> Vec<Out> {
     input
         .iter()
         .map(|i| Out::from(i))
-        .chain(input
-            .iter()
-            .map(|i| -Out::from(i)))
+        .chain(input.iter().map(|i| -Out::from(i)))
         .cycle()
         .take(input.len() * repetition_factor)
         .collect()
